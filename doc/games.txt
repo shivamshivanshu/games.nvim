@@ -61,6 +61,7 @@ Passed to `require("games").setup({opts})`.
     `glyphs`          `"unicode"` or `"ascii"`       `"unicode"`
     `palette`         `"theme"` or `"vivid"`         `"theme"`
     `highlights`      table of group -> attributes `{}`
+    `archive.dir`     string, optional           unset (no archive)
 
 `password` as a function is called at each connect, never during setup(), so
 the secret need not live in your dotfiles.
@@ -123,6 +124,34 @@ and are kept as they are, roles unchecked. >lua
     })
 <
 
+                                                                *games-archive*
+`archive.dir` (`~` is expanded) turns on the archive: every game this client
+sees is written to >
+    <dir>/<YYYY-MM-DD of the start, local time>/<game>/<game_id>/
+<
+    File              Contents ~
+    `summary.json`      the server's summary bytes, verbatim
+    `summary.sha256`    the summary's sha256 as the server sent it, in
+                      `sha256sum -c` format
+    `final.json`        the finishing update if seen, else the last update
+                      with a board; absent when neither was seen
+    `events.jsonl`      every event this client saw, one JSON per line
+    `events.seq`        seq of the last step in `events.jsonl`, so a restart
+                      does not repeat events
+    `game.pgn`          chess, when the finishing update was seen
+
+The summary is checked against its digest before anything is written; a
+mismatch is refused and notified. Writes are atomic and asynchronous; a game
+already archived is left as it is. Games that finished while Neovim was closed
+are archived by `:Games list finished` or |:Games-export|, without `final.json`
+or `game.pgn`. Only the outcome is tamper-evident: `game.verify {summary}`
+with the bytes of `summary.json` confirms them against the server's digest.
+A game id, game type or start time that would place files outside
+`archive.dir` is refused and notified.
+
+Known limitation: two Neovims logged in as the same user and archiving to the
+same `dir` can both append the same events to `events.jsonl`.
+
 ==============================================================================
 4. COMMANDS                                                      *games-commands*
 
@@ -149,6 +178,12 @@ and are kept as they are, roles unchecked. >lua
                         Leaderboard float, optionally for one game type.
 
 :Games next             Open the next game waiting on your move.
+
+:Games export                                                  *:Games-export*
+                        Archive the finished games the server lists for
+                        you, its 50 most recent (|games-archive|), and
+                        report how many were written, already present, or
+                        had no view.
 
 Incoming challenges, and moves in boards you are not viewing, arrive as
 |vim.notify()| messages. Accepting a challenge opens the board when the game

@@ -109,6 +109,7 @@ Details and flags are under Server below.
 | `glyphs` | `"unicode"` or `"ascii"` | `"unicode"` | piece glyphs; colours are the same either way |
 | `palette` | `"theme"` or `"vivid"` | `"theme"` | colours derived from your colourscheme, or a fixed lichess-style board with near-black ink pieces; `vivid` needs `termguicolors` and falls back to `theme` without it |
 | `highlights` | table | `{}` | `{ GamesX = {...} }`, each passed to `nvim_set_hl` in place of the palette's definition |
+| `archive.dir` | string | unset | archive folder (`~` expanded); archiving is off when unset; see Archive below |
 
 A bad login or protocol mismatch stops auto-reconnect and notifies; fix the config and restart Neovim (or call `setup()` again).
 
@@ -148,8 +149,30 @@ require("games").setup({
 | `:Games stats [user]` | W/L/D float (default: you) |
 | `:Games leaderboard [game]` | leaderboard float, optionally for one game type |
 | `:Games next` | open the next game waiting on your move |
+| `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or had no view |
 
 Incoming challenges and moves in boards you are not viewing arrive as `vim.notify` messages. Accepting a challenge opens the board when the game starts.
+
+## Archive
+
+With `archive = { dir = "~/games" }`, every game this client sees is written to
+
+```
+<dir>/<YYYY-MM-DD of the game's start, local time>/<game>/<game_id>/
+```
+
+| File | Contents |
+|---|---|
+| `summary.json` | the server's summary bytes, verbatim: game id, game, start and finish times, reason, each player's score |
+| `summary.sha256` | the summary's sha256 as the server sent it, in `sha256sum` format, so `sha256sum -c summary.sha256` checks it |
+| `final.json` | the finishing update if this client saw it, otherwise the last update with a board it saw; absent when it saw none |
+| `events.jsonl` | every event this client saw, one JSON object per line, in order |
+| `events.seq` | the seq of the last step whose events are in `events.jsonl`, so a restart does not repeat them |
+| `game.pgn` | chess only, when the finishing update was seen: the game as PGN |
+
+The client checks the summary against its digest before writing and refuses a game whose digest does not match. Writes are atomic (temp file, then rename) and asynchronous; a game already archived is left as it is. Games that finished while Neovim was closed are archived by `:Games list finished` or `:Games export`, without `final.json` or `game.pgn`, since the server keeps no moves of a finished game. Only the outcome is tamper-evident: send `summary.json` back with `game.verify {summary}` and the server confirms it matches the stored digest; the move files are this client's own record. A game id, game type or start time that would place files outside `archive.dir` is refused and notified.
+
+Known limitation: two Neovims logged in as the same user and archiving to the same `dir` can both append the same events to `events.jsonl`.
 
 ## Board keys
 
