@@ -114,14 +114,18 @@ function Conn.split_frames(buffer, chunk)
   return lines, rest
 end
 
----Empty Lua tables encode as `[]`; wire objects (request bodies, options) must encode as `{}`.
----@param value table|nil
+---Empty Lua tables encode as `[]`, so the wire objects in a request (the body and its options)
+---are marked to encode as `{}`; every other empty table stays an array.
+---@param body table|nil
 ---@return table
-function Conn.as_json_object(value)
-  if value == nil or vim.tbl_isempty(value) then
+function Conn.wire_body(body)
+  if body == nil or vim.tbl_isempty(body) then
     return vim.empty_dict()
   end
-  return value
+  if body.options == nil or not vim.tbl_isempty(body.options) then
+    return body
+  end
+  return vim.tbl_extend("force", body, { options = vim.empty_dict() })
 end
 
 ---Subscribes fn to a push type or a lifecycle event; fn runs via vim.schedule.
@@ -310,7 +314,7 @@ function Conn:send_request(attempt, message_type, body, cb)
   local id = self.next_id
   self.next_id = id + 1
   ---@type games.Envelope
-  local envelope = { id = id, type = message_type, body = Conn.as_json_object(body) }
+  local envelope = { id = id, type = message_type, body = Conn.wire_body(body) }
   local encoded, frame = pcall(vim.json.encode, envelope)
   if not encoded then
     local message = ("cannot encode %s request: %s"):format(message_type, frame)

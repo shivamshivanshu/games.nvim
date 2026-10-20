@@ -16,6 +16,12 @@ function T.frames_split_across_chunks()
   assert(rest == "", rest)
 end
 
+function T.wire_body_marks_objects_but_keeps_empty_arrays()
+  local frame = vim.json.encode(Conn.wire_body({ to = {}, options = {} }))
+  assert(frame:find('"options":{}', 1, true) and frame:find('"to":[]', 1, true), frame)
+  assert(vim.json.encode(Conn.wire_body(nil)) == "{}")
+end
+
 function T.login_and_catalog()
   helpers.with_server(nil, function(env)
     local conn = env.new_conn("alice")
