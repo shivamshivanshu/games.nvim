@@ -19,9 +19,8 @@
 ---@class games.Block
 ---@field lines string[]
 ---@field extmarks games.Extmark[]
+---@field widths integer[] display width of each line
 ---@field width integer display width of the widest line
-
-local text_util = require("games.ui.text")
 
 local M = {}
 
@@ -75,18 +74,21 @@ local function layout(node)
     if node.hl and #str > 0 then
       extmarks[1] = { row = 0, col = 0, end_col = #str, hl = node.hl }
     end
-    return { lines = { str }, extmarks = extmarks, width = vim.fn.strdisplaywidth(str) }
+    local width = vim.fn.strdisplaywidth(str)
+    return { lines = { str }, extmarks = extmarks, widths = { width }, width = width }
   end
 
   if node.kind == "pad" then
     local child = layout(node.child)
     local indent = (" "):rep(node.n)
-    local lines = vim.tbl_map(function(line)
-      return indent .. line
-    end, child.lines)
     return {
-      lines = lines,
+      lines = vim.tbl_map(function(line)
+        return indent .. line
+      end, child.lines),
       extmarks = shifted(child.extmarks, 0, node.n),
+      widths = vim.tbl_map(function(width)
+        return width + node.n
+      end, child.widths),
       width = child.width + node.n,
     }
   end
@@ -94,21 +96,25 @@ local function layout(node)
   local blocks = vim.tbl_map(layout, node.children)
 
   if node.kind == "col" then
-    local lines, extmarks = {}, {}
+    local lines, extmarks, widths, width = {}, {}, {}, 0
     for _, block in ipairs(blocks) do
       vim.list_extend(extmarks, shifted(block.extmarks, #lines, 0))
       vim.list_extend(lines, block.lines)
+      vim.list_extend(widths, block.widths)
+      width = math.max(width, block.width)
     end
-    return { lines = lines, extmarks = extmarks, width = text_util.max_display_width(lines) }
+    return { lines = lines, extmarks = extmarks, widths = widths, width = width }
   end
 
-  local height = 0
+  local height, width = 0, 0
   for _, block in ipairs(blocks) do
     height = math.max(height, #block.lines)
+    width = width + block.width
   end
-  local lines, extmarks = {}, {}
+  local lines, extmarks, widths = {}, {}, {}
   for i = 1, height do
     lines[i] = ""
+    widths[i] = width
   end
   for _, block in ipairs(blocks) do
     local marks_by_row = vim.defaulttable()
@@ -118,10 +124,11 @@ local function layout(node)
     for i = 1, height do
       local line_prefix_bytes = #lines[i]
       vim.list_extend(extmarks, shifted(marks_by_row[i - 1], 0, line_prefix_bytes))
-      lines[i] = lines[i] .. text_util.pad_to_width(block.lines[i] or "", block.width)
+      local shortfall = block.width - (block.widths[i] or 0)
+      lines[i] = lines[i] .. (block.lines[i] or "") .. (" "):rep(shortfall)
     end
   end
-  return { lines = lines, extmarks = extmarks, width = text_util.max_display_width(lines) }
+  return { lines = lines, extmarks = extmarks, widths = widths, width = width }
 end
 
 ---@param node games.Node
