@@ -44,6 +44,22 @@ local function board(glyph)
   })
 end
 
+---A 6x6 grid in 3x3 blocks whose cells show (row + col) mod 10.
+---@param overrides table
+---@return games.Node
+local function digit_grid(overrides)
+  return grid(vim.tbl_extend("force", {
+    rows = 6,
+    cols = 6,
+    shade = "plain",
+    blocks = 3,
+    labels = { cols = "abcdef", rows = "654321" },
+    cell = function(r, c)
+      return { tostring((r + c) % 10) }
+    end,
+  }, overrides))
+end
+
 local function assert_movelist_aligned(glyph)
   local moves = { "e4", "e5", "Nf3", "Nc6" }
   local rendered = compose.render(
@@ -106,6 +122,43 @@ return {
     }))
     assert_eq({ "2 中 中", "1 中 中", "  a  b " }, rendered.lines)
     assert_uniform_width(rendered.lines)
+  end,
+
+  grid_blocks_draw_separators_between_boxes = function()
+    local rendered = compose.render(digit_grid({}))
+    assert_eq({
+      "6 2 3 4│5 6 7",
+      "5 3 4 5│6 7 8",
+      "4 4 5 6│7 8 9",
+      "  ─────┼─────",
+      "3 5 6 7│8 9 0",
+      "2 6 7 8│9 0 1",
+      "1 7 8 9│0 1 2",
+      "  a b c d e f",
+    }, rendered.lines)
+    assert_uniform_width(rendered.lines)
+    assert_eq("GamesMuted", hl_at(rendered, 0, 7))
+  end,
+
+  grid_blocks_use_ascii_separators_in_ascii_mode = function()
+    local rendered = compose.render(digit_grid({ glyphs = "ascii" }))
+    assert_eq({
+      "6 2 3 4|5 6 7",
+      "5 3 4 5|6 7 8",
+      "4 4 5 6|7 8 9",
+      "  -----+-----",
+      "3 5 6 7|8 9 0",
+      "2 6 7 8|9 0 1",
+      "1 7 8 9|0 1 2",
+      "  a b c d e f",
+    }, rendered.lines)
+  end,
+
+  grid_rejects_blocks_that_are_not_positive_integers = function()
+    for _, blocks in ipairs({ 0, -3, 1.5 }) do
+      local ok, err = pcall(digit_grid, { blocks = blocks })
+      assert(not ok and err:find("blocks must be a positive integer", 1, true), vim.inspect(err))
+    end
   end,
 
   grid_labels_split_by_character = function()
