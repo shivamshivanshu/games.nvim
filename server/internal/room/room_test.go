@@ -13,6 +13,7 @@ import (
 
 	"games.nvim/server/game"
 	"games.nvim/server/games/chess"
+	"games.nvim/server/internal/clocktest"
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/store"
 )
@@ -103,77 +104,12 @@ func (b *recordingBroadcaster) last(user game.UserID) (protocol.GameUpdate, int)
 	return got[len(got)-1], len(got)
 }
 
-type fakeTimer struct {
-	clock   *fakeClock
-	at      time.Time
-	f       func()
-	stopped bool
-}
-
-func (t *fakeTimer) Stop() bool {
-	t.clock.mu.Lock()
-	defer t.clock.mu.Unlock()
-	wasActive := !t.stopped
-	t.stopped = true
-	return wasActive
-}
-
-type fakeClock struct {
-	mu     sync.Mutex
-	now    time.Time
-	timers []*fakeTimer
-}
-
-func (c *fakeClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fakeClock) AfterFunc(d time.Duration, f func()) Timer {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	t := &fakeTimer{clock: c, at: c.now.Add(d), f: f}
-	c.timers = append(c.timers, t)
-	return t
-}
-
-func (c *fakeClock) armed() []time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	var deadlines []time.Time
-	for _, t := range c.timers {
-		if !t.stopped {
-			deadlines = append(deadlines, t.at)
-		}
-	}
-	return deadlines
-}
-
-func (c *fakeClock) Advance(d time.Duration) int {
-	c.mu.Lock()
-	c.now = c.now.Add(d)
-	var due []*fakeTimer
-	for _, t := range c.timers {
-		if !t.stopped && !t.at.After(c.now) {
-			t.stopped = true
-			due = append(due, t)
-		}
-	}
-	c.mu.Unlock()
-	slices.SortFunc(due, func(a, b *fakeTimer) int { return a.at.Compare(b.at) })
-	for _, t := range due {
-		t.f()
-	}
-	return len(due)
-}
-
 type harness struct {
 	room    *Room
 	params  Params
 	persist *fakePersister
 	sent    *recordingBroadcaster
-	clock   *fakeClock
+	clock   *clocktest.FakeClock
 	cancel  context.CancelFunc
 }
 
@@ -196,7 +132,7 @@ func newHarness(t *testing.T, timeControl chess.TimeControl) *harness {
 	h := &harness{
 		persist: &fakePersister{},
 		sent:    &recordingBroadcaster{},
-		clock:   &fakeClock{now: time.UnixMilli(1_700_000_000_000)},
+		clock:   clocktest.New(time.UnixMilli(1_700_000_000_000)),
 	}
 	h.params = Params{
 		ID: "g1", Game: g, Options: opts, Seed: seed, Clock: clockCfg,
@@ -497,16 +433,16 @@ func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
 
 	retryAt := h.clock.Now().Add(timeoutRetryDelay)
 	deadline := time.Now().Add(waitTimeout)
-	for h.persist.attempted() < 3 || !slices.Equal(h.clock.armed(), []time.Time{retryAt}) {
+	for h.persist.attempted() < 3 || !slices.Equal(h.clock.Armed(), []time.Time{retryAt}) {
 		if time.Now().After(deadline) {
-			t.Fatalf("after a failed timeout persist: armed %v, want only %v", h.clock.armed(), retryAt)
+			t.Fatalf("after a failed timeout persist: armed %v, want only %v", h.clock.Armed(), retryAt)
 		}
 		time.Sleep(time.Millisecond)
 	}
 	time.Sleep(20 * time.Millisecond)
 	before := h.persist.attempted()
 	if fired := h.clock.Advance(0); fired != 0 {
-		t.Fatalf("Advance(0) fired %d timers; armed %v", fired, h.clock.armed())
+		t.Fatalf("Advance(0) fired %d timers; armed %v", fired, h.clock.Armed())
 	}
 	if got := h.persist.attempted(); got != before {
 		t.Fatalf("persist attempts %d -> %d without the retry delay elapsing", before, got)

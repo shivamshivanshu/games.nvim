@@ -31,7 +31,7 @@ type Broadcaster interface {
 	SendUpdate(to game.UserID, u protocol.GameUpdate)
 }
 
-type Timer interface{ Stop() bool }
+type Timer = interface{ Stop() bool }
 
 type Clock interface {
 	Now() time.Time
