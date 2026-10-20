@@ -70,6 +70,22 @@ function T.stale_error_snapshots_and_reports()
   assert(conn.requests[2].type == "game.snapshot" and conn.requests[2].body.game_id == "g1")
 end
 
+function T.received_at_stamps_each_cached_update()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  assert(client:received_at("g1") == nil)
+
+  conn:push("game.update", update(1))
+  local first = client:received_at("g1")
+  vim.wait(20, function()
+    return vim.uv.now() > first
+  end)
+  conn:push("game.update", update(1))
+  assert(client:received_at("g1") == first, "a duplicate seq must not restamp")
+  conn:push("game.update", update(2))
+  assert(client:received_at("g1") > first)
+end
+
 function T.connected_resyncs_games_and_challenges()
   local conn = stub_conn()
   Client.new(conn --[[@as games.Conn]])
