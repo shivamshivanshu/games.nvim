@@ -12,5 +12,8 @@
 {"comment": "A line that is not an envelope gets an error without an id, and the connection stays open."}
 {"client": "alice", "send": {"type": 7}}
 {"client": "alice", "recv": {"type": "error", "body": {"code": "bad_request", "message": "$msg_malformed"}}}
+{"comment": "A request without an id is not dispatched: it gets an error without an id."}
+{"client": "alice", "send": {"type": "ping"}}
+{"client": "alice", "recv": {"type": "error", "body": {"code": "bad_request", "message": "$msg_no_id"}}}
 {"client": "alice", "send": {"id": 6, "type": "no.such.type"}}
 {"client": "alice", "recv": {"id": 6, "type": "error", "body": {"code": "bad_request", "message": "$msg_unknown_type"}}}

@@ -128,6 +128,8 @@ func (s *Session) readLoop(ctx context.Context) {
 			s.Push(errorFrame(nil, protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: err.Error()}))
 		case err != nil:
 			return
+		case env.ID == nil:
+			s.Push(errorFrame(nil, errRequestWithoutID))
 		default:
 			result, err := s.dispatch(ctx, env)
 			s.Push(replyFrame(env.ID, result, err))

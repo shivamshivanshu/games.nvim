@@ -47,11 +47,12 @@ const (
 // RequestID is chosen by the client and echoed on the reply.
 type RequestID uint64
 
-// Envelope.ID is nil on pushes.
+// Envelope.ID is nil on pushes, and required on requests. A request may omit
+// Body, which then means {}.
 type Envelope struct {
 	ID   *RequestID      `json:"id,omitempty"`
 	Type MessageType     `json:"type"`
-	Body json.RawMessage `json:"body"`
+	Body json.RawMessage `json:"body,omitempty"`
 }
 
 type ErrorBody struct {

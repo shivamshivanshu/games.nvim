@@ -12,7 +12,10 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
-var errUnauthenticated = protocol.Error{Code: protocol.CodeUnauthenticated, Msg: "login required"}
+var (
+	errUnauthenticated  = protocol.Error{Code: protocol.CodeUnauthenticated, Msg: "login required"}
+	errRequestWithoutID = protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: "request without id"}
+)
 
 const internalErrorMessage = "internal error"
 

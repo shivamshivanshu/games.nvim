@@ -20,9 +20,21 @@ type document struct {
 	comments  map[string]string
 }
 
+// newDocument reflects each type through mapper first, and gives every
+// unsigned integer type a minimum of 0.
 func newDocument(comments map[string]string, mapper func(reflect.Type) *jsonschema.Schema) *document {
+	mapUnsigned := func(t reflect.Type) *jsonschema.Schema {
+		if s := mapper(t); s != nil {
+			return s
+		}
+		switch t.Kind() {
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return &jsonschema.Schema{Type: "integer", Minimum: "0"}
+		}
+		return nil
+	}
 	return &document{
-		reflector: &jsonschema.Reflector{Anonymous: true, Mapper: mapper, CommentMap: comments},
+		reflector: &jsonschema.Reflector{Anonymous: true, Mapper: mapUnsigned, CommentMap: comments},
 		defs:      jsonschema.Definitions{},
 		comments:  comments,
 	}

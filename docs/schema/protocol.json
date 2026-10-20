@@ -236,7 +236,8 @@
     "Envelope": {
       "properties": {
         "id": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         },
         "type": {
           "$ref": "#/$defs/MessageType"
@@ -246,10 +247,9 @@
       "additionalProperties": false,
       "type": "object",
       "required": [
-        "type",
-        "body"
+        "type"
       ],
-      "description": "Envelope.ID is nil on pushes."
+      "description": "Envelope.ID is nil on pushes, and required on requests. A request may omit\nBody, which then means {}."
     },
     "ErrorBody": {
       "properties": {
@@ -288,7 +288,8 @@
           "type": "string"
         },
         "seq": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         },
         "action": true
       },
@@ -306,7 +307,8 @@
           "type": "string"
         },
         "seq": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         },
         "control": {
           "$ref": "#/$defs/Control"
@@ -431,7 +433,8 @@
           "$ref": "#/$defs/Options"
         },
         "seq": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         },
         "players": {
           "items": {
@@ -786,7 +789,8 @@
     "SeqResult": {
       "properties": {
         "seq": {
-          "type": "integer"
+          "type": "integer",
+          "minimum": 0
         }
       },
       "additionalProperties": false,

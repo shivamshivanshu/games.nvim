@@ -13,7 +13,7 @@
 ---@class games.Envelope
 ---@field id? integer
 ---@field type games.MessageType
----@field body table
+---@field body? table a request may omit it, meaning {}
 
 ---@class games.ErrorBody
 ---@field code games.ErrorCode
