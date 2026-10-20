@@ -79,4 +79,27 @@ function T.setup_on_old_neovim_notifies_and_returns()
   end)
 end
 
+---@param lhs string
+---@return boolean
+local function mapped(lhs)
+  return vim.fn.maparg(lhs, "n") ~= ""
+end
+
+function T.setup_maps_the_keys_opts_set_and_drops_those_an_earlier_setup_mapped()
+  with_plugin_state(function()
+    local ok, err = pcall(function()
+      games.setup({ autoconnect = false, keys = { dashboard = "<leader>gg", find = "<leader>gf" } })
+      assert(mapped("<leader>gg") and mapped("<leader>gf"), "keys not mapped")
+      games.setup({ autoconnect = false, keys = { find = "<leader>zf" } })
+      assert_eq(
+        { false, false, true },
+        { mapped("<leader>gg"), mapped("<leader>gf"), mapped("<leader>zf") }
+      )
+    end)
+    games.setup({ autoconnect = false })
+    assert(ok, err)
+    assert(not mapped("<leader>zf"), "a setup without keys left one mapped")
+  end)
+end
+
 return T

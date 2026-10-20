@@ -209,6 +209,13 @@ local GROUPS = {
     vivid = { fg = "#e05050" },
   },
   {
+    name = "GamesDashSection",
+    role = Role.FOREGROUND,
+    theme = { from("Title"), from("Statement") },
+    theme_style = { bold = true },
+    vivid = { fg = "#56b4e9", bold = true },
+  },
+  {
     name = "GamesYourTurn",
     role = Role.BADGE,
     theme = { from("DiagnosticOk") },

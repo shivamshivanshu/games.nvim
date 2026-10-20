@@ -1,4 +1,5 @@
 local Archive = require("games.core.archive")
+local dashboard = require("games.ui.dashboard")
 local finder = require("games.ui.finder")
 local float = require("games.ui.float")
 local kv = require("games.ui.widgets.kv")
@@ -595,6 +596,11 @@ local function find(client, me, args)
   M.find(client, me, name)
 end
 
+---@type games.SubcommandRun
+local function open_dashboard(client)
+  dashboard.open(client)
+end
+
 ---@type games.Subcommand[]
 local SUBCOMMANDS = {
   { name = "challenge", usage = "challenge [game] [user…]", run = challenge },
@@ -616,19 +622,20 @@ local function find_subcommand(name)
 end
 
 ---@param client games.Client
----@param subcommand games.Subcommand
+---@param fargs string[] as typed, for the label a pending run is reported by
+---@param run games.SubcommandRun
 ---@param args string[]
-local function run_subcommand(client, subcommand, args)
-  local label = table.concat(vim.list_extend({ ":Games", subcommand.name }, args), " ")
+local function run_connected(client, fargs, run, args)
+  local label = table.concat(vim.list_extend({ ":Games" }, fargs), " ")
   login.ensure_connected(client, label, function()
     local me = notify.require_me(client)
     if me then
-      subcommand.run(client, me, args)
+      run(client, me, args)
     end
   end)
 end
 
----Runs `:Games <fargs>`; with no subcommand it offers a menu of them.
+---Runs `:Games <fargs>`; with no subcommand it opens the dashboard.
 ---@param fargs string[]
 function M.run(fargs)
   local client = require("games").client
@@ -638,14 +645,7 @@ function M.run(fargs)
   end
   local name = fargs[1]
   if not name then
-    picker.pick(SUBCOMMANDS, {
-      prompt = "Games:",
-      format_item = function(subcommand)
-        return subcommand.usage
-      end,
-    }, function(subcommand)
-      run_subcommand(client, subcommand, {})
-    end)
+    run_connected(client, fargs, open_dashboard, {})
     return
   end
   local subcommand = find_subcommand(name)
@@ -653,7 +653,7 @@ function M.run(fargs)
     say(("games: unknown subcommand %q"):format(name), ERROR)
     return
   end
-  run_subcommand(client, subcommand, vim.list_slice(fargs, 2))
+  run_connected(client, fargs, subcommand.run, vim.list_slice(fargs, 2))
 end
 
 ---Completes subcommand names, then the first argument where its choices are fixed.

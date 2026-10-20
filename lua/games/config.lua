@@ -16,6 +16,10 @@ local M = {}
 ---@class games.BoardConfig
 ---@field max_cell_height? integer lines per board cell at most; 1 draws glyphs only, nil no cap
 
+---@class games.KeysConfig normal-mode global keys; each is mapped only when set
+---@field dashboard? string
+---@field find? string
+
 ---@class games.Config
 ---@field server games.ServerAddress
 ---@field username? string asked for on the first :Games when nil
@@ -28,6 +32,7 @@ local M = {}
 ---@field board games.BoardConfig
 ---@field assets table<games.GameType, string> asset pack per game: a shipped name or a module name
 ---@field picker? games.PickerName the finder's picker; nil takes the first installed
+---@field keys games.KeysConfig
 
 ---@class games.SetupOpts
 ---@field server? {host?: string, port?: integer}
@@ -41,9 +46,11 @@ local M = {}
 ---@field board? games.BoardConfig
 ---@field assets? table<games.GameType, string>
 ---@field picker? games.PickerName
+---@field keys? games.KeysConfig
 
 local GLYPHS = { unicode = true, ascii = true }
 local PALETTES = { theme = true, vivid = true }
+local KEY_NAMES = { dashboard = true, find = true }
 
 ---@type games.Glyphs
 M.DEFAULT_GLYPHS = "unicode"
@@ -57,6 +64,7 @@ local DEFAULTS = {
   archive = {},
   board = {},
   assets = {},
+  keys = {},
 }
 
 ---@param port any
@@ -105,6 +113,15 @@ local function valid_assets(assets)
     end)
 end
 
+---@param keys any
+---@return boolean
+local function valid_keys(keys)
+  return type(keys) == "table"
+    and vim.iter(keys):all(function(name, lhs)
+      return KEY_NAMES[name] ~= nil and is_nonempty_string(lhs)
+    end)
+end
+
 ---Merges opts over the defaults and validates the result.
 ---@param opts games.SetupOpts
 ---@return games.Config
@@ -132,6 +149,7 @@ function M.resolve(opts)
   vim.validate("picker", config.picker, function(picker)
     return vim.tbl_contains(finder.PICKER_NAMES, picker)
   end, true, '"snacks", "telescope", "fzf" or "select"')
+  vim.validate("keys", config.keys, valid_keys, "{ dashboard?: string, find?: string }")
   return config
 end
 

@@ -2,6 +2,7 @@ local assets = require("games.ui.assets")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local games = require("games")
+local key_hints = require("games.ui.widgets.key_hints")
 local notify = require("games.core.notify")
 local paint = require("games.ui.paint")
 local theme = require("games.ui.theme")
@@ -79,9 +80,7 @@ local Control = types.Control
 ---@field text string
 ---@field hl? games.Hl
 
----@class games.KeyBinding
----@field key string
----@field label string
+---@class games.KeyBinding: games.KeyHint
 ---@field run fun(board: games.Board)
 
 ---@class games.ControlKey
@@ -264,21 +263,6 @@ local function render_header(update, me, elapsed_ms, extras)
   return header, clocks
 end
 
----@param bindings games.KeyBinding[]
----@return games.Node
-local function footer_node(bindings)
-  local parts = {}
-  for i, binding in ipairs(bindings) do
-    if i > 1 then
-      parts[#parts + 1] = compose.text("  ")
-    end
-    parts[#parts + 1] = compose.text(binding.key, "GamesKey")
-    parts[#parts + 1] = compose.text(" ")
-    parts[#parts + 1] = compose.text(binding.label, "GamesLabel")
-  end
-  return compose.row(parts)
-end
-
 ---@param top games.Rendered
 ---@param bottom games.Rendered
 ---@return games.Rendered
@@ -335,10 +319,14 @@ local function prompt_input(board, input)
   end)
 end
 
+---@param win integer
+---@return boolean
+local function is_tiled(win)
+  return vim.api.nvim_win_get_config(win).relative == ""
+end
+
 local function close_window()
-  local tiled = vim.tbl_filter(function(win)
-    return vim.api.nvim_win_get_config(win).relative == ""
-  end, vim.api.nvim_tabpage_list_wins(0))
+  local tiled = vim.tbl_filter(is_tiled, vim.api.nvim_tabpage_list_wins(0))
   if #tiled > 1 then
     vim.api.nvim_win_close(0, false)
   else
@@ -477,7 +465,7 @@ function M.render(update, module, view, me, elapsed_ms, display, catalogued)
     compose.text(""),
     module.layout(update, ctx),
     compose.text(""),
-    footer_node(bindings),
+    key_hints(bindings),
   }))
   return stack(header, body), #header.lines, bindings, clocks
 end
@@ -807,13 +795,27 @@ local function watch_buffer(board)
   })
 end
 
+---Shows buf in the current window, or from a float such as the dashboard in the window it was
+---opened over, so a board never takes a float's place.
+---@param buf integer
+local function show_tiled(buf)
+  local current = vim.api.nvim_get_current_win()
+  if not is_tiled(current) then
+    local previous = vim.fn.win_getid(vim.fn.winnr("#"))
+    local tiled = previous ~= 0 and is_tiled(previous) and previous
+      or vim.iter(vim.api.nvim_tabpage_list_wins(0)):find(is_tiled)
+    vim.api.nvim_set_current_win(tiled)
+  end
+  vim.api.nvim_set_current_buf(buf)
+end
+
 ---@param buf integer
 local function focus(buf)
   local win = vim.fn.win_findbuf(buf)[1]
   if win then
     vim.api.nvim_set_current_win(win)
   else
-    vim.api.nvim_set_current_buf(buf)
+    show_tiled(buf)
   end
 end
 
@@ -899,7 +901,7 @@ open_update = function(client, update, me, opts)
   }
   boards[buf] = board
   watch_buffer(board)
-  vim.api.nvim_set_current_buf(buf)
+  show_tiled(buf)
   refit(board)
   sync_clock_timer()
   return buf

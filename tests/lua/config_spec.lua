@@ -52,16 +52,20 @@ function T.board_and_assets_are_validated()
   end
 end
 
-function T.picker_is_validated()
+function T.picker_and_keys_are_validated()
   for _, opts in ipairs({
     { picker = "fzf" },
     { picker = "select" },
+    { keys = { dashboard = "<leader>gg", find = "<leader>gf" } },
   }) do
     local ok, err = pcall(config.resolve, opts)
     assert(ok, err)
   end
   for _, opts in ipairs({
     { picker = "mini" },
+    { keys = "<leader>gg" },
+    { keys = { finder = "<leader>gf" } },
+    { keys = { dashboard = "" } },
   }) do
     local rejected = pcall(config.resolve, opts)
     assert(not rejected, "accepted " .. vim.inspect(opts))

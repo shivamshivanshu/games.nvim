@@ -6,6 +6,8 @@ local notify = require("games.core.notify")
 local theme = require("games.ui.theme")
 
 local AUTOCONNECT_GROUP = "games.autoconnect"
+---@type table<string, string[]> opts.keys name -> the :Games arguments its key runs
+local KEY_COMMANDS = { dashboard = {}, find = { "find" } }
 
 local M = {}
 
@@ -25,6 +27,27 @@ M.client = nil
 ---@type games.Archive|nil nil while archive.dir is unset
 M.archive = nil
 
+---@type string[] the global keys the last setup() mapped
+local mapped_keys = {}
+
+---Maps each key keys sets, after unmapping the keys an earlier setup() mapped.
+---@param keys games.KeysConfig
+local function map_global_keys(keys)
+  for _, lhs in ipairs(mapped_keys) do
+    pcall(vim.keymap.del, "n", lhs)
+  end
+  mapped_keys = {}
+  for name, fargs in pairs(KEY_COMMANDS) do
+    local lhs = keys[name]
+    if lhs then
+      vim.keymap.set("n", lhs, function()
+        require("games.core.commands").run(fargs)
+      end, { desc = "games: " .. name })
+      mapped_keys[#mapped_keys + 1] = lhs
+    end
+  end
+end
+
 local function connect_current()
   if M.client then
     M.client.conn:connect()
@@ -41,6 +64,7 @@ function M.setup(opts)
   end
   M.config = config.resolve(opts)
   theme.setup({ palette = M.config.palette, highlights = M.config.highlights })
+  map_global_keys(M.config.keys)
   if M.client then
     M.client.conn:close()
   end
