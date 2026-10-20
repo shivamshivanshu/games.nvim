@@ -36,18 +36,18 @@ func (h *Hub) login(ctx context.Context, s *session.Session, req protocol.LoginR
 
 func (h *Hub) Routes() session.Router {
 	return session.Router{
-		protocol.TypeCatalogList:      handle(h.catalog),
-		protocol.TypeUserList:         handle(h.users),
-		protocol.TypeChallengeCreate:  handle(h.createChallenge),
+		protocol.TypeCatalogList:      session.Handle(h.catalog),
+		protocol.TypeUserList:         session.Handle(h.users),
+		protocol.TypeChallengeCreate:  session.Handle(h.createChallenge),
 		protocol.TypeChallengeAccept:  resolveChallenge(h.challenges.Accept),
 		protocol.TypeChallengeDecline: resolveChallenge(h.challenges.Decline),
 		protocol.TypeChallengeCancel:  resolveChallenge(h.challenges.Cancel),
-		protocol.TypeChallengeList:    handle(h.pendingChallenges),
-		protocol.TypeGameList:         handle(h.listGames),
-		protocol.TypeGameSnapshot:     handle(h.gameSnapshot),
-		protocol.TypeGameAct:          handle(h.act),
-		protocol.TypeGameControl:      handle(h.control),
-		protocol.TypeStatsGet:         handle(h.stats),
+		protocol.TypeChallengeList:    session.Handle(h.pendingChallenges),
+		protocol.TypeGameList:         session.Handle(h.listGames),
+		protocol.TypeGameSnapshot:     session.Handle(h.gameSnapshot),
+		protocol.TypeGameAct:          session.Handle(h.act),
+		protocol.TypeGameControl:      session.Handle(h.control),
+		protocol.TypeStatsGet:         session.Handle(h.stats),
 	}
 }
 
@@ -92,20 +92,8 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 	return protocol.ChallengeCreateResult{ChallengeID: c.ChallengeID}, nil
 }
 
-// handle reports the store's not-found as the client's not_found, so session
-// need not know the store.
-func handle[Req, Resp any](fn func(ctx context.Context, s *session.Session, req Req) (Resp, error)) session.Handler {
-	return session.Handle(func(ctx context.Context, s *session.Session, req Req) (Resp, error) {
-		resp, err := fn(ctx, s, req)
-		if errors.Is(err, store.ErrNotFound) {
-			return resp, protocol.Error{Code: protocol.CodeNotFound, Msg: err.Error()}
-		}
-		return resp, err
-	})
-}
-
 func resolveChallenge(resolve func(protocol.ChallengeID, game.UserID) error) session.Handler {
-	return handle(func(_ context.Context, s *session.Session, req protocol.ChallengeRef) (protocol.Empty, error) {
+	return session.Handle(func(_ context.Context, s *session.Session, req protocol.ChallengeRef) (protocol.Empty, error) {
 		return protocol.Empty{}, resolve(req.ChallengeID, s.User())
 	})
 }

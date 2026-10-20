@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -31,31 +32,32 @@ func (h *Hub) startChallenge(c protocol.Challenge) (game.GameID, error) {
 }
 
 func (h *Hub) startGame(c protocol.Challenge) (game.GameID, error) {
-	p, state, err := h.prepareGame(c)
+	g, state, err := h.prepareGame(c)
 	if err != nil {
 		return "", err
 	}
-	if err := h.persistNewGame(p); err != nil {
+	if err := h.persistNewGame(g); err != nil {
 		return "", err
 	}
-	return p.ID, h.launch(p, state)
+	h.launch(g, state)
+	return g.ID, nil
 }
 
-func (h *Hub) prepareGame(c protocol.Challenge) (room.Params, game.ErasedState, error) {
+func (h *Hub) prepareGame(c protocol.Challenge) (room.Setup, game.ErasedState, error) {
 	g, err := h.gameType(c.Game)
 	if err != nil {
-		return room.Params{}, nil, err
+		return room.Setup{}, nil, err
 	}
 	seed := newSeed()
 	state, seats, err := g.New(c.Options, c.From, c.To, game.StepRNG(seed, 0))
 	if err != nil {
-		return room.Params{}, nil, err
+		return room.Setup{}, nil, err
 	}
 	players, err := seated(c.Participants(), seats)
 	if err != nil {
-		return room.Params{}, nil, err
+		return room.Setup{}, nil, err
 	}
-	return h.roomParams(room.Params{
+	setup, err := h.roomSetup(room.Params{
 		ID:         game.GameID(rand.Text()),
 		Game:       g,
 		Options:    c.Options,
@@ -63,10 +65,11 @@ func (h *Hub) prepareGame(c protocol.Challenge) (room.Params, game.ErasedState, 
 		Challenger: c.From,
 		Players:    players,
 		CreatedAt:  h.deps.Time.Now(),
-	}), state, nil
+	})
+	return setup, state, err
 }
 
-func (h *Hub) persistNewGame(p room.Params) error {
+func (h *Hub) persistNewGame(p room.Setup) error {
 	options, err := json.Marshal(p.Options)
 	if err != nil {
 		return err
@@ -76,17 +79,13 @@ func (h *Hub) persistNewGame(p room.Params) error {
 	})
 }
 
-func (h *Hub) launch(p room.Params, state game.ErasedState) error {
-	r, err := room.New(h.ctx, p, state)
-	if err != nil {
-		return err
-	}
-	h.track(p.ID, r, p.Players)
-	h.sendCurrent(r, p.Players)
-	return nil
+func (h *Hub) launch(g room.Setup, state game.ErasedState) {
+	r := room.Start(h.ctx, g, state)
+	h.track(g.ID, r, g.Players)
+	h.sendCurrent(r, g.Players)
 }
 
-// seated keeps the challenger first, which store.GameRecord.Challenger relies on.
+// seated keeps the challenger first, which challengerOf relies on after a restart.
 func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]game.Player, error) {
 	if len(seats) != len(users) {
 		return nil, fmt.Errorf("hub: game assigned %d seats for %d players", len(seats), len(users))
@@ -98,6 +97,13 @@ func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]game.Player
 		}
 		return game.Player{User: user, Seat: seat}, nil
 	})
+}
+
+func challengerOf(players []game.Player) game.UserID {
+	if len(players) == 0 {
+		return ""
+	}
+	return players[0].User
 }
 
 func (h *Hub) sendCurrent(r *room.Room, players []game.Player) {
@@ -135,24 +141,24 @@ func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, er
 	if err != nil {
 		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
 	}
-	challenger, ok := rec.Challenger()
-	if !ok {
-		return nil, fmt.Errorf("hub: restore %s: no players", rec.ID)
-	}
-	return room.Restore(ctx, h.roomParams(room.Params{
+	setup, err := h.roomSetup(room.Params{
 		ID:         rec.ID,
 		Game:       g,
 		Options:    opts,
 		Seed:       rec.Seed,
-		Challenger: challenger,
+		Challenger: challengerOf(rec.Players),
 		Players:    rec.Players,
 		CreatedAt:  rec.CreatedAt,
-	}), rec.Steps)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
+	}
+	return room.Restore(ctx, setup, rec.Steps)
 }
 
-func (h *Hub) roomParams(p room.Params) room.Params {
+func (h *Hub) roomSetup(p room.Params) (room.Setup, error) {
 	p.Persist, p.Broadcast, p.Time = h.deps.Store, h, h.deps.Time
-	return p
+	return room.NewSetup(p)
 }
 
 func (h *Hub) track(id game.GameID, r *room.Room, players []game.Player) {
@@ -178,7 +184,7 @@ func (h *Hub) liveRoom(id game.GameID) (*room.Room, error) {
 	defer h.mu.Unlock()
 	g, ok := h.live[id]
 	if !ok {
-		return nil, fmt.Errorf("no ongoing game %s: %w", id, store.ErrNotFound)
+		return nil, protocol.Error{Code: protocol.CodeNotFound, Msg: fmt.Sprintf("no ongoing game %s: %v", id, store.ErrNotFound)}
 	}
 	return g.room, nil
 }
@@ -252,6 +258,9 @@ func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (p
 // rebuilt room so it never acts on its own.
 func (h *Hub) replayedSnapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
 	rec, err := h.deps.Store.LoadGame(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return protocol.GameUpdate{}, protocol.Error{Code: protocol.CodeNotFound, Msg: err.Error()}
+	}
 	if err != nil {
 		return protocol.GameUpdate{}, err
 	}

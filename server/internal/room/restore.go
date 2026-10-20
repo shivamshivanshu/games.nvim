@@ -9,11 +9,8 @@ import (
 	"games.nvim/server/internal/store"
 )
 
-func Restore(ctx context.Context, p Params, steps []store.StepRecord) (*Room, error) {
-	g, err := newSetup(p)
-	if err != nil {
-		return nil, err
-	}
+func Restore(ctx context.Context, g Setup, steps []store.StepRecord) (*Room, error) {
+	p := g.Params
 	state, seats, err := p.Game.New(p.Options, p.Challenger, p.invitees(), game.StepRNG(p.Seed, 0))
 	if err != nil {
 		return nil, fmt.Errorf("room: restore %s: %w", p.ID, err)
@@ -39,5 +36,5 @@ func Restore(ctx context.Context, p Params, steps []store.StepRecord) (*Room, er
 	}
 	// Downtime is not charged: clocks resume from the last persisted values as of now.
 	s.since = p.Time.Now()
-	return start(ctx, g, s), nil
+	return launch(ctx, g, s), nil
 }

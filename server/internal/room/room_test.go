@@ -139,10 +139,17 @@ func newHarness(t *testing.T, timeControl chess.TimeControl) *harness {
 	ctx, cancel := context.WithCancel(t.Context())
 	h.cancel = cancel
 	t.Cleanup(cancel)
-	if h.room, err = New(ctx, h.params, state); err != nil {
+	h.room = Start(ctx, newSetup(t, h.params), state)
+	return h
+}
+
+func newSetup(t *testing.T, p Params) Setup {
+	t.Helper()
+	g, err := NewSetup(p)
+	if err != nil {
 		t.Fatal(err)
 	}
-	return h
+	return g
 }
 
 func move(san string) json.RawMessage {
@@ -380,7 +387,7 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 
 	steps, _ := h.persist.recorded()
 	h.clock.Advance(time.Hour)
-	restored, err := Restore(t.Context(), h.params, steps)
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
 	if err != nil {
 		t.Fatal(err)
 	}

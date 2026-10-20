@@ -17,11 +17,11 @@ import (
 // that is already down does not re-fire in a tight loop.
 const timeoutRetryDelay = time.Second
 
-func (s roomState) clockRunning(g setup) bool {
+func (s roomState) clockRunning(g Setup) bool {
 	return g.clock.Enabled && len(s.acted) == len(g.Players) && !s.finished()
 }
 
-func (s roomState) charged(g setup, at time.Time) map[game.UserID]time.Duration {
+func (s roomState) charged(g Setup, at time.Time) map[game.UserID]time.Duration {
 	remaining := maps.Clone(s.remaining)
 	if !s.clockRunning(g) {
 		return remaining
@@ -33,7 +33,7 @@ func (s roomState) charged(g setup, at time.Time) map[game.UserID]time.Duration 
 	return remaining
 }
 
-func (s roomState) soonestFlag(g setup, at time.Time) (game.UserID, time.Duration, bool) {
+func (s roomState) soonestFlag(g Setup, at time.Time) (game.UserID, time.Duration, bool) {
 	users := s.toAct(g)
 	if !s.clockRunning(g) || len(users) == 0 {
 		return "", 0, false
@@ -43,7 +43,7 @@ func (s roomState) soonestFlag(g setup, at time.Time) (game.UserID, time.Duratio
 	return user, remaining[user], true
 }
 
-func (s roomState) wireClock(g setup, at time.Time) *protocol.WireClock {
+func (s roomState) wireClock(g Setup, at time.Time) *protocol.WireClock {
 	if !g.clock.Enabled {
 		return nil
 	}

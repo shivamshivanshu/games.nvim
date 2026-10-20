@@ -43,7 +43,8 @@ type Params struct {
 	Time       clock.Clock
 }
 
-type setup struct {
+// Setup is a validated game; once built, Start cannot fail.
+type Setup struct {
 	Params
 	info  game.Info
 	clock game.ClockConfig
@@ -51,12 +52,18 @@ type setup struct {
 	users map[game.Seat]game.UserID
 }
 
-func newSetup(p Params) (setup, error) {
+func NewSetup(p Params) (Setup, error) {
+	if len(p.Players) == 0 {
+		return Setup{}, fmt.Errorf("room: %s: no players", p.ID)
+	}
+	if !slices.ContainsFunc(p.Players, func(player game.Player) bool { return player.User == p.Challenger }) {
+		return Setup{}, fmt.Errorf("room: %s: challenger %s is not a player", p.ID, p.Challenger)
+	}
 	clock, err := p.Options.Clock()
 	if err != nil {
-		return setup{}, fmt.Errorf("room: %s: %w", p.ID, err)
+		return Setup{}, fmt.Errorf("room: %s: %w", p.ID, err)
 	}
-	g := setup{
+	g := Setup{
 		Params: p,
 		info:   p.Game.Info(),
 		clock:  clock,
@@ -75,7 +82,7 @@ func (p Params) invitees() []game.UserID {
 	return slices.DeleteFunc(users, func(u game.UserID) bool { return u == p.Challenger })
 }
 
-func (g setup) usersAt(seats []game.Seat) []game.UserID {
+func (g Setup) usersAt(seats []game.Seat) []game.UserID {
 	return xslices.Map(seats, func(seat game.Seat) game.UserID { return g.users[seat] })
 }
 
@@ -93,7 +100,7 @@ type roomState struct {
 	lastStepAt time.Time
 }
 
-func initialState(g setup, state game.ErasedState, now time.Time) roomState {
+func initialState(g Setup, state game.ErasedState, now time.Time) roomState {
 	s := roomState{game: state, events: []json.RawMessage{}, since: now, lastStepAt: g.CreatedAt}
 	if g.clock.Enabled {
 		s.remaining = make(map[game.UserID]time.Duration, len(g.Players))
@@ -116,14 +123,14 @@ func (s roomState) finished() bool {
 	return done
 }
 
-func (s roomState) toAct(g setup) []game.UserID {
+func (s roomState) toAct(g Setup) []game.UserID {
 	if s.finished() {
 		return []game.UserID{}
 	}
 	return g.usersAt(s.game.ToAct())
 }
 
-func (s roomState) apply(g setup, st step) (roomState, error) {
+func (s roomState) apply(g Setup, st step) (roomState, error) {
 	next := s
 	next.seq = st.seq
 	next.remaining = s.charged(g, st.at)
@@ -146,7 +153,7 @@ func (s roomState) apply(g setup, st step) (roomState, error) {
 	return next, nil
 }
 
-func (s roomState) applyAction(g setup, st step) (roomState, error) {
+func (s roomState) applyAction(g Setup, st step) (roomState, error) {
 	if s.finished() {
 		return s, errGameOver
 	}
@@ -163,7 +170,7 @@ func (s roomState) applyAction(g setup, st step) (roomState, error) {
 	return s, nil
 }
 
-func (s roomState) applyTimeout(g setup, st step) (roomState, error) {
+func (s roomState) applyTimeout(g Setup, st step) (roomState, error) {
 	if s.finished() {
 		return s, errGameOver
 	}
@@ -177,7 +184,7 @@ func (s roomState) applyTimeout(g setup, st step) (roomState, error) {
 	return s, nil
 }
 
-func (s roomState) eliminate(g setup, user game.UserID, reason game.ResultReason) (roomState, error) {
+func (s roomState) eliminate(g Setup, user game.UserID, reason game.ResultReason) (roomState, error) {
 	state, events, err := s.game.Eliminate(g.seats[user], reason)
 	if err != nil {
 		return s, err
@@ -186,7 +193,7 @@ func (s roomState) eliminate(g setup, user game.UserID, reason game.ResultReason
 	return s, nil
 }
 
-func (s roomState) outcomes(g setup) (game.ResultReason, map[game.UserID]store.Outcome) {
+func (s roomState) outcomes(g Setup) (game.ResultReason, map[game.UserID]store.Outcome) {
 	result, _ := s.result()
 	outcomes := make(map[game.UserID]store.Outcome, len(g.Players))
 	for _, player := range g.Players {
@@ -203,7 +210,7 @@ func (s roomState) outcomes(g setup) (game.ResultReason, map[game.UserID]store.O
 	return result.Reason, outcomes
 }
 
-func (s roomState) update(g setup, user game.UserID, at time.Time) (protocol.GameUpdate, error) {
+func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.GameUpdate, error) {
 	view, err := s.game.View(g.seats[user])
 	if err != nil {
 		return protocol.GameUpdate{}, fmt.Errorf("room: view for %s: %w", user, err)
@@ -229,7 +236,7 @@ func (s roomState) update(g setup, user game.UserID, at time.Time) (protocol.Gam
 }
 
 type Room struct {
-	setup  setup
+	setup  Setup
 	ctx    context.Context
 	cur    roomState
 	timer  clock.Timer
@@ -238,15 +245,11 @@ type Room struct {
 	exited chan struct{}
 }
 
-func New(ctx context.Context, p Params, state game.ErasedState) (*Room, error) {
-	g, err := newSetup(p)
-	if err != nil {
-		return nil, err
-	}
-	return start(ctx, g, initialState(g, state, p.Time.Now())), nil
+func Start(ctx context.Context, g Setup, state game.ErasedState) *Room {
+	return launch(ctx, g, initialState(g, state, g.Time.Now()))
 }
 
-func start(ctx context.Context, g setup, s roomState) *Room {
+func launch(ctx context.Context, g Setup, s roomState) *Room {
 	r := &Room{
 		setup:  g,
 		ctx:    ctx,

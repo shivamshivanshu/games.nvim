@@ -7,9 +7,9 @@ import (
 	"games.nvim/server/internal/protocol"
 )
 
-func (g setup) can(c game.Capability) bool { return slices.Contains(g.info.Capabilities, c) }
+func (g Setup) can(c game.Capability) bool { return slices.Contains(g.info.Capabilities, c) }
 
-func (s roomState) controls(g setup, user game.UserID) []protocol.Control {
+func (s roomState) controls(g Setup, user game.UserID) []protocol.Control {
 	controls := []protocol.Control{}
 	if s.finished() {
 		return controls
@@ -29,7 +29,7 @@ func (s roomState) controls(g setup, user game.UserID) []protocol.Control {
 	return controls
 }
 
-func (s roomState) applyControl(g setup, st step) (roomState, error) {
+func (s roomState) applyControl(g Setup, st step) (roomState, error) {
 	c := st.control
 	if !slices.Contains(s.controls(g, st.user), c) {
 		return s, protocol.Error{Code: protocol.CodeIllegalAction, Msg: "control not available: " + string(c)}

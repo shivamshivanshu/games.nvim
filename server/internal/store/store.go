@@ -60,14 +60,6 @@ type GameRecord struct {
 	CreatedAt time.Time
 }
 
-// Challenger relies on players being stored challenger first.
-func (r GameRecord) Challenger() (game.UserID, bool) {
-	if len(r.Players) == 0 {
-		return "", false
-	}
-	return r.Players[0].User, true
-}
-
 type Store struct {
 	db *sql.DB
 }
