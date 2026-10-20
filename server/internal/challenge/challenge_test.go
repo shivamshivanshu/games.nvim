@@ -213,6 +213,29 @@ func TestPendingOrderAndScope(t *testing.T) {
 	}
 }
 
+func TestThreeInviteesEachSeeTheChallengeAndItStartsAfterTheLastAccept(t *testing.T) {
+	h := newHarness(t)
+	invitees := []game.UserID{bob, carol, "dave"}
+	c := h.create(t, invitees...)
+	for _, u := range invitees {
+		if pending := h.reg.Pending(u); len(pending) != 1 || pending[0].ChallengeID != c.ChallengeID {
+			t.Fatalf("%s pending %v, want only %s", u, pending, c.ChallengeID)
+		}
+	}
+	for i, u := range invitees {
+		if err := h.reg.Accept(c.ChallengeID, u); err != nil {
+			t.Fatal(err)
+		}
+		want := int32(0)
+		if i == len(invitees)-1 {
+			want = 1
+		}
+		if got := h.starts.Load(); got != want {
+			t.Fatalf("after %d of %d accepts: started %d times, want %d", i+1, len(invitees), got, want)
+		}
+	}
+}
+
 func TestConcurrentAcceptsStartOnce(t *testing.T) {
 	h := newHarness(t)
 	invitees := []game.UserID{"b", "c", "d"}

@@ -62,7 +62,7 @@ local function start_game(env, alice)
   end, "both logins")
 
   vim.cmd.runtime("plugin/games.lua")
-  vim.cmd("Games challenge bob chess")
+  vim.cmd("Games challenge chess bob")
   helpers.wait_for(function()
     return #bob:pending_challenges() == 1
   end, "bob's pending challenge")

@@ -83,7 +83,156 @@ local function fetched_stats(conn)
   end)
 end
 
+---@param id string
+---@param min integer
+---@param max integer
+---@return games.GameInfo
+local function game_info(id, min, max)
+  return { id = id, name = id, players = { min = min, max = max }, capabilities = {}, options = {} }
+end
+
+local CATALOG = {
+  games = { game_info("chess", 2, 2), game_info("party", 3, 4), game_info("sudoku", 1, 1) },
+}
+
+---Answers the newest request of message_type with result.
+---@param conn games.test.StubConn
+---@param message_type string
+---@param result table
+local function respond(conn, message_type, result)
+  local request = vim.iter(conn.requests):rev():find(function(candidate)
+    return candidate.type == message_type
+  end)
+  assert(request, "no " .. message_type .. " request")
+  request.cb(nil, result)
+end
+
+---@class games.test.SelectPrompt
+---@field prompt string
+---@field labels string[]
+
+---Stubs vim.ui.select to answer each prompt with the item labelled answers[i], recording the prompts.
+---@param answers string[]
+---@param fn fun(prompts: games.test.SelectPrompt[])
+local function with_select_answers(answers, fn)
+  local prompts = {}
+  helpers.with_overrides({
+    {
+      vim.ui,
+      "select",
+      function(items, opts, on_choice)
+        local labels = vim.tbl_map(opts.format_item, items)
+        table.insert(prompts, { prompt = opts.prompt, labels = labels })
+        local answer = answers[#prompts]
+        if not answer then
+          on_choice(nil)
+          return
+        end
+        local index = vim.fn.index(labels, answer)
+        assert(index >= 0, ("%q is not offered by %q"):format(answer, opts.prompt))
+        on_choice(items[index + 1])
+      end,
+    },
+  }, function()
+    fn(prompts)
+  end)
+end
+
+---@param conn games.test.StubConn
+---@return games.ChallengeCreateRequest|nil
+local function sent_challenge(conn)
+  local request = vim.iter(conn.requests):find(function(candidate)
+    return candidate.type == MessageType.CHALLENGE_CREATE
+  end)
+  return request and request.body
+end
+
 local T = {}
+
+function T.challenge_with_three_invitees_sends_all_of_them()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    commands.run({ "challenge", "party", "bob", "carol", "dave" })
+    respond(conn, MessageType.CATALOG_LIST, CATALOG)
+    assert_eq(
+      { to = { "bob", "carol", "dave" }, game = "party", options = {} },
+      sent_challenge(conn)
+    )
+  end)
+end
+
+function T.picked_opponents_limit_the_games_offered()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    with_select_answers({ "bob", "carol", "done", "party" }, function(prompts)
+      commands.run({ "challenge" })
+      respond(conn, MessageType.CATALOG_LIST, CATALOG)
+      respond(conn, MessageType.USER_LIST, {
+        users = {
+          { user = "alice", online = true },
+          { user = "bob", online = false },
+          { user = "carol", online = false },
+          { user = "dave", online = true },
+        },
+      })
+      assert_eq({
+        { prompt = "Challenge whom?", labels = { "dave (online)", "bob", "carol" } },
+        { prompt = "Add another opponent? (bob)", labels = { "done", "dave (online)", "carol" } },
+        { prompt = "Add another opponent? (bob, carol)", labels = { "done", "dave (online)" } },
+        { prompt = "Game:", labels = { "party" } },
+      }, prompts)
+      assert_eq({ "bob", "carol" }, sent_challenge(conn).to)
+    end)
+  end)
+end
+
+function T.opponent_picking_stops_at_the_games_maximum()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    with_select_answers({ "bob" }, function(prompts)
+      commands.run({ "challenge", "chess" })
+      respond(conn, MessageType.CATALOG_LIST, CATALOG)
+      respond(conn, MessageType.USER_LIST, {
+        users = { { user = "bob", online = false }, { user = "carol", online = false } },
+      })
+      assert_eq(1, #prompts)
+      assert_eq({ "bob" }, sent_challenge(conn).to)
+    end)
+  end)
+end
+
+function T.done_is_offered_only_once_the_named_games_minimum_is_picked()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    with_select_answers({ "bob", "carol", "done" }, function(prompts)
+      commands.run({ "challenge", "party" })
+      respond(conn, MessageType.CATALOG_LIST, CATALOG)
+      respond(conn, MessageType.USER_LIST, {
+        users = {
+          { user = "bob", online = false },
+          { user = "carol", online = false },
+          { user = "dave", online = false },
+        },
+      })
+      assert_eq({
+        { prompt = "Challenge whom?", labels = { "bob", "carol", "dave" } },
+        { prompt = "Challenge whom else? (bob)", labels = { "carol", "dave" } },
+        { prompt = "Add another opponent? (bob, carol)", labels = { "done", "dave" } },
+      }, prompts)
+      assert_eq({ "bob", "carol" }, sent_challenge(conn).to)
+    end)
+  end)
+end
+
+function T.challenge_reports_a_game_that_does_not_fit_the_invitees()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
+    conn:push("connected", LOGIN)
+    commands.run({ "challenge", "chess", "bob", "carol" })
+    respond(conn, MessageType.CATALOG_LIST, CATALOG)
+    assert_eq(nil, sent_challenge(conn))
+    assert_eq({ 'games: no 3-player game "chess"' }, prompts.notified)
+  end)
+end
 
 function T.connected_runs_immediately()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)

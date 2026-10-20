@@ -81,9 +81,11 @@ notifies; fix the config and restart Neovim (or call setup() again).
                         |vim.ui.select()|, so a picker plugin (telescope,
                         snacks, fzf-lua) gives fuzzy search.
 
-:Games challenge [user] [game]
-                        Challenge someone. Prompts for a missing user, game
-                        and options.
+:Games challenge [game] [user...]
+                        Challenge one or more users. Without users, prompts
+                        for opponents one at a time ("done" ends the list),
+                        then for a game that fits that many players, then
+                        for options.
 
 :Games challenges       Pick a pending challenge: accept or decline
                         (incoming), or cancel (outgoing).

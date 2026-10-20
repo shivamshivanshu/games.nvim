@@ -10,7 +10,6 @@ local types = require("games.types")
 
 local GameStatus = types.GameStatus
 local ERROR = vim.log.levels.ERROR
-local CHALLENGE_PLAYERS = 2
 local GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
 
 ---@alias games.SubcommandRun fun(client: games.Client, me: games.UserID, args: string[])
@@ -45,10 +44,77 @@ end
 
 local function ignore() end
 
+---@class (private) games.OpponentChoice
+---@field label string
+---@field user? games.UserID nil for the choice that ends picking
+
+---@type games.OpponentChoice
+local DONE_PICKING = { label = "done" }
+
+---@param presence games.UserPresence
+---@return games.OpponentChoice
+local function opponent_choice(presence)
+  local label = presence.online and (presence.user .. " (online)") or presence.user
+  return { label = label, user = presence.user }
+end
+
+---@param a games.UserPresence
+---@param b games.UserPresence
+---@return boolean
+local function online_first(a, b)
+  if a.online ~= b.online then
+    return a.online
+  end
+  return a.user < b.user
+end
+
+---@class (private) games.OpponentRange
+---@field min integer fewest opponents, before which "done" is not offered
+---@field max integer most opponents, at which picking stops
+
+---Asks for one opponent at a time, offering "done" once range.min are picked, until done or range.max.
+---@param candidates games.OpponentChoice[]
+---@param range games.OpponentRange
+---@param on_done fun(users: games.UserID[])
+local function pick_opponents_from(candidates, range, on_done)
+  ---@param picked games.UserID[]
+  ---@param remaining games.OpponentChoice[]
+  local function ask(picked, remaining)
+    if #picked >= range.max or #remaining == 0 then
+      on_done(picked)
+      return
+    end
+    local can_finish = #picked >= range.min
+    local so_far = table.concat(picked, ", ")
+    local prompt = #picked == 0 and "Challenge whom?"
+      or can_finish and ("Add another opponent? (%s)"):format(so_far)
+      or ("Challenge whom else? (%s)"):format(so_far)
+    picker.pick(can_finish and vim.list_extend({ DONE_PICKING }, remaining) or remaining, {
+      prompt = prompt,
+      format_item = function(choice)
+        return choice.label
+      end,
+    }, function(choice)
+      if not choice.user then
+        on_done(picked)
+        return
+      end
+      ask(
+        vim.list_extend(vim.list_slice(picked), { choice.user }),
+        vim.tbl_filter(function(other)
+          return other ~= choice
+        end, remaining)
+      )
+    end)
+  end
+  ask({}, candidates)
+end
+
 ---@param client games.Client
 ---@param me games.UserID
----@param on_user fun(user: games.UserID)
-local function pick_opponent(client, me, on_user)
+---@param range games.OpponentRange
+---@param on_done fun(users: games.UserID[])
+local function pick_opponents(client, me, range, on_done)
   client:user_list(
     nil,
     on_ok(
@@ -61,37 +127,42 @@ local function pick_opponent(client, me, on_user)
           say("games: no other users")
           return
         end
-        table.sort(others, function(a, b)
-          if a.online ~= b.online then
-            return a.online
-          end
-          return a.user < b.user
-        end)
-        picker.pick(others, {
-          prompt = "Challenge whom?",
-          format_item = function(presence)
-            return presence.online and (presence.user .. " (online)") or presence.user
-          end,
-        }, function(presence)
-          on_user(presence.user)
-        end)
+        table.sort(others, online_first)
+        pick_opponents_from(vim.tbl_map(opponent_choice, others), range, on_done)
       end
     )
   )
 end
 
+---Opponents game_type takes or, when nil, the widest span over every game that takes any.
+---@param games games.GameInfo[]
+---@param game_type games.GameType|nil
+---@return games.OpponentRange|nil nil when no such game takes an opponent
+local function opponent_range(games, game_type)
+  local range
+  for _, info in ipairs(games) do
+    if info.players.max >= 2 and (not game_type or info.id == game_type) then
+      local min, max = math.max(info.players.min, 2) - 1, info.players.max - 1
+      range = range and { min = math.min(range.min, min), max = math.max(range.max, max) }
+        or { min = min, max = max }
+    end
+  end
+  return range
+end
+
 ---@param games games.GameInfo[]
 ---@param game_type games.GameType|nil picked interactively when nil
+---@param players integer the challenger plus every opponent
 ---@param on_game fun(info: games.GameInfo)
-local function pick_game(games, game_type, on_game)
+local function pick_game(games, game_type, players, on_game)
   local playable = vim.tbl_filter(function(info)
-    return info.players.min <= CHALLENGE_PLAYERS and CHALLENGE_PLAYERS <= info.players.max
+    return info.players.min <= players and players <= info.players.max
   end, games)
-  if #playable == 0 then
-    say("games: no games available")
-    return
-  end
   if not game_type then
+    if #playable == 0 then
+      say(("games: no %d-player games available"):format(players), ERROR)
+      return
+    end
     picker.pick(playable, {
       prompt = "Game:",
       format_item = function(info)
@@ -104,7 +175,7 @@ local function pick_game(games, game_type, on_game)
     return candidate.id == game_type
   end)
   if not info then
-    say(("games: no two-player game %q"):format(game_type), ERROR)
+    say(("games: no %d-player game %q"):format(players, game_type), ERROR)
     return
   end
   on_game(info)
@@ -148,36 +219,56 @@ local function pick_options(info, on_done)
   ask(1, {})
 end
 
+---@param client games.Client
+---@param info games.GameInfo
+---@param opponents games.UserID[]
+local function send_challenge(client, info, opponents)
+  pick_options(info, function(options)
+    client:challenge_create(
+      { to = opponents, game = info.id, options = options },
+      on_ok(function()
+        say(
+          ("challenged %s: %s"):format(
+            table.concat(opponents, ", "),
+            picker.game_summary(info.name, options)
+          )
+        )
+      end)
+    )
+  end)
+end
+
 ---@type games.SubcommandRun
 local function challenge(client, me, args)
-  ---@param opponent games.UserID
-  local function challenge_opponent(opponent)
-    client:catalog_list(
-      nil,
-      on_ok(
-        ---@param catalog games.CatalogResult
-        function(catalog)
-          pick_game(catalog.games, args[2], function(info)
-            pick_options(info, function(options)
-              client:challenge_create(
-                { to = { opponent }, game = info.id, options = options },
-                on_ok(function()
-                  say(
-                    ("challenged %s: %s"):format(opponent, picker.game_summary(info.name, options))
-                  )
-                end)
-              )
-            end)
+  local game_type, invitees = args[1], vim.list_slice(args, 2)
+  client:catalog_list(
+    nil,
+    on_ok(
+      ---@param catalog games.CatalogResult
+      function(catalog)
+        ---@param opponents games.UserID[]
+        local function challenge_opponents(opponents)
+          pick_game(catalog.games, game_type, #opponents + 1, function(info)
+            send_challenge(client, info, opponents)
           end)
         end
-      )
+        if #invitees > 0 then
+          challenge_opponents(invitees)
+          return
+        end
+        local range = opponent_range(catalog.games, game_type)
+        if not range then
+          say(
+            game_type and ("games: no game %q to challenge anyone to"):format(game_type)
+              or "games: no games available",
+            ERROR
+          )
+          return
+        end
+        pick_opponents(client, me, range, challenge_opponents)
+      end
     )
-  end
-  if args[1] then
-    challenge_opponent(args[1])
-  else
-    pick_opponent(client, me, challenge_opponent)
-  end
+  )
 end
 
 ---@type games.ChallengeAction[]
@@ -342,7 +433,7 @@ end
 
 ---@type games.Subcommand[]
 local SUBCOMMANDS = {
-  { name = "challenge", usage = "challenge [user] [game]", run = challenge },
+  { name = "challenge", usage = "challenge [game] [user…]", run = challenge },
   { name = "challenges", usage = "challenges", run = challenges },
   { name = "list", usage = "list [ongoing|finished]", run = list, arg_choices = GAME_STATUSES },
   { name = "stats", usage = "stats [user]", run = show_stats },

@@ -116,7 +116,7 @@ A bad login or protocol mismatch stops auto-reconnect and notifies; fix the conf
 
 | Command | Does |
 |---|---|
-| `:Games challenge [user] [game]` | challenge someone; prompts for missing user, game, and options |
+| `:Games challenge [game] [user…]` | challenge one or more users; prompts for missing opponents (pick "done" to stop), a game that fits that many players, and options |
 | `:Games challenges` | pick a pending challenge: accept/decline (incoming) or cancel (outgoing) |
 | `:Games list [ongoing\|finished]` | pick a game and open its board (default `ongoing`) |
 | `:Games stats [user]` | W/L/D float (default: you) |
