@@ -9,7 +9,10 @@ import (
 	"io"
 )
 
-var ErrLineTooLong = errors.New("protocol: line exceeds maximum length")
+var (
+	ErrLineTooLong       = errors.New("protocol: line exceeds maximum length")
+	ErrMalformedEnvelope = errors.New("protocol: malformed envelope")
+)
 
 const (
 	lineDelimiter    = '\n'
@@ -35,7 +38,7 @@ func (r *Reader) Next() (Envelope, error) {
 		}
 		var env Envelope
 		if err := json.Unmarshal(line, &env); err != nil {
-			return Envelope{}, fmt.Errorf("protocol: malformed envelope: %w", err)
+			return Envelope{}, fmt.Errorf("%w: %w", ErrMalformedEnvelope, err)
 		}
 		return env, nil
 	}
