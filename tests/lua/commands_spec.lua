@@ -1,3 +1,4 @@
+local Archive = require("games.core.archive")
 local Client = require("games.core.client")
 local commands = require("games.core.commands")
 local games = require("games")
@@ -331,6 +332,77 @@ function T.transient_disconnect_keeps_the_command_and_a_fatal_one_drops_it()
     conn:push("disconnected", { code = ErrorCode.AUTH_FAILED, message = "bad", retrying = false })
     conn:push("connected", LOGIN)
     assert(not listed_ongoing(conn))
+  end)
+end
+
+local SEEN_LIVE = "5ee17e00-0000-4000-8000-000000000001"
+local NEVER_SEEN = "5ee17e00-0000-4000-8000-000000000002"
+local ARCHIVED_BEFORE = "5ee17e00-0000-4000-8000-000000000003"
+
+---@param game_id string
+---@param seq integer
+---@return games.GameUpdate
+local function chess_game(game_id, seq)
+  return {
+    game_id = game_id,
+    game = "chess",
+    seq = seq,
+    players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
+    to_act = {},
+    controls = {},
+    events = {},
+    started_at = 1792584000000,
+  }
+end
+
+---@param game_id string
+---@return games.GameUpdate as game.list returns it: no view
+local function listed_finished(game_id)
+  local update = chess_game(game_id, 2)
+  update.result = { kind = "draw", winners = {}, reason = "draw_agreed" }
+  return helpers.seal(update, ('{"game_id":"%s"}'):format(game_id))
+end
+
+---@param archive games.Archive
+---@param update games.GameUpdate
+local function archived(archive, update)
+  local done = false
+  archive:record(update, function()
+    done = true
+  end)
+  helpers.wait_for(function()
+    return done
+  end, "the archive write")
+end
+
+function T.export_reports_written_present_and_viewless_games()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
+    helpers.with_temp_dir(function(root)
+      local archive = Archive.attach(games.client, root)
+      helpers.with_overrides({ { games, "archive", archive } }, function()
+        conn:push("connected", LOGIN)
+        local seen_live = chess_game(SEEN_LIVE, 1)
+        seen_live.view = { fen = "unused", history_san = { "e4" }, in_check = false }
+        archived(archive, seen_live)
+        archived(archive, listed_finished(ARCHIVED_BEFORE))
+
+        commands.run({ "export" })
+        respond(conn, MessageType.GAME_LIST, {
+          games = {
+            listed_finished(SEEN_LIVE),
+            listed_finished(NEVER_SEEN),
+            listed_finished(ARCHIVED_BEFORE),
+          },
+        })
+        helpers.wait_for(function()
+          return #prompts.notified > 0
+        end, "the export report")
+        assert_eq(
+          { "games: export: 1 written, 1 already present, 1 without a view (summary only)" },
+          prompts.notified
+        )
+      end)
+    end)
   end)
 end
 

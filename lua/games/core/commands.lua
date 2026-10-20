@@ -1,3 +1,4 @@
+local Archive = require("games.core.archive")
 local float = require("games.ui.float")
 local kv = require("games.ui.widgets.kv")
 local login = require("games.core.login")
@@ -426,6 +427,42 @@ local function show_leaderboard(client, _, args)
   )
 end
 
+---@param tally games.ArchiveTally
+---@return string
+local function export_summary(tally)
+  local Outcome = Archive.Outcome
+  local parts = {
+    ("%d written"):format(tally[Outcome.WRITTEN] or 0),
+    ("%d already present"):format(tally[Outcome.ALREADY_PRESENT] or 0),
+    ("%d without a view (summary only)"):format(tally[Outcome.SUMMARY_ONLY] or 0),
+  }
+  local failed = (tally[Outcome.REFUSED] or 0) + (tally[Outcome.FAILED] or 0)
+  if failed > 0 then
+    table.insert(parts, ("%d failed"):format(failed))
+  end
+  return "games: export: " .. table.concat(parts, ", ")
+end
+
+---@type games.SubcommandRun
+local function export(client)
+  local archive = require("games").archive
+  if not archive then
+    say("games: export needs archive.dir in setup()", ERROR)
+    return
+  end
+  client:game_list(
+    { status = GameStatus.FINISHED },
+    on_ok(
+      ---@param result games.GameListResult
+      function(result)
+        archive:backfill(result.games, function(tally)
+          say(export_summary(tally))
+        end)
+      end
+    )
+  )
+end
+
 ---@type games.SubcommandRun
 local function next_game(client)
   shell.open_next(client)
@@ -439,6 +476,7 @@ local SUBCOMMANDS = {
   { name = "stats", usage = "stats [user]", run = show_stats },
   { name = "leaderboard", usage = "leaderboard [game]", run = show_leaderboard },
   { name = "next", usage = "next", run = next_game },
+  { name = "export", usage = "export", run = export },
 }
 
 ---@param name string
