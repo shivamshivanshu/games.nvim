@@ -4,6 +4,7 @@ local notify = require("games.core.notify")
 local picker = require("games.ui.picker")
 local shell = require("games.ui.shell")
 local stats = require("games.core.stats")
+local text = require("games.ui.text")
 local types = require("games.types")
 
 local GameStatus = types.GameStatus
@@ -132,7 +133,7 @@ local function pick_options(info, on_done)
     end
     local option = info.options[name]
     picker.pick(default_first(option), {
-      prompt = (name:gsub("_", " ")) .. ":",
+      prompt = text.humanize(name) .. ":",
       format_item = function(value)
         return value == option.default and (value .. " (default)") or value
       end,

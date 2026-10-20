@@ -1,5 +1,6 @@
 local players = require("games.core.players")
 local registry = require("games.core.registry")
+local text = require("games.ui.text")
 
 local SHORT_ID_LENGTH = 4
 
@@ -53,7 +54,7 @@ end
 ---@param result games.WireResult
 ---@return string
 function M.result_text(result)
-  local reason = (result.reason:gsub("_", " "))
+  local reason = text.humanize(result.reason)
   if #result.winners > 0 then
     return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
   end

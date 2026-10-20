@@ -10,6 +10,13 @@ function M.max_display_width(lines)
   return width
 end
 
+---Wire identifiers in words: "draw_agreed" -> "draw agreed".
+---@param identifier string
+---@return string
+function M.humanize(identifier)
+  return (identifier:gsub("_", " "))
+end
+
 ---@param line string
 ---@param width integer
 ---@return string

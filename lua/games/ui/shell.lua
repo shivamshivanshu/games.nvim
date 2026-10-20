@@ -406,7 +406,7 @@ local function sync_clock_timer()
       CLOCK_TICK_MS,
       CLOCK_TICK_MS,
       vim.schedule_wrap(function()
-        vim.tbl_map(repaint_header, ticking_boards())
+        vim.iter(ticking_boards()):each(repaint_header)
       end)
     )
   elseif not needed and clock_timer:is_active() then

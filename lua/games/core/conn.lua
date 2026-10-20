@@ -24,7 +24,6 @@ local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_
 
 ---One TCP connection try; every libuv callback checks it is still current before acting.
 ---@class (private) games.ConnAttempt
----@field password string
 ---@field buffer string
 ---@field socket? uv.uv_tcp_t
 ---@field opened boolean
@@ -195,7 +194,6 @@ function Conn:open()
   end
   ---@type games.ConnAttempt
   local attempt = {
-    password = password,
     buffer = "",
     opened = false,
     authenticated = false,
@@ -214,7 +212,7 @@ function Conn:open()
       self:teardown(attempt, disconnected(("cannot resolve %s: %s"):format(host, err)))
       return
     end
-    self:try_address(attempt, addresses, 1)
+    self:try_address(attempt, addresses, 1, password)
   end)
 end
 
@@ -222,7 +220,8 @@ end
 ---@param attempt games.ConnAttempt
 ---@param addresses uv.address[]
 ---@param index integer
-function Conn:try_address(attempt, addresses, index)
+---@param password string
+function Conn:try_address(attempt, addresses, index, password)
   local address = addresses[index]
   if not address then
     self:teardown(
@@ -236,7 +235,7 @@ function Conn:try_address(attempt, addresses, index)
   local function try_next_address()
     socket:close()
     attempt.socket = nil
-    self:try_address(attempt, addresses, index + 1)
+    self:try_address(attempt, addresses, index + 1, password)
   end
   local _, connect_err = socket:connect(address.addr, address.port, function(err)
     if self.attempt ~= attempt then
@@ -250,7 +249,7 @@ function Conn:try_address(attempt, addresses, index)
     socket:read_start(function(read_err, chunk)
       self:receive(attempt, read_err, chunk)
     end)
-    self:login(attempt)
+    self:login(attempt, password)
   end)
   if connect_err then
     try_next_address()
@@ -259,10 +258,10 @@ end
 
 ---@private
 ---@param attempt games.ConnAttempt
-function Conn:login(attempt)
+---@param password string
+function Conn:login(attempt, password)
   ---@type games.LoginRequest
-  local body =
-    { v = types.PROTOCOL_VERSION, username = self.opts.username, password = attempt.password }
+  local body = { v = types.PROTOCOL_VERSION, username = self.opts.username, password = password }
   self:send_request(attempt, MessageType.AUTH_LOGIN, body, function(err, result)
     if self.attempt ~= attempt then
       return
