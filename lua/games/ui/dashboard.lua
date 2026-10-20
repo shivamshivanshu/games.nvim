@@ -1,3 +1,4 @@
+local Client = require("games.core.client")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local finder = require("games.ui.finder")
@@ -10,8 +11,10 @@ local text = require("games.ui.text")
 local theme = require("games.ui.theme")
 local timer = require("games.core.timer")
 local types = require("games.types")
+local windows = require("games.ui.windows")
 
 local ActionName = sources.ActionName
+local ConnectionState = Client.ConnectionState
 local SourceName = sources.SourceName
 
 local RECENT_GAMES = 5
@@ -26,6 +29,7 @@ local TITLE = " games "
 local SECTION_HL = "GamesDashSection"
 local EMPTY_HL = "GamesMuted"
 local KEY_HL = "GamesKey"
+local RECONNECTING = "reconnecting…"
 local NAMESPACE = vim.api.nvim_create_namespace("games.dashboard")
 local AUGROUP_NAME = "games.dashboard"
 
@@ -38,6 +42,10 @@ local AUGROUP_NAME = "games.dashboard"
 ---@field targets table<integer, games.DashboardTarget> by 1-based line
 ---@field starts games.DashboardTarget[] the game type each start key starts, by digit
 
+---@class games.DashboardViewOptions
+---@field show_keys boolean list every key instead of the footer's few
+---@field connection games.ConnectionState
+
 ---@class (private) games.DashboardSection
 ---@field title string
 ---@field source games.Source
@@ -46,6 +54,8 @@ local AUGROUP_NAME = "games.dashboard"
 
 ---@class (private) games.DashboardState
 ---@field client games.Client
+---@field me games.UserID logged in when it opened; the snapshot stays theirs across reconnects
+---@field connection games.ConnectionState
 ---@field win integer
 ---@field buf integer
 ---@field augroup integer
@@ -133,10 +143,13 @@ local UNLISTED_KEYS = { { "1-9", "start the New game of that number" }, { "<Esc>
 
 ---The dashboard of snapshot as lines, with the item each line shows.
 ---@param snapshot games.SourceSnapshot
----@param show_keys boolean list every key instead of the footer's few
+---@param options games.DashboardViewOptions
 ---@return games.DashboardView
-function M.view(snapshot, show_keys)
+function M.view(snapshot, options)
   local nodes, targets, starts = {}, {}, {}
+  if options.connection == ConnectionState.DISCONNECTED then
+    vim.list_extend(nodes, { compose.text(RECONNECTING, EMPTY_HL), compose.text("") })
+  end
   for index, section in ipairs(sections(snapshot)) do
     if index > 1 then
       nodes[#nodes + 1] = compose.text("")
@@ -155,7 +168,7 @@ function M.view(snapshot, show_keys)
     end
   end
   nodes[#nodes + 1] = compose.text("")
-  if show_keys then
+  if options.show_keys then
     local key_pairs = vim.tbl_map(function(spec)
       return { spec.key, spec.label }
     end, KEYS)
@@ -251,21 +264,16 @@ end
 
 ---@param state games.DashboardState
 local function render(state)
-  local me = state.client:me()
-  if not me then
-    notify.say("games: not connected", vim.log.levels.WARN)
-    M.close()
-    return
-  end
-  local snapshot = sources.snapshot(state.client, me, { finished = state.finished })
+  local snapshot = sources.snapshot(state.client, state.me, { finished = state.finished })
   local kept = target_key(target_at_cursor(state))
-  local view = M.view(snapshot, state.show_keys)
+  local view = M.view(snapshot, { show_keys = state.show_keys, connection = state.connection })
   state.view = view
   paint(state.buf, NAMESPACE, 0, -1, view.rendered)
   vim.api.nvim_win_set_config(state.win, centred(view.rendered.lines))
   local line = line_of(view, kept) or first_target_line(view) or 1
   vim.api.nvim_win_set_cursor(state.win, { math.min(line, #view.rendered.lines), 0 })
-  sync_tick(state, shows_running_clock(snapshot))
+  local connected = state.connection == ConnectionState.CONNECTED
+  sync_tick(state, connected and shows_running_clock(snapshot))
 end
 
 ---Coalesces a burst of client events into one render on the next tick.
@@ -331,11 +339,8 @@ end
 local function find(state)
   local target = target_at_cursor(state)
   local name = target and target.source.name or SourceName.GAMES
-  local client, me = state.client, state.client:me()
   M.close()
-  if me then
-    require("games.core.commands").find(client, me, name)
-  end
+  require("games.core.commands").find(state.client, state.me, name)
 end
 
 ---@param state games.DashboardState
@@ -398,24 +403,51 @@ local function map_keys(state)
   end
 end
 
----Closing on leave keeps a stale float from covering whatever took focus, such as a board.
+---@type fun(state: games.DashboardState)
+local release
+
+---@param state games.DashboardState
+local function close_window(state)
+  if vim.api.nvim_win_is_valid(state.win) then
+    vim.api.nvim_win_close(state.win, true)
+  end
+end
+
+---Focus landing in a tiled window, such as a board's, closes the dashboard so it never covers
+---it; a float, such as a picker the dashboard opened, leaves it open to return to.
 ---@param state games.DashboardState
 local function watch_window(state)
   vim.api.nvim_create_autocmd("WinClosed", {
     group = state.augroup,
     pattern = tostring(state.win),
     callback = function()
-      M.close()
+      if current == state then
+        release(state)
+      end
     end,
   })
-  vim.api.nvim_create_autocmd("WinLeave", {
+  vim.api.nvim_create_autocmd("WinEnter", {
+    group = state.augroup,
+    callback = function()
+      vim.schedule(function()
+        local left = not vim.api.nvim_win_is_valid(state.win)
+          or windows.is_tiled(vim.api.nvim_get_current_win())
+        if current == state and left then
+          M.close()
+        end
+      end)
+    end,
+  })
+  vim.api.nvim_create_autocmd({ "BufWinLeave", "BufWipeout" }, {
     group = state.augroup,
     buffer = state.buf,
     callback = function()
+      if current ~= state then
+        return
+      end
+      release(state)
       vim.schedule(function()
-        if current == state then
-          M.close()
-        end
+        close_window(state)
       end)
     end,
   })
@@ -436,6 +468,13 @@ local function subscribe(state)
     state.client:on_update(rerender),
     state.client:on_challenge(rerender),
     state.client:on_catalog(rerender),
+    state.client:on_connection(function(connection)
+      state.connection = connection
+      if connection == ConnectionState.CONNECTED then
+        fetch_finished(state)
+      end
+      rerender()
+    end),
   }
 end
 
@@ -445,21 +484,24 @@ function M.is_open()
   return current ~= nil
 end
 
----Closes the dashboard and stops following the client.
-function M.close()
-  local state = current
-  if not state then
-    return
-  end
+---Stops following the client and the window, leaving the window to whoever closes it.
+release = function(state)
   current = nil
   for _, unsubscribe in ipairs(state.unsubscribes) do
     unsubscribe()
   end
   sync_tick(state, false)
   vim.api.nvim_del_augroup_by_id(state.augroup)
-  if vim.api.nvim_win_is_valid(state.win) then
-    vim.api.nvim_win_close(state.win, true)
+end
+
+---Closes the dashboard and stops following the client.
+function M.close()
+  local state = current
+  if not state then
+    return
   end
+  release(state)
+  close_window(state)
 end
 
 ---Opens the dashboard of client in a centred float, or focuses the one already open.
@@ -470,6 +512,10 @@ function M.open(client)
     return
   end
   M.close()
+  local me = notify.require_me(client)
+  if not me then
+    return
+  end
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].modifiable = false
@@ -481,9 +527,12 @@ function M.open(client)
   })
   local win = vim.api.nvim_open_win(buf, true, config)
   vim.wo[win].cursorline = true
+  vim.wo[win].winfixbuf = true
   ---@type games.DashboardState
   local state = {
     client = client,
+    me = me,
+    connection = ConnectionState.CONNECTED,
     win = win,
     buf = buf,
     augroup = vim.api.nvim_create_augroup(AUGROUP_NAME, { clear = true }),

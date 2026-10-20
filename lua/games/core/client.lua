@@ -4,12 +4,16 @@ local types = require("games.types")
 local MessageType = types.MessageType
 local ErrorCode = types.ErrorCode
 local ChallengeState = types.ChallengeState
+
+---@enum games.ConnectionState
+local ConnectionState = { CONNECTED = "connected", DISCONNECTED = "disconnected" }
 ---Finished games the cache keeps; the server holds every one, so an evicted one is a snapshot away.
 local FINISHED_CACHE_SIZE = 32
 
 ---@alias games.UpdateHandler fun(update: games.GameUpdate, is_new: boolean)
 ---@alias games.ChallengeHandler fun(challenge: games.Challenge, is_new: boolean)
 ---@alias games.CatalogHandler fun(catalog: games.CatalogResult)
+---@alias games.ConnectionHandler fun(state: games.ConnectionState)
 ---@alias games.Unsubscribe fun() removes the handler it was returned for
 
 ---@class games.Client
@@ -23,6 +27,7 @@ local FINISHED_CACHE_SIZE = 32
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
 ---@field package catalog_handlers games.CatalogHandler[]
+---@field package connection_handlers games.ConnectionHandler[]
 ---@field user_list fun(self: games.Client, body: nil, cb?: games.Reply<games.UserListResult>)
 ---@field challenge_create fun(self: games.Client, body: games.ChallengeCreateRequest, cb?: games.Reply<games.ChallengeCreateResult>)
 ---@field challenge_accept fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
@@ -37,6 +42,7 @@ local FINISHED_CACHE_SIZE = 32
 ---@field stats_get fun(self: games.Client, body: games.StatsRequest|nil, cb?: games.Reply<games.StatsResult>)
 local Client = {}
 Client.__index = Client
+Client.ConnectionState = ConnectionState
 
 ---Sees a reply before cb does; returning true marks err as handled, so cb gets (nil, nil).
 ---@alias games.ReplyHook fun(self: games.Client, body: table|nil, err: games.ErrorBody|nil, result: table|nil): boolean|nil
@@ -185,6 +191,7 @@ function Client.new(conn)
     update_handlers = {},
     challenge_handlers = {},
     catalog_handlers = {},
+    connection_handlers = {},
   }, Client)
   conn:on(MessageType.GAME_UPDATE, function(update)
     self:receive_update(update)
@@ -197,10 +204,12 @@ function Client.new(conn)
     self.catalog = nil
     self.resolved_challenges = {}
     self:resync()
+    emit(self.connection_handlers, ConnectionState.CONNECTED, false, "the connection")
   end)
   conn:on("disconnected", function()
     self.user = nil
     self.catalog = nil
+    emit(self.connection_handlers, ConnectionState.DISCONNECTED, false, "the connection")
   end)
   return self
 end
@@ -231,7 +240,7 @@ end
 ---Adds fn to the handlers field holds; the handlers are replaced, never edited, so an emit in
 ---progress calls the list it started with.
 ---@param self games.Client
----@param field "update_handlers"|"challenge_handlers"|"catalog_handlers"
+---@param field "update_handlers"|"challenge_handlers"|"catalog_handlers"|"connection_handlers"
 ---@param fn function
 ---@return games.Unsubscribe
 local function subscribe(self, field, fn)
@@ -259,6 +268,12 @@ end
 ---@return games.Unsubscribe
 function Client:on_catalog(fn)
   return subscribe(self, "catalog_handlers", fn)
+end
+
+---@param fn games.ConnectionHandler called after each login, once resync is sent, and each drop
+---@return games.Unsubscribe
+function Client:on_connection(fn)
+  return subscribe(self, "connection_handlers", fn)
 end
 
 ---Caches update unless the cache already holds this seq or a later one; a finished one is

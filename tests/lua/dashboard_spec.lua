@@ -69,16 +69,49 @@ local function with_dashboard(fn)
   assert(ok, err)
 end
 
+---@type games.DashboardViewOptions
+local CONNECTED_VIEW = { show_keys = false, connection = "connected" }
+
+---@return integer timers running now, the dashboard's clock tick among them while it ticks
+local function active_timers()
+  local active = 0
+  vim.uv.walk(function(handle)
+    if handle:get_type() == "timer" and handle:is_active() then
+      active = active + 1
+    end
+  end)
+  return active
+end
+
+---@return boolean whether the dashboard's autocmd group exists
+local function has_augroup()
+  return (pcall(vim.api.nvim_get_autocmds, { group = "games.dashboard" }))
+end
+
+---@param fn fun()
+local function confirming_yes(fn)
+  helpers.with_overrides({
+    {
+      vim.fn,
+      "confirm",
+      function()
+        return 1
+      end,
+    },
+  }, fn)
+end
+
 local T = {}
 
 function T.renders_each_section_with_its_items_as_the_golden()
   local client = hub.client()
-  local view = dashboard.view(hub.snapshot(client), false)
+  local view = dashboard.view(hub.snapshot(client), CONNECTED_VIEW)
   assert_eq(GOLDEN_LINES, view.rendered.lines)
   assert_eq({ "GamesDashSection" }, highlights_on(view.rendered, 0))
   assert_eq({ "GamesWon" }, highlights_on(view.rendered, 11))
   assert_eq({ "GamesKey" }, highlights_on(view.rendered, 14))
-  local without_recent = dashboard.view(hub.snapshot(client, { finished = {} }), false).rendered
+  local without_recent =
+    dashboard.view(hub.snapshot(client, { finished = {} }), CONNECTED_VIEW).rendered
   assert_eq("  none", without_recent.lines[12])
   assert_eq({ "GamesMuted" }, highlights_on(without_recent, 11))
   assert_eq(hub.INCOMING, view.targets[2].item)
@@ -89,7 +122,12 @@ end
 ---@param client games.Client
 ---@return integer[] how many handlers follow each kind of client event
 local function handler_counts(client)
-  return { #client.update_handlers, #client.challenge_handlers, #client.catalog_handlers }
+  return {
+    #client.update_handlers,
+    #client.challenge_handlers,
+    #client.catalog_handlers,
+    #client.connection_handlers,
+  }
 end
 
 function T.updates_live_and_stops_following_the_client_once_closed()
@@ -122,15 +160,7 @@ function T.keys_act_on_the_item_under_the_cursor()
     press("d")
     assert_eq({ challenge_id = "c-out" }, hub.sent(conn, "challenge.cancel"))
     cursor_to(9)
-    helpers.with_overrides({
-      {
-        vim.fn,
-        "confirm",
-        function()
-          return 1
-        end,
-      },
-    }, function()
+    confirming_yes(function()
       press("r")
     end)
     assert_eq(
@@ -174,6 +204,135 @@ function T.games_without_arguments_opens_the_dashboard()
     end)
     dashboard.close()
     assert(ok, err)
+  end)
+end
+
+function T.a_dropped_connection_pauses_the_clock_and_shows_reconnecting_until_it_is_back()
+  with_dashboard(function(_, conn)
+    local ticking = active_timers()
+    conn:push("disconnected", { code = "disconnected", message = "lost", retrying = true })
+    vim.wait(20)
+    assert(dashboard.is_open(), "the dashboard closed on a dropped connection")
+    assert_eq("reconnecting…", shown_lines()[1])
+    assert_eq(ticking - 1, active_timers())
+
+    conn.requests = {}
+    conn:push("connected", { user = hub.ME, heartbeat_ms = 15000 })
+    vim.wait(20)
+    assert_eq("Requests", shown_lines()[1])
+    assert_eq(ticking, active_timers())
+    assert(hub.requested(conn, "game.list"), "recent games were not fetched again")
+  end)
+end
+
+function T.a_burst_of_pushes_renders_once()
+  with_dashboard(function(_, conn)
+    local rendered, view = 0, dashboard.view
+    helpers.with_overrides({
+      {
+        dashboard,
+        "view",
+        function(...)
+          rendered = rendered + 1
+          return view(...)
+        end,
+      },
+    }, function()
+      for seq = hub.WAITING.seq + 1, hub.WAITING.seq + 3 do
+        conn:push("game.update", vim.tbl_extend("force", hub.WAITING, { seq = seq }))
+      end
+      vim.wait(20)
+    end)
+    assert_eq(1, rendered)
+  end)
+end
+
+function T.close_drops_the_handlers_the_autocmds_and_the_clock_tick()
+  local client = hub.client()
+  local before, timers = handler_counts(client), active_timers()
+  dashboard.open(client)
+  assert_eq(timers + 1, active_timers())
+  dashboard.close()
+  assert_eq(before, handler_counts(client))
+  assert(not has_augroup(), "the dashboard's autocmds outlived it")
+  assert_eq(timers, active_timers())
+end
+
+function T.closing_its_window_any_other_way_cleans_up_as_close_does()
+  local client = hub.client()
+  local before = handler_counts(client)
+  dashboard.open(client)
+  vim.api.nvim_win_close(0, true)
+  assert(not dashboard.is_open(), "the dashboard outlived its window")
+  assert_eq(before, handler_counts(client))
+  assert(not has_augroup(), "the dashboard's autocmds outlived its window")
+end
+
+function T.its_window_keeps_its_buffer_and_a_replaced_buffer_closes_it()
+  local client, conn = hub.client()
+  local before, timers = handler_counts(client), active_timers()
+  dashboard.open(client)
+  local win = vim.api.nvim_get_current_win()
+  assert(vim.wo[win].winfixbuf, "winfixbuf is not set")
+  vim.wo[win].winfixbuf = false
+  local other = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_win_set_buf(win, other)
+  assert_eq(before, handler_counts(client))
+  assert_eq(timers, active_timers())
+  conn:push("game.update", vim.tbl_extend("force", hub.YOUR_MOVE, { seq = hub.YOUR_MOVE.seq + 1 }))
+  vim.wait(20)
+  assert(not vim.api.nvim_win_is_valid(win), "the float stayed open over the replaced buffer")
+  vim.api.nvim_buf_delete(other, { force = true })
+end
+
+function T.a_floating_picker_it_opens_leaves_it_open_when_cancelled()
+  with_dashboard(function()
+    helpers.with_overrides({
+      {
+        vim.ui,
+        "select",
+        function(_, _, on_choice)
+          local buf = vim.api.nvim_create_buf(false, true)
+          local float = vim.api.nvim_open_win(buf, true, {
+            relative = "editor",
+            width = 10,
+            height = 2,
+            row = 0,
+            col = 0,
+          })
+          vim.wait(20)
+          vim.api.nvim_win_close(float, true)
+          vim.api.nvim_buf_delete(buf, { force = true })
+          on_choice(nil)
+        end,
+      },
+    }, function()
+      cursor_to(2)
+      press("<CR>")
+      vim.wait(20)
+    end)
+    assert(dashboard.is_open(), "cancelling the dashboard's own picker closed it")
+  end)
+end
+
+function T.a_key_acts_on_the_item_the_cursor_was_on_after_a_live_update_moves_it()
+  with_dashboard(function(_, conn)
+    cursor_to(9)
+    local moved =
+      vim.tbl_extend("force", hub.WAITING, { seq = hub.WAITING.seq + 1, to_act = { "alice" } })
+    conn:push("game.update", moved)
+    vim.wait(20)
+    assert(
+      shown_lines()[vim.api.nvim_win_get_cursor(0)[1]]:find("#8b2c", 1, true),
+      "cursor lost the game"
+    )
+    confirming_yes(function()
+      press("r")
+    end)
+    assert_eq(
+      { game_id = moved.game_id, seq = moved.seq, control = "resign" },
+      hub.sent(conn, "game.control")
+    )
   end)
 end
 
