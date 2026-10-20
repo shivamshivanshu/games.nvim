@@ -35,20 +35,26 @@ function T.seq_gap_snapshots_instead_of_applying()
   assert(client:game("g1").seq == 3)
 end
 
-function T.stale_error_snapshots_instead_of_reporting()
+function T.stale_error_snapshots_and_supersedes_the_reply()
   local conn = stub_conn()
   local client = Client.new(conn --[[@as games.Conn]])
-  local reported = {}
-  local function report(err)
-    table.insert(reported, err.code)
+  local replies = {}
+  local function record(err, result)
+    table.insert(replies, { err = err and err.code or "none", result = result or "none" })
   end
   local move = { game_id = "g1", seq = 0, action = { kind = "move", move = "e4" } }
-  client:game_act(move, report)
-  client:game_act(move, report)
+  client:game_act(move, record)
+  client:game_act(move, record)
   conn.requests[1].cb({ code = "stale", message = "seq 0 is stale" }, nil)
   conn.requests[2].cb({ code = "illegal_action", message = "no" }, nil)
 
-  assert(vim.deep_equal(reported, { "illegal_action" }), vim.inspect(reported))
+  assert(
+    vim.deep_equal(replies, {
+      { err = "none", result = "none" },
+      { err = "illegal_action", result = "none" },
+    }),
+    vim.inspect(replies)
+  )
   assert(conn.requests[3].type == "game.snapshot" and conn.requests[3].body.game_id == "g1")
 end
 

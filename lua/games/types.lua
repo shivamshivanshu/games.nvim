@@ -5,6 +5,7 @@
 ---@alias games.ChallengeID string
 ---@alias games.Capability "resign"|"draw"|"abort"|"clock"
 ---@alias games.Options table<string, string>
+---Both nil means the request was superseded and the client fetches a fresh snapshot instead.
 ---@alias games.Reply<R> fun(err: games.ErrorBody|nil, result: R|nil)
 ---@alias games.ReplyCallback games.Reply<table>
 

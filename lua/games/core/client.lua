@@ -31,7 +31,7 @@ local ChallengeState = types.ChallengeState
 local Client = {}
 Client.__index = Client
 
----Sees a reply before cb does; returning true marks err as handled, so cb never gets it.
+---Sees a reply before cb does; returning true marks err as handled, so cb gets (nil, nil).
 ---@alias games.ReplyHook fun(self: games.Client, body: table|nil, err: games.ErrorBody|nil, result: table|nil): boolean|nil
 
 ---Builds the typed wrapper for one request type; on_reply lets the cache see the reply before cb.
@@ -42,7 +42,12 @@ local function request_fn(message_type, on_reply)
   return function(self, body, cb)
     self.conn:request(message_type, body, function(err, result)
       local handled = on_reply and on_reply(self, body, err, result)
-      if cb and not handled then
+      if not cb then
+        return
+      end
+      if handled then
+        cb(nil, nil)
+      else
         cb(err, result)
       end
     end)
