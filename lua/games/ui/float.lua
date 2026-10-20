@@ -1,4 +1,5 @@
 local compose = require("games.ui.compose")
+local paint = require("games.ui.paint")
 local text = require("games.ui.text")
 local theme = require("games.ui.theme")
 
@@ -21,14 +22,7 @@ function M.open(title, node)
   theme.setup()
   local rendered = compose.render(node)
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, rendered.lines)
-  for _, mark in ipairs(rendered.extmarks) do
-    vim.api.nvim_buf_set_extmark(buf, NAMESPACE, mark.row, mark.col, {
-      end_col = mark.end_col,
-      hl_group = mark.hl,
-    })
-  end
-  vim.bo[buf].modifiable = false
+  paint(buf, NAMESPACE, 0, -1, rendered)
   vim.bo[buf].bufhidden = "wipe"
 
   local width = math.max(text.max_display_width(rendered.lines), vim.fn.strdisplaywidth(title))

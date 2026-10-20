@@ -1,5 +1,6 @@
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
+local paint = require("games.ui.paint")
 local theme = require("games.ui.theme")
 local players = require("games.core.players")
 local registry = require("games.core.registry")
@@ -325,26 +326,6 @@ local function elapsed_ms(board)
   return now - (board.client:received_at(board.update.game_id) or now)
 end
 
----@param buf integer
----@param first integer
----@param last integer exclusive, -1 for the end of the buffer
----@param rendered games.Rendered
-local function paint(buf, first, last, rendered)
-  vim.api.nvim_buf_clear_namespace(buf, NAMESPACE, first, last)
-  vim.bo[buf].modifiable = true
-  local ok, err = pcall(vim.api.nvim_buf_set_lines, buf, first, last, false, rendered.lines)
-  vim.bo[buf].modifiable = false
-  if not ok then
-    error(err, 0)
-  end
-  for _, mark in ipairs(rendered.extmarks) do
-    vim.api.nvim_buf_set_extmark(buf, NAMESPACE, first + mark.row, mark.col, {
-      end_col = mark.end_col,
-      hl_group = mark.hl,
-    })
-  end
-end
-
 ---@param board games.Board
 ---@param bindings games.KeyBinding[]
 local function map_keys(board, bindings)
@@ -366,7 +347,7 @@ end
 render_board = function(board)
   local rendered, header_height =
     M.render(board.update, board.module, board.view, board.me, elapsed_ms(board))
-  paint(board.buf, 0, -1, rendered)
+  paint(board.buf, NAMESPACE, 0, -1, rendered)
   board.header_height = header_height
   vim.b[board.buf].games_dirty = false
   map_keys(board, bindings_for(board.update, board.module))
@@ -374,7 +355,13 @@ end
 
 ---@param board games.Board
 local function repaint_header(board)
-  paint(board.buf, 0, board.header_height, render_header(board.update, board.me, elapsed_ms(board)))
+  paint(
+    board.buf,
+    NAMESPACE,
+    0,
+    board.header_height,
+    render_header(board.update, board.me, elapsed_ms(board))
+  )
 end
 
 ---@return games.Board[]
