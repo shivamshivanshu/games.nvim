@@ -33,4 +33,17 @@ function T.setup_without_credentials_skips_autoconnect()
   end)
 end
 
+function T.setup_on_old_neovim_notifies_and_returns()
+  with_plugin_state(function(notified)
+    local has = vim.fn.has
+    vim.fn.has = function()
+      return 0
+    end
+    local ok, err = pcall(games.setup, { username = 42 })
+    vim.fn.has = has
+    assert(ok, err)
+    helpers.assert_eq({ "games: needs Neovim 0.11 or newer" }, notified)
+  end)
+end
+
 return T
