@@ -168,6 +168,7 @@ function Client.new(conn)
   end)
   conn:on("disconnected", function()
     self.user = nil
+    self.catalog = nil
   end)
   return self
 end

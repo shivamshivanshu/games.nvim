@@ -93,8 +93,12 @@ function T.catalog_is_requested_once_per_connection()
       return request.type == "catalog.list"
     end, conn.requests)
   end
+  local catalog = { games = { { id = "chess", name = "Chess" } } }
   client:catalog_list(nil)
-  catalog_requests()[1].cb(nil, { games = { { id = "chess", name = "Chess" } } })
+  catalog_requests()[1].cb({ code = "internal", message = "try again" }, nil)
+  client:catalog_list(nil)
+  assert(#catalog_requests() == 2, "a failed catalog request must not be cached")
+  catalog_requests()[2].cb(nil, catalog)
   local names
   client:game_names(function(result)
     names = result
@@ -104,10 +108,14 @@ function T.catalog_is_requested_once_per_connection()
   end)
 
   assert(vim.deep_equal(names, { chess = "Chess" }), vim.inspect(names))
-  assert(#catalog_requests() == 1)
+  assert(#catalog_requests() == 2)
+  conn:push("disconnected", { code = "disconnected", message = "lost", retrying = true })
+  client:catalog_list(nil)
+  assert(#catalog_requests() == 3)
+  catalog_requests()[3].cb(nil, catalog)
   conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
   client:catalog_list(nil)
-  assert(#catalog_requests() == 2)
+  assert(#catalog_requests() == 4)
 end
 
 function T.resolved_challenge_ignores_late_pending()
