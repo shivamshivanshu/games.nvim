@@ -55,10 +55,11 @@ func (e *env) requireSealed(t *testing.T, u protocol.GameUpdate) {
 	}
 }
 
-// metadataOnly is how every read after the finishing broadcast shows the game.
-func metadataOnly(finishing protocol.GameUpdate) protocol.GameUpdate {
+// laterRead is how every read after the finishing broadcast shows the game:
+// its final view, without the last step's events or the clock.
+func laterRead(finishing protocol.GameUpdate) protocol.GameUpdate {
 	u := finishing
-	u.View, u.Events, u.Clock = json.RawMessage(`null`), []json.RawMessage{}, nil
+	u.Events, u.Clock = []json.RawMessage{}, nil
 	return u
 }
 
@@ -96,13 +97,13 @@ func TestFinishSealsCanonicalSummaryAndDeletesSteps(t *testing.T) {
 	}
 	for user, c := range map[game.UserID]*testClient{alice: a, bob: b} {
 		listed := call[protocol.GameListResult](t, c, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
-		if diff := cmp.Diff([]protocol.GameUpdate{metadataOnly(final)}, listed); diff != "" {
+		if diff := cmp.Diff([]protocol.GameUpdate{laterRead(final)}, listed); diff != "" {
 			t.Errorf("%s's finished list (-want +listed):\n%s", user, diff)
 		}
 	}
 }
 
-func TestFinishingBroadcastShowsFinalPositionThenReadsAreMetadataOnly(t *testing.T) {
+func TestFinishingBroadcastAddsLastStepToEveryLaterRead(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
@@ -120,7 +121,7 @@ func TestFinishingBroadcastShowsFinalPositionThenReadsAreMetadataOnly(t *testing
 			t.Fatalf("%s's finishing broadcast view %s, events %v; want the final total and its counted event", user, finishing.View, events)
 		}
 		snapshot := call[protocol.GameUpdate](t, c, protocol.TypeGameSnapshot, protocol.GameSnapshotRequest{GameID: id})
-		if diff := cmp.Diff(metadataOnly(finishing), snapshot); diff != "" {
+		if diff := cmp.Diff(laterRead(finishing), snapshot); diff != "" {
 			t.Errorf("%s's later snapshot (-want +got):\n%s", user, diff)
 		}
 	}

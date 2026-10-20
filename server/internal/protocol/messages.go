@@ -244,7 +244,9 @@ type UnixMS int64
 
 func UnixMSOf(t time.Time) UnixMS { return UnixMS(t.UnixMilli()) }
 
-// GameUpdate.Summary carries a finished game's summary as the exact bytes Digest covers.
+// GameUpdate.Summary carries a finished game's summary as the exact bytes
+// Digest covers; Exports, also null until the game finishes, holds the files
+// the game records itself in, by name.
 type GameUpdate struct {
 	GameID     game.GameID       `json:"game_id"`
 	Game       game.GameType     `json:"game"`
@@ -262,6 +264,7 @@ type GameUpdate struct {
 	FinishedAt *UnixMS           `json:"finished_at"`
 	Summary    *string           `json:"summary"`
 	Digest     *game.Digest      `json:"digest"`
+	Exports    map[string]string `json:"exports"`
 }
 
 type GameVerifyRequest struct {

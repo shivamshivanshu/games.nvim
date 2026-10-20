@@ -182,14 +182,18 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 		seq = move(t, player, id, seq, san)
 	}
 
+	var finishing protocol.GameUpdate
 	for _, c := range []*testClient{a, b} {
-		final := waitUpdate(t, c, seq)
-		if final.Result == nil || final.Result.Reason != chess.ReasonCheckmate || !slices.Equal(final.Result.Winners, []game.UserID{bob}) {
-			t.Fatalf("final result = %+v, want checkmate won by bob", final.Result)
+		finishing = waitUpdate(t, c, seq)
+		if finishing.Result == nil || finishing.Result.Reason != chess.ReasonCheckmate || !slices.Equal(finishing.Result.Winners, []game.UserID{bob}) {
+			t.Fatalf("final result = %+v, want checkmate won by bob", finishing.Result)
 		}
-		e.requireSealed(t, final)
-		if !strings.Contains(string(final.View), "Qh4#") {
-			t.Fatalf("finishing broadcast view %s lacks the mating move", final.View)
+		e.requireSealed(t, finishing)
+		if !strings.Contains(string(finishing.View), "Qh4#") {
+			t.Fatalf("finishing broadcast view %s lacks the mating move", finishing.View)
+		}
+		if pgn := finishing.Exports[chess.PGNFile]; !strings.Contains(pgn, "1. f3 e5 2. g4 Qh4# 0-1") {
+			t.Fatalf("finishing broadcast exports %v, want the PGN", finishing.Exports)
 		}
 	}
 
@@ -212,6 +216,9 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 	finished := call[protocol.GameListResult](t, a, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
 	if len(finished) != 1 || finished[0].GameID != id || finished[0].Seq != seq || finished[0].Result == nil {
 		t.Fatalf("finished games = %+v, want the checkmated game", finished)
+	}
+	if string(finished[0].View) != string(finishing.View) || !cmp.Equal(finished[0].Exports, finishing.Exports) {
+		t.Fatalf("finished read view %s, exports %v; want the finishing broadcast's", finished[0].View, finished[0].Exports)
 	}
 	if games := ongoing(t, a); len(games) != 0 {
 		t.Fatalf("ongoing games after mate = %+v", games)
@@ -297,7 +304,7 @@ func TestTimeoutListsAsFinishedAfterRestart(t *testing.T) {
 		t.Fatalf("ongoing after restart = %+v, want none", games)
 	}
 	finished := call[protocol.GameListResult](t, a, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
-	if diff := cmp.Diff([]protocol.GameUpdate{metadataOnly(final)}, finished); diff != "" {
+	if diff := cmp.Diff([]protocol.GameUpdate{laterRead(final)}, finished); diff != "" {
 		t.Fatalf("finished list after restart (-want +listed):\n%s", diff)
 	}
 }

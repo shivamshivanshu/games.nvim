@@ -23,7 +23,7 @@ func finishedUpdate(rec store.GameRecord, user game.UserID) (protocol.GameUpdate
 	if err != nil {
 		return protocol.GameUpdate{}, err
 	}
-	return finished.Update(), nil
+	return finished.ViewedBy(user), nil
 }
 
 // verify checks a client's archived summary against the digest stored at

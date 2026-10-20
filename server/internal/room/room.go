@@ -94,9 +94,13 @@ func (g Setup) finished(s roomState, at time.Time) (archive.Finished, error) {
 	if err != nil {
 		return archive.Finished{}, err
 	}
+	views, err := s.views(g)
+	if err != nil {
+		return archive.Finished{}, err
+	}
 	return archive.Finished{
 		ID: g.ID, Type: g.info.Type, Options: g.Options, Players: g.Players, StartedAt: g.CreatedAt,
-		Finish: store.Finish{At: at, Seq: s.seq, Ending: ending},
+		Finish: store.Finish{At: at, Seq: s.seq, Ending: ending, Views: views, Exports: s.exports(g)},
 	}.Sealed()
 }
 
@@ -149,6 +153,7 @@ func (s roomState) settled(g Setup) roomState {
 
 func (s roomState) impose(g Setup, result game.Result) roomState {
 	s.imposed = &result
+	s.game = s.game.Conclude(result)
 	return s.settled(g)
 }
 
@@ -287,10 +292,27 @@ func (s roomState) view(g Setup, user game.UserID) (json.RawMessage, error) {
 	return view, nil
 }
 
-// update is what user sees at at: a finished game's metadata only, or the live game.
+func (s roomState) views(g Setup) (map[game.UserID]json.RawMessage, error) {
+	views := make(map[game.UserID]json.RawMessage, len(g.Players))
+	for _, player := range g.Players {
+		view, err := s.view(g, player.User)
+		if err != nil {
+			return nil, err
+		}
+		views[player.User] = view
+	}
+	return views, nil
+}
+
+func (s roomState) exports(g Setup) map[string]string {
+	files := s.game.Exports(game.ExportContext{Players: slices.Clone(g.Players), StartedAt: g.CreatedAt, Result: *s.result})
+	return xslices.MapValues(files, func(content []byte) string { return string(content) })
+}
+
+// update is what user sees at at: a finished game as it ended, or the live game.
 func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.GameUpdate, error) {
 	if s.final != nil {
-		return s.final.Update(), nil
+		return s.final.ViewedBy(user), nil
 	}
 	return s.addressed(g, s.live(g, at), user)
 }
@@ -312,7 +334,7 @@ func (s roomState) live(g Setup, at time.Time) protocol.GameUpdate {
 }
 
 // stepUpdate is what the step that reached s broadcasts to every player; a
-// finishing step adds its events and clock to the sealed game's metadata.
+// finishing step adds its events and clock to the sealed game.
 func (s roomState) stepUpdate(g Setup) protocol.GameUpdate {
 	if s.final == nil {
 		return s.live(g, s.since)

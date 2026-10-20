@@ -241,7 +241,7 @@ func (h *Hub) finishedGames(ctx context.Context, user game.UserID) ([]protocol.G
 	})
 }
 
-// snapshot reads a finished game from its stored metadata; every ongoing game has a live room.
+// snapshot reads a finished game from its stored record; every ongoing game has a live room.
 func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
 	if r, err := h.liveRoom(id); err == nil {
 		s, err := r.Snapshot(ctx, user)

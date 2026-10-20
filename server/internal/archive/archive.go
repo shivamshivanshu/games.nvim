@@ -1,6 +1,6 @@
 // Package archive turns a finished game into what the server keeps of it: its
-// metadata and a canonical summary whose digest makes the outcome
-// tamper-evident. It knows no game.
+// metadata, final views and exports, and a canonical summary whose digest
+// makes the outcome tamper-evident. It knows no game.
 package archive
 
 import (
@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -87,7 +88,14 @@ func (f Finished) Sealed() (Finished, error) {
 	return f, nil
 }
 
-// Update is the finished game as every player sees it: metadata only.
+// ViewedBy is the finished game as user sees it: Update with user's final view.
+func (f Finished) ViewedBy(user game.UserID) protocol.GameUpdate {
+	u := f.Update()
+	u.View = f.Finish.Views[user]
+	return u
+}
+
+// Update is the finished game as every player sees it, without a view.
 func (f Finished) Update() protocol.GameUpdate {
 	return protocol.GameUpdate{
 		GameID:     f.ID,
@@ -103,6 +111,7 @@ func (f Finished) Update() protocol.GameUpdate {
 		FinishedAt: new(protocol.UnixMSOf(f.Finish.At)),
 		Summary:    new(string(f.Finish.Summary)),
 		Digest:     new(f.Finish.Digest),
+		Exports:    maps.Clone(f.Finish.Exports),
 	}
 }
 

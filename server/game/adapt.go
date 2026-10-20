@@ -112,6 +112,22 @@ func (e erased[Action, View]) Scores() (map[Seat]int64, bool) {
 	return scorer.Scores(), true
 }
 
+func (e erased[Action, View]) Exports(ctx ExportContext) map[string][]byte {
+	exporter, ok := e.state.(Exporter)
+	if !ok {
+		return map[string][]byte{}
+	}
+	return exporter.Exports(ctx)
+}
+
+func (e erased[Action, View]) Conclude(result Result) ErasedState {
+	concluder, ok := e.state.(Concluder[Action, View])
+	if !ok {
+		return e
+	}
+	return erased[Action, View]{state: concluder.Conclude(result)}
+}
+
 func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error) {
 	next, events := e.state.Eliminate(seat, reason)
 	return erasedWithEvents(next, events)

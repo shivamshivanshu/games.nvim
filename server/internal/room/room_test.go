@@ -498,7 +498,7 @@ func TestFinishingBroadcastAddsStepToSealedUpdate(t *testing.T) {
 		if len(sent.View) == 0 {
 			t.Errorf("%s finishing broadcast has no view", user)
 		}
-		sealed.Events, sealed.Clock, sealed.View = sent.Events, sent.Clock, sent.View
+		sealed.Events, sealed.Clock = sent.Events, sent.Clock
 		if diff := cmp.Diff(sealed, sent); diff != "" {
 			t.Errorf("%s finishing broadcast vs sealed snapshot (-sealed +broadcast):\n%s", user, diff)
 		}
@@ -796,5 +796,33 @@ func TestRestoreKeepsEliminatedPlayer(t *testing.T) {
 	}
 	if _, err := restored.Control(t.Context(), bob, seq, protocol.ControlResign); !isCode(err, protocol.CodeIllegalAction) {
 		t.Fatalf("resigned player's resign after restore: want illegal_action, got %v", err)
+	}
+}
+
+func TestImposedResultLeavesNoMovesInTheFinalView(t *testing.T) {
+	tests := map[string]func(h *harness){
+		"draw agreed": func(h *harness) {
+			seq := h.control(t, alice, 0, protocol.ControlOfferDraw)
+			h.control(t, bob, seq, protocol.ControlOfferDraw)
+		},
+		"abort": func(h *harness) { h.control(t, alice, 0, protocol.ControlAbort) },
+	}
+	for name, impose := range tests {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness(t, game.TimeControl10Plus5)
+			impose(h)
+			waitDone(t, h.room)
+			_, finished := h.persist.recorded()
+			if finished == nil {
+				t.Fatal("no finish record")
+			}
+			var view chess.View
+			if err := json.Unmarshal(finished.Views[alice], &view); err != nil {
+				t.Fatal(err)
+			}
+			if len(view.LegalMoves) != 0 || view.ClaimableDraw {
+				t.Errorf("stored final view of the side to move offers legal_moves %v, claimable_draw %v", view.LegalMoves, view.ClaimableDraw)
+			}
+		})
 	}
 }

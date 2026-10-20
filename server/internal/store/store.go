@@ -67,13 +67,16 @@ type Ending struct {
 	Standings map[game.UserID]Standing
 }
 
-// Finish is all that is kept of a game once it ends: its steps are deleted.
+// Finish is all that is kept of a game once it ends: its steps are deleted,
+// and each player's final view and the game's exports stay in their place.
 type Finish struct {
 	At  time.Time
 	Seq game.Seq
 	Ending
 	Summary []byte
 	Digest  game.Digest
+	Views   map[game.UserID]json.RawMessage
+	Exports map[string]string
 }
 
 type GameRecord struct {
@@ -206,18 +209,22 @@ func (s *Store) FinishGame(ctx context.Context, id game.GameID, f Finish) error 
 	if err != nil {
 		return fmt.Errorf("store: %w", err)
 	}
+	exports, err := json.Marshal(f.Exports)
+	if err != nil {
+		return fmt.Errorf("store: encode exports: %w", err)
+	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		if err := requireAffected(ctx, tx, ErrNotOngoing,
-			`UPDATE games SET finished_at = ?, final_seq = ?, result_kind = ?, result_reason = ?, summary = ?, digest = ?
+			`UPDATE games SET finished_at = ?, final_seq = ?, result_kind = ?, result_reason = ?, summary = ?, digest = ?, exports_json = ?
 			 WHERE game_id = ? AND finished_at IS NULL`,
-			f.At.UnixMilli(), int64(f.Seq), string(kind), f.Reason, f.Summary, f.Digest, id); err != nil {
+			f.At.UnixMilli(), int64(f.Seq), string(kind), f.Reason, f.Summary, f.Digest, exports, id); err != nil {
 			return err
 		}
 		for user, standing := range f.Standings {
 			outcome := sql.Null[Outcome]{V: standing.Outcome, Valid: standing.Outcome != OutcomeNone}
 			if err := requireAffected(ctx, tx, fmt.Errorf("store: standing for %q: not a player of game %q", user, id),
-				`UPDATE game_players SET outcome = ?, score = ? WHERE game_id = ? AND username = ?`,
-				outcome, standing.Score, id, user); err != nil {
+				`UPDATE game_players SET outcome = ?, score = ?, final_view = ? WHERE game_id = ? AND username = ?`,
+				outcome, standing.Score, []byte(f.Views[user]), id, user); err != nil {
 				return err
 			}
 		}
@@ -276,7 +283,7 @@ func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any
 	}
 	recs, err := queryAll(ctx, s.reader, scanGame,
 		`SELECT game_id, game_type, options_json, rng_seed, created_at,
-		        finished_at, final_seq, result_kind, result_reason, summary, digest
+		        finished_at, final_seq, result_kind, result_reason, summary, digest, exports_json
 		 FROM games WHERE `+inSet(len(ids)), anySlice(ids)...)
 	if err != nil {
 		return nil, err
@@ -287,7 +294,7 @@ func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any
 	}
 	slices.SortFunc(recs, func(a, b GameRecord) int { return cmp.Compare(position[a.ID], position[b.ID]) })
 	players, err := queryAll(ctx, s.reader, scanPlayer,
-		`SELECT game_id, username, seat, outcome, score FROM game_players WHERE `+inSet(len(ids))+` ORDER BY rowid`, anySlice(ids)...)
+		`SELECT game_id, username, seat, outcome, score, final_view FROM game_players WHERE `+inSet(len(ids))+` ORDER BY rowid`, anySlice(ids)...)
 	if err != nil {
 		return nil, err
 	}
@@ -300,8 +307,11 @@ func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any
 		recs[i].Steps = stepsOf[recs[i].ID]
 		for _, row := range playersOf[recs[i].ID] {
 			recs[i].Players = append(recs[i].Players, row.player)
-			if recs[i].Finish != nil {
-				recs[i].Finish.Standings[row.player.User] = Standing{Outcome: row.outcome.V, Score: row.score.V}
+			if finish := recs[i].Finish; finish != nil {
+				finish.Standings[row.player.User] = Standing{Outcome: row.outcome.V, Score: row.score.V}
+				if row.view != nil {
+					finish.Views[row.player.User] = row.view
+				}
 			}
 		}
 	}
@@ -359,10 +369,10 @@ func scanGame(row scanner) (GameRecord, error) {
 	var options []byte
 	var finishedMS, finalSeq sql.Null[int64]
 	var kind, reason sql.Null[string]
-	var summary []byte
+	var summary, exports []byte
 	var digest sql.Null[game.Digest]
 	if err := row.Scan(&rec.ID, &rec.Type, &options, &seed, &createdMS,
-		&finishedMS, &finalSeq, &kind, &reason, &summary, &digest); err != nil {
+		&finishedMS, &finalSeq, &kind, &reason, &summary, &digest, &exports); err != nil {
 		return rec, err
 	}
 	rec.Options, rec.Seed, rec.CreatedAt = options, game.Seed(seed), time.UnixMilli(createdMS)
@@ -373,13 +383,24 @@ func scanGame(row scanner) (GameRecord, error) {
 	if err := resultKind.UnmarshalText([]byte(kind.V)); err != nil {
 		return rec, fmt.Errorf("store: game %s: %w", rec.ID, err)
 	}
-	rec.Finish = &Finish{
+	finish := &Finish{
 		At:      time.UnixMilli(finishedMS.V),
 		Seq:     game.Seq(finalSeq.V),
 		Ending:  Ending{Kind: resultKind, Reason: game.ResultReason(reason.V), Standings: map[game.UserID]Standing{}},
 		Summary: summary,
 		Digest:  digest.V,
+		Views:   map[game.UserID]json.RawMessage{},
+		Exports: map[string]string{},
 	}
+	if len(exports) > 0 {
+		if err := json.Unmarshal(exports, &finish.Exports); err != nil {
+			return rec, fmt.Errorf("store: game %s exports: %w", rec.ID, err)
+		}
+	}
+	if finish.Exports == nil {
+		finish.Exports = map[string]string{}
+	}
+	rec.Finish = finish
 	return rec, nil
 }
 
@@ -387,11 +408,15 @@ type playerRow struct {
 	player  game.Player
 	outcome sql.Null[Outcome]
 	score   sql.Null[int64]
+	view    json.RawMessage
 }
 
 func scanPlayer(row scanner) (ofGame[playerRow], error) {
 	var p ofGame[playerRow]
-	return p, row.Scan(&p.game, &p.value.player.User, &p.value.player.Seat, &p.value.outcome, &p.value.score)
+	var view []byte
+	err := row.Scan(&p.game, &p.value.player.User, &p.value.player.Seat, &p.value.outcome, &p.value.score, &view)
+	p.value.view = view
+	return p, err
 }
 
 func scanStep(row scanner) (ofGame[StepRecord], error) {

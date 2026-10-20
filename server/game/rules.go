@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/rand/v2"
 	"slices"
+	"time"
 )
 
 // Rules is what a game author implements, with concrete types and no JSON.
@@ -26,6 +27,27 @@ type Scorer interface {
 	Scores() map[Seat]int64
 }
 
+// ExportContext is what the core knows of a finished game beyond its state:
+// Result is the final one, including a result the core imposed.
+type ExportContext struct {
+	Players   []Player
+	StartedAt time.Time
+	Result    Result
+}
+
+// Exporter is optionally implemented by a finished state to give files that
+// record the game, such as a PGN, by file name. The files are text.
+type Exporter interface {
+	Exports(ctx ExportContext) map[string][]byte
+}
+
+// Concluder is optionally implemented by a state to take a result the core
+// imposed, such as an agreed draw or an abort, so that it stops offering
+// moves: ToAct is empty and the views show none.
+type Concluder[Action, View any] interface {
+	Conclude(result Result) State[Action, View]
+}
+
 // Game is the type-erased side the server core uses.
 type Game interface {
 	Info() Info
@@ -40,6 +62,10 @@ type ErasedState interface {
 	Outcome() (Result, bool)
 	Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error)
 	Scores() (map[Seat]int64, bool)
+	// Exports is empty for a state that is not an Exporter.
+	Exports(ctx ExportContext) map[string][]byte
+	// Conclude is the state itself for a state that is not a Concluder.
+	Conclude(result Result) ErasedState
 }
 
 func ForfeitToRemaining(all []Seat, eliminated Seat, reason ResultReason) Result {

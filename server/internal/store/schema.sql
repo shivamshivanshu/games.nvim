@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS games (
     final_seq     INTEGER,
     result_kind   TEXT CHECK (result_kind IN ('decisive', 'draw', 'aborted')),
     summary       BLOB,
-    digest        TEXT
+    digest        TEXT,
+    exports_json  BLOB
 );
 
 CREATE TABLE IF NOT EXISTS game_players (
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS game_players (
     seat     TEXT NOT NULL,
     outcome  TEXT CHECK (outcome IN ('win', 'loss', 'draw')),
     score    INTEGER,
+    final_view BLOB,
     PRIMARY KEY (game_id, username)
 );
 

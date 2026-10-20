@@ -9,6 +9,7 @@ import (
 )
 
 type state struct {
+	start    Position
 	position Position
 	legal    []Move
 	history  []RepetitionKey
@@ -21,7 +22,7 @@ var allSeats = []game.Seat{SeatWhite, SeatBlack}
 
 func newState(p Position) state {
 	legal := p.LegalMoves()
-	return state{position: p, legal: legal, history: []RepetitionKey{p.repetitionKey(legal)}}
+	return state{start: p, position: p, legal: legal, history: []RepetitionKey{p.repetitionKey(legal)}}
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -47,6 +48,7 @@ func (s state) applyMove(seat game.Seat, input string) (game.State[Action, View]
 	san := s.position.sanWithoutCheckSuffix(move, s.legal) + checkSuffix(position, legal)
 	key := position.repetitionKey(legal)
 	next := state{
+		start:    s.start,
 		position: position,
 		legal:    legal,
 		history:  append(slices.Clip(s.history), key),
@@ -111,4 +113,11 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 	}
 	s.result = new(game.ForfeitToRemaining(allSeats, seat, reason))
 	return s, nil
+}
+
+func (s state) Conclude(result game.Result) game.State[Action, View] {
+	if s.result == nil {
+		s.result = &result
+	}
+	return s
 }

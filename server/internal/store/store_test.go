@@ -48,10 +48,15 @@ var (
 )
 
 func finishOf(seq game.Seq, kind game.ResultKind, reason game.ResultReason, standings map[game.UserID]store.Standing) store.Finish {
+	views := make(map[game.UserID]json.RawMessage, len(standings))
+	for user := range standings {
+		views[user] = json.RawMessage(`{"viewer":"` + user + `"}`)
+	}
 	return store.Finish{
 		At: clocktest.Epoch.Add(time.Duration(seq) * time.Second), Seq: seq,
 		Ending:  store.Ending{Kind: kind, Reason: reason, Standings: standings},
 		Summary: []byte(`{"game_id":"x"}`), Digest: "d1",
+		Views: views, Exports: map[string]string{"game.txt": "final"},
 	}
 }
 
