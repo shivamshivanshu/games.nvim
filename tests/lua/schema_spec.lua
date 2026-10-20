@@ -38,6 +38,14 @@ local GAME_CLASS = {
     DroppedEvent = "games.Connect4DroppedEvent",
     View = "games.Connect4View",
   },
+  ludo = {
+    CapturedEvent = "games.LudoCapturedEvent",
+    ForfeitedEvent = "games.LudoForfeitedEvent",
+    MovedEvent = "games.LudoMovedEvent",
+    PassedEvent = "games.LudoPassedEvent",
+    RolledEvent = "games.LudoRolledEvent",
+    View = "games.LudoView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
