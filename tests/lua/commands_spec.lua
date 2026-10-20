@@ -3,6 +3,7 @@ local Client = require("games.core.client")
 local commands = require("games.core.commands")
 local games = require("games")
 local helpers = require("helpers")
+local shell = require("games.ui.shell")
 local types = require("games.types")
 
 local assert_eq = helpers.assert_eq
@@ -237,6 +238,170 @@ function T.challenge_reports_a_game_that_does_not_fit_the_invitees()
     assert_eq(nil, sent_challenge(conn))
     assert_eq({ 'games: no 3-player game "chess"' }, prompts.notified)
   end)
+end
+
+---@type games.GameInfo
+local PUZZLE = {
+  id = "puzzle",
+  name = "Puzzle",
+  players = { min = 1, max = 1 },
+  capabilities = { "resign" },
+  options = {
+    level = { type = "enum", values = { "easy", "hard" }, default = "easy" },
+    note = { type = "text", values = {}, default = "", max_len = 8 },
+  },
+  actions = {},
+}
+
+local SOLO_CATALOG = { games = vim.list_extend({ PUZZLE }, CATALOG.games) }
+
+---@class games.test.InputPrompt
+---@field prompt string
+---@field default string
+
+---Stubs vim.ui.input to answer each prompt with answers[i], false cancelling, recording the prompts.
+---@param answers (string|false)[]
+---@param fn fun(prompts: games.test.InputPrompt[])
+local function with_input_answers(answers, fn)
+  local prompts = {}
+  helpers.with_overrides({
+    {
+      vim.ui,
+      "input",
+      function(opts, on_confirm)
+        table.insert(prompts, { prompt = opts.prompt, default = opts.default })
+        on_confirm(answers[#prompts] or nil)
+      end,
+    },
+  }, function()
+    fn(prompts)
+  end)
+end
+
+function T.solo_starts_the_game_with_the_chosen_options_and_opens_the_reply()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    local opened = {}
+    helpers.with_overrides({
+      {
+        shell,
+        "open",
+        function(_, game_id)
+          table.insert(opened, game_id)
+        end,
+      },
+    }, function()
+      with_select_answers({ "hard" }, function()
+        with_input_answers({ "r1c1" }, function()
+          commands.run({ "solo", "puzzle" })
+          respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+        end)
+      end)
+      assert_eq(
+        { game = "puzzle", options = { level = "hard", note = "r1c1" } },
+        vim.iter(conn.requests):rev():find(function(request)
+          return request.type == MessageType.GAME_START
+        end).body
+      )
+      respond(
+        conn,
+        MessageType.GAME_START,
+        helpers.chess_update({
+          game_id = "5010a1e0",
+          game = "puzzle",
+          players = { { user = "alice", seat = "solo" } },
+        })
+      )
+    end)
+    assert_eq({ "5010a1e0" }, opened)
+  end)
+end
+
+function T.solo_without_a_game_offers_only_the_solo_games()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    with_select_answers({}, function(prompts)
+      commands.run({ "solo" })
+      respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+      assert_eq({ { prompt = "Solo game:", labels = { "Puzzle", "sudoku" } } }, prompts)
+    end)
+  end)
+end
+
+function T.solo_refuses_a_game_for_more_players()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
+    conn:push("connected", LOGIN)
+    commands.run({ "solo", "chess" })
+    respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+    assert_eq(
+      false,
+      vim.iter(conn.requests):any(function(request)
+        return request.type == MessageType.GAME_START
+      end)
+    )
+    assert_eq(
+      { "games: chess is not a solo game; challenge someone with :Games challenge chess" },
+      prompts.notified
+    )
+  end)
+end
+
+function T.solo_completes_the_catalogues_solo_games()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+    assert_eq({ "puzzle", "sudoku" }, commands.complete("", "Games solo ", 11))
+    assert_eq({ "sudoku" }, commands.complete("s", "Games solo s", 12))
+  end)
+end
+
+function T.text_options_are_typed_within_their_limits_and_cancel_aborts()
+  local cases = {
+    {
+      name = "a value fits",
+      answers = { "r1c1" },
+      defaults = { "" },
+      sent = "r1c1",
+      notified = {},
+    },
+    { name = "cancelling", answers = { false }, defaults = { "" }, notified = {} },
+    {
+      name = "over max_len",
+      answers = { "123456789", "12345678" },
+      defaults = { "", "123456789" },
+      sent = "12345678",
+      notified = { "games: note takes at most 8 bytes, not 9" },
+    },
+    {
+      name = "a control character",
+      answers = { "a\tb", "ab" },
+      defaults = { "", "a\tb" },
+      sent = "ab",
+      notified = { "games: note cannot hold control characters" },
+    },
+  }
+  for _, case in ipairs(cases) do
+    with_stub_client({ username = "alice", password = "pw" }, function(conn, notices)
+      conn:push("connected", LOGIN)
+      with_select_answers({ "easy (default)" }, function()
+        with_input_answers(case.answers, function(prompts)
+          commands.run({ "solo", "puzzle" })
+          respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+          assert_eq(
+            vim.tbl_map(function(default)
+              return { prompt = "note (up to 8 bytes): ", default = default }
+            end, case.defaults),
+            prompts
+          )
+        end)
+      end)
+      local start = vim.iter(conn.requests):find(function(request)
+        return request.type == MessageType.GAME_START
+      end)
+      assert_eq(case.sent, start and start.body.options.note)
+      assert_eq(case.notified, notices.notified)
+    end)
+  end
 end
 
 function T.connected_runs_immediately()

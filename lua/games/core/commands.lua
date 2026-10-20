@@ -7,6 +7,8 @@ local kv = require("games.ui.widgets.kv")
 local login = require("games.core.login")
 local notify = require("games.core.notify")
 local picker = require("games.ui.picker")
+local players = require("games.core.players")
+local predicates = require("games.core.predicates")
 local prompt = require("games.ui.prompt")
 local shell = require("games.ui.shell")
 local sources = require("games.core.sources")
@@ -16,6 +18,7 @@ local timer = require("games.core.timer")
 local types = require("games.types")
 
 local GameStatus = types.GameStatus
+local OptionType = types.OptionType
 local ERROR = vim.log.levels.ERROR
 local GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
 
@@ -25,7 +28,7 @@ local GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
 ---@field name string
 ---@field usage string
 ---@field run games.SubcommandRun
----@field arg_choices? string[] completions for the first argument
+---@field arg_choices? fun(): string[] completions for the first argument
 
 ---@class (private) games.ChallengeAction
 ---@field label string
@@ -138,7 +141,7 @@ end
 local function opponent_range(games, game_type)
   local range
   for _, info in ipairs(games) do
-    if info.players.max >= 2 and (not game_type or info.id == game_type) then
+    if not players.is_solo_game(info) and (not game_type or info.id == game_type) then
       local min, max = math.max(info.players.min, 2) - 1, info.players.max - 1
       range = range and { min = math.min(range.min, min), max = math.max(range.max, max) }
         or { min = min, max = max }
@@ -189,7 +192,44 @@ local function default_first(option)
   )
 end
 
----Asks for each option in name order; on_done gets every option once all are answered.
+---Why value does not fit the text option name, as the server would reject it, or nil when it fits.
+---The server also rejects format characters (Cf), which it reports itself.
+---@param name string
+---@param option games.GameOption of type text
+---@param value string
+---@return string|nil
+local function text_option_problem(name, option, value)
+  if option.max_len and #value > option.max_len then
+    return ("%s takes at most %d bytes, not %d"):format(text.humanize(name), option.max_len, #value)
+  end
+  if predicates.has_control_character(value) then
+    return ("%s cannot hold control characters"):format(text.humanize(name))
+  end
+end
+
+---Asks for the text option name until it fits, starting from typed; cancelling answers nothing.
+---@param name string
+---@param option games.GameOption of type text
+---@param typed string
+---@param on_value fun(value: string)
+local function input_text_option(name, option, typed, on_value)
+  local limit = option.max_len and (" (up to %d bytes)"):format(option.max_len) or ""
+  vim.ui.input({ prompt = text.humanize(name) .. limit .. ": ", default = typed }, function(value)
+    if value == nil then
+      return
+    end
+    local problem = text_option_problem(name, option, value)
+    if problem then
+      say("games: " .. problem, ERROR)
+      input_text_option(name, option, value, on_value)
+      return
+    end
+    on_value(value)
+  end)
+end
+
+---Asks for each option in name order; on_done gets every option once all are answered, and is
+---never called when one is cancelled.
 ---@param info games.GameInfo
 ---@param on_done fun(options: games.Options)
 local function pick_options(info, on_done)
@@ -204,14 +244,20 @@ local function pick_options(info, on_done)
       return
     end
     local option = info.options[name]
+    ---@param value string
+    local function answer(value)
+      ask(index + 1, vim.tbl_extend("force", chosen, { [name] = value }))
+    end
+    if option.type == OptionType.TEXT then
+      input_text_option(name, option, option.default, answer)
+      return
+    end
     picker.pick(default_first(option), {
       prompt = text.humanize(name) .. ":",
       format_item = function(value)
         return value == option.default and (value .. " (default)") or value
       end,
-    }, function(value)
-      ask(index + 1, vim.tbl_extend("force", chosen, { [name] = value }))
-    end)
+    }, answer)
   end
   ask(1, {})
 end
@@ -272,15 +318,10 @@ local function challenge(client, me, args)
   M.challenge(client, me, args[1], vim.list_slice(args, 2))
 end
 
----Starts a solo game on its own and challenges for any other, asking for its options first.
+---Starts the solo game info, once its options are answered, and opens its board.
 ---@param client games.Client
----@param me games.UserID
 ---@param info games.GameInfo
-function M.start(client, me, info)
-  if info.players.max > 1 then
-    M.challenge(client, me, info.id, {})
-    return
-  end
+local function start_solo(client, info)
   pick_options(info, function(options)
     client:game_start(
       { game = info.id, options = options },
@@ -292,6 +333,83 @@ function M.start(client, me, info)
       )
     )
   end)
+end
+
+---Starts a solo game on its own and challenges for any other, asking for its options first.
+---@param client games.Client
+---@param me games.UserID
+---@param info games.GameInfo
+function M.start(client, me, info)
+  if not players.is_solo_game(info) then
+    M.challenge(client, me, info.id, {})
+    return
+  end
+  start_solo(client, info)
+end
+
+---@param client games.Client
+---@param catalog games.CatalogResult
+---@param game_type games.GameType
+local function start_named_solo(client, catalog, game_type)
+  local info = vim.iter(catalog.games):find(function(candidate)
+    return candidate.id == game_type
+  end)
+  if not info then
+    say(("games: no game %q"):format(game_type), ERROR)
+    return
+  end
+  if not players.is_solo_game(info) then
+    say(
+      ("games: %s is not a solo game; challenge someone with :Games challenge %s"):format(
+        game_type,
+        game_type
+      ),
+      ERROR
+    )
+    return
+  end
+  start_solo(client, info)
+end
+
+---Starts the solo game named by args[1], or one picked from the catalogue's solo games.
+---@type games.SubcommandRun
+local function solo(client, _, args)
+  local game_type = args[1]
+  client:catalog_list(
+    nil,
+    on_ok(
+      ---@param catalog games.CatalogResult
+      function(catalog)
+        if game_type then
+          start_named_solo(client, catalog, game_type)
+          return
+        end
+        local solo_games = vim.tbl_filter(players.is_solo_game, catalog.games)
+        if #solo_games == 0 then
+          say("games: no solo games available", ERROR)
+          return
+        end
+        picker.pick(solo_games, {
+          prompt = "Solo game:",
+          format_item = function(info)
+            return info.name
+          end,
+        }, function(info)
+          start_solo(client, info)
+        end)
+      end
+    )
+  )
+end
+
+---The solo games of the catalogue the plugin's client has fetched, for completion.
+---@return games.GameType[]
+local function solo_game_types()
+  local client = require("games").client
+  local solo_games = client and vim.tbl_filter(players.is_solo_game, client:catalog_games()) or {}
+  return vim.tbl_map(function(info)
+    return info.id
+  end, solo_games)
 end
 
 ---@type games.ChallengeAction[]
@@ -603,16 +721,30 @@ local function open_dashboard(client)
   dashboard.open(client)
 end
 
+---@param choices string[]
+---@return fun(): string[]
+local function always(choices)
+  return function()
+    return choices
+  end
+end
+
 ---@type games.Subcommand[]
 local SUBCOMMANDS = {
   { name = "challenge", usage = "challenge [game] [user…]", run = challenge },
   { name = "challenges", usage = "challenges", run = challenges },
-  { name = "list", usage = "list [ongoing|finished]", run = list, arg_choices = GAME_STATUSES },
+  { name = "solo", usage = "solo [game]", run = solo, arg_choices = solo_game_types },
+  {
+    name = "list",
+    usage = "list [ongoing|finished]",
+    run = list,
+    arg_choices = always(GAME_STATUSES),
+  },
   { name = "stats", usage = "stats [user]", run = show_stats },
   { name = "leaderboard", usage = "leaderboard [game]", run = show_leaderboard },
   { name = "next", usage = "next", run = next_game },
   { name = "export", usage = "export", run = export },
-  { name = "find", usage = "find [source]", run = find, arg_choices = sources.NAMES },
+  { name = "find", usage = "find [source]", run = find, arg_choices = always(sources.NAMES) },
 }
 
 ---@param name string
@@ -673,7 +805,7 @@ function M.complete(arg_lead, cmd_line, cursor_pos)
     end, SUBCOMMANDS)
   elseif completing == 3 then
     local subcommand = find_subcommand(words[2])
-    candidates = subcommand and subcommand.arg_choices or {}
+    candidates = subcommand and subcommand.arg_choices and subcommand.arg_choices() or {}
   end
   return vim.tbl_filter(function(candidate)
     return vim.startswith(candidate, arg_lead)
