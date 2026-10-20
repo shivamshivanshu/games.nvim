@@ -544,14 +544,36 @@ end
 
 function T.a_burst_of_window_events_schedules_one_refit_and_none_for_hidden_boards()
   with_square_board("burst01", function(buf)
-    vim.wait(20)
+    -- vim.schedule runs in order, so once this runs the refit that open scheduled has run too,
+    -- and only the tick can clear the dirty flag.
+    local open_settled = false
+    vim.schedule(function()
+      open_settled = true
+    end)
+    assert(
+      vim.wait(1000, function()
+        return open_settled
+      end),
+      "the refit open scheduled"
+    )
     local burst = count_schedules(function()
       for _, event in ipairs({ "WinEnter", "WinResized", "VimResized", "TabEnter" }) do
         vim.api.nvim_exec_autocmds(event, {})
       end
     end)
     assert_eq(1, burst)
-    vim.wait(20)
+    -- vim.schedule runs in order, so once this runs the refit that open scheduled has run too,
+    -- and only the tick can clear the dirty flag.
+    local open_settled = false
+    vim.schedule(function()
+      open_settled = true
+    end)
+    assert(
+      vim.wait(1000, function()
+        return open_settled
+      end),
+      "the refit open scheduled"
+    )
 
     vim.cmd.enew()
     assert_eq(0, count_schedules(fire_win_resized))
@@ -587,26 +609,104 @@ function T.changing_ambiwidth_refits_shown_boards()
   vim.api.nvim_buf_delete(buf, { force = true })
 end
 
-function T.clock_repaint_renders_fully_when_the_header_changed_height()
-  local client = client_with("alice", {
-    chess_update({
-      game_id = "tick01",
-      clock = { remaining_ms = { alice = 300000, bob = 300000 }, running = "alice" },
-    }),
-  })
-  local buf = assert(shell.open(client, "tick01"))
-  client:game("tick01").draw_agreed = { "bob" }
-  local function banners()
-    return #vim.tbl_filter(function(line)
-      return line == "Draw offered by bob"
-    end, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+---@param marks games.Extmark[]
+---@return games.Extmark[] in row, then column order
+local function by_position(marks)
+  table.sort(marks, function(a, b)
+    return a.row ~= b.row and a.row < b.row or (a.row == b.row and a.col < b.col)
+  end)
+  return marks
+end
+
+---The first height lines of buf and their highlights.
+---@param buf integer
+---@param height integer
+---@return string[]
+---@return games.Extmark[]
+local function painted_header(buf, height)
+  local ns = vim.api.nvim_get_namespaces()["games.shell"]
+  local marks = vim.api.nvim_buf_get_extmarks(
+    buf,
+    ns,
+    { 0, 0 },
+    { height - 1, -1 },
+    { details = true }
+  )
+  return vim.api.nvim_buf_get_lines(buf, 0, height, false),
+    by_position(vim.tbl_map(function(mark)
+      local details = mark[4]
+      return {
+        row = mark[2],
+        col = mark[3],
+        end_col = details.end_col,
+        hl = details.hl_group,
+      }
+    end, marks))
+end
+
+function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_changed()
+  local elapsed_ms = 1500
+  local wide_name = { { user = "王", seat = "white" }, { user = "bob", seat = "black" } }
+  for i, case in ipairs({
+    { remaining_ms = { alice = 300000, bob = 600000 }, in_place = true },
+    { remaining_ms = { alice = 10500, bob = 300000 }, in_place = true },
+    { remaining_ms = { alice = 600000, bob = 300000 }, in_place = false },
+    { remaining_ms = { ["王"] = 10500, bob = 600000 }, players = wide_name, in_place = true },
+    { remaining_ms = { alice = 300000, bob = 600000 }, dirty = true, in_place = false },
+  }) do
+    local players = case.players or chess_update({}).players
+    local update = chess_update({
+      game_id = "tick0" .. i,
+      players = players,
+      clock = { remaining_ms = case.remaining_ms, running = players[1].user },
+    })
+    local client = client_with("alice", { update })
+    local buf = assert(shell.open(client, update.game_id))
+    -- vim.schedule runs in order, so once this runs the refit that open scheduled has run too,
+    -- and only the tick can clear the dirty flag.
+    local open_settled = false
+    vim.schedule(function()
+      open_settled = true
+    end)
+    assert(
+      vim.wait(1000, function()
+        return open_settled
+      end),
+      "the refit open scheduled"
+    )
+    vim.b[buf].games_dirty = case.dirty == true
+    local expected, height = shell.render(update, chess, ASCII, "alice", elapsed_ms)
+    local expected_lines = vim.list_slice(expected.lines, 1, height)
+    local expected_marks = by_position(vim.tbl_filter(function(mark)
+      return mark.row < height
+    end, expected.extmarks))
+    local lines_changed, tick_done = {}, false
+    vim.api.nvim_buf_attach(buf, false, {
+      on_lines = function(_, _, _, first, old_last)
+        if tick_done then
+          return true
+        end
+        table.insert(lines_changed, old_last - first)
+      end,
+    })
+    local ticked_ms = assert(client:received_at(update.game_id)) + elapsed_ms
+    with_stub(vim.uv, "now", function()
+      return ticked_ms
+    end, function()
+      helpers.wait_for(function()
+        return vim.deep_equal(expected_lines, (painted_header(buf, height)))
+      end, "a clock tick")
+    end)
+    tick_done = true
+    local _, marks = painted_header(buf, height)
+    vim.api.nvim_buf_delete(buf, { force = true })
+
+    assert_eq({ case, expected_marks }, { case, marks })
+    local one_line_edits = vim.iter(lines_changed):all(function(count)
+      return count == 1
+    end)
+    assert_eq({ case, case.in_place }, { case, #lines_changed > 0 and one_line_edits })
   end
-  helpers.wait_for(function()
-    return banners() > 0
-  end, "a clock tick to show the grown header")
-  vim.wait(1200)
-  assert_eq(1, banners())
-  vim.api.nvim_buf_delete(buf, { force = true })
 end
 
 return T

@@ -32,7 +32,10 @@ local FILES = "abcdefgh"
 local RANKS = "87654321"
 ---@type games.ChessSeat
 local BLACK = "black"
-local KING_TO_MOVE = { w = "K", b = "k" }
+---@alias games.ChessSide "w"|"b" a FEN side to move
+
+---@type table<games.ChessPiece, games.ChessSide>
+local KING_SIDE = { K = "w", k = "b" }
 local EMPTY_KEY = "empty"
 
 local WHITE_PIECE_HL = "GamesPieceWhite"
@@ -73,11 +76,21 @@ local function san_legend(set, ambiwidth)
   end, SAN_LEGEND)
 end
 
+---@class (private) games.ChessCell
+---@field row integer
+---@field col integer
+
+---@class (private) games.ChessPosition
+---@field pieces (games.ChessPiece|false)[][] rows from rank 8 down, false for an empty square
+---@field side_to_move games.ChessSide
+---@field kings table<games.ChessSide, games.ChessCell> the first king of each side
+
 ---@param fen string
----@return (games.ChessPiece|false)[][] rows from rank 8 down, false for an empty square
-local function fen_to_pieces(fen)
-  local placement = vim.split(fen, " ", { plain = true })[1]
-  return vim.tbl_map(function(rank)
+---@return games.ChessPosition
+local function parse_fen(fen)
+  local fields = vim.split(fen, " ", { plain = true })
+  local pieces, kings = {}, {}
+  for row, rank in ipairs(vim.split(fields[1], "/", { plain = true })) do
     local squares = {}
     for char in rank:gmatch(".") do
       local empty_run = tonumber(char)
@@ -87,10 +100,15 @@ local function fen_to_pieces(fen)
         end
       else
         squares[#squares + 1] = char
+        local side = KING_SIDE[char]
+        if side and not kings[side] then
+          kings[side] = { row = row, col = #squares }
+        end
       end
     end
-    return squares
-  end, vim.split(placement, "/", { plain = true }))
+    pieces[row] = squares
+  end
+  return { pieces = pieces, side_to_move = fields[2], kings = kings }
 end
 
 ---@param square string e.g. "e4"
@@ -100,19 +118,6 @@ local function square_cell(square)
   local file = FILES:find(square:sub(1, 1), 1, true)
   local rank = RANKS:find(square:sub(2, 2), 1, true)
   return assert(rank), assert(file)
-end
-
----@param pieces (games.ChessPiece|false)[][]
----@param piece games.ChessPiece
----@return string|nil grid mark key
-local function find_piece(pieces, piece)
-  for r, squares in ipairs(pieces) do
-    for c, occupant in ipairs(squares) do
-      if occupant == piece then
-        return grid.mark_key(r, c)
-      end
-    end
-  end
 end
 
 ---@param piece games.ChessPiece|false
@@ -126,31 +131,25 @@ end
 
 ---The last-move tint, with its darker shade layered on over a dark square.
 ---@param square string
----@return string key
----@return games.Hl
+---@return games.GridMark
 local function last_move_mark(square)
   local row, col = square_cell(square)
   local hl = grid.is_dark(row, col) and { LAST_MOVE_HL, LAST_MOVE_DARK_HL } or LAST_MOVE_HL
-  return grid.mark_key(row, col), hl
+  return { row = row, col = col, hl = hl }
 end
 
 ---@param view games.ChessView
----@param pieces (games.ChessPiece|false)[][]
----@return table<string, games.Hl>
-local function marks_for(view, pieces)
+---@param position games.ChessPosition
+---@return games.GridMark[]
+local function marks_for(view, position)
   local marks = {}
   if view.last_move then
-    for _, square in ipairs({ view.last_move.from, view.last_move.to }) do
-      local key, hl = last_move_mark(square)
-      marks[key] = hl
-    end
+    marks[1] = last_move_mark(view.last_move.from)
+    marks[2] = last_move_mark(view.last_move.to)
   end
-  if view.in_check then
-    local side_to_move = vim.split(view.fen, " ", { plain = true })[2]
-    local king = find_piece(pieces, KING_TO_MOVE[side_to_move])
-    if king then
-      marks[king] = CHECK_HL
-    end
+  local king = view.in_check and position.kings[position.side_to_move]
+  if king then
+    marks[#marks + 1] = { row = king.row, col = king.col, hl = CHECK_HL }
   end
   return marks
 end
@@ -172,7 +171,7 @@ M.asset_keys = { "K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p", EMP
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local pieces = fen_to_pieces(view.fen)
+  local position = parse_fen(view.fen)
   local set = assert(ctx.art, "chess draws from an asset pack")
   return board({
     grid = {
@@ -182,9 +181,9 @@ function M.layout(update, ctx)
       flip = black_at_bottom(update, ctx),
       labels = { cols = FILES, rows = RANKS },
       cell = function(r, c)
-        return cell_for(pieces[r][c])
+        return cell_for(position.pieces[r][c])
       end,
-      marks = marks_for(view, pieces),
+      marks = marks_for(view, position),
     },
     art = set,
     panels = {

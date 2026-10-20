@@ -115,7 +115,7 @@ return {
       cell = function()
         return { "x", "GamesPieceWhite" }
       end,
-      marks = { ["1,1"] = { "GamesLastMove", "GamesLastMoveDark" } },
+      marks = { { row = 1, col = 1, hl = { "GamesLastMove", "GamesLastMoveDark" } } },
     }))
     assert_eq(
       { "GamesSquareLight", "GamesLastMove", "GamesLastMoveDark", "GamesPieceWhite" },
@@ -228,7 +228,8 @@ return {
   end,
 
   grid_mark_tints_every_line_of_a_tall_cell = function()
-    local rendered = compose.render(tall_grid({ marks = { ["1,1"] = "GamesLastMove" } }))
+    local rendered =
+      compose.render(tall_grid({ marks = { { row = 1, col = 1, hl = "GamesLastMove" } } }))
     for row = 0, 2 do
       local expected = { "GamesSquareLight", "GamesLastMove", "GamesLastMoveInk" }
       assert_eq(expected, hl_at(rendered, row, 2))

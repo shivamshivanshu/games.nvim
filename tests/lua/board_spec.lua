@@ -1,4 +1,6 @@
+local board = require("games.ui.widgets.board")
 local chess = require("games.games.chess")
+local compose = require("games.ui.compose")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local cases = require("fixtures.chess_h1")
@@ -74,6 +76,33 @@ return {
       assert(not text:find(block) and not text:find("·", 1, true), text)
       assert(text:find("♜", 1, true) and text:find("%s%.%s"), text)
     end)
+  end,
+
+  an_unsized_panel_is_drawn_at_the_board_height = function()
+    local panel = {
+      node = function(max_height)
+        local lines = {}
+        for i = 1, max_height do
+          lines[i] = compose.text("p")
+        end
+        return compose.col(lines)
+      end,
+    }
+    local grid = {
+      rows = 2,
+      cols = 2,
+      shade = "plain",
+      labels = { cols = "ab", rows = "12" },
+      cell = function()
+        return { "x" }
+      end,
+    }
+    local ctx = { space = { w = 40, h = 12 }, ambiwidth = "single" }
+    local alone = compose.measure(board({ grid = grid }, ctx))
+    local beside = compose.measure(board({ grid = grid, panels = { panel } }, ctx))
+
+    assert(alone.h < ctx.space.h, vim.inspect(alone))
+    assert_eq(alone.h, beside.h)
   end,
 
   a_banner_never_resizes_the_board = function()

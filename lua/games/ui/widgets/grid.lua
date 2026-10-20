@@ -10,6 +10,11 @@ local text_util = require("games.ui.text")
 
 ---@alias games.GridLabelList string|string[] a string labels one character per index
 
+---@class games.GridMark
+---@field row integer logical row
+---@field col integer logical column
+---@field hl games.Hl layered over the cell
+
 ---@class games.GridLabels
 ---@field cols games.GridLabelList
 ---@field rows games.GridLabelList
@@ -20,7 +25,7 @@ local text_util = require("games.ui.text")
 ---@field cell fun(row: integer, col: integer): games.GridCell
 ---@field shade "checker"|"plain"
 ---@field labels? games.GridLabels
----@field marks? table<string, games.Hl> mark_key(row, col) -> highlight layered over the cell
+---@field marks? games.GridMark[] a later mark on a cell replaces an earlier one
 ---@field flip? boolean
 ---@field cell_width? integer display columns per cell, default 1
 ---@field cell_height? integer lines per cell, default 1; taller cells touch, with no gap
@@ -64,19 +69,10 @@ local function separators_for(glyphs, ambiwidth)
 end
 
 ---@class games.GridWidget
----@field mark_key fun(row: integer, col: integer): string
 ---@field is_dark fun(row: integer, col: integer): boolean
 ---@overload fun(props: games.GridProps): games.Node
 
 local M = {}
-
----Key of the cell at logical row and col in GridProps.marks.
----@param row integer
----@param col integer
----@return string
-function M.mark_key(row, col)
-  return row .. "," .. col
-end
 
 ---Whether the cell at logical row and col takes the dark shade of a checker grid.
 ---@param row integer
@@ -152,16 +148,34 @@ local function repeated(str, height, hl)
   return compose.col(lines)
 end
 
+---@param marks games.GridMark[]
+---@return table<integer, table<integer, games.Hl>> row -> col -> highlight
+local function marks_by_cell(marks)
+  local by_cell = {}
+  for _, mark in ipairs(marks) do
+    by_cell[mark.row] = by_cell[mark.row] or {}
+    by_cell[mark.row][mark.col] = mark.hl
+  end
+  return by_cell
+end
+
+---The node drawing key in a cell of size box; every cell of one grid shares box and ambiwidth.
 ---@param props games.GridProps
----@param key string
 ---@param box games.Size
 ---@param ambiwidth games.Ambiwidth
----@return games.Node
-local function cell_content(props, key, box, ambiwidth)
-  if not props.art then
-    return compose.text(key)
+---@return fun(key: string): games.Node built once per key
+local function cell_contents(props, box, ambiwidth)
+  local by_key = {}
+  return function(key)
+    local content = by_key[key]
+    if not content then
+      content = props.art
+          and compose.col(vim.tbl_map(compose.text, art.pick(props.art, key, box, ambiwidth).lines))
+        or compose.text(key)
+      by_key[key] = content
+    end
+    return content
   end
-  return compose.col(vim.tbl_map(compose.text, art.pick(props.art, key, box, ambiwidth).lines))
 end
 
 ---@param props games.GridProps
@@ -204,7 +218,7 @@ local function render(props)
   local ambiwidth = props.ambiwidth or DEFAULT_AMBIWIDTH
   local separators = separators_for(props.glyphs or "unicode", ambiwidth)
   local cell_height = props.cell_height or 1
-  local marks = props.marks or {}
+  local marks = marks_by_cell(props.marks or {})
   local row_order = display_order(props.rows, props.flip)
   local col_order = display_order(props.cols, props.flip)
   local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)
@@ -218,18 +232,13 @@ local function render(props)
     label = label_width,
   }
 
+  local content = cell_contents(props, geometry.cell, ambiwidth)
   local function cell_node(r, c)
     local key, own_hl = unpack(props.cell(r, c))
-    local shade, mark = shade_hl(props.shade, r, c), marks[M.mark_key(r, c)]
+    local shade, mark = shade_hl(props.shade, r, c), marks[r] and marks[r][c]
     local hl = own_hl and compose.layers(shade, mark, own_hl)
       or highlights.with_ink(compose.layers(shade, mark))
-    local box = geometry.cell
-    return compose.box({
-      w = box.w,
-      h = box.h,
-      hl = hl,
-      child = cell_content(props, key, box, ambiwidth),
-    })
+    return compose.box({ w = geometry.cell.w, h = geometry.cell.h, hl = hl, child = content(key) })
   end
 
   local function gap_node(j)

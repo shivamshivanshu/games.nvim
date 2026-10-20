@@ -107,19 +107,42 @@ function M.box(props)
   return { kind = "box", w = props.w, h = props.h, hl = props.hl, child = props.child }
 end
 
+---@param mark games.Extmark
+---@param row_offset integer
+---@param col_offset integer
+---@return games.Extmark
+local function shifted_mark(mark, row_offset, col_offset)
+  return {
+    row = mark.row + row_offset,
+    col = mark.col + col_offset,
+    end_col = mark.end_col + col_offset,
+    hl = mark.hl,
+  }
+end
+
 ---@param extmarks games.Extmark[]
 ---@param row_offset integer
 ---@param col_offset integer
 ---@return games.Extmark[]
 local function shifted(extmarks, row_offset, col_offset)
   return vim.tbl_map(function(mark)
-    return {
-      row = mark.row + row_offset,
-      col = mark.col + col_offset,
-      end_col = mark.end_col + col_offset,
-      hl = mark.hl,
-    }
+    return shifted_mark(mark, row_offset, col_offset)
   end, extmarks)
+end
+
+---@param extmarks games.Extmark[]
+---@return table<integer, games.Extmark[]> by row, holding only rows that have marks
+local function marks_by_row(extmarks)
+  local by_row = {}
+  for _, mark in ipairs(extmarks) do
+    local row_marks = by_row[mark.row]
+    if not row_marks then
+      row_marks = {}
+      by_row[mark.row] = row_marks
+    end
+    row_marks[#row_marks + 1] = mark
+  end
+  return by_row
 end
 
 ---@param node games.BoxNode
@@ -203,13 +226,15 @@ local function layout(node)
     widths[i] = width
   end
   for _, block in ipairs(blocks) do
-    local marks_by_row = vim.defaulttable()
-    for _, mark in ipairs(block.extmarks) do
-      table.insert(marks_by_row[mark.row], mark)
-    end
+    local block_marks = marks_by_row(block.extmarks)
     for i = 1, height do
       local line_prefix_bytes = #lines[i]
-      vim.list_extend(extmarks, shifted(marks_by_row[i - 1], 0, line_prefix_bytes))
+      local row_marks = block_marks[i - 1]
+      if row_marks then
+        for _, mark in ipairs(row_marks) do
+          extmarks[#extmarks + 1] = shifted_mark(mark, 0, line_prefix_bytes)
+        end
+      end
       local shortfall = block.width - (block.widths[i] or 0)
       lines[i] = lines[i] .. (block.lines[i] or "") .. text_util.spaces(shortfall)
     end
@@ -224,11 +249,28 @@ function M.render(node)
   return { lines = block.lines, extmarks = block.extmarks }
 end
 
+---The size render would give node, without laying it out.
 ---@param node games.Node
 ---@return games.Size
 function M.measure(node)
-  local block = layout(node)
-  return { w = block.width, h = #block.lines }
+  if node.kind == "text" then
+    return { w = vim.fn.strdisplaywidth(node.str or ""), h = 1 }
+  end
+  if node.kind == "pad" then
+    local child = M.measure(node.child)
+    return { w = child.w + node.n, h = child.h }
+  end
+  if node.kind == "box" then
+    return { w = node.w, h = node.h }
+  end
+  local sizes = vim.tbl_map(M.measure, node.children)
+  local stacked = node.kind == "col"
+  return vim.iter(sizes):fold({ w = 0, h = 0 }, function(total, size)
+    return {
+      w = stacked and math.max(total.w, size.w) or total.w + size.w,
+      h = stacked and total.h + size.h or math.max(total.h, size.h),
+    }
+  end)
 end
 
 ---@param size games.Size

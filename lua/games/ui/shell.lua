@@ -7,6 +7,7 @@ local paint = require("games.ui.paint")
 local theme = require("games.ui.theme")
 local players = require("games.core.players")
 local registry = require("games.core.registry")
+local text_util = require("games.ui.text")
 local types = require("games.types")
 
 local Control = types.Control
@@ -60,11 +61,21 @@ local Control = types.Control
 ---@field view games.ViewOptions
 ---@field update games.GameUpdate
 ---@field options games.OpenOptions it was opened with
----@field header_height integer
+---@field clocks? games.ClockColumn where its header draws the clocks; nil without a clock
 ---@field bindings table<string, games.KeyBinding> by key; each is mapped in the buffer
 ---@field text_area? games.Size the window space it was last fitted to, nil until shown
 ---@field refit_pending boolean
 ---@field seats integer players in its first update, which size the header for its whole life
+
+---Where the header draws each player's clock, which a clock tick rewrites in place. Clock text is
+---ASCII, so its bytes are its display columns.
+---@class games.ClockColumn
+---@field cols integer[] byte column of each player's clock, by header line
+---@field width integer columns of the widest clock, to which every clock is padded
+
+---@class (private) games.ClockCell
+---@field text string
+---@field hl? games.Hl
 
 ---@class games.KeyBinding
 ---@field key string
@@ -89,6 +100,8 @@ local NEXT_GAME_KEY = "]g"
 local CLOSE_KEY = "q"
 local CLOCK_TICK_MS = 1000
 local LOW_CLOCK_MS = 10000
+local LOW_CLOCK_HL = "GamesClockLow"
+local HEADER_COLUMN_GAP = 2
 local CONFIRM_YES = 1
 ---The header always has a status line, blank without a banner, so a banner never moves the board.
 local STATUS_LINES = 1
@@ -134,13 +147,24 @@ local function turn_marker(update, user, me)
 end
 
 ---@param update games.GameUpdate with a clock
----@param user games.UserID
 ---@param elapsed_ms integer
----@return games.Node
-local function clock_node(update, user, elapsed_ms)
-  local remaining_ms = describe.clock_remaining_ms(update, user, elapsed_ms)
-  local hl = remaining_ms < LOW_CLOCK_MS and "GamesClockLow" or nil
-  return compose.text(describe.clock_text(remaining_ms), hl)
+---@return games.ClockCell[] by player
+local function clock_cells(update, elapsed_ms)
+  return vim.tbl_map(function(player)
+    local remaining_ms = describe.clock_remaining_ms(update, player.user, elapsed_ms)
+    return {
+      text = describe.clock_text(remaining_ms),
+      hl = remaining_ms < LOW_CLOCK_MS and LOW_CLOCK_HL or nil,
+    }
+  end, update.players)
+end
+
+---@param cells games.ClockCell[]
+---@return integer
+local function widest_clock(cells)
+  return vim.iter(cells):fold(0, function(width, cell)
+    return math.max(width, #cell.text)
+  end)
 end
 
 ---@param update games.GameUpdate
@@ -160,6 +184,7 @@ end
 ---@param me games.UserID
 ---@param elapsed_ms integer
 ---@return games.Rendered
+---@return games.ClockColumn|nil
 local function render_header(update, me, elapsed_ms)
   ---@param cell fun(player: games.PlayerSeat, i: integer): games.Node
   ---@return games.Node
@@ -176,29 +201,38 @@ local function render_header(update, me, elapsed_ms)
       return compose.text(player.user, theme.seat_hl(i))
     end),
     compose.pad(
-      2,
+      HEADER_COLUMN_GAP,
       column(function(player)
         return compose.text(player.seat, "GamesMuted")
       end)
     ),
   }
+  local clocks
   if update.clock then
+    local cells = clock_cells(update, elapsed_ms)
+    clocks = {
+      cols = vim.tbl_map(function(line)
+        return #line + HEADER_COLUMN_GAP
+      end, compose.render(compose.row(columns)).lines),
+      width = widest_clock(cells),
+    }
     columns[#columns + 1] = compose.pad(
-      2,
-      column(function(player)
-        return clock_node(update, player.user, elapsed_ms)
+      HEADER_COLUMN_GAP,
+      column(function(_, i)
+        return compose.text(cells[i].text, cells[i].hl)
       end)
     )
   end
   columns[#columns + 1] = compose.pad(
-    2,
+    HEADER_COLUMN_GAP,
     column(function(player)
       return turn_marker(update, player.user, me)
     end)
   )
-  return compose.render(
+  local header = compose.render(
     compose.col({ compose.row(columns), status_banner(update, me) or compose.text("") })
   )
+  return header, clocks
 end
 
 ---@param update games.GameUpdate
@@ -393,11 +427,12 @@ end
 ---@param elapsed_ms? integer time since `update` arrived, charged to the running clock
 ---@param display? games.Display nil draws the smallest board
 ---@return games.Rendered
----@return integer header_height lines owned by the header, which the clock rewrites
+---@return integer header_height lines owned by the header
 ---@return games.KeyBinding[] bindings the footer lists
+---@return games.ClockColumn|nil clocks where the header draws the clocks
 function M.render(update, module, view, me, elapsed_ms, display)
   local measured = display or {}
-  local header = render_header(update, me, elapsed_ms or 0)
+  local header, clocks = render_header(update, me, elapsed_ms or 0)
   local ctx = vim.tbl_extend("force", view, {
     me = me,
     space = layout_space(measured.seats or #update.players, measured.text_area),
@@ -410,7 +445,7 @@ function M.render(update, module, view, me, elapsed_ms, display)
     compose.text(""),
     footer_node(bindings),
   }))
-  return stack(header, body), #header.lines, bindings
+  return stack(header, body), #header.lines, bindings, clocks
 end
 
 ---@param buf integer
@@ -449,26 +484,63 @@ local function map_keys(board, bindings)
 end
 
 render_board = function(board)
-  local rendered, header_height, bindings =
+  local rendered, _, bindings, clocks =
     M.render(board.update, board.module, board.view, board.me, elapsed_ms(board), {
       text_area = board.text_area,
       ambiwidth = vim.o.ambiwidth,
       seats = board.seats,
     })
   paint(board.buf, NAMESPACE, 0, -1, rendered)
-  board.header_height = header_height
+  board.clocks = clocks
   vim.b[board.buf].games_dirty = false
   map_keys(board, bindings)
 end
 
+---Rewrites one clock, which keeps its byte length, and its low-time highlight.
+---@param buf integer
+---@param row integer
+---@param col integer
+---@param width integer
+---@param cell games.ClockCell
+local function paint_clock(buf, row, col, width, cell)
+  local stale = vim.api.nvim_buf_get_extmarks(
+    buf,
+    NAMESPACE,
+    { row, col },
+    { row, col + width - 1 },
+    {}
+  )
+  for _, mark in ipairs(stale) do
+    vim.api.nvim_buf_del_extmark(buf, NAMESPACE, mark[1])
+  end
+  local padded = cell.text .. text_util.spaces(width - #cell.text)
+  paint.with_modifiable(buf, function()
+    vim.api.nvim_buf_set_text(buf, row, col, row, col + width, { padded })
+  end)
+  if cell.hl then
+    vim.api.nvim_buf_set_extmark(
+      buf,
+      NAMESPACE,
+      row,
+      col,
+      { end_col = col + #cell.text, hl_group = cell.hl }
+    )
+  end
+end
+
+---Repaints only the clocks, or the whole board once the clock column changes width or the board
+---holds an update it has not drawn.
 ---@param board games.Board
-local function repaint_header(board)
-  local header = render_header(board.update, board.me, elapsed_ms(board))
-  if #header.lines ~= board.header_height then
+local function repaint_clocks(board)
+  local clocks = board.clocks
+  local cells = clock_cells(board.update, elapsed_ms(board))
+  if vim.b[board.buf].games_dirty or not (clocks and widest_clock(cells) == clocks.width) then
     render_board(board)
     return
   end
-  paint(board.buf, NAMESPACE, 0, board.header_height, header)
+  for i, cell in ipairs(cells) do
+    paint_clock(board.buf, i - 1, clocks.cols[i], clocks.width, cell)
+  end
 end
 
 ---@param buf integer
@@ -586,7 +658,7 @@ local function sync_clock_timer()
       CLOCK_TICK_MS,
       CLOCK_TICK_MS,
       vim.schedule_wrap(function()
-        vim.iter(ticking_boards()):each(repaint_header)
+        vim.iter(ticking_boards()):each(repaint_clocks)
       end)
     )
   elseif not needed and clock_timer:is_active() then
@@ -752,7 +824,6 @@ function M.open(client, game_id, opts)
     options = options,
     view = view_for(update.game, module, options),
     update = update,
-    header_height = 0,
     bindings = {},
     refit_pending = false,
     seats = #update.players,

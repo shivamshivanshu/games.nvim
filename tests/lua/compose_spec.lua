@@ -1,5 +1,6 @@
 local compose = require("games.ui.compose")
 local helpers = require("helpers")
+local text_util = require("games.ui.text")
 
 local assert_eq = helpers.assert_eq
 
@@ -37,6 +38,24 @@ return {
     local node =
       compose.row({ compose.text("♟♟"), compose.col({ compose.text("x"), compose.text("") }) })
     assert_eq({ w = 3, h = 2 }, compose.measure(node))
+  end,
+
+  measure_matches_the_rendered_size_of_every_node_kind = function()
+    local nodes = {
+      compose.text("♟ab"),
+      compose.pad(3, compose.col({ compose.text("x"), compose.text("long") })),
+      compose.box({ w = 6, h = 4, child = compose.text("ab") }),
+      compose.row({
+        compose.box({ w = 2, h = 3, child = compose.text("k") }),
+        compose.col({ compose.text("wide one"), compose.pad(1, compose.text("y")) }),
+        compose.text(""),
+      }),
+      compose.col({}),
+    }
+    for _, node in ipairs(nodes) do
+      local lines = compose.render(node).lines
+      assert_eq({ w = text_util.max_display_width(lines), h = #lines }, compose.measure(node))
+    end
   end,
 
   first_fit_takes_the_largest_fitting_candidate_probing_few = function()
