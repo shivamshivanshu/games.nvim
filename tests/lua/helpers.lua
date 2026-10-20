@@ -149,6 +149,27 @@ function M.record_lifecycle(conn)
   return log
 end
 
+---@alias games.test.Override {[1]: table, [2]: string, [3]: any} target, key, value
+
+---Sets each target[key] = value while fn runs and restores the originals, even when fn fails.
+---@param overrides games.test.Override[]
+---@param fn fun()
+function M.with_overrides(overrides, fn)
+  local originals = {}
+  for index, override in ipairs(overrides) do
+    originals[index] = override[1][override[2]]
+    override[1][override[2]] = override[3]
+  end
+  local ok, err = xpcall(fn, debug.traceback)
+  for index = #overrides, 1, -1 do
+    local override = overrides[index]
+    override[1][override[2]] = originals[index]
+  end
+  if not ok then
+    error(err, 0)
+  end
+end
+
 ---@param expected any
 ---@param actual any
 function M.assert_eq(expected, actual)
@@ -161,20 +182,16 @@ function M.wait_for(predicate, what)
   assert(vim.wait(M.WAIT_MS, predicate), "timed out waiting for " .. what)
 end
 
----@class games.test.StubCredentials
----@field username? string
----@field password? string|fun(): string
-
 ---@class games.test.StubConn
 ---@field handlers table<string, fun(body: table)[]>
 ---@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil)}[]
----@field credentials games.test.StubCredentials
+---@field credentials games.Credentials
 ---@field connects integer how often connect() was called
 ---@field connecting boolean
 ---@field error? games.ErrorBody what last_error() returns
 
 ---Records requests instead of sending them; push() delivers an event synchronously.
----@param credentials? games.test.StubCredentials
+---@param credentials? games.Credentials
 ---@return games.test.StubConn
 function M.stub_conn(credentials)
   local conn = {
@@ -187,14 +204,13 @@ function M.stub_conn(credentials)
   function conn:connect()
     self.connects = self.connects + 1
   end
-  function conn:set_credentials(username, password)
-    self.credentials = { username = username, password = password }
+  function conn:fill_credentials(entered)
+    self.credentials = vim.tbl_extend("keep", self.credentials, entered)
   end
-  function conn:has_credentials()
-    return self.credentials.username ~= nil and self.credentials.password ~= nil
-  end
-  function conn:username()
-    return self.credentials.username
+  function conn:missing_credentials()
+    return vim.tbl_filter(function(field)
+      return self.credentials[field] == nil
+    end, { "username", "password" })
   end
   function conn:address()
     return "127.0.0.1:7777"

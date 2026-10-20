@@ -47,7 +47,7 @@ function M.setup(opts)
   notify.attach(M.client)
 
   local group = vim.api.nvim_create_augroup(AUTOCONNECT_GROUP, { clear = true })
-  if not (M.config.autoconnect and M.client.conn:has_credentials()) then
+  if not (M.config.autoconnect and vim.tbl_isempty(M.client.conn:missing_credentials())) then
     return
   end
   if vim.v.vim_did_enter == 1 then

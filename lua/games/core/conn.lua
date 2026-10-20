@@ -10,17 +10,25 @@ local RECONNECT_MAX_MS = 30000
 local RECONNECT_JITTER = 0.2
 local JSON_DECODE_OPTS = { luanil = { object = true, array = true } }
 local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_MISMATCH] = true }
+---@type games.CredentialField[]
+local CREDENTIAL_FIELDS = { "username", "password" }
 
 ---@alias games.ConnEvent "connected"|"disconnected"|"challenge.changed"|"game.update"
 
 ---@class games.Disconnect: games.ErrorBody
 ---@field retrying boolean false once the conn has stopped reconnecting
 
----@class games.ConnOpts
----@field host string
----@field port integer
+---@alias games.CredentialField "username"|"password"
+
+---@alias games.CredentialSource "config"|"prompt"
+
+---@class games.Credentials
 ---@field username? string
 ---@field password? string|fun(): string
+
+---@class games.ConnOpts: games.Credentials
+---@field host string
+---@field port integer
 
 ---One TCP connection try; every libuv callback checks it is still current before acting.
 ---@class (private) games.ConnAttempt
@@ -42,6 +50,7 @@ local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_
 ---@field private backoff_ms integer
 ---@field private reconnect_timer? uv.uv_timer_t
 ---@field private last_disconnect? games.ErrorBody
+---@field private credential_source table<games.CredentialField, games.CredentialSource>
 local Conn = {}
 Conn.__index = Conn
 
@@ -118,6 +127,10 @@ function Conn.new(opts)
     handlers = {},
     auto_reconnect = false,
     backoff_ms = RECONNECT_MIN_MS,
+    credential_source = {
+      username = opts.username ~= nil and "config" or nil,
+      password = opts.password ~= nil and "config" or nil,
+    },
   }, Conn)
 end
 
@@ -160,6 +173,7 @@ end
 
 ---Connects and logs in, reconnecting with backoff until close() or a fatal login error.
 function Conn:connect()
+  self.last_disconnect = nil
   self.auto_reconnect = true
   self.backoff_ms = RECONNECT_MIN_MS
   if self.reconnect_timer then
@@ -170,22 +184,23 @@ function Conn:connect()
   end
 end
 
----Replaces the login for this session; the next connect uses it.
----@param username? string
----@param password? string|fun(): string
-function Conn:set_credentials(username, password)
-  self.opts.username = username
-  self.opts.password = password
+---Fills in missing credentials for this session only; a configured one is never replaced.
+---A rejected login forgets the filled-in ones, so they can be asked for again.
+---@param entered games.Credentials
+function Conn:fill_credentials(entered)
+  for _, field in ipairs(CREDENTIAL_FIELDS) do
+    if self.opts[field] == nil and entered[field] ~= nil then
+      self.opts[field] = entered[field]
+      self.credential_source[field] = "prompt"
+    end
+  end
 end
 
----@return boolean
-function Conn:has_credentials()
-  return self.opts.username ~= nil and self.opts.password ~= nil
-end
-
----@return string|nil
-function Conn:username()
-  return self.opts.username
+---@return games.CredentialField[] in the order to ask for them
+function Conn:missing_credentials()
+  return vim.tbl_filter(function(field)
+    return self.opts[field] == nil
+  end, CREDENTIAL_FIELDS)
 end
 
 ---@return string host:port
@@ -331,6 +346,9 @@ function Conn:login(attempt, password)
       if FATAL_LOGIN_ERRORS[err.code] then
         self.auto_reconnect = false
       end
+      if err.code == ErrorCode.AUTH_FAILED then
+        self:forget_prompted_credentials()
+      end
       self:teardown(attempt, err)
       return
     end
@@ -342,6 +360,16 @@ function Conn:login(attempt, password)
     self:start_heartbeat(attempt, result.heartbeat_ms)
     self:emit("connected", result)
   end)
+end
+
+---@private
+function Conn:forget_prompted_credentials()
+  for _, field in ipairs(CREDENTIAL_FIELDS) do
+    if self.credential_source[field] == "prompt" then
+      self.opts[field] = nil
+      self.credential_source[field] = nil
+    end
+  end
 end
 
 ---@private

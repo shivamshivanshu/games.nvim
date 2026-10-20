@@ -362,7 +362,8 @@ end
 ---@param subcommand games.Subcommand
 ---@param args string[]
 local function run_subcommand(client, subcommand, args)
-  login.ensure_connected(client, function()
+  local label = table.concat(vim.list_extend({ ":Games", subcommand.name }, args), " ")
+  login.ensure_connected(client, label, function()
     local me = notify.require_me(client)
     if me then
       subcommand.run(client, me, args)

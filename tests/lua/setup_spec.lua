@@ -4,44 +4,58 @@ local helpers = require("helpers")
 ---Runs fn with notify recorded; the plugin's config and client are restored after.
 ---@param fn fun(notified: string[])
 local function with_plugin_state(fn)
-  local original = { config = games.config, client = games.client, notify = vim.notify }
   local notified = {}
-  vim.notify = function(message)
-    table.insert(notified, message)
-  end
-  local ok, err = xpcall(fn, debug.traceback, notified)
-  if games.client and games.client ~= original.client then
-    games.client.conn:close()
-  end
-  games.config, games.client, vim.notify = original.config, original.client, original.notify
-  assert(ok, err)
+  helpers.with_overrides({
+    { games, "config", games.config },
+    { games, "client", games.client },
+    {
+      vim,
+      "notify",
+      function(message)
+        table.insert(notified, message)
+      end,
+    },
+  }, function()
+    local original_client = games.client
+    local ok, err = xpcall(fn, debug.traceback, notified)
+    if games.client and games.client ~= original_client then
+      games.client.conn:close()
+    end
+    assert(ok, err)
+  end)
 end
 
 local T = {}
 
 function T.setup_without_credentials_skips_autoconnect()
   with_plugin_state(function()
-    games.setup({ server = { port = 1 } })
-    local conn = assert(games.client).conn
+    local scheduled = {}
+    local function defer(fn)
+      table.insert(scheduled, fn)
+    end
+    helpers.with_overrides({ { vim, "schedule", defer } }, function()
+      games.setup({ server = { port = 1 } })
+    end)
     local connects = 0
-    conn.connect = function()
+    assert(games.client).conn.connect = function()
       connects = connects + 1
     end
     vim.api.nvim_exec_autocmds("VimEnter", { group = "games.autoconnect" })
-    vim.wait(20)
+    for _, fn in ipairs(scheduled) do
+      fn()
+    end
     helpers.assert_eq(0, connects)
   end)
 end
 
 function T.setup_on_old_neovim_notifies_and_returns()
   with_plugin_state(function(notified)
-    local has = vim.fn.has
-    vim.fn.has = function()
-      return 0
+    local function unsupported()
+      return false
     end
-    local ok, err = pcall(games.setup, { username = 42 })
-    vim.fn.has = has
-    assert(ok, err)
+    helpers.with_overrides({ { games, "neovim_supported", unsupported } }, function()
+      games.setup({ username = 42 })
+    end)
     helpers.assert_eq({ "games: needs Neovim 0.11 or newer" }, notified)
   end)
 end

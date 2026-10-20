@@ -190,4 +190,80 @@ function T.heartbeat_keeps_alive()
   end)
 end
 
+---Answers the n-th login with replies[n] and then hangs up, so the conn logs in again.
+---@param replies {type: string, body: table}[]
+---@return integer port
+---@return fun() stop
+local function scripted_login_server(replies)
+  local server = assert(vim.uv.new_tcp())
+  assert(server:bind("127.0.0.1", 0))
+  local logins = 0
+  server:listen(8, function()
+    local socket = assert(vim.uv.new_tcp())
+    server:accept(socket)
+    socket:read_start(function(err, chunk)
+      if err or not chunk then
+        socket:close()
+        return
+      end
+      logins = logins + 1
+      local request = vim.json.decode(vim.split(chunk, "\n")[1])
+      local reply = vim.tbl_extend("force", { id = request.id }, replies[logins])
+      socket:write(vim.json.encode(reply) .. "\n", function()
+        socket:close()
+      end)
+    end)
+  end)
+  return server:getsockname().port, function()
+    server:close()
+  end
+end
+
+function T.prompted_credentials_are_forgotten_when_a_later_login_is_rejected()
+  local port, stop = scripted_login_server({
+    { type = "auth.login", body = { user = "alice", heartbeat_ms = 60000 } },
+    { type = "error", body = { code = "auth_failed", message = "bad password" } },
+  })
+  local conn = Conn.new({ host = "127.0.0.1", port = port })
+  local log = helpers.record_lifecycle(conn)
+  conn:fill_credentials({ username = "alice", password = "rotated-away" })
+  conn:connect()
+  local rejected = vim.wait(RECONNECT_MIN_MS + helpers.WAIT_MS, function()
+    return vim.iter(log.disconnected):any(function(disconnect)
+      return not disconnect.retrying
+    end)
+  end)
+  conn:close()
+  stop()
+  assert(rejected and #log.connected == 1, vim.inspect(log))
+  helpers.assert_eq({ "username", "password" }, conn:missing_credentials())
+end
+
+function T.a_configured_password_survives_filling_in_the_username()
+  helpers.with_server(nil, function(env)
+    local conn =
+      Conn.new({ host = "127.0.0.1", port = env.server.port, password = helpers.PASSWORD })
+    local log = helpers.record_lifecycle(conn)
+    conn:fill_credentials({ username = "alice", password = "not-the-configured-one" })
+    conn:connect()
+    local connected = vim.wait(helpers.WAIT_MS, function()
+      return #log.connected == 1
+    end)
+    conn:close()
+    assert(connected, vim.inspect(log))
+  end)
+end
+
+function T.connect_forgets_the_previous_error()
+  local conn = Conn.new({ host = "127.0.0.1", port = 1, username = "alice", password = "pw" })
+  conn:connect()
+  helpers.wait_for(function()
+    return conn:last_error() ~= nil
+  end, "the refused connect")
+  conn:connect()
+  local last_error = conn:last_error()
+  conn:close()
+  assert(last_error == nil, vim.inspect(last_error))
+end
+
 return T

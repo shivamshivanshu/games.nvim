@@ -14,36 +14,57 @@ local LOGIN = { user = "alice", heartbeat_ms = 15000 }
 ---@field username? string what vim.ui.input answers
 ---@field password string what inputsecret answers
 ---@field asked string[] prompts shown, in order
+---@field later? fun(answer: string|nil)[] when set, vim.ui.input answers are queued here instead
+---@field notified string[]
 
 ---The plugin's client is a stub-backed one; prompts and notify are stubbed and restored after fn.
----@param credentials games.test.StubCredentials|nil
+---@param credentials games.Credentials|nil
 ---@param fn fun(conn: games.test.StubConn, prompts: games.test.PromptStubs)
 local function with_stub_client(credentials, fn)
   local conn = helpers.stub_conn(credentials)
-  local original = {
-    client = games.client,
-    input = vim.ui.input,
-    inputsecret = vim.fn.inputsecret,
-    notify = vim.notify,
-  }
   ---@type games.test.PromptStubs
-  local prompts = { password = "", asked = {} }
-  games.client = Client.new(conn --[[@as games.Conn]])
-  vim.ui.input = function(opts, on_confirm)
-    table.insert(prompts.asked, opts.prompt)
-    on_confirm(prompts.username)
-  end
-  vim.fn.inputsecret = function(prompt)
-    table.insert(prompts.asked, prompt)
-    return prompts.password
-  end
-  vim.notify = function() end
-  local ok, err = xpcall(fn, debug.traceback, conn, prompts)
-  conn:push("disconnected", { code = ErrorCode.DISCONNECTED, message = "closed", retrying = false })
-  games.client = original.client
-  vim.ui.input, vim.fn.inputsecret, vim.notify =
-    original.input, original.inputsecret, original.notify
-  assert(ok, err)
+  local prompts = { password = "", asked = {}, notified = {} }
+  helpers.with_overrides({
+    {
+      games,
+      "client",
+      Client.new(conn --[[@as games.Conn]]),
+    },
+    {
+      vim.ui,
+      "input",
+      function(opts, on_confirm)
+        table.insert(prompts.asked, opts.prompt)
+        if prompts.later then
+          table.insert(prompts.later, on_confirm)
+        else
+          on_confirm(prompts.username)
+        end
+      end,
+    },
+    {
+      vim.fn,
+      "inputsecret",
+      function(prompt)
+        table.insert(prompts.asked, prompt)
+        return prompts.password
+      end,
+    },
+    {
+      vim,
+      "notify",
+      function(message)
+        table.insert(prompts.notified, message)
+      end,
+    },
+  }, function()
+    local ok, err = xpcall(fn, debug.traceback, conn, prompts)
+    conn:push(
+      "disconnected",
+      { code = ErrorCode.DISCONNECTED, message = "closed", retrying = false }
+    )
+    assert(ok, err)
+  end)
 end
 
 ---@param conn games.test.StubConn
@@ -51,6 +72,14 @@ end
 local function listed_ongoing(conn)
   return vim.iter(conn.requests):any(function(request)
     return request.type == MessageType.GAME_LIST and request.body ~= nil
+  end)
+end
+
+---@param conn games.test.StubConn
+---@return boolean
+local function fetched_stats(conn)
+  return vim.iter(conn.requests):any(function(request)
+    return request.type == MessageType.STATS_GET
   end)
 end
 
@@ -79,6 +108,15 @@ function T.missing_credentials_are_prompted_then_the_command_runs_once_connected
   end)
 end
 
+function T.only_missing_credentials_are_prompted()
+  with_stub_client({ password = "configured" }, function(conn, prompts)
+    prompts.username = "alice"
+    commands.run({ "list" })
+    assert_eq({ "games username: " }, prompts.asked)
+    assert_eq({ username = "alice", password = "configured" }, conn.credentials)
+  end)
+end
+
 function T.cancelled_or_empty_prompt_aborts()
   with_stub_client(nil, function(conn, prompts)
     commands.run({ "list" })
@@ -91,15 +129,43 @@ function T.cancelled_or_empty_prompt_aborts()
   end)
 end
 
-function T.only_the_newest_pending_command_runs()
-  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+function T.a_command_during_an_open_prompt_replaces_the_pending_one_without_prompting()
+  with_stub_client(nil, function(conn, prompts)
+    prompts.later, prompts.password = {}, "alice-pass"
     commands.run({ "list" })
     commands.run({ "stats" })
+    assert_eq(1, #prompts.later)
+    assert_eq(
+      { "games: still connecting — replaced pending `:Games list` with `:Games stats`" },
+      prompts.notified
+    )
+
+    prompts.later[1]("alice")
+    assert_eq(1, conn.connects)
     conn:push("connected", LOGIN)
-    assert(not listed_ongoing(conn))
-    assert(vim.iter(conn.requests):any(function(request)
-      return request.type == MessageType.STATS_GET
-    end))
+    assert(fetched_stats(conn) and not listed_ongoing(conn))
+  end)
+end
+
+function T.a_prompt_answered_after_connecting_leaves_nothing_waiting()
+  with_stub_client({ password = "configured" }, function(conn, prompts)
+    prompts.later = {}
+    commands.run({ "list" })
+    conn:push("connected", LOGIN)
+    assert(listed_ongoing(conn))
+
+    prompts.later[1]("alice")
+    assert_eq(0, conn.connects)
+  end)
+end
+
+function T.only_the_newest_pending_command_runs()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
+    commands.run({ "list" })
+    commands.run({ "stats" })
+    assert_eq(1, #prompts.notified)
+    conn:push("connected", LOGIN)
+    assert(fetched_stats(conn) and not listed_ongoing(conn))
   end)
 end
 
@@ -116,15 +182,6 @@ function T.transient_disconnect_keeps_the_command_and_a_fatal_one_drops_it()
     conn:push("disconnected", { code = ErrorCode.AUTH_FAILED, message = "bad", retrying = false })
     conn:push("connected", LOGIN)
     assert(not listed_ongoing(conn))
-  end)
-end
-
-function T.rejected_typed_password_is_forgotten()
-  with_stub_client(nil, function(conn, prompts)
-    prompts.username, prompts.password = "alice", "wrong"
-    commands.run({ "list" })
-    conn:push("disconnected", { code = ErrorCode.AUTH_FAILED, message = "bad", retrying = false })
-    assert_eq({ username = "alice" }, conn.credentials)
   end)
 end
 

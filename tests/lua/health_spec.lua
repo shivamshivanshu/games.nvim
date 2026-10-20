@@ -13,23 +13,26 @@ local REPORTS = { "start", "ok", "info", "warn", "error" }
 ---@param conn games.test.StubConn
 ---@return string[]
 local function report_lines(opts, conn)
-  local original = { config = games.config, client = games.client, reports = {} }
   local lines = {}
+  local overrides = {
+    { games, "config", config.resolve(opts) },
+    {
+      games,
+      "client",
+      Client.new(conn --[[@as games.Conn]]),
+    },
+  }
   for _, report in ipairs(REPORTS) do
-    original.reports[report] = vim.health[report]
-    vim.health[report] = function(message, advice)
-      table.insert(lines, report .. ": " .. message)
-      vim.list_extend(lines, type(advice) == "table" and advice or { advice })
-    end
+    table.insert(overrides, {
+      vim.health,
+      report,
+      function(message, advice)
+        table.insert(lines, report .. ": " .. message)
+        vim.list_extend(lines, type(advice) == "table" and advice or { advice })
+      end,
+    })
   end
-  games.config = config.resolve(opts)
-  games.client = Client.new(conn --[[@as games.Conn]])
-  local ok, err = pcall(health.check)
-  for report, fn in pairs(original.reports) do
-    vim.health[report] = fn
-  end
-  games.config, games.client = original.config, original.client
-  assert(ok, err)
+  helpers.with_overrides(overrides, health.check)
   return lines
 end
 
