@@ -202,6 +202,28 @@ func waitDone(t *testing.T, r *Room) {
 	}
 }
 
+func TestNewSetupRejectsChallengerOutsidePlayers(t *testing.T) {
+	h := newHarness(t, chess.TimeControlNone)
+	noPlayers, outsider := h.params, h.params
+	noPlayers.Players = nil
+	outsider.Challenger = carol
+	for name, p := range map[string]Params{"no players": noPlayers, "challenger absent": outsider} {
+		if _, err := NewSetup(p); err == nil {
+			t.Errorf("%s: want error", name)
+		}
+	}
+}
+
+func TestUpdateDoesNotShareRoomState(t *testing.T) {
+	h := newHarness(t, chess.TimeControlNone)
+	u := h.snapshot(t, alice)
+	u.Players[0].User = carol
+	u.Options[game.OptionTimeControl] = "1+0"
+	if got := h.snapshot(t, alice); got.Players[0].User != alice || got.Options[game.OptionTimeControl] != "none" {
+		t.Fatalf("mutating an update changed the room: players %v, options %v", got.Players, got.Options)
+	}
+}
+
 func TestStaleSeqRejected(t *testing.T) {
 	h := newHarness(t, chess.TimeControl10Plus5)
 	if _, err := h.room.Act(t.Context(), alice, 1, move("e4")); !errors.Is(err, ErrStale) {

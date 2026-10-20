@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"time"
 
@@ -222,15 +223,15 @@ func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.Gam
 	return protocol.GameUpdate{
 		GameID:     g.ID,
 		Game:       g.info.Type,
-		Options:    g.Options,
+		Options:    maps.Clone(g.Options),
 		Seq:        s.seq,
-		Players:    g.Players,
+		Players:    slices.Clone(g.Players),
 		ToAct:      s.toAct(g),
 		Result:     wireResult,
 		Clock:      s.wireClock(g, at),
 		DrawAgreed: slices.Clone(s.drawAgreed),
 		Controls:   s.controls(g, user),
-		Events:     s.events,
+		Events:     slices.Clone(s.events),
 		View:       view,
 	}, nil
 }
