@@ -1,14 +1,17 @@
+local art = require("games.ui.art")
 local compose = require("games.ui.compose")
 local highlights = require("games.ui.highlights")
 local text_util = require("games.ui.text")
 
 ---@class games.GridCell
----@field [1] string glyph
+---@field [1] string key into GridProps.art, or the glyph itself without art
 ---@field [2]? games.Hl foreground layered last, over shade and mark; without it the cell takes the ink of its background
 
+---@alias games.GridLabelList string|string[] a string labels one character per index
+
 ---@class games.GridLabels
----@field cols string one character per column
----@field rows string one character per row
+---@field cols games.GridLabelList
+---@field rows games.GridLabelList
 
 ---@class games.GridProps
 ---@field rows integer
@@ -19,12 +22,15 @@ local text_util = require("games.ui.text")
 ---@field marks? table<string, games.Hl> mark_key(row, col) -> highlight layered over the cell
 ---@field flip? boolean
 ---@field cell_width? integer display columns per cell, default 1
+---@field cell_height? integer lines per cell, default 1; taller cells touch, with no gap
+---@field art? games.ArtSet resolves cell keys; without it a key is drawn as it is
 ---@field blocks? integer positive: draw a thin separator after every this many rows and columns
 ---@field glyphs? games.Glyphs separator characters, default "unicode"
 
 local LIGHT_SQUARE_HL = "GamesSquareLight"
 local DARK_SQUARE_HL = "GamesSquareDark"
 local CELL_GAP = " "
+local LABEL_GAP = " "
 
 ---@class (private) games.BlockSeparators
 ---@field col string
@@ -83,13 +89,13 @@ local function display_order(n, flip)
   return order
 end
 
----@param labels string
+---@param labels games.GridLabelList
 ---@param order integer[]
 ---@return string[]
 local function labels_in_order(labels, order)
-  local chars = vim.fn.split(labels, "\\zs")
+  local list = type(labels) == "string" and vim.fn.split(labels, "\\zs") or labels
   return vim.tbl_map(function(i)
-    return chars[i]
+    return list[i]
   end, order)
 end
 
@@ -102,22 +108,6 @@ local function crosses_block(blocks, a, b)
   return blocks ~= nil and math.min(a, b) % blocks == 0
 end
 
----@param props games.GridProps
----@param col_order integer[]
----@param prefix_width integer display width of the row label column
----@param separators games.BlockSeparators
----@return games.Node
-local function block_separator_row(props, col_order, prefix_width, separators)
-  local cell = separators.row:rep(props.cell_width or 1)
-  local parts = { (" "):rep(prefix_width), cell }
-  for j = 2, #col_order do
-    local crossing = crosses_block(props.blocks, col_order[j - 1], col_order[j])
-    parts[#parts + 1] = crossing and separators.crossing or separators.row
-    parts[#parts + 1] = cell
-  end
-  return compose.text(table.concat(parts), SEPARATOR_HL)
-end
-
 ---@param blocks integer|nil
 local function validate_blocks(blocks)
   local valid = blocks == nil
@@ -127,57 +117,127 @@ local function validate_blocks(blocks)
   end
 end
 
+---@class (private) games.GridGeometry
+---@field cell games.Size
+---@field gap integer display columns between cells that no block separator divides
+---@field prefix integer display width of the row label column
+---@field label integer display width of the widest row label
+
+---@param str string
+---@param height integer
+---@param hl? games.Hl
+---@return games.Node str on each of height lines
+local function repeated(str, height, hl)
+  local lines = {}
+  for i = 1, height do
+    lines[i] = compose.text(str, hl)
+  end
+  return compose.col(lines)
+end
+
+---@param props games.GridProps
+---@param key string
+---@param box games.Size
+---@return games.Node
+local function cell_content(props, key, box)
+  if not props.art then
+    return compose.text(key)
+  end
+  return compose.col(vim.tbl_map(compose.text, art.pick(props.art, key, box).lines))
+end
+
+---@param props games.GridProps
+---@param col_order integer[]
+---@param geometry games.GridGeometry
+---@param separators games.BlockSeparators
+---@return games.Node
+local function block_separator_row(props, col_order, geometry, separators)
+  local cell = separators.row:rep(geometry.cell.w)
+  local parts = { (" "):rep(geometry.prefix), cell }
+  for j = 2, #col_order do
+    local crossing = crosses_block(props.blocks, col_order[j - 1], col_order[j])
+    parts[#parts + 1] = crossing and separators.crossing or separators.row:rep(geometry.gap)
+    parts[#parts + 1] = cell
+  end
+  return compose.text(table.concat(parts), SEPARATOR_HL)
+end
+
+---@param props games.GridProps
+---@param col_labels string[]
+---@param col_order integer[]
+---@param geometry games.GridGeometry
+---@return games.Node
+local function column_label_row(props, col_labels, col_order, geometry)
+  local parts = { (" "):rep(geometry.prefix) }
+  for j, label in ipairs(col_labels) do
+    if j > 1 then
+      local crossing = crosses_block(props.blocks, col_order[j - 1], col_order[j])
+      parts[#parts + 1] = (" "):rep(crossing and 1 or geometry.gap)
+    end
+    parts[#parts + 1] = text_util.center_to_width(label, geometry.cell.w)
+  end
+  return compose.text(table.concat(parts))
+end
+
 ---@param props games.GridProps
 ---@return games.Node
 local function render(props)
   validate_blocks(props.blocks)
   local separators = BLOCK_SEPARATORS[props.glyphs or "unicode"]
-  local cell_width = props.cell_width or 1
+  local cell_height = props.cell_height or 1
   local marks = props.marks or {}
   local row_order = display_order(props.rows, props.flip == true)
   local col_order = display_order(props.cols, props.flip == true)
   local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)
   local col_labels = props.labels and labels_in_order(props.labels.cols, col_order)
-  local prefix_width = row_labels and vim.fn.strdisplaywidth(row_labels[1] .. " ") or 0
+  local label_width = row_labels and text_util.max_display_width(row_labels) or 0
+  ---@type games.GridGeometry
+  local geometry = {
+    cell = { w = props.cell_width or 1, h = cell_height },
+    gap = cell_height == 1 and #CELL_GAP or 0,
+    prefix = row_labels and label_width + #LABEL_GAP or 0,
+    label = label_width,
+  }
 
   local function cell_node(r, c)
-    local glyph, own_hl = unpack(props.cell(r, c))
+    local key, own_hl = unpack(props.cell(r, c))
     local shade, mark = shade_hl(props.shade, r, c), marks[M.mark_key(r, c)]
     local hl = own_hl and compose.layers(shade, mark, own_hl)
       or highlights.with_ink(compose.layers(shade, mark))
-    return compose.text(text_util.pad_to_width(glyph, cell_width), hl)
+    local box = geometry.cell
+    return compose.box({ w = box.w, h = box.h, hl = hl, child = cell_content(props, key, box) })
   end
 
   local function gap_node(j)
     if crosses_block(props.blocks, col_order[j - 1], col_order[j]) then
-      return compose.text(separators.col, SEPARATOR_HL)
+      return repeated(separators.col, cell_height, SEPARATOR_HL)
     end
-    return compose.text(CELL_GAP)
+    return geometry.gap > 0 and repeated(CELL_GAP, cell_height) or nil
+  end
+
+  local function label_node(label)
+    local padded = text_util.pad_to_width(label, geometry.label) .. LABEL_GAP
+    return compose.box({ w = geometry.prefix, h = cell_height, child = compose.text(padded) })
   end
 
   local lines = {}
   for i, r in ipairs(row_order) do
     if i > 1 and crosses_block(props.blocks, row_order[i - 1], r) then
-      lines[#lines + 1] = block_separator_row(props, col_order, prefix_width, separators)
+      lines[#lines + 1] = block_separator_row(props, col_order, geometry, separators)
     end
     local parts = {}
     if row_labels then
-      parts[#parts + 1] = compose.text(row_labels[i] .. " ")
+      parts[#parts + 1] = label_node(row_labels[i])
     end
     for j, c in ipairs(col_order) do
-      if j > 1 then
-        parts[#parts + 1] = gap_node(j)
-      end
+      parts[#parts + 1] = j > 1 and gap_node(j) or nil
       parts[#parts + 1] = cell_node(r, c)
     end
     lines[#lines + 1] = compose.row(parts)
   end
 
   if col_labels then
-    local padded = vim.tbl_map(function(label)
-      return text_util.pad_to_width(label, cell_width)
-    end, col_labels)
-    lines[#lines + 1] = compose.text("  " .. table.concat(padded, CELL_GAP))
+    lines[#lines + 1] = column_label_row(props, col_labels, col_order, geometry)
   end
   return compose.col(lines)
 end

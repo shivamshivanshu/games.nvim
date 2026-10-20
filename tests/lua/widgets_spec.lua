@@ -60,6 +60,25 @@ local function digit_grid(overrides)
   }, overrides))
 end
 
+local TALL_ART = {
+  A = { { h = 1, w = 1, lines = { "a" } }, { h = 3, w = 4, lines = { "/--\\", "|  |", "\\--/" } } },
+  B = { { h = 1, w = 1, lines = { "b" } } },
+}
+
+---A 2x2 grid of 3x6 cells, A on the diagonal and B off it.
+---@param overrides table
+---@return games.Node
+local function tall_grid(overrides)
+  return small_grid(vim.tbl_extend("force", {
+    cell_width = 6,
+    cell_height = 3,
+    art = TALL_ART,
+    cell = function(r, c)
+      return { r == c and "A" or "B" }
+    end,
+  }, overrides))
+end
+
 local function assert_movelist_aligned(glyph)
   local moves = { "e4", "e5", "Nf3", "Nc6" }
   local rendered = compose.render(
@@ -170,6 +189,60 @@ return {
       local ok, err = pcall(digit_grid, { blocks = blocks })
       assert(not ok and err:find("blocks must be a positive integer", 1, true), vim.inspect(err))
     end
+  end,
+
+  grid_tall_cells_centre_art_and_label_the_middle_line = function()
+    local rendered = compose.render(tall_grid({}))
+    assert_eq({
+      "   /--\\       ",
+      "2  |  |   b   ",
+      "   \\--/       ",
+      "         /--\\ ",
+      "1   b    |  | ",
+      "         \\--/ ",
+      "    a     b   ",
+    }, rendered.lines)
+  end,
+
+  grid_flipped_tall_cells_keep_art_upright = function()
+    local rendered = compose.render(tall_grid({
+      flip = true,
+      cell = function(r, c)
+        return { (r == 2 and c == 2) and "A" or "B" }
+      end,
+    }))
+    assert_eq(
+      { "   /--\\       ", "1  |  |   b   ", "   \\--/       " },
+      vim.list_slice(rendered.lines, 1, 3)
+    )
+    assert_eq("    b     a   ", rendered.lines[7])
+  end,
+
+  grid_mark_tints_every_line_of_a_tall_cell = function()
+    local rendered = compose.render(tall_grid({ marks = { ["1,1"] = "GamesLastMove" } }))
+    for row = 0, 2 do
+      local expected = { "GamesSquareLight", "GamesLastMove", "GamesLastMoveInk" }
+      assert_eq(expected, hl_at(rendered, row, 2))
+    end
+    assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, hl_at(rendered, 1, 8))
+  end,
+
+  grid_tall_cells_repeat_block_separators_and_reserve_widest_label = function()
+    local rendered = compose.render(small_grid({
+      cell_width = 2,
+      cell_height = 2,
+      blocks = 1,
+      labels = { cols = { "a", "b" }, rows = { "10", "9" } },
+    }))
+    assert_eq({
+      "10 x │x ",
+      "     │  ",
+      "   ──┼──",
+      "9  x │x ",
+      "     │  ",
+      "   a  b ",
+    }, rendered.lines)
+    assert_eq("GamesMuted", hl_at(rendered, 1, 5))
   end,
 
   grid_labels_split_by_character = function()
