@@ -8,15 +8,15 @@ local M = {}
 
 ---@class games.Config
 ---@field server games.ServerAddress
----@field username string
----@field password string|fun(): string resolved at each connect, never during setup
+---@field username? string asked for on the first :Games when nil
+---@field password? string|fun(): string resolved at each connect, never during setup; asked for when nil
 ---@field autoconnect boolean
 ---@field glyphs games.Glyphs
 
 ---@class games.SetupOpts
 ---@field server? {host?: string, port?: integer}
----@field username string
----@field password string|fun(): string
+---@field username? string
+---@field password? string|fun(): string
 ---@field autoconnect? boolean
 ---@field glyphs? games.Glyphs
 
@@ -45,8 +45,8 @@ function M.resolve(opts)
   local config = vim.tbl_deep_extend("force", DEFAULTS, opts)
   vim.validate("server.host", config.server.host, "string")
   vim.validate("server.port", config.server.port, is_port, "port number 1-65535")
-  vim.validate("username", config.username, "string")
-  vim.validate("password", config.password, { "string", "function" })
+  vim.validate("username", config.username, "string", true)
+  vim.validate("password", config.password, { "string", "function" }, true)
   vim.validate("autoconnect", config.autoconnect, "boolean")
   vim.validate("glyphs", config.glyphs, function(glyphs)
     return GLYPHS[glyphs] ~= nil

@@ -19,7 +19,8 @@ local function connect_current()
   end
 end
 
----Validates opts, replaces any previous connection, and connects after startup when autoconnect is set.
+---Validates opts, replaces any previous connection, and connects after startup when autoconnect
+---is set and both credentials are known.
 ---@param opts games.SetupOpts
 function M.setup(opts)
   M.config = config.resolve(opts)
@@ -35,7 +36,7 @@ function M.setup(opts)
   notify.attach(M.client)
 
   local group = vim.api.nvim_create_augroup(AUTOCONNECT_GROUP, { clear = true })
-  if not M.config.autoconnect then
+  if not (M.config.autoconnect and M.client.conn:has_credentials()) then
     return
   end
   if vim.v.vim_did_enter == 1 then

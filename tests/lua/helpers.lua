@@ -161,14 +161,50 @@ function M.wait_for(predicate, what)
   assert(vim.wait(M.WAIT_MS, predicate), "timed out waiting for " .. what)
 end
 
+---@class games.test.StubCredentials
+---@field username? string
+---@field password? string|fun(): string
+
 ---@class games.test.StubConn
 ---@field handlers table<string, fun(body: table)[]>
 ---@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil)}[]
+---@field credentials games.test.StubCredentials
+---@field connects integer how often connect() was called
+---@field connecting boolean
+---@field error? games.ErrorBody what last_error() returns
 
 ---Records requests instead of sending them; push() delivers an event synchronously.
+---@param credentials? games.test.StubCredentials
 ---@return games.test.StubConn
-function M.stub_conn()
-  local conn = { handlers = vim.defaulttable(), requests = {} }
+function M.stub_conn(credentials)
+  local conn = {
+    handlers = vim.defaulttable(),
+    requests = {},
+    credentials = credentials or {},
+    connects = 0,
+    connecting = false,
+  }
+  function conn:connect()
+    self.connects = self.connects + 1
+  end
+  function conn:set_credentials(username, password)
+    self.credentials = { username = username, password = password }
+  end
+  function conn:has_credentials()
+    return self.credentials.username ~= nil and self.credentials.password ~= nil
+  end
+  function conn:username()
+    return self.credentials.username
+  end
+  function conn:address()
+    return "127.0.0.1:7777"
+  end
+  function conn:is_connecting()
+    return self.connecting
+  end
+  function conn:last_error()
+    return self.error
+  end
   function conn:on(event, fn)
     table.insert(self.handlers[event], fn)
   end

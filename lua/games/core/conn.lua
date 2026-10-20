@@ -19,8 +19,8 @@ local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_
 ---@class games.ConnOpts
 ---@field host string
 ---@field port integer
----@field username string
----@field password string|fun(): string
+---@field username? string
+---@field password? string|fun(): string
 
 ---One TCP connection try; every libuv callback checks it is still current before acting.
 ---@class (private) games.ConnAttempt
@@ -41,6 +41,7 @@ local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_
 ---@field private auto_reconnect boolean
 ---@field private backoff_ms integer
 ---@field private reconnect_timer? uv.uv_timer_t
+---@field private last_disconnect? games.ErrorBody
 local Conn = {}
 Conn.__index = Conn
 
@@ -79,6 +80,19 @@ local function resolve_password(password)
         or "password is empty"
   end
   return value
+end
+
+---@param opts games.ConnOpts
+---@return string|nil password
+---@return string|nil problem why the conn cannot log in
+local function resolve_login(opts)
+  if opts.username == nil then
+    return nil, "username is missing"
+  end
+  if opts.password == nil then
+    return nil, "password is missing"
+  end
+  return resolve_password(opts.password)
 end
 
 ---@param timer uv.uv_timer_t|nil
@@ -156,6 +170,41 @@ function Conn:connect()
   end
 end
 
+---Replaces the login for this session; the next connect uses it.
+---@param username? string
+---@param password? string|fun(): string
+function Conn:set_credentials(username, password)
+  self.opts.username = username
+  self.opts.password = password
+end
+
+---@return boolean
+function Conn:has_credentials()
+  return self.opts.username ~= nil and self.opts.password ~= nil
+end
+
+---@return string|nil
+function Conn:username()
+  return self.opts.username
+end
+
+---@return string host:port
+function Conn:address()
+  return ("%s:%d"):format(self.opts.host, self.opts.port)
+end
+
+---True from connect() until logged in, including the waits between reconnect tries.
+---@return boolean
+function Conn:is_connecting()
+  return self.auto_reconnect and not (self.attempt and self.attempt.authenticated)
+end
+
+---Why the latest attempt or connection ended, or nil if none has.
+---@return games.ErrorBody|nil
+function Conn:last_error()
+  return self.last_disconnect
+end
+
 ---Sends a request once logged in; otherwise cb gets a "disconnected" error.
 ---@param message_type games.MessageType
 ---@param body table|nil
@@ -194,12 +243,13 @@ end
 
 ---@private
 function Conn:open()
-  local password, problem = resolve_password(self.opts.password)
+  local password, problem = resolve_login(self.opts)
   if not password then
     self.auto_reconnect = false
     ---@cast problem string
     ---@type games.Disconnect
     local disconnect = { code = ErrorCode.AUTH_FAILED, message = problem, retrying = false }
+    self.last_disconnect = disconnect
     self:emit("disconnected", disconnect)
     return
   end
@@ -402,6 +452,7 @@ function Conn:teardown(attempt, reason)
     return
   end
   self.attempt = nil
+  self.last_disconnect = reason
   close_timer(attempt.watchdog)
   close_timer(attempt.heartbeat)
   if attempt.socket and not attempt.socket:is_closing() then

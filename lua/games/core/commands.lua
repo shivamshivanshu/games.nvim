@@ -1,5 +1,6 @@
 local float = require("games.ui.float")
 local kv = require("games.ui.widgets.kv")
+local login = require("games.core.login")
 local notify = require("games.core.notify")
 local picker = require("games.ui.picker")
 local shell = require("games.ui.shell")
@@ -361,11 +362,12 @@ end
 ---@param subcommand games.Subcommand
 ---@param args string[]
 local function run_subcommand(client, subcommand, args)
-  local me = notify.require_me(client)
-  if not me then
-    return
-  end
-  subcommand.run(client, me, args)
+  login.ensure_connected(client, function()
+    local me = notify.require_me(client)
+    if me then
+      subcommand.run(client, me, args)
+    end
+  end)
 end
 
 ---Runs `:Games <fargs>`; with no subcommand it offers a menu of them.
