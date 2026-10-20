@@ -36,5 +36,6 @@ test-lua: $(if $(wildcard server/cmd/games-server),build)
 check: lint schema-check test-go test-lua
 
 smoke-finders:
+	@echo "fzf $$(fzf --version)"
 	tests/smoke/fetch-pickers.sh $(PICKERS_PACK)
 	PICKERS_PACK=$(PICKERS_PACK) nvim --headless -u NONE -l tests/smoke/finders.lua

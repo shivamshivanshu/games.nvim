@@ -40,13 +40,8 @@ return {
         previewer = previewers.new_buffer_previewer({
           title = source.title,
           define_preview = function(self, entry)
-            vim.api.nvim_buf_set_lines(
-              self.state.bufnr,
-              0,
-              -1,
-              false,
-              source.preview(entry.value) or {}
-            )
+            local lines = entry and source.preview(entry.value) or {}
+            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
           end,
         }),
         attach_mappings = function(prompt_bufnr, map)

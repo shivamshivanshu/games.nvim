@@ -20,5 +20,5 @@ done <<'PINS'
 snacks.nvim folke/snacks.nvim 882c996cf28183f4d63640de0b4c02ec886d01f2
 telescope.nvim nvim-telescope/telescope.nvim 40aedd8a68c78a656a10a8d62d80c54af59420fb
 plenary.nvim nvim-lua/plenary.nvim 74b06c6c75e4eeb3108ec01852001636d85a932b
-fzf-lua ibhagwan/fzf-lua a306c293b37bd7c8c1e8e1e6c0d7d3d9c3de3f21
+fzf-lua ibhagwan/fzf-lua ed0e0ead1789ee349cbf025900931fb402b1e05e
 PINS

@@ -15,6 +15,7 @@ jobs:
       LUALS_VERSION: 3.15.0
       STYLUA_VERSION: 2.5.2
       FZF_VERSION: 0.74.0
+      FZF_SHA256: cf919f05b7581b4c744d764eaa704665d61dd6d3ca785f0df2351281dff60cda
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -48,7 +49,10 @@ jobs:
         run: |
           dir="$RUNNER_TEMP/fzf"
           mkdir -p "$dir"
-          curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_amd64.tar.gz" | tar -xz -C "$dir"
+          tarball="$dir/fzf.tar.gz"
+          curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_amd64.tar.gz" -o "$tarball"
+          echo "${FZF_SHA256}  $tarball" | sha256sum -c -
+          tar -xzf "$tarball" -C "$dir"
           echo "$dir" >> "$GITHUB_PATH"
       - name: Finder smoke tests against the real pickers
         if: matrix.neovim == 'stable'
