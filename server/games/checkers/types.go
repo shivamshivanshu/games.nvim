@@ -28,22 +28,19 @@ type Opts struct {
 	Color       ColorChoice      `json:"color"`
 }
 
-// ActionKind names what an Action does.
-type ActionKind string
-
 // ActionMove plays one complete move given as Action.Text.
-const ActionMove ActionKind = "move"
+const ActionMove game.ActionKind = "move"
 
 // Action is one complete move, such as 11-15 or 15x24x31.
 type Action struct {
-	Kind ActionKind `json:"kind"`
-	Text string     `json:"text,omitempty"`
+	Kind game.ActionKind `json:"kind"`
+	Text string          `json:"text,omitempty"`
 }
 
-// View is the public position, the same for both seats.
+// View is the position. Legal is the viewer's own: every legal move, each as
+// its squares from origin to final landing, and empty unless the viewer is to move.
 type View struct {
-	Board Board `json:"board"`
-	// Legal lists every legal move of the side to move, each as its squares from origin to final landing.
+	Board   Board      `json:"board"`
 	Legal   [][]Square `json:"legal"`
 	Last    []Square   `json:"last"`
 	History []string   `json:"history"`

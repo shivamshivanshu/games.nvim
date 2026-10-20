@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is one complete move, such as 11-15 or 15x24x31."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "move"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Board": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "maxItems": 32,
+      "minItems": 32,
+      "description": "Board holds the 32 playable squares; index i is square i+1."
+    },
+    "MovedEvent": {
+      "properties": {
+        "kind": {
+          "const": "moved"
+        },
+        "by": {
+          "type": "string"
+        },
+        "move": {
+          "type": "string"
+        },
+        "crowned": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "move",
+        "crowned"
+      ],
+      "description": "MovedEvent reports a played move and whether it crowned a man."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "no_pieces",
+        "no_moves",
+        "forty_move"
+      ],
+      "description": "The result reasons Checkers adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "board": {
+          "$ref": "#/$defs/Board"
+        },
+        "legal": {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "last": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "history": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "board",
+        "legal",
+        "last",
+        "history"
+      ],
+      "description": "View is the position. Legal is the viewer's own: every legal move, each as\nits squares from origin to final landing, and empty unless the viewer is to move."
+    }
+  },
+  "title": "Checkers",
+  "description": "The game-specific bodies inside a checkers game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "moved": {
+      "$ref": "#/$defs/MovedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

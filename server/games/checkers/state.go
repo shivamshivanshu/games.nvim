@@ -72,10 +72,10 @@ func (s state) ending() (game.Result, bool) {
 	return game.Result{}, false
 }
 
-func (s state) View(game.Seat) View {
-	legal := s.legal
-	if s.finished {
-		legal = nil
+func (s state) View(seat game.Seat) View {
+	var legal []Move
+	if slices.Contains(s.ToAct(), seat) {
+		legal = s.legal
 	}
 	return View{
 		Board:   s.board,
@@ -93,6 +93,14 @@ func (s state) ToAct() []game.Seat {
 }
 
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
+
+// Conclude takes a result the core imposed, so the game stops offering moves.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
+	if !s.finished {
+		s.result, s.finished = result, true
+	}
+	return s
+}
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	if s.finished {

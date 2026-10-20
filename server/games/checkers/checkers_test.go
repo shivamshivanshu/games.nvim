@@ -3,6 +3,7 @@ package checkers
 import (
 	"encoding/json"
 	"errors"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -127,17 +128,53 @@ func TestMoveEventAndView(t *testing.T) {
 	if diff := cmp.Diff([]game.Event{MovedEvent{By: SeatBlack, Move: "22x31", Crowned: true}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
-	raw, err := json.Marshal(st.View(SeatBlack))
-	if err != nil {
-		t.Fatal(err)
+	board := `"board":["","","","W","","","","","","","","","","","","","","","","","","","","","","","w","","","","B",""]`
+	views := map[game.Seat]string{
+		SeatWhite: `{` + board + `,"legal":[[4,8],[27,23],[27,24]],"last":[22,31],"history":["22x31"]}`,
+		SeatBlack: `{` + board + `,"legal":[],"last":[22,31],"history":["22x31"]}`,
 	}
-	want := `{"board":["","","","W","","","","","","","","","","","","","","","","","","","","","","","w","","","","B",""],` +
-		`"legal":[[4,8],[27,23],[27,24]],"last":[22,31],"history":["22x31"]}`
-	if string(raw) != want {
-		t.Errorf("view\n got %s\nwant %s", raw, want)
+	for seat, want := range views {
+		raw, err := json.Marshal(st.View(seat))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(raw) != want {
+			t.Errorf("%s view\n got %s\nwant %s", seat, raw, want)
+		}
 	}
 	if got := st.ToAct(); !slices.Equal(got, []game.Seat{SeatWhite}) {
 		t.Errorf("crowning must end the turn; to act %v", got)
+	}
+}
+
+func TestConcludeStopsOfferingMoves(t *testing.T) {
+	agreed := game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
+	concluded := newState(StartBoard(), SeatBlack, 0).Conclude(agreed)
+	if got, finished := concluded.Outcome(); !finished || !cmp.Equal(got, agreed) {
+		t.Errorf("outcome %+v, finished=%t", got, finished)
+	}
+	if len(concluded.ToAct()) != 0 || len(concluded.View(SeatBlack).Legal) != 0 {
+		t.Errorf("concluded game still offers moves to %v", concluded.ToAct())
+	}
+	won := newState(boardOf(t, "b:9"), SeatWhite, 0)
+	if got, _ := won.Conclude(agreed).Outcome(); got.Reason != ReasonNoPieces {
+		t.Errorf("Conclude overrode a finished result: %+v", got)
+	}
+}
+
+func TestMovePatternMatchesNotation(t *testing.T) {
+	pattern := regexp.MustCompile(movePattern)
+	for _, steps := range [][]gametest.Step[Action]{selfPlay(t, firstLegal), selfPlay(t, lastLegal)} {
+		for _, step := range steps {
+			if !pattern.MatchString(step.Action.Text) {
+				t.Errorf("pattern rejects legal move %q", step.Action.Text)
+			}
+		}
+	}
+	for _, text := range []string{"", "e4", "11", "11-15-19", "11x", "11-15x19"} {
+		if pattern.MatchString(text) {
+			t.Errorf("pattern accepts %q", text)
+		}
 	}
 }
 
