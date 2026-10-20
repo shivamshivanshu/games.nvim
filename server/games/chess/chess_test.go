@@ -75,15 +75,24 @@ func TestAcceptsSANAndUCI(t *testing.T) {
 }
 
 func TestIllegalMoveMessage(t *testing.T) {
-	st, _ := newGame(t, ColorWhite, 1)
-	before := viewOf(t, st)
-	_, err := act(t, st, SeatWhite, Action{Kind: ActionMove, Move: "Nf4"})
-	var illegal game.IllegalActionError
-	if !errors.As(err, &illegal) || illegal.Msg != "illegal move: Nf4" {
-		t.Fatalf("got %v", err)
+	tests := []struct{ name, line, input, want string }{
+		{"no legal match", "", "Nf4", "illegal move: Nf4"},
+		{"ambiguous case", "e3 Nc6 b3 Ne5 a3 Nc4", "BXC4", "ambiguous move: BXC4 (Bxc4 or bxc4)"},
 	}
-	if after := viewOf(t, st); after.FEN != before.FEN {
-		t.Errorf("state changed: %s", after.FEN)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			st, _ := newGame(t, ColorWhite, 1)
+			st = playSANs(t, st, tc.line)
+			before := viewOf(t, st)
+			_, err := act(t, st, SeatWhite, Action{Kind: ActionMove, Move: tc.input})
+			var illegal game.IllegalActionError
+			if !errors.As(err, &illegal) || illegal.Msg != tc.want {
+				t.Fatalf("got %v", err)
+			}
+			if after := viewOf(t, st); after.FEN != before.FEN {
+				t.Errorf("state changed: %s", after.FEN)
+			}
+		})
 	}
 }
 

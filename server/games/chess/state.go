@@ -39,7 +39,7 @@ func (s state) applyMove(seat game.Seat, input string) (game.State[Action, View]
 	legal := s.position.LegalMoves()
 	move, err := s.position.parseMove(input, legal)
 	if err != nil {
-		return nil, nil, game.IllegalActionError{Msg: "illegal move: " + input}
+		return nil, nil, game.IllegalActionError{Msg: err.Error()}
 	}
 	san := s.position.san(move, legal)
 	next := state{

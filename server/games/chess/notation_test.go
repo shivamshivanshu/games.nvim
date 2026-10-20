@@ -74,6 +74,43 @@ func TestParseMoveVariants(t *testing.T) {
 	}
 }
 
+func TestParseMoveCaseInsensitive(t *testing.T) {
+	const (
+		pieces    = "4k3/8/8/3p4/8/8/8/R2QKBNR w - - 0 1"
+		promotion = "8/4P1k1/8/8/8/8/8/4K3 w - - 0 1"
+		castling  = "4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1"
+		collision = "4k3/8/8/8/2p5/1P6/8/4KB2 w - - 0 1"
+	)
+	tests := []struct{ name, fen, input, wantUCI string }{
+		{"knight", pieces, "nf3", "g1f3"},
+		{"bishop without pawn", pieces, "bc4", "f1c4"},
+		{"rook", pieces, "ra7", "a1a7"},
+		{"queen", pieces, "qd3", "d1d3"},
+		{"king", pieces, "ke2", "e1e2"},
+		{"capture", pieces, "qxd5", "d1d5"},
+		{"check", pieces, "ra8+", "a1a8"},
+		{"upper case", pieces, "NF3", "g1f3"},
+		{"promotion with equals", promotion, "e8=q", "e7e8q"},
+		{"promotion without equals", promotion, "e8n", "e7e8n"},
+		{"kingside castle", castling, "o-o", "e1g1"},
+		{"queenside castle", castling, "o-o-o", "e1c1"},
+		{"exact pawn capture wins", collision, "bxc4", "b3c4"},
+		{"exact bishop capture wins", collision, "Bxc4", "f1c4"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := mustParse(t, mustFEN(t, tc.fen), tc.input).UCI(); got != tc.wantUCI {
+				t.Errorf("got %s want %s", got, tc.wantUCI)
+			}
+		})
+	}
+
+	_, err := mustFEN(t, collision).ParseMove("BXC4")
+	if want := "ambiguous move: BXC4 (Bxc4 or bxc4)"; err == nil || err.Error() != want {
+		t.Errorf("got %v want %s", err, want)
+	}
+}
+
 func historyAfter(t *testing.T, p Position, sans ...string) (Position, []RepetitionKey) {
 	t.Helper()
 	history := []RepetitionKey{p.RepetitionKey()}

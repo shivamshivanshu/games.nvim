@@ -97,13 +97,26 @@ func (p Position) parseMove(input string, legal []Move) (Move, error) {
 			return legal[i], nil
 		}
 	}
+	var foldMatches []Move
+	var foldSANs []string
 	for _, m := range legal {
 		san := p.sanWithoutCheckSuffix(m, legal)
-		if text == san || text == strings.Replace(san, "=", "", 1) {
+		withoutEquals := strings.Replace(san, "=", "", 1)
+		if text == san || text == withoutEquals {
 			return m, nil
 		}
+		if strings.EqualFold(text, san) || strings.EqualFold(text, withoutEquals) {
+			foldMatches = append(foldMatches, m)
+			foldSANs = append(foldSANs, san)
+		}
 	}
-	return Move{}, fmt.Errorf("illegal move: %s", input)
+	switch len(foldMatches) {
+	case 0:
+		return Move{}, fmt.Errorf("illegal move: %s", input)
+	case 1:
+		return foldMatches[0], nil
+	}
+	return Move{}, fmt.Errorf("ambiguous move: %s (%s)", input, strings.Join(foldSANs, " or "))
 }
 
 func normalizeMoveText(input string) string {

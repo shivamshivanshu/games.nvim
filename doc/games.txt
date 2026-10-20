@@ -206,6 +206,9 @@ the current state are mapped; the footer lists them.
     ]g      next game waiting on your move
     q       close
 
+Chess move input is case-insensitive (`nf3`, `o-o`); the capital `B` is
+needed only when `bxc4` could be a bishop or a b-pawn.
+
 ==============================================================================
 6. HEALTH                                                          *games-health*
 

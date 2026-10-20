@@ -190,6 +190,8 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `]g` | next game waiting on your move |
 | `q` | close |
 
+Chess move input is case-insensitive (`nf3`, `o-o`); the capital `B` is needed only when `bxc4` could be a bishop or a b-pawn.
+
 ## Adding a game
 
 No core edits.
