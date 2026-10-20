@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/auth"
@@ -47,6 +48,7 @@ func (h *Hub) Routes() session.Router {
 		protocol.TypeGameSnapshot:     session.Handle(h.gameSnapshot),
 		protocol.TypeGameAct:          session.Handle(h.act),
 		protocol.TypeGameControl:      session.Handle(h.control),
+		protocol.TypeGameStart:        session.Handle(h.startSolo),
 		protocol.TypeStatsGet:         session.Handle(h.stats),
 		protocol.TypeGameVerify:       session.Handle(h.verify),
 	}
@@ -91,6 +93,29 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 		return protocol.ChallengeCreateResult{}, err
 	}
 	return protocol.ChallengeCreateResult{ChallengeID: c.ChallengeID}, nil
+}
+
+func (h *Hub) startSolo(_ context.Context, s *session.Session, req protocol.GameStartRequest) (protocol.GameUpdate, error) {
+	g, err := h.gameType(req.Game)
+	if err != nil {
+		return protocol.GameUpdate{}, err
+	}
+	if g.Info().Players.Max != 1 {
+		return protocol.GameUpdate{}, protocol.BadRequestf("%s is not a solo game: challenge an opponent", req.Game)
+	}
+	opts, err := g.ResolveOptions(req.Options)
+	if err != nil {
+		return protocol.GameUpdate{}, err
+	}
+	id, first, err := h.startGame(req.Game, opts, s.User(), nil)
+	if err != nil {
+		return protocol.GameUpdate{}, err
+	}
+	update, ok := first[s.User()]
+	if !ok {
+		return protocol.GameUpdate{}, fmt.Errorf("hub: solo game %s has no first update", id)
+	}
+	return update, nil
 }
 
 func resolveChallenge(resolve func(protocol.ChallengeID, game.UserID) error) session.Handler {

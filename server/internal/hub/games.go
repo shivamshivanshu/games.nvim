@@ -25,45 +25,45 @@ type liveGame struct {
 }
 
 func (h *Hub) startChallenge(c protocol.Challenge) (game.GameID, error) {
-	id, err := h.startGame(c)
+	id, _, err := h.startGame(c.Game, c.Options, c.From, c.To)
 	if err != nil {
 		slog.Error("hub: start game", "challenge", c.ChallengeID, "err", err)
 	}
 	return id, err
 }
 
-func (h *Hub) startGame(c protocol.Challenge) (game.GameID, error) {
-	g, state, err := h.prepareGame(c)
+// startGame returns each player's first update; a solo game has no invitees.
+func (h *Hub) startGame(typ game.GameType, opts game.Options, challenger game.UserID, invitees []game.UserID) (game.GameID, map[game.UserID]protocol.GameUpdate, error) {
+	g, state, err := h.prepareGame(typ, opts, challenger, invitees)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if err := h.persistNewGame(g); err != nil {
-		return "", err
+		return "", nil, err
 	}
-	h.launch(g, state)
-	return g.ID, nil
+	return g.ID, h.launch(g, state), nil
 }
 
-func (h *Hub) prepareGame(c protocol.Challenge) (room.Setup, game.ErasedState, error) {
-	g, err := h.gameType(c.Game)
+func (h *Hub) prepareGame(typ game.GameType, opts game.Options, challenger game.UserID, invitees []game.UserID) (room.Setup, game.ErasedState, error) {
+	g, err := h.gameType(typ)
 	if err != nil {
 		return room.Setup{}, nil, err
 	}
 	seed := newSeed()
-	state, seats, err := g.New(c.Options, c.From, c.To, game.StepRNG(seed, 0))
+	state, seats, err := g.New(opts, challenger, invitees, game.StepRNG(seed, 0))
 	if err != nil {
 		return room.Setup{}, nil, err
 	}
-	players, err := seated(c.Participants(), seats)
+	players, err := seated(protocol.Participants(challenger, invitees), seats)
 	if err != nil {
 		return room.Setup{}, nil, err
 	}
 	setup, err := h.roomSetup(room.Params{
 		ID:         game.GameID(uuid.NewV4()),
 		Game:       g,
-		Options:    c.Options,
+		Options:    opts,
 		Seed:       seed,
-		Challenger: c.From,
+		Challenger: challenger,
 		Players:    players,
 		CreatedAt:  h.deps.Time.Now(),
 	})
@@ -80,10 +80,16 @@ func (h *Hub) persistNewGame(p room.Setup) error {
 	})
 }
 
-func (h *Hub) launch(g room.Setup, state game.ErasedState) {
+// launch takes the first updates before tracking the room, so no request can
+// reach the room ahead of them, and pushes exactly those.
+func (h *Hub) launch(g room.Setup, state game.ErasedState) map[game.UserID]protocol.GameUpdate {
 	r := room.Start(h.ctx, g, state)
+	first := h.firstUpdates(r, g.Players)
 	h.track(g.ID, r, g.Players)
-	h.sendCurrent(r, g.Players)
+	for user, u := range first {
+		h.SendUpdate(user, u)
+	}
+	return first
 }
 
 // seated keeps the challenger first, which challengerOf relies on after a restart.
@@ -107,15 +113,17 @@ func challengerOf(players []game.Player) game.UserID {
 	return players[0].User
 }
 
-func (h *Hub) sendCurrent(r *room.Room, players []game.Player) {
+func (h *Hub) firstUpdates(r *room.Room, players []game.Player) map[game.UserID]protocol.GameUpdate {
+	first := make(map[game.UserID]protocol.GameUpdate, len(players))
 	for _, p := range players {
 		s, err := r.Snapshot(h.ctx, p.User)
 		if err != nil {
 			slog.Error("hub: initial update", "user", p.User, "err", err)
 			continue
 		}
-		h.SendUpdate(p.User, s.Update)
+		first[p.User] = s.Update
 	}
+	return first
 }
 
 func (h *Hub) restoreOngoing(ctx context.Context) error {

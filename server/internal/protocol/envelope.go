@@ -22,6 +22,7 @@ const (
 	TypeGameSnapshot     MessageType = "game.snapshot"
 	TypeGameAct          MessageType = "game.act"
 	TypeGameControl      MessageType = "game.control"
+	TypeGameStart        MessageType = "game.start"
 	TypeStatsGet         MessageType = "stats.get"
 	TypeGameVerify       MessageType = "game.verify"
 	TypeChallengeChanged MessageType = "challenge.changed"

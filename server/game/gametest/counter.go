@@ -17,8 +17,13 @@ type CounterRules struct{}
 // seat scores what it added beyond its share, so the scores sum to zero.
 type ScoredCounterRules struct{}
 
+// SoloCounterRules is CounterRules for the challenger alone, a solo game, with
+// a free-text "note" option of at most SoloNoteMaxLen bytes that play ignores.
+type SoloCounterRules struct{ CounterRules }
+
 const (
 	CounterTarget                         = 10
+	SoloNoteMaxLen                        = 8
 	ReasonTargetReached game.ResultReason = "target_reached"
 )
 
@@ -60,6 +65,14 @@ func (ScoredCounterRules) Info() game.Info {
 func (ScoredCounterRules) New(o CounterOpts, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[CounterAction, CounterView], map[game.UserID]game.Seat, error) {
 	state, seats := newCounter(o, challenger, invitees)
 	return scoredCounterState{state}, seats, nil
+}
+
+func (SoloCounterRules) Info() game.Info {
+	info := CounterRules{}.Info()
+	info.Type = "solo_counter"
+	info.Players = game.PlayerRange{Min: 1, Max: 1}
+	info.Options = append(slices.Clone(info.Options), game.TextOption("note", SoloNoteMaxLen))
+	return info
 }
 
 func newCounter(o CounterOpts, challenger game.UserID, invitees []game.UserID) (counterState, map[game.UserID]game.Seat) {

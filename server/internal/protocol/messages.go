@@ -150,13 +150,23 @@ type Challenge struct {
 	ExpiresAt   time.Time      `json:"expires_at"`
 }
 
-// Participants lists the challenger first, then the invitees.
 func (c Challenge) Participants() []game.UserID {
-	return append([]game.UserID{c.From}, c.To...)
+	return Participants(c.From, c.To)
+}
+
+// Participants lists the challenger first, then the invitees.
+func Participants(challenger game.UserID, invitees []game.UserID) []game.UserID {
+	return append([]game.UserID{challenger}, invitees...)
 }
 
 type ChallengeListResult struct {
 	Challenges []Challenge `json:"challenges"`
+}
+
+// GameStartRequest starts a solo game; its reply is the game's first GameUpdate.
+type GameStartRequest struct {
+	Game    game.GameType   `json:"game"`
+	Options json.RawMessage `json:"options"`
 }
 
 type GameListRequest struct {
