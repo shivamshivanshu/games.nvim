@@ -9,6 +9,11 @@ local M = {}
 
 M.REQUIRED_NVIM = "0.11"
 
+---@return boolean
+function M.neovim_supported()
+  return vim.fn.has("nvim-" .. M.REQUIRED_NVIM) == 1
+end
+
 ---@type games.Config|nil
 M.config = nil
 
@@ -25,7 +30,7 @@ end
 ---is set and both credentials are known.
 ---@param opts games.SetupOpts
 function M.setup(opts)
-  if vim.fn.has("nvim-" .. M.REQUIRED_NVIM) == 0 then
+  if not M.neovim_supported() then
     notify.say(("games: needs Neovim %s or newer"):format(M.REQUIRED_NVIM), vim.log.levels.ERROR)
     return
   end

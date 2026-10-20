@@ -12,13 +12,15 @@ local function password_status(password)
 end
 
 local function check_neovim()
-  local required = require("games").REQUIRED_NVIM
+  local games = require("games")
   local v = vim.version()
   local version = ("%d.%d.%d"):format(v.major, v.minor, v.patch)
-  if vim.fn.has("nvim-" .. required) == 1 then
+  if games.neovim_supported() then
     health.ok("Neovim " .. version)
   else
-    health.error(("Neovim %s, but games.nvim needs %s or newer"):format(version, required))
+    health.error(
+      ("Neovim %s, but games.nvim needs %s or newer"):format(version, games.REQUIRED_NVIM)
+    )
   end
 end
 
