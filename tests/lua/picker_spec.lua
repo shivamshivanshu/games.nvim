@@ -34,7 +34,7 @@ function T.format_finished_game_line()
   local finished = ravi_played_nf3({
     to_act = {},
     clock = { remaining_ms = { alice = 605000, ravi = 288000 } },
-    result = { winners = { "ravi" }, reason = "checkmate" },
+    result = { kind = "decisive", winners = { "ravi" }, reason = "checkmate" },
   })
   assert_eq(
     "  chess  vs ravi    10+5  finished  10:05  last: ravi played Nf3  #7f3a",

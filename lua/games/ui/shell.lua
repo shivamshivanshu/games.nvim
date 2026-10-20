@@ -156,6 +156,17 @@ local function render_header(update, me, elapsed_ms)
   return compose.render(compose.col({ compose.row(columns), status_banner(update) }))
 end
 
+---@param update games.GameUpdate
+---@param module games.GameModule
+---@param ctx games.LayoutCtx
+---@return games.Node
+local function board_node(update, module, ctx)
+  if not update.view then
+    return compose.text("board not available (finished game)", "GamesMuted")
+  end
+  return module.layout(update, ctx)
+end
+
 ---@param bindings games.KeyBinding[]
 ---@return games.Node
 local function footer_node(bindings)
@@ -331,7 +342,7 @@ function M.render(update, module, view, me, elapsed_ms)
   local bindings = bindings_for(update, module)
   local body = compose.render(compose.col({
     compose.text(""),
-    module.layout(update, ctx),
+    board_node(update, module, ctx),
     compose.text(""),
     footer_node(bindings),
   }))

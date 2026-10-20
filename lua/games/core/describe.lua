@@ -56,13 +56,16 @@ end
 ---@return string
 function M.result_text(result)
   local reason = text.humanize(result.reason)
-  if #result.winners > 0 then
-    return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
-  end
-  if result.reason == types.ResultReason.ABORTED then
+  if result.kind == types.ResultKind.ABORTED then
     return "Result: aborted"
   end
-  return ("Result: draw (%s)"):format(reason)
+  if result.kind == types.ResultKind.DRAW then
+    return ("Result: draw (%s)"):format(reason)
+  end
+  if #result.winners == 0 then
+    return ("Result: lost (%s)"):format(reason)
+  end
+  return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
 end
 
 ---"your move", "waiting" or "finished", as me sees the game.

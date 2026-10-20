@@ -110,6 +110,7 @@
 ---@field seat games.Seat
 
 ---@class games.WireResult
+---@field kind games.ResultKind
 ---@field winners games.UserID[]
 ---@field reason string a games.ResultReason, or the game's own such as chess "checkmate"
 
@@ -133,7 +134,11 @@
 ---@field draw_agreed? games.UserID[]
 ---@field controls games.Control[]
 ---@field events games.Event[]
----@field view? table
+---@field view? table nil in a read of a finished game after the live finish
+---@field started_at integer unix ms
+---@field finished_at? integer unix ms
+---@field summary string
+---@field digest string lowercase hex
 
 ---@class games.Tally
 ---@field wins integer
@@ -208,6 +213,13 @@ M.ResultReason = {
   RESIGN = "resign",
   TIMEOUT = "timeout",
   DRAW_AGREED = "draw_agreed",
+  ABORTED = "aborted",
+}
+
+---@enum games.ResultKind
+M.ResultKind = {
+  DECISIVE = "decisive",
+  DRAW = "draw",
   ABORTED = "aborted",
 }
 

@@ -124,7 +124,7 @@ function T.last_move_and_check_marks()
     seq = 4,
     to_act = {},
     controls = {},
-    result = { winners = { "bob" }, reason = "checkmate" },
+    result = { kind = "decisive", winners = { "bob" }, reason = "checkmate" },
     view = {
       fen = FOOLS_MATE_FEN,
       history_san = { "f3", "e5", "g4", "Qh4#" },
@@ -138,6 +138,35 @@ function T.last_move_and_check_marks()
   assert_eq("GamesLastMove", hl_at_square(rendered, "h4"))
   assert_eq("GamesCheck", hl_at_square(rendered, "e1"))
   assert(table.concat(rendered.lines, "\n"):find("bob won", 1, true), vim.inspect(rendered.lines))
+end
+
+local function finished_without_view()
+  local update = chess_update({
+    game_id = "fin001",
+    seq = 4,
+    to_act = {},
+    controls = {},
+    result = { kind = "decisive", winners = { "bob" }, reason = "checkmate" },
+  })
+  update.view = nil
+  return update
+end
+
+function T.finished_game_without_view_renders_placeholder()
+  local rendered = shell.render(finished_without_view(), chess, ASCII, "alice")
+  local text = table.concat(rendered.lines, "\n")
+
+  assert(text:find("Result: bob won (checkmate)", 1, true), text)
+  assert(text:find("board not available", 1, true), text)
+end
+
+function T.open_finished_game_without_view()
+  local client = client_with("alice", { finished_without_view() })
+  local buf = shell.open(client, "fin001")
+
+  local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+  assert(text:find("board not available", 1, true), text)
+  assert(mapping(buf, "q"))
 end
 
 function T.running_clock_counts_down_from_arrival()
