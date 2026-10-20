@@ -182,4 +182,42 @@ function T.starting_a_solo_type_starts_it_and_any_other_challenges()
   end)
 end
 
+---@param answer integer what vim.fn.confirm answers: 1 yes, 2 no
+---@param fn fun()
+local function confirming(answer, fn)
+  helpers.with_overrides({
+    {
+      vim.fn,
+      "confirm",
+      function()
+        return answer
+      end,
+    },
+  }, fn)
+end
+
+function T.resign_sends_the_seq_the_client_holds_once_confirmed()
+  local client, conn = hub.client()
+  local games = sources.build(SourceName.GAMES, hub.snapshot(client))
+  local built = hub.WAITING
+  local moved = vim.tbl_extend("force", built, { seq = built.seq + 1 })
+  confirming(1, function()
+    conn:push("game.update", moved)
+    run(games, "resign", built)
+  end)
+  assert_eq(
+    { game_id = built.game_id, seq = moved.seq, control = "resign" },
+    hub.sent(conn, "game.control")
+  )
+end
+
+function T.resign_declined_sends_nothing()
+  local client, conn = hub.client()
+  local games = sources.build(SourceName.GAMES, hub.snapshot(client))
+  confirming(2, function()
+    run(games, "resign", hub.WAITING)
+  end)
+  assert_eq(false, hub.requested(conn, "game.control"))
+end
+
 return T

@@ -6,6 +6,7 @@ local kv = require("games.ui.widgets.kv")
 local login = require("games.core.login")
 local notify = require("games.core.notify")
 local picker = require("games.ui.picker")
+local prompt = require("games.ui.prompt")
 local shell = require("games.ui.shell")
 local sources = require("games.core.sources")
 local stats = require("games.core.stats")
@@ -16,7 +17,6 @@ local types = require("games.types")
 local GameStatus = types.GameStatus
 local ERROR = vim.log.levels.ERROR
 local GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
-local CONFIRM_YES = 1
 
 ---@alias games.SubcommandRun fun(client: games.Client, me: games.UserID, args: string[])
 
@@ -352,15 +352,16 @@ function M.respond(client, me, challenge, label)
   action.send(client, { challenge_id = challenge.challenge_id }, on_ok())
 end
 
----Resigns update's game once confirmed.
+---Resigns update's game once confirmed, at the seq the client holds by then.
 ---@param client games.Client
 ---@param update games.GameUpdate
 function M.resign(client, update)
-  if vim.fn.confirm("Resign this game?", "&Yes\n&No", 2) ~= CONFIRM_YES then
+  if not prompt.confirm("Resign this game?") then
     return
   end
+  local latest = client:game(update.game_id) or update
   client:game_control(
-    { game_id = update.game_id, seq = update.seq, control = types.Control.RESIGN },
+    { game_id = latest.game_id, seq = latest.seq, control = types.Control.RESIGN },
     on_ok()
   )
 end
