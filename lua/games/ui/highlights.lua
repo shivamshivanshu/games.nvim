@@ -120,6 +120,12 @@ local GROUPS = {
     vivid = { bg = "#787c7e" },
   },
   {
+    name = "GamesMovable",
+    role = Role.BACKGROUND,
+    theme = { from("PmenuSel"), from("Visual") },
+    vivid = { bg = "#829769" },
+  },
+  {
     name = "GamesPieceWhite",
     role = Role.FOREGROUND,
     theme = { from("Normal") },

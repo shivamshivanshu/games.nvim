@@ -20,6 +20,10 @@ local PROTOCOL_CLASS = {
 
 ---Per game, the Lua class of each definition its module annotates.
 local GAME_CLASS = {
+  checkers = {
+    MovedEvent = "games.CheckersMovedEvent",
+    View = "games.CheckersView",
+  },
   chess = {
     MoveSquares = "games.ChessSquares",
     MovedEvent = "games.ChessMovedEvent",
