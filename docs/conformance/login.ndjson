@@ -1,0 +1,16 @@
+{"comment": "A request before login is refused; a wrong password fails; the right one logs in and gives the heartbeat."}
+{"client": "alice", "send": {"id": 1, "type": "catalog.list"}}
+{"client": "alice", "recv": {"id": 1, "type": "error", "body": {"code": "unauthenticated", "message": "$msg_unauthenticated"}}}
+{"client": "alice", "send": {"id": 2, "type": "auth.login", "body": {"v": 1, "username": "alice", "password": "wrong"}}}
+{"client": "alice", "recv": {"id": 2, "type": "error", "body": {"code": "auth_failed", "message": "$msg_auth_failed"}}}
+{"client": "alice", "send": {"id": 3, "type": "auth.login", "body": {"v": 2, "username": "alice", "password": "correct horse"}}}
+{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "version_mismatch", "message": "$msg_version"}}}
+{"client": "alice", "send": {"id": 4, "type": "auth.login", "body": {"v": 1, "username": "alice", "password": "correct horse"}}}
+{"client": "alice", "recv": {"id": 4, "type": "ok", "body": {"user": "alice", "heartbeat_ms": 15000}}}
+{"client": "alice", "send": {"id": 5, "type": "ping"}}
+{"client": "alice", "recv": {"id": 5, "type": "ok", "body": {}}}
+{"comment": "A line that is not an envelope gets an error without an id, and the connection stays open."}
+{"client": "alice", "send": {"type": 7}}
+{"client": "alice", "recv": {"type": "error", "body": {"code": "bad_request", "message": "$msg_malformed"}}}
+{"client": "alice", "send": {"id": 6, "type": "no.such.type"}}
+{"client": "alice", "recv": {"id": 6, "type": "error", "body": {"code": "bad_request", "message": "$msg_unknown_type"}}}
