@@ -1,0 +1,291 @@
+package hub
+
+import (
+	"cmp"
+	"context"
+	"crypto/rand"
+	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"slices"
+	"time"
+
+	"games.nvim/server/game"
+	"games.nvim/server/internal/challenge"
+	"games.nvim/server/internal/protocol"
+	"games.nvim/server/internal/room"
+	"games.nvim/server/internal/store"
+)
+
+type liveGame struct {
+	room     *room.Room
+	players  []game.UserID
+	lastStep time.Time
+}
+
+func (h *Hub) startChallenge(c challenge.Challenge) (game.GameID, error) {
+	id, err := h.startGame(c)
+	if err != nil {
+		slog.Error("hub: start game", "challenge", c.ID, "err", err)
+	}
+	return id, err
+}
+
+func (h *Hub) startGame(c challenge.Challenge) (game.GameID, error) {
+	g, err := h.gameType(c.Game)
+	if err != nil {
+		return "", err
+	}
+	opts, err := g.ResolveOptions(c.Options)
+	if err != nil {
+		return "", err
+	}
+	clock, err := opts.Clock()
+	if err != nil {
+		return "", err
+	}
+	encodedOpts, err := json.Marshal(opts)
+	if err != nil {
+		return "", err
+	}
+	seed := newSeed()
+	state, seats, err := g.New(opts, c.From, c.To, game.StepRNG(seed, 0))
+	if err != nil {
+		return "", err
+	}
+	players, err := seated(append([]game.UserID{c.From}, c.To...), seats)
+	if err != nil {
+		return "", err
+	}
+	id := game.GameID(rand.Text())
+	now := h.deps.Time.Now()
+	if err := h.deps.Store.CreateGame(h.ctx, store.GameRecord{
+		ID: id, Type: c.Game, Options: encodedOpts, Seed: seed, Players: players, CreatedAt: now,
+	}); err != nil {
+		return "", err
+	}
+	r := room.New(h.ctx, h.roomParams(id, g, opts, seed, players, clock), state)
+	h.track(id, r, players, now)
+	h.sendCurrent(r, players)
+	return id, nil
+}
+
+// seated lists players in challenger-first order, which room.Restore relies on.
+func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]store.PlayerRecord, error) {
+	if len(seats) != len(users) {
+		return nil, fmt.Errorf("hub: game assigned %d seats for %d players", len(seats), len(users))
+	}
+	players := make([]store.PlayerRecord, 0, len(users))
+	for _, user := range users {
+		seat, ok := seats[user]
+		if !ok {
+			return nil, fmt.Errorf("hub: game assigned no seat to %s", user)
+		}
+		players = append(players, store.PlayerRecord{User: user, Seat: seat})
+	}
+	return players, nil
+}
+
+func (h *Hub) sendCurrent(r *room.Room, players []store.PlayerRecord) {
+	for _, p := range players {
+		u, err := r.Snapshot(p.User)
+		if err != nil {
+			slog.Error("hub: initial update", "user", p.User, "err", err)
+			continue
+		}
+		h.SendUpdate(p.User, u)
+	}
+}
+
+func (h *Hub) restoreOngoing(ctx context.Context) error {
+	recs, err := h.deps.Store.LoadOngoing(ctx)
+	if err != nil {
+		return fmt.Errorf("hub: load ongoing games: %w", err)
+	}
+	for _, rec := range recs {
+		r, err := h.restore(h.ctx, rec)
+		if err != nil {
+			return err
+		}
+		h.track(rec.ID, r, rec.Players, lastStepAt(rec))
+	}
+	return nil
+}
+
+func lastStepAt(rec store.GameRecord) time.Time {
+	if len(rec.Steps) == 0 {
+		return rec.CreatedAt
+	}
+	return rec.Steps[len(rec.Steps)-1].At
+}
+
+func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, error) {
+	g, err := h.gameType(rec.Type)
+	if err != nil {
+		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
+	}
+	opts, err := g.ResolveOptions(rec.Options)
+	if err != nil {
+		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
+	}
+	clock, err := opts.Clock()
+	if err != nil {
+		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
+	}
+	return room.Restore(ctx, h.roomParams(rec.ID, g, opts, rec.Seed, rec.Players, clock), rec.Steps)
+}
+
+func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed uint64, players []store.PlayerRecord, clock game.ClockConfig) room.Params {
+	return room.Params{
+		ID:        id,
+		Game:      g,
+		Options:   opts,
+		Seed:      seed,
+		Players:   players,
+		Clock:     clock,
+		Persist:   h.deps.Store,
+		Broadcast: h,
+		Time:      h.deps.Time,
+	}
+}
+
+func (h *Hub) track(id game.GameID, r *room.Room, players []store.PlayerRecord, lastStep time.Time) {
+	users := make([]game.UserID, 0, len(players))
+	for _, p := range players {
+		users = append(users, p.User)
+	}
+	h.mu.Lock()
+	h.live[id] = &liveGame{room: r, players: users, lastStep: lastStep}
+	h.mu.Unlock()
+	go h.dropWhenFinished(id, r)
+}
+
+func (h *Hub) dropWhenFinished(id game.GameID, r *room.Room) {
+	select {
+	case <-r.Done():
+		h.mu.Lock()
+		delete(h.live, id)
+		h.mu.Unlock()
+	case <-h.ctx.Done():
+	}
+}
+
+func (h *Hub) touch(id game.GameID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if g, ok := h.live[id]; ok {
+		g.lastStep = h.deps.Time.Now()
+	}
+}
+
+func (h *Hub) liveRoom(id game.GameID) (*room.Room, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	g, ok := h.live[id]
+	if !ok {
+		return nil, fmt.Errorf("no ongoing game %s: %w", id, store.ErrNotFound)
+	}
+	return g.room, nil
+}
+
+func (h *Hub) liveGamesOf(user game.UserID) []liveGame {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []liveGame
+	for _, g := range h.live {
+		if slices.Contains(g.players, user) {
+			out = append(out, *g)
+		}
+	}
+	return out
+}
+
+func (h *Hub) ongoingGames(user game.UserID) ([]protocol.GameUpdate, error) {
+	type listed struct {
+		update   protocol.GameUpdate
+		lastStep time.Time
+	}
+	var games []listed
+	for _, g := range h.liveGamesOf(user) {
+		u, err := g.room.Snapshot(user)
+		if err != nil {
+			return nil, err
+		}
+		if u.Result == nil {
+			games = append(games, listed{u, g.lastStep})
+		}
+	}
+	slices.SortFunc(games, func(a, b listed) int {
+		return cmp.Or(
+			cmp.Compare(turnRank(a.update, user), turnRank(b.update, user)),
+			b.lastStep.Compare(a.lastStep),
+			cmp.Compare(a.update.GameID, b.update.GameID),
+		)
+	})
+	updates := make([]protocol.GameUpdate, 0, len(games))
+	for _, g := range games {
+		updates = append(updates, g.update)
+	}
+	return updates, nil
+}
+
+func turnRank(u protocol.GameUpdate, user game.UserID) int {
+	if slices.Contains(u.ToAct, user) {
+		return 0
+	}
+	return 1
+}
+
+func (h *Hub) finishedGames(ctx context.Context, user game.UserID) ([]protocol.GameUpdate, error) {
+	ids, err := h.deps.Store.FinishedGameIDs(ctx, user, h.deps.Limits.FinishedListLimit)
+	if err != nil {
+		return nil, err
+	}
+	updates := make([]protocol.GameUpdate, 0, len(ids))
+	for _, id := range ids {
+		u, err := h.replayedSnapshot(ctx, id, user)
+		if err != nil {
+			return nil, err
+		}
+		updates = append(updates, u)
+	}
+	return updates, nil
+}
+
+func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
+	if r, err := h.liveRoom(id); err == nil {
+		return r.Snapshot(user)
+	}
+	return h.replayedSnapshot(ctx, id, user)
+}
+
+// replayedSnapshot rebuilds a game that has no live room, then stops the
+// rebuilt room so it never acts on its own.
+func (h *Hub) replayedSnapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
+	rec, err := h.deps.Store.LoadGame(ctx, id)
+	if err != nil {
+		return protocol.GameUpdate{}, err
+	}
+	roomCtx, stop := context.WithCancel(h.ctx)
+	defer stop()
+	r, err := h.restore(roomCtx, rec)
+	if err != nil {
+		return protocol.GameUpdate{}, err
+	}
+	return r.Snapshot(user)
+}
+
+func (h *Hub) gameType(t game.GameType) (game.Game, error) {
+	g, ok := h.gameTypes[t]
+	if !ok {
+		return nil, game.BadRequestError{Msg: fmt.Sprintf("unknown game %q", t)}
+	}
+	return g, nil
+}
+
+func newSeed() uint64 {
+	var b [8]byte
+	_, _ = rand.Read(b[:])
+	return binary.LittleEndian.Uint64(b[:])
+}
