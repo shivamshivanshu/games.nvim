@@ -42,13 +42,21 @@ end
 ---@param update games.GameUpdate with a clock
 ---@param user games.UserID
 ---@param elapsed_ms integer charged to user's clock if it is the running one
----@return string
-function M.clock_text(update, user, elapsed_ms)
+---@return integer never negative
+function M.clock_remaining_ms(update, user, elapsed_ms)
   local remaining_ms = update.clock.remaining_ms[user] or 0
   if update.clock.running == user then
     remaining_ms = remaining_ms - elapsed_ms
   end
-  local seconds = math.max(0, math.ceil(remaining_ms / 1000))
+  return math.max(0, remaining_ms)
+end
+
+---@param update games.GameUpdate with a clock
+---@param user games.UserID
+---@param elapsed_ms integer charged to user's clock if it is the running one
+---@return string
+function M.clock_text(update, user, elapsed_ms)
+  local seconds = math.ceil(M.clock_remaining_ms(update, user, elapsed_ms) / 1000)
   return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
 end
 
@@ -66,6 +74,22 @@ function M.result_text(result)
     return ("Result: lost (%s)"):format(reason)
   end
   return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
+end
+
+---@alias games.Outcome "won"|"lost"|"drawn"|"aborted"
+
+---How the result went for me.
+---@param result games.WireResult
+---@param me games.UserID
+---@return games.Outcome
+function M.outcome(result, me)
+  if result.kind == types.ResultKind.ABORTED then
+    return "aborted"
+  end
+  if result.kind == types.ResultKind.DRAW then
+    return "drawn"
+  end
+  return vim.tbl_contains(result.winners, me) and "won" or "lost"
 end
 
 ---"your move", "waiting" or "finished", as me sees the game.

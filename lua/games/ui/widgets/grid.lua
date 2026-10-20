@@ -1,9 +1,10 @@
 local compose = require("games.ui.compose")
+local highlights = require("games.ui.highlights")
 local text_util = require("games.ui.text")
 
 ---@class games.GridCell
 ---@field [1] string glyph
----@field [2]? games.Hl foreground layered last, over shade and mark
+---@field [2]? games.Hl foreground layered last, over shade and mark; without it the cell takes the ink of its background
 
 ---@class games.GridLabels
 ---@field cols string one character per column
@@ -141,7 +142,9 @@ local function render(props)
 
   local function cell_node(r, c)
     local glyph, own_hl = unpack(props.cell(r, c))
-    local hl = compose.layers(shade_hl(props.shade, r, c), marks[M.mark_key(r, c)], own_hl)
+    local shade, mark = shade_hl(props.shade, r, c), marks[M.mark_key(r, c)]
+    local hl = own_hl and compose.layers(shade, mark, own_hl)
+      or highlights.with_ink(compose.layers(shade, mark))
     return compose.text(text_util.pad_to_width(glyph, cell_width), hl)
   end
 

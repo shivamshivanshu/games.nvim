@@ -6,6 +6,9 @@ local notify = require("games.core.notify")
 ---@field highlights games.HlDefinitions always applied over the palette, cut to each group's role
 
 local SEAT_COLOURS = 4
+---@type table<games.Outcome, string>
+local OUTCOME_HL =
+  { won = "GamesWon", lost = "GamesLost", drawn = "GamesDrawn", aborted = "GamesMuted" }
 local AUGROUP = "games.theme"
 
 ---@type games.ThemeOptions
@@ -146,6 +149,12 @@ end
 ---@return string
 function M.seat_hl(i)
   return "GamesSeat" .. ((i - 1) % SEAT_COLOURS + 1)
+end
+
+---@param outcome games.Outcome
+---@return string
+function M.outcome_hl(outcome)
+  return OUTCOME_HL[outcome]
 end
 
 return M

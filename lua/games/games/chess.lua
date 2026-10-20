@@ -50,6 +50,13 @@ local UNICODE_PIECES = {
 
 ---@type table<games.Glyphs, string>
 local EMPTY_SQUARE = { unicode = "·", ascii = "." }
+local WHITE_PIECE_HL = "GamesPieceWhite"
+local BLACK_PIECE_HL = "GamesPieceBlack"
+local LAST_MOVE_HL = "GamesLastMove"
+local LAST_MOVE_DARK_HL = "GamesLastMoveDark"
+local CHECK_HL = "GamesCheck"
+---@type games.MoveAnnotation
+local CHECK_ANNOTATION = { pattern = "[+#]$", hl = "GamesCheckSign" }
 
 local SAN_PIECE_NAMES = {
   { piece = "K", name = "king" },
@@ -97,11 +104,12 @@ local function fen_to_pieces(fen)
 end
 
 ---@param square string e.g. "e4"
----@return string grid mark key
-local function square_key(square)
+---@return integer row
+---@return integer col
+local function square_cell(square)
   local file = FILES:find(square:sub(1, 1), 1, true)
   local rank = RANKS:find(square:sub(2, 2), 1, true)
-  return grid.mark_key(assert(rank), assert(file))
+  return assert(rank), assert(file)
 end
 
 ---@param pieces (games.ChessPiece|false)[][]
@@ -118,29 +126,42 @@ local function find_piece(pieces, piece)
 end
 
 ---@param piece games.ChessPiece|false
----@param glyphs games.Glyphs
----@return string
-local function glyph_for(piece, glyphs)
+---@param ctx games.LayoutCtx
+---@return games.GridCell
+local function cell_for(piece, ctx)
   if not piece then
-    return EMPTY_SQUARE[glyphs]
+    return { EMPTY_SQUARE[ctx.glyphs] }
   end
-  return glyphs == "unicode" and UNICODE_PIECES[piece] or piece
+  local glyph = ctx.glyphs == "unicode" and UNICODE_PIECES[piece] or piece
+  return { glyph, piece:match("%u") and WHITE_PIECE_HL or BLACK_PIECE_HL }
+end
+
+---The last-move tint, with its darker shade layered on over a dark square.
+---@param square string
+---@return string key
+---@return games.Hl
+local function last_move_mark(square)
+  local row, col = square_cell(square)
+  local hl = grid.is_dark(row, col) and { LAST_MOVE_HL, LAST_MOVE_DARK_HL } or LAST_MOVE_HL
+  return grid.mark_key(row, col), hl
 end
 
 ---@param view games.ChessView
 ---@param pieces (games.ChessPiece|false)[][]
----@return table<string, string>
+---@return table<string, games.Hl>
 local function marks_for(view, pieces)
   local marks = {}
   if view.last_move then
-    marks[square_key(view.last_move.from)] = "GamesLastMove"
-    marks[square_key(view.last_move.to)] = "GamesLastMove"
+    for _, square in ipairs({ view.last_move.from, view.last_move.to }) do
+      local key, hl = last_move_mark(square)
+      marks[key] = hl
+    end
   end
   if view.in_check then
     local side_to_move = vim.split(view.fen, " ", { plain = true })[2]
     local king = find_piece(pieces, KING_TO_MOVE[side_to_move])
     if king then
-      marks[king] = "GamesCheck"
+      marks[king] = CHECK_HL
     end
   end
   return marks
@@ -169,12 +190,27 @@ function M.layout(update, ctx)
       flip = black_at_bottom(update, ctx),
       labels = { cols = FILES, rows = RANKS },
       cell = function(r, c)
-        return { glyph_for(pieces[r][c], ctx.glyphs) }
+        return cell_for(pieces[r][c], ctx)
       end,
       marks = marks_for(view, pieces),
     }),
-    compose.pad(3, kv({ pairs = SAN_LEGEND[ctx.glyphs] })),
-    compose.pad(3, movelist({ items = view.history_san, columns = 2, numbered = true })),
+    compose.pad(
+      3,
+      kv({
+        pairs = SAN_LEGEND[ctx.glyphs],
+        key_hl = "GamesKey",
+        value_hl = "GamesLabel",
+      })
+    ),
+    compose.pad(
+      3,
+      movelist({
+        items = view.history_san,
+        columns = 2,
+        numbered = true,
+        annotation = CHECK_ANNOTATION,
+      })
+    ),
   })
 end
 

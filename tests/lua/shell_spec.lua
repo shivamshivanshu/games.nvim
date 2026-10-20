@@ -9,6 +9,7 @@ local START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 local AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 local FOOLS_MATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
 local ASCII = { glyphs = "ascii", flipped = false }
+local UNICODE = { glyphs = "unicode", flipped = false }
 
 local function chess_update(overrides)
   return vim.tbl_extend("force", {
@@ -46,6 +47,25 @@ local function hl_at_square(rendered, square)
       end
     end
   end
+end
+
+---The highlight of the extmark starting where needle first appears.
+---@param rendered games.Rendered
+---@param needle string
+---@return games.Hl|nil
+local function hl_of(rendered, needle)
+  for i, line in ipairs(rendered.lines) do
+    local start = line:find(needle, 1, true)
+    if start then
+      for _, mark in ipairs(rendered.extmarks) do
+        if mark.row == i - 1 and mark.col == start - 1 then
+          return mark.hl
+        end
+      end
+      return nil
+    end
+  end
+  error(("%q not rendered"):format(needle))
 end
 
 ---A real client on a stub conn, logged in as me (unless nil) with updates already pushed.
@@ -106,7 +126,7 @@ function T.render_start_position()
   local rendered = shell.render(chess_update({}), chess, ASCII, "alice")
 
   local header = rendered.lines[1]
-  assert(header:find("alice", 1, true) and header:find("← your move", 1, true), header)
+  assert(header:find("alice", 1, true) and header:find("your move", 1, true), header)
   assert_eq("8 r n b q k b n r   K king", without_trailing_space(board_lines(rendered.lines)[1]))
   local footer = rendered.lines[#rendered.lines]
   assert(footer:find("R resign", 1, true) and footer:find("A abort", 1, true), footer)
@@ -134,10 +154,57 @@ function T.last_move_and_check_marks()
   })
   local rendered = shell.render(update, chess, ASCII, "alice")
 
-  assert_eq({ "GamesSquareDark", "GamesLastMove" }, hl_at_square(rendered, "d8"))
-  assert_eq({ "GamesSquareDark", "GamesLastMove" }, hl_at_square(rendered, "h4"))
-  assert_eq({ "GamesSquareDark", "GamesCheck" }, hl_at_square(rendered, "e1"))
-  assert(table.concat(rendered.lines, "\n"):find("bob won", 1, true), vim.inspect(rendered.lines))
+  assert_eq(
+    { "GamesSquareDark", "GamesLastMove", "GamesLastMoveDark", "GamesLastMoveDarkInk" },
+    hl_at_square(rendered, "d8")
+  )
+  assert_eq(
+    { "GamesSquareDark", "GamesLastMove", "GamesLastMoveDark", "GamesPieceBlack" },
+    hl_at_square(rendered, "h4")
+  )
+  assert_eq({ "GamesSquareDark", "GamesCheck", "GamesPieceWhite" }, hl_at_square(rendered, "e1"))
+  assert_eq("GamesLost", hl_of(rendered, "Result: bob won"))
+  assert_eq({ "GamesLastMove", "GamesLastMoveInk", "GamesCheckSign" }, hl_of(rendered, "#"))
+  assert_eq("GamesMuted", hl_of(rendered, "1."))
+end
+
+function T.last_move_on_a_light_square_layers_square_tint_then_piece()
+  local update = chess_update({
+    view = {
+      fen = AFTER_E4_FEN,
+      history_san = { "e4" },
+      last_move = { from = "e2", to = "e4" },
+      in_check = false,
+    },
+  })
+  local rendered = shell.render(update, chess, ASCII, "alice")
+
+  assert_eq(
+    { "GamesSquareLight", "GamesLastMove", "GamesPieceWhite" },
+    hl_at_square(rendered, "e4")
+  )
+  assert_eq({ "GamesLastMove", "GamesLastMoveInk" }, hl_of(rendered, "e4"))
+end
+
+function T.header_names_take_seat_colours_and_footer_keys_their_own()
+  local update = chess_update({
+    clock = { remaining_ms = { alice = 9000, bob = 300000 }, running = "alice" },
+  })
+  local rendered = shell.render(update, chess, ASCII, "alice")
+
+  assert_eq("GamesSeat1", hl_of(rendered, "alice"))
+  assert_eq("GamesSeat2", hl_of(rendered, "bob"))
+  assert_eq("GamesClockLow", hl_of(rendered, "0:09"))
+  assert_eq(nil, hl_of(rendered, "5:00"))
+  assert_eq("GamesYourTurn", hl_of(rendered, " your move "))
+  assert_eq("GamesKey", hl_of(rendered, "R resign"))
+  assert_eq("GamesLabel", hl_of(rendered, "resign"))
+end
+
+function T.unicode_board_shows_hollow_white_and_solid_black()
+  local rows = board_lines(shell.render(chess_update({}), chess, UNICODE, "alice").lines)
+  assert(vim.startswith(rows[1], "8 ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜"), rows[1])
+  assert(vim.startswith(rows[8], "1 ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖"), rows[8])
 end
 
 local function finished_without_view()

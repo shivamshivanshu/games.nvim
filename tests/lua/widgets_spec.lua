@@ -77,8 +77,8 @@ return {
   grid_checker_and_labels = function()
     local rendered = compose.render(small_grid())
     assert_eq({ "2 x x", "1 x x", "  a b" }, rendered.lines)
-    assert_eq("GamesSquareLight", hl_at(rendered, 0, 2))
-    assert_eq("GamesSquareDark", hl_at(rendered, 0, 4))
+    assert_eq({ "GamesSquareLight", "GamesSquareLightInk" }, hl_at(rendered, 0, 2))
+    assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, hl_at(rendered, 0, 4))
   end,
 
   grid_flip = function()
@@ -118,7 +118,10 @@ return {
     }))
     assert_eq({ "2 ♟ ♟", "1 ♟ ♟", "  a b" }, rendered.lines)
     local second = rendered.extmarks[2]
-    assert_eq({ row = 0, col = 6, end_col = 9, hl = "GamesSquareDark" }, second)
+    assert_eq(
+      { row = 0, col = 6, end_col = 9, hl = { "GamesSquareDark", "GamesSquareDarkInk" } },
+      second
+    )
   end,
 
   grid_cell_width_two_with_wide_glyph = function()

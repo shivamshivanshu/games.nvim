@@ -68,6 +68,7 @@ local INPUT_KEY = "m"
 local NEXT_GAME_KEY = "]g"
 local CLOSE_KEY = "q"
 local CLOCK_TICK_MS = 1000
+local LOW_CLOCK_MS = 10000
 local CONFIRM_YES = 1
 
 ---@type table<string, true> keys the shell owns whether or not they are active
@@ -102,16 +103,27 @@ local function turn_marker(update, user, me)
     return compose.text("")
   end
   if user == me then
-    return compose.text("← your move", "GamesYourTurn")
+    return compose.row({ compose.text("← "), compose.text(" your move ", "GamesYourTurn") })
   end
   return compose.text("← to move", "GamesMuted")
 end
 
+---@param update games.GameUpdate with a clock
+---@param user games.UserID
+---@param elapsed_ms integer
+---@return games.Node
+local function clock_node(update, user, elapsed_ms)
+  local low = describe.clock_remaining_ms(update, user, elapsed_ms) < LOW_CLOCK_MS
+  return compose.text(describe.clock_text(update, user, elapsed_ms), low and "GamesClockLow" or nil)
+end
+
 ---@param update games.GameUpdate
+---@param me games.UserID
 ---@return games.Node|nil
-local function status_banner(update)
+local function status_banner(update, me)
   if update.result then
-    return compose.text(describe.result_text(update.result))
+    local hl = theme.outcome_hl(describe.outcome(update.result, me))
+    return compose.text(describe.result_text(update.result), hl)
   end
   if update.draw_agreed and #update.draw_agreed > 0 then
     return compose.text("Draw offered by " .. table.concat(update.draw_agreed, ", "))
@@ -123,14 +135,19 @@ end
 ---@param elapsed_ms integer
 ---@return games.Rendered
 local function render_header(update, me, elapsed_ms)
-  ---@param cell fun(player: games.PlayerSeat): games.Node
+  ---@param cell fun(player: games.PlayerSeat, i: integer): games.Node
   ---@return games.Node
   local function column(cell)
-    return compose.col(vim.tbl_map(cell, update.players))
+    return compose.col(vim
+      .iter(ipairs(update.players))
+      :map(function(i, player)
+        return cell(player, i)
+      end)
+      :totable())
   end
   local columns = {
-    column(function(player)
-      return compose.text(player.user)
+    column(function(player, i)
+      return compose.text(player.user, theme.seat_hl(i))
     end),
     compose.pad(
       2,
@@ -143,7 +160,7 @@ local function render_header(update, me, elapsed_ms)
     columns[#columns + 1] = compose.pad(
       2,
       column(function(player)
-        return compose.text(describe.clock_text(update, player.user, elapsed_ms))
+        return clock_node(update, player.user, elapsed_ms)
       end)
     )
   end
@@ -153,7 +170,7 @@ local function render_header(update, me, elapsed_ms)
       return turn_marker(update, player.user, me)
     end)
   )
-  return compose.render(compose.col({ compose.row(columns), status_banner(update) }))
+  return compose.render(compose.col({ compose.row(columns), status_banner(update, me) }))
 end
 
 ---@param update games.GameUpdate
@@ -175,8 +192,9 @@ local function footer_node(bindings)
     if i > 1 then
       parts[#parts + 1] = compose.text("  ")
     end
-    parts[#parts + 1] = compose.text(binding.key)
-    parts[#parts + 1] = compose.text(" " .. binding.label, "GamesMuted")
+    parts[#parts + 1] = compose.text(binding.key, "GamesKey")
+    parts[#parts + 1] = compose.text(" ")
+    parts[#parts + 1] = compose.text(binding.label, "GamesLabel")
   end
   return compose.row(parts)
 end
