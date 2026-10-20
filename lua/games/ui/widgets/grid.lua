@@ -15,21 +15,11 @@ local text_util = require("games.ui.text")
 ---@field cell fun(row: integer, col: integer): games.GridCell
 ---@field shade "checker"|"plain"
 ---@field labels? games.GridLabels
----@field marks? table<{[1]: integer, [2]: integer}, string> logical {row, col} -> highlight group
+---@field marks? table<string, string> logical "row,col" -> highlight group
 ---@field flip? boolean
 ---@field cell_width? integer display columns per cell, default 1
 
 local SHADE_BY_PARITY = { [0] = "GamesSquareLight", [1] = "GamesSquareDark" }
-
----@param marks table<{[1]: integer, [2]: integer}, string>
----@return table<string, string>
-local function index_marks(marks)
-  local by_position = {}
-  for position, hl in pairs(marks) do
-    by_position[position[1] .. "," .. position[2]] = hl
-  end
-  return by_position
-end
 
 ---@param n integer
 ---@param flip boolean
@@ -56,7 +46,7 @@ end
 ---@return games.Node
 return function(props)
   local cell_width = props.cell_width or 1
-  local marks = index_marks(props.marks or {})
+  local marks = props.marks or {}
   local row_order = display_order(props.rows, props.flip == true)
   local col_order = display_order(props.cols, props.flip == true)
   local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)

@@ -1,7 +1,6 @@
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local movelist = require("games.ui.widgets.movelist")
-local action = require("games.ui.action")
 
 local function small_grid(overrides)
   return grid(vim.tbl_extend("force", {
@@ -78,7 +77,7 @@ return {
   end,
 
   grid_mark_overrides_shade = function()
-    local rendered = compose.render(small_grid({ marks = { [{ 1, 1 }] = "GamesLastMove" } }))
+    local rendered = compose.render(small_grid({ marks = { ["1,1"] = "GamesLastMove" } }))
     assert_eq("GamesLastMove", hl_at(rendered, 0, 2))
     assert_eq("GamesSquareDark", hl_at(rendered, 0, 4))
   end,
@@ -113,9 +112,5 @@ return {
   grid_labels_split_by_character = function()
     local rendered = compose.render(small_grid({ labels = { cols = "①②", rows = "③④" } }))
     assert_eq({ "③ x x", "④ x x", "  ① ②" }, rendered.lines)
-  end,
-
-  text_field_builds_action = function()
-    assert_eq({ kind = "move", move = "e4" }, action.text_field("move", "move")("e4"))
   end,
 }

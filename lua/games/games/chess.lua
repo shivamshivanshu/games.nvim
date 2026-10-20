@@ -1,7 +1,6 @@
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local movelist = require("games.ui.widgets.movelist")
-local action = require("games.ui.action")
 local players = require("games.core.players")
 
 ---@class games.ChessSquares
@@ -60,22 +59,29 @@ local function fen_to_pieces(fen)
   end, vim.split(placement, "/", { plain = true }))
 end
 
+---@param row integer
+---@param col integer
+---@return string
+local function mark_key(row, col)
+  return row .. "," .. col
+end
+
 ---@param square string e.g. "e4"
----@return {[1]: integer, [2]: integer} grid {row, col}
-local function square_position(square)
+---@return string grid mark key
+local function square_key(square)
   local file = FILES:find(square:sub(1, 1), 1, true)
   local rank = RANKS:find(square:sub(2, 2), 1, true)
-  return { rank, file }
+  return mark_key(assert(rank), assert(file))
 end
 
 ---@param pieces (games.ChessPiece|false)[][]
 ---@param piece games.ChessPiece
----@return {[1]: integer, [2]: integer}|nil
+---@return string|nil grid mark key
 local function find_piece(pieces, piece)
   for r, squares in ipairs(pieces) do
     for c, occupant in ipairs(squares) do
       if occupant == piece then
-        return { r, c }
+        return mark_key(r, c)
       end
     end
   end
@@ -93,12 +99,12 @@ end
 
 ---@param view games.ChessView
 ---@param pieces (games.ChessPiece|false)[][]
----@return table<{[1]: integer, [2]: integer}, string>
+---@return table<string, string>
 local function marks_for(view, pieces)
   local marks = {}
   if view.last_move then
-    marks[square_position(view.last_move.from)] = "GamesLastMove"
-    marks[square_position(view.last_move.to)] = "GamesLastMove"
+    marks[square_key(view.last_move.from)] = "GamesLastMove"
+    marks[square_key(view.last_move.to)] = "GamesLastMove"
   end
   if view.in_check then
     local side_to_move = vim.split(view.fen, " ", { plain = true })[2]
@@ -141,7 +147,12 @@ function M.layout(update, ctx)
   })
 end
 
-M.input = { prompt = "Move: ", parse = action.text_field("move", "move") }
+M.input = {
+  prompt = "Move: ",
+  parse = function(text)
+    return { kind = "move", move = text }
+  end,
+}
 
 ---@type games.GameAction[]
 M.actions = {
