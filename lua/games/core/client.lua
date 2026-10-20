@@ -1,3 +1,4 @@
+local Conn = require("games.core.conn")
 local types = require("games.types")
 
 local MessageType = types.MessageType
@@ -9,13 +10,13 @@ local ChallengeState = types.ChallengeState
 
 ---@class games.Client
 ---@field conn games.Conn
+---@field package user? games.UserID
 ---@field private updates table<games.GameID, games.GameUpdate>
 ---@field private challenges table<games.ChallengeID, games.Challenge>
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
 ---@field catalog_list fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.CatalogResult|nil))
 ---@field user_list fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.UserListResult|nil))
----@field challenge_create fun(self: games.Client, body: games.ChallengeCreateRequest, cb?: fun(err: games.ErrorBody|nil, result: games.ChallengeCreateResult|nil))
 ---@field challenge_accept fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
 ---@field challenge_decline fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
 ---@field challenge_cancel fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
@@ -77,7 +78,6 @@ end
 
 Client.catalog_list = request_fn(MessageType.CATALOG_LIST)
 Client.user_list = request_fn(MessageType.USER_LIST)
-Client.challenge_create = request_fn(MessageType.CHALLENGE_CREATE)
 Client.challenge_accept = request_fn(MessageType.CHALLENGE_ACCEPT)
 Client.challenge_decline = request_fn(MessageType.CHALLENGE_DECLINE)
 Client.challenge_cancel = request_fn(MessageType.CHALLENGE_CANCEL)
@@ -87,6 +87,15 @@ Client.game_snapshot = request_fn(MessageType.GAME_SNAPSHOT, store_snapshot)
 Client.game_act = request_fn(MessageType.GAME_ACT, snapshot_if_stale)
 Client.game_control = request_fn(MessageType.GAME_CONTROL, snapshot_if_stale)
 Client.stats_get = request_fn(MessageType.STATS_GET)
+
+local send_challenge_create = request_fn(MessageType.CHALLENGE_CREATE)
+
+---@param body games.ChallengeCreateRequest
+---@param cb? fun(err: games.ErrorBody|nil, result: games.ChallengeCreateResult|nil)
+function Client:challenge_create(body, cb)
+  local wire_body = vim.tbl_extend("force", body, { options = Conn.as_json_object(body.options) })
+  send_challenge_create(self, wire_body, cb)
+end
 
 ---@param conn games.Conn
 ---@return games.Client
@@ -104,10 +113,20 @@ function Client.new(conn)
   conn:on(MessageType.CHALLENGE_CHANGED, function(challenge)
     self:receive_challenge(challenge)
   end)
-  conn:on("connected", function()
+  conn:on("connected", function(result)
+    self.user = result.user
     self:resync()
   end)
+  conn:on("disconnected", function()
+    self.user = nil
+  end)
   return self
+end
+
+---The logged-in user, or nil while disconnected.
+---@return games.UserID|nil
+function Client:me()
+  return self.user
 end
 
 ---@param game_id games.GameID

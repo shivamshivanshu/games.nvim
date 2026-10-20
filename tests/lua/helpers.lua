@@ -11,6 +11,7 @@ M.WAIT_MS = 2000
 ---@class games.test.Server
 ---@field port integer
 ---@field pause fun()
+---@field restart fun() kills the server and starts a new one on the same port and database
 ---@field stop fun()
 
 ---@param db string
@@ -25,40 +26,60 @@ local function add_user(db, username)
   assert(result.code == 0, ("adduser %s failed: %s"):format(username, result.stderr))
 end
 
----@param serve_args? string[]
----@return games.test.Server
-function M.start_server(serve_args)
-  local dir = vim.fn.tempname()
-  vim.fn.mkdir(dir, "p")
-  local db = dir .. "/games.db"
-  for _, username in ipairs(USERS) do
-    add_user(db, username)
-  end
-
+---@param db string
+---@param addr string
+---@param serve_args string[]
+---@return vim.SystemObj process
+---@return integer|nil port nil if the server did not report one in time
+local function spawn(db, addr, serve_args)
   local port
-  local cmd =
-    vim.list_extend({ SERVER_BIN, "serve", "--addr", "127.0.0.1:0", "--db", db }, serve_args or {})
+  local cmd = vim.list_extend({ SERVER_BIN, "serve", "--addr", addr, "--db", db }, serve_args)
   local process = vim.system(cmd, {
     stderr = false,
     stdout = function(_, data)
       port = port or (data and tonumber(data:match("^listening on 127%.0%.0%.1:(%d+)")))
     end,
   })
+  vim.wait(M.WAIT_MS, function()
+    return port ~= nil
+  end)
+  return process, port
+end
 
+---@param process vim.SystemObj
+local function kill(process)
+  process:kill("sigkill")
+  process:wait()
+end
+
+---@param serve_args? string[]
+---@return games.test.Server
+function M.start_server(serve_args)
+  serve_args = serve_args or {}
+  local dir = vim.fn.tempname()
+  vim.fn.mkdir(dir, "p")
+  local db = dir .. "/games.db"
+  local added, add_err = pcall(function()
+    for _, username in ipairs(USERS) do
+      add_user(db, username)
+    end
+  end)
+  if not added then
+    vim.fn.delete(dir, "rf")
+    error(add_err, 0)
+  end
+
+  local process, port = spawn(db, "127.0.0.1:0", serve_args)
   local stopped = false
   local function stop()
     if stopped then
       return
     end
     stopped = true
-    process:kill("sigkill")
-    process:wait()
+    kill(process)
     vim.fn.delete(dir, "rf")
   end
-
-  if not vim.wait(M.WAIT_MS, function()
-    return port ~= nil
-  end) then
+  if not port then
     stop()
     error("games-server did not report its port")
   end
@@ -68,13 +89,19 @@ function M.start_server(serve_args)
     pause = function()
       process:kill("sigstop")
     end,
+    restart = function()
+      kill(process)
+      local restarted_port
+      process, restarted_port = spawn(db, "127.0.0.1:" .. port, serve_args)
+      assert(restarted_port == port, "games-server did not restart on port " .. port)
+    end,
     stop = stop,
   }
 end
 
 ---@class games.test.Env
 ---@field server games.test.Server
----@field new_conn fun(username: string, password?: string): games.Conn
+---@field new_conn fun(username: string, password?: string|fun(): string?): games.Conn
 
 ---Runs fn against a fresh server and closes every conn it made and the server, even on failure.
 ---@param serve_args string[]|nil

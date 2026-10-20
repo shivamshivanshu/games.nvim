@@ -38,7 +38,7 @@ local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_
 ---@field private handlers table<string, fun(payload: any)[]>
 ---@field private auto_reconnect boolean
 ---@field private backoff_ms integer
----@field private reconnect_timer uv.uv_timer_t
+---@field private reconnect_timer? uv.uv_timer_t
 local Conn = {}
 Conn.__index = Conn
 
@@ -59,14 +59,24 @@ end
 
 local function ignore_reply() end
 
----Empty Lua tables encode as `[]`; request bodies must always be JSON objects.
----@param body table|nil
----@return table
-local function as_json_object(body)
-  if body == nil or vim.tbl_isempty(body) then
-    return vim.empty_dict()
+---@param password string|fun(): string
+---@return string|nil password
+---@return string|nil problem why there is no usable password
+local function resolve_password(password)
+  local value = password
+  if type(password) == "function" then
+    local ok, result = pcall(password)
+    if not ok then
+      return nil, "password function failed: " .. tostring(result)
+    end
+    value = result
   end
-  return body
+  if type(value) ~= "string" or value == "" then
+    return nil,
+      type(password) == "function" and "password function returned no password"
+        or "password is empty"
+  end
+  return value
 end
 
 ---@param timer uv.uv_timer_t|nil
@@ -87,7 +97,6 @@ function Conn.new(opts)
     handlers = {},
     auto_reconnect = false,
     backoff_ms = RECONNECT_MIN_MS,
-    reconnect_timer = assert(vim.uv.new_timer()),
   }, Conn)
 end
 
@@ -102,6 +111,16 @@ function Conn.split_frames(buffer, chunk)
   return lines, rest
 end
 
+---Empty Lua tables encode as `[]`; wire objects (request bodies, options) must encode as `{}`.
+---@param value table|nil
+---@return table
+function Conn.as_json_object(value)
+  if value == nil or vim.tbl_isempty(value) then
+    return vim.empty_dict()
+  end
+  return value
+end
+
 ---Subscribes fn to a push type or a lifecycle event; fn runs via vim.schedule.
 ---"connected" gets the games.LoginResult, "disconnected" the games.ErrorBody that ended the session.
 ---@param event games.ConnEvent
@@ -114,7 +133,10 @@ end
 ---Connects and logs in, reconnecting with backoff until close() or a fatal login error.
 function Conn:connect()
   self.auto_reconnect = true
-  self.reconnect_timer:stop()
+  self.backoff_ms = RECONNECT_MIN_MS
+  if self.reconnect_timer then
+    self.reconnect_timer:stop()
+  end
   if not self.attempt then
     self:open()
   end
@@ -136,7 +158,8 @@ end
 ---Stops reconnecting and drops the connection.
 function Conn:close()
   self.auto_reconnect = false
-  self.reconnect_timer:stop()
+  close_timer(self.reconnect_timer)
+  self.reconnect_timer = nil
   if self.attempt then
     self:teardown(self.attempt, disconnected("closed"))
   end
@@ -155,10 +178,15 @@ end
 
 ---@private
 function Conn:open()
-  local password = self.opts.password
+  local password, problem = resolve_password(self.opts.password)
+  if not password then
+    self.auto_reconnect = false
+    self:emit("disconnected", { code = ErrorCode.AUTH_FAILED, message = problem })
+    return
+  end
   ---@type games.ConnAttempt
   local attempt = {
-    password = type(password) == "function" and password() or password --[[@as string]],
+    password = password,
     buffer = "",
     opened = false,
     authenticated = false,
@@ -196,14 +224,17 @@ function Conn:try_address(attempt, addresses, index)
   end
   local socket = assert(vim.uv.new_tcp())
   attempt.socket = socket
-  socket:connect(address.addr, address.port, function(err)
+  local function try_next_address()
+    socket:close()
+    attempt.socket = nil
+    self:try_address(attempt, addresses, index + 1)
+  end
+  local _, connect_err = socket:connect(address.addr, address.port, function(err)
     if self.attempt ~= attempt then
       return
     end
     if err then
-      socket:close()
-      attempt.socket = nil
-      self:try_address(attempt, addresses, index + 1)
+      try_next_address()
       return
     end
     attempt.opened = true
@@ -212,6 +243,9 @@ function Conn:try_address(attempt, addresses, index)
     end)
     self:login(attempt)
   end)
+  if connect_err then
+    try_next_address()
+  end
 end
 
 ---@private
@@ -269,19 +303,25 @@ end
 function Conn:send_request(attempt, message_type, body, cb)
   local id = self.next_id
   self.next_id = id + 1
-  self.pending[id] = cb
   ---@type games.Envelope
-  local envelope = {
-    id = id,
-    type = message_type,
-    body = as_json_object(body),
-  }
+  local envelope = { id = id, type = message_type, body = Conn.as_json_object(body) }
+  local encoded, frame = pcall(vim.json.encode, envelope)
+  if not encoded then
+    local message = ("cannot encode %s request: %s"):format(message_type, frame)
+    deliver(cb, { code = ErrorCode.BAD_REQUEST, message = message }, nil)
+    return
+  end
+
+  self.pending[id] = cb
   local socket = assert(attempt.socket)
-  socket:write(vim.json.encode(envelope) .. "\n", function(err)
+  local _, write_err = socket:write(frame .. "\n", function(err)
     if err then
       self:teardown(attempt, disconnected("write failed: " .. err))
     end
   end)
+  if write_err then
+    self:teardown(attempt, disconnected("write failed: " .. write_err))
+  end
 end
 
 ---@private
@@ -366,6 +406,7 @@ end
 function Conn:schedule_reconnect()
   local delay_ms = math.floor(self.backoff_ms * (1 - RECONNECT_JITTER * math.random()))
   self.backoff_ms = math.min(2 * self.backoff_ms, RECONNECT_MAX_MS)
+  self.reconnect_timer = self.reconnect_timer or assert(vim.uv.new_timer())
   self.reconnect_timer:start(
     delay_ms,
     0,

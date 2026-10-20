@@ -4,6 +4,7 @@ local helpers = require("helpers")
 
 local HEARTBEAT_ARGS = { "--heartbeat", "100ms", "--idle", "300ms" }
 local IDLE_MS = 300
+local RECONNECT_MIN_MS = 1000
 
 local T = {}
 
@@ -25,6 +26,7 @@ function T.login_and_catalog()
       return #log.connected == 1
     end, "login")
     assert(log.connected[1].user == "alice")
+    assert(client:me() == "alice")
 
     local catalog
     client:catalog_list(nil, function(err, result)
@@ -56,6 +58,56 @@ function T.auth_failed_stops_reconnect()
     end)
     assert(not reattempted, "reconnected after auth_failed")
     assert(#log.connected == 0)
+  end)
+end
+
+function T.missing_password_fails_without_retrying()
+  helpers.with_server(nil, function(env)
+    local password_calls = 0
+    local conn = env.new_conn("alice", function()
+      password_calls = password_calls + 1
+      return nil
+    end)
+    local log = helpers.record_lifecycle(conn)
+    conn:connect()
+    helpers.wait_for(function()
+      return #log.disconnected == 1
+    end, "disconnect without a password")
+    assert(log.disconnected[1].code == "auth_failed", vim.inspect(log.disconnected[1]))
+    assert(log.disconnected[1].message:find("no password"), log.disconnected[1].message)
+
+    vim.wait(RECONNECT_MIN_MS + 200, function()
+      return password_calls > 1
+    end)
+    assert(password_calls == 1, "retried after a missing password")
+  end)
+end
+
+function T.reconnects_after_server_restart()
+  helpers.with_server(nil, function(env)
+    local conn = env.new_conn("alice")
+    local log = helpers.record_lifecycle(conn)
+    local client = Client.new(conn)
+    conn:connect()
+    helpers.wait_for(function()
+      return #log.connected == 1
+    end, "first login")
+
+    env.server.restart()
+    helpers.wait_for(function()
+      return #log.connected == 2
+    end, "login after restart")
+    assert(#log.disconnected == 1, vim.inspect(log.disconnected))
+    assert(client:me() == "alice")
+
+    local catalog
+    client:catalog_list(nil, function(err, result)
+      assert(err == nil, vim.inspect(err))
+      catalog = result
+    end)
+    helpers.wait_for(function()
+      return catalog ~= nil
+    end, "catalog.list after reconnect")
   end)
 end
 
