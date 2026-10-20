@@ -11,6 +11,8 @@ const TypeChess game.GameType = "chess"
 
 const optionColor game.OptionName = "color"
 
+const moveField = "move"
+
 type Rules struct{}
 
 func (Rules) Info() game.Info {
@@ -25,6 +27,21 @@ func (Rules) Info() game.Info {
 				Name:    optionColor,
 				Values:  game.OptionValues(ColorRandom, ColorWhite, ColorBlack),
 				Default: game.OptionValue(ColorRandom),
+			},
+		},
+		Actions: []game.ActionSpec{
+			{
+				Kind:        ActionMove,
+				Description: "Play a move.",
+				Input: &game.ActionInput{
+					Field:       moveField,
+					Description: "A move in SAN or UCI, any case, e.g. e4, Nf3, O-O, exd8=Q, e2e4.",
+					Pattern:     movePattern,
+				},
+			},
+			{
+				Kind:        ActionClaimDraw,
+				Description: "Claim a draw by threefold repetition or the fifty-move rule, on your move.",
 			},
 		},
 	}

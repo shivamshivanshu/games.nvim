@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -51,7 +52,7 @@ func New(ctx context.Context, d Deps) (*Hub, error) {
 		live:      make(map[game.GameID]*liveGame),
 	}
 	for _, g := range d.Games {
-		if err := g.Info().CheckOptions(); err != nil {
+		if err := errors.Join(g.Info().CheckOptions(), g.Info().CheckActions()); err != nil {
 			return nil, fmt.Errorf("hub: %w", err)
 		}
 		h.gameTypes[g.Info().Type] = g

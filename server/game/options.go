@@ -83,6 +83,7 @@ func TimeControlOption() OptionSpec {
 		Name:    OptionTimeControl,
 		Values:  OptionValues(TimeControlNone, TimeControl3Plus2, TimeControl5Plus0, TimeControl10Plus5, TimeControl15Plus10),
 		Default: OptionValue(TimeControl10Plus5),
+		Role:    OptionRoleClock,
 	}
 }
 

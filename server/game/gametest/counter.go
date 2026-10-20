@@ -31,6 +31,8 @@ type CounterOpts struct {
 	Step string `json:"step"`
 }
 
+const counterAdd game.ActionKind = "add"
+
 type CounterAction struct{ Add int }
 
 type CounterView struct{ Total int }
@@ -48,6 +50,7 @@ func (CounterRules) Info() game.Info {
 		Players:      game.PlayerRange{Min: 1, Max: 2},
 		Capabilities: []game.Capability{game.CapResign},
 		Options:      []game.OptionSpec{{Name: "step", Values: []game.OptionValue{"1", "2"}, Default: "1"}},
+		Actions:      []game.ActionSpec{{Kind: counterAdd, Description: "Add to the total."}},
 	}
 }
 

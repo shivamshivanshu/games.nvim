@@ -91,14 +91,22 @@ const (
 	OptionKindText
 )
 
+// OptionRole marks an option whose meaning the core knows, so clients find it
+// by role rather than by name.
+type OptionRole string
+
+// OptionRoleClock marks the option whose value is the time control.
+const OptionRoleClock OptionRole = "clock"
+
 // OptionSpec of OptionKindText has no Values and defaults to ""; MaxLen caps
-// its value in bytes.
+// its value in bytes. Role is empty for an option only the game interprets.
 type OptionSpec struct {
 	Name    OptionName
 	Kind    OptionKind
 	Values  []OptionValue
 	Default OptionValue
 	MaxLen  int
+	Role    OptionRole
 }
 
 type PlayerRange struct{ Min, Max int }
@@ -109,6 +117,7 @@ type Info struct {
 	Players      PlayerRange
 	Capabilities []Capability
 	Options      []OptionSpec
+	Actions      []ActionSpec
 }
 
 type Event interface{ EventKind() EventKind }

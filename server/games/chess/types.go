@@ -25,16 +25,14 @@ type Opts struct {
 	Color       ColorChoice      `json:"color"`
 }
 
-type ActionKind string
-
 const (
-	ActionMove      ActionKind = "move"
-	ActionClaimDraw ActionKind = "claim_draw"
+	ActionMove      game.ActionKind = "move"
+	ActionClaimDraw game.ActionKind = "claim_draw"
 )
 
 type Action struct {
-	Kind ActionKind `json:"kind"`
-	Move string     `json:"move,omitempty"`
+	Kind game.ActionKind `json:"kind"`
+	Move string          `json:"move,omitempty"`
 }
 
 type MoveSquares struct {

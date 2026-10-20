@@ -1,6 +1,7 @@
 package chess
 
 import (
+	"regexp"
 	"slices"
 	"testing"
 
@@ -183,5 +184,24 @@ func TestFivefoldAutomatic(t *testing.T) {
 	p, history = historyAfter(t, mustFEN(t, StartFEN), slices.Concat(shuffle, shuffle, shuffle, shuffle)...)
 	if ending, ok := detectEnding(p, history); !ok || ending.Reason != ReasonFivefold {
 		t.Errorf("got %+v, %t", ending, ok)
+	}
+}
+
+func TestMovePatternMatchesWhatParseMoveReads(t *testing.T) {
+	pattern := regexp.MustCompile(movePattern)
+	start := mustFEN(t, StartFEN)
+	readable := []string{" e4 ", "E2E4", "e4!", "Nf3+", "nf3", "NF3", "qxd5", "e8=q", "e8Q", "e7e8n", "0-0", "o-o-o", "O-O-O", "Qh4#", "Qh4e1", "R1a3", "exd6"}
+	for _, m := range start.LegalMoves() {
+		readable = append(readable, m.UCI(), start.SAN(m))
+	}
+	for _, input := range readable {
+		if !pattern.MatchString(input) {
+			t.Errorf("pattern rejects %q", input)
+		}
+	}
+	for _, input := range []string{"", "e9", "hello", "Kz1", "e2-e4"} {
+		if pattern.MatchString(input) {
+			t.Errorf("pattern accepts %q", input)
+		}
 	}
 }

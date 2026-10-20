@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 type Control string
@@ -72,18 +73,43 @@ type PlayersWire struct {
 	Max int `json:"max"`
 }
 
-// OptionWire.MaxLen is sent only for OptionText.
+// OptionWire.MaxLen is sent only for OptionText, and Role only for an option
+// the core gives a meaning.
 type OptionWire struct {
 	Type    OptionType         `json:"type"`
 	Values  []game.OptionValue `json:"values"`
 	Default game.OptionValue   `json:"default"`
 	MaxLen  int                `json:"max_len,omitempty"`
+	Role    game.OptionRole    `json:"role,omitempty"`
 }
 
 func optionToWire(spec game.OptionSpec) OptionWire {
-	wire := OptionWire{Type: optionTypeOf(spec.Kind), Values: append([]game.OptionValue{}, spec.Values...), Default: spec.Default}
+	wire := OptionWire{Type: optionTypeOf(spec.Kind), Values: append([]game.OptionValue{}, spec.Values...), Default: spec.Default, Role: spec.Role}
 	if wire.Type == OptionText {
 		wire.MaxLen = spec.MaxLen
+	}
+	return wire
+}
+
+// ActionWire.Input is nil for an action that is its kind alone.
+type ActionWire struct {
+	Kind        game.ActionKind  `json:"kind"`
+	Description string           `json:"description"`
+	Input       *ActionInputWire `json:"input"`
+}
+
+// ActionInputWire has a Pattern (RE2 syntax) or Values, never both.
+type ActionInputWire struct {
+	Field       string   `json:"field"`
+	Description string   `json:"description"`
+	Pattern     string   `json:"pattern,omitempty"`
+	Values      []string `json:"values"`
+}
+
+func actionToWire(spec game.ActionSpec) ActionWire {
+	wire := ActionWire{Kind: spec.Kind, Description: spec.Description}
+	if in := spec.Input; in != nil {
+		wire.Input = &ActionInputWire{Field: in.Field, Description: in.Description, Pattern: in.Pattern, Values: append([]string{}, in.Values...)}
 	}
 	return wire
 }
@@ -94,6 +120,7 @@ type GameInfoWire struct {
 	Players      PlayersWire                    `json:"players"`
 	Capabilities []game.Capability              `json:"capabilities"`
 	Options      map[game.OptionName]OptionWire `json:"options"`
+	Actions      []ActionWire                   `json:"actions"`
 }
 
 func InfoToWire(info game.Info) GameInfoWire {
@@ -107,6 +134,7 @@ func InfoToWire(info game.Info) GameInfoWire {
 		Players:      PlayersWire{Min: info.Players.Min, Max: info.Players.Max},
 		Capabilities: append([]game.Capability{}, info.Capabilities...),
 		Options:      options,
+		Actions:      xslices.Map(info.Actions, actionToWire),
 	}
 }
 
