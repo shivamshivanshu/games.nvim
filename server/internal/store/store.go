@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	_ "embed"
@@ -8,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -22,6 +25,8 @@ var schema string
 var (
 	ErrNotFound       = errors.New("store: not found")
 	ErrMissingOptions = errors.New("store: game options must be non-empty JSON")
+	ErrNotFinished    = errors.New("store: game is not finished")
+	ErrNotOngoing     = errors.New("store: no ongoing game with that id")
 )
 
 type StepKind string
@@ -38,6 +43,8 @@ const (
 	OutcomeWin  Outcome = "win"
 	OutcomeLoss Outcome = "loss"
 	OutcomeDraw Outcome = "draw"
+	// OutcomeNone is an aborted game's: it counts for nobody.
+	OutcomeNone Outcome = ""
 )
 
 type StepRecord struct {
@@ -49,6 +56,26 @@ type StepRecord struct {
 	ClockRemaining map[game.UserID]time.Duration
 }
 
+type Standing struct {
+	Outcome Outcome
+	Score   int64
+}
+
+type Ending struct {
+	Kind      game.ResultKind
+	Reason    game.ResultReason
+	Standings map[game.UserID]Standing
+}
+
+// Finish is all that is kept of a game once it ends: its steps are deleted.
+type Finish struct {
+	At  time.Time
+	Seq game.Seq
+	Ending
+	Summary []byte
+	Digest  game.Digest
+}
+
 type GameRecord struct {
 	ID        game.GameID
 	Type      game.GameType
@@ -57,10 +84,13 @@ type GameRecord struct {
 	Players   []game.Player
 	Steps     []StepRecord
 	CreatedAt time.Time
+	Finish    *Finish
 }
 
 type Store struct {
 	db *sql.DB
+	// afterResolve runs between resolving loadGames' ids and reading them; tests use it.
+	afterResolve func()
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
@@ -150,25 +180,44 @@ func (s *Store) AppendStep(ctx context.Context, id game.GameID, step StepRecord)
 	return insertStep(ctx, s.db, id, step)
 }
 
-func (s *Store) FinishGame(ctx context.Context, id game.GameID, step StepRecord, reason game.ResultReason, outcomes map[game.UserID]Outcome) error {
+// FinishGame stores a game's ending and summary and deletes its steps.
+func (s *Store) FinishGame(ctx context.Context, id game.GameID, f Finish) error {
+	kind, err := kindName(f.Kind)
+	if err != nil {
+		return err
+	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		if err := insertStep(ctx, tx, id, step); err != nil {
+		if err := requireAffected(ctx, tx, ErrNotOngoing,
+			`UPDATE games SET finished_at = ?, final_seq = ?, result_kind = ?, result_reason = ?, summary = ?, digest = ?
+			 WHERE game_id = ? AND finished_at IS NULL`,
+			f.At.UnixMilli(), int64(f.Seq), kind, f.Reason, f.Summary, f.Digest, id); err != nil {
 			return err
 		}
-		if err := requireAffected(ctx, tx, ErrNotFound,
-			`UPDATE games SET finished_at = ?, result_reason = ? WHERE game_id = ?`,
-			step.At.UnixMilli(), reason, id); err != nil {
-			return err
-		}
-		for user, outcome := range outcomes {
-			if err := requireAffected(ctx, tx, fmt.Errorf("store: outcome for %q: not a player of game %q", user, id),
-				`UPDATE game_players SET outcome = ? WHERE game_id = ? AND username = ?`,
-				outcome, id, user); err != nil {
+		for user, standing := range f.Standings {
+			outcome := sql.Null[Outcome]{V: standing.Outcome, Valid: standing.Outcome != OutcomeNone}
+			if err := requireAffected(ctx, tx, fmt.Errorf("store: standing for %q: not a player of game %q", user, id),
+				`UPDATE game_players SET outcome = ?, score = ? WHERE game_id = ? AND username = ?`,
+				outcome, standing.Score, id, user); err != nil {
 				return err
 			}
 		}
-		return nil
+		_, err := tx.ExecContext(ctx, `DELETE FROM actions WHERE game_id = ?`, id)
+		return err
 	})
+}
+
+func (s *Store) Digest(ctx context.Context, id game.GameID) (game.Digest, error) {
+	digest, err := scanOne[sql.Null[game.Digest]](s.db.QueryRowContext(ctx,
+		`SELECT digest FROM games WHERE game_id = ?`, id))
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", ErrNotFound
+	case err != nil:
+		return "", err
+	case !digest.Valid:
+		return "", ErrNotFinished
+	}
+	return digest.V, nil
 }
 
 func (s *Store) LoadOngoing(ctx context.Context) ([]GameRecord, error) {
@@ -186,38 +235,80 @@ func (s *Store) LoadGame(ctx context.Context, id game.GameID) (GameRecord, error
 	return recs[0], nil
 }
 
-func (s *Store) FinishedGameIDs(ctx context.Context, user game.UserID, limit int) ([]game.GameID, error) {
-	return queryAll(ctx, s.db, scanOne[game.GameID],
-		`SELECT g.game_id FROM games g JOIN game_players p ON p.game_id = g.game_id
-		 WHERE p.username = ? AND g.finished_at IS NOT NULL
-		 ORDER BY g.finished_at DESC, g.game_id LIMIT ?`, user, limit)
+// LoadFinished reads the user's most recently finished games, newest first.
+func (s *Store) LoadFinished(ctx context.Context, user game.UserID, limit int) ([]GameRecord, error) {
+	return s.loadGames(ctx,
+		`game_id IN (SELECT g.game_id FROM games g JOIN game_players p ON p.game_id = g.game_id
+		  WHERE p.username = ? AND g.finished_at IS NOT NULL
+		  ORDER BY g.finished_at DESC, g.game_id LIMIT ?)`,
+		`ORDER BY finished_at DESC, game_id`, user, limit)
 }
 
-// loadGames reads the games matching filter, then all their players and steps
-// in one query each, selected by the same filter.
+// loadGames resolves the ids matching filter once, then reads exactly those
+// games with their players, and the steps of the ones still ongoing.
 func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any) ([]GameRecord, error) {
-	recs, err := queryAll(ctx, s.db, scanGame,
-		`SELECT game_id, game_type, options_json, rng_seed, created_at FROM games WHERE `+filter+` `+order, args...)
-	if err != nil || len(recs) == 0 {
-		return recs, err
+	ids, err := queryAll(ctx, s.db, scanOne[game.GameID], `SELECT game_id FROM games WHERE `+filter+` `+order, args...)
+	if err != nil || len(ids) == 0 {
+		return nil, err
 	}
-	ofMatchingGames := `game_id IN (SELECT game_id FROM games WHERE ` + filter + `)`
-	players, err := queryAll(ctx, s.db, scanPlayer,
-		`SELECT game_id, username, seat FROM game_players WHERE `+ofMatchingGames+` ORDER BY rowid`, args...)
+	if s.afterResolve != nil {
+		s.afterResolve()
+	}
+	recs, err := queryAll(ctx, s.db, scanGame,
+		`SELECT game_id, game_type, options_json, rng_seed, created_at,
+		        finished_at, final_seq, result_kind, result_reason, summary, digest
+		 FROM games WHERE `+inSet(len(ids)), anySlice(ids)...)
 	if err != nil {
 		return nil, err
 	}
-	steps, err := queryAll(ctx, s.db, scanStep,
-		`SELECT game_id, seq, username, kind, action_json, server_ts, clock_json
-		 FROM actions WHERE `+ofMatchingGames+` ORDER BY game_id, seq`, args...)
+	position := make(map[game.GameID]int, len(ids))
+	for i, id := range ids {
+		position[id] = i
+	}
+	slices.SortFunc(recs, func(a, b GameRecord) int { return cmp.Compare(position[a.ID], position[b.ID]) })
+	players, err := queryAll(ctx, s.db, scanPlayer,
+		`SELECT game_id, username, seat, outcome, score FROM game_players WHERE `+inSet(len(ids))+` ORDER BY rowid`, anySlice(ids)...)
+	if err != nil {
+		return nil, err
+	}
+	steps, err := s.ongoingSteps(ctx, recs)
 	if err != nil {
 		return nil, err
 	}
 	playersOf, stepsOf := groupByGame(players), groupByGame(steps)
 	for i := range recs {
-		recs[i].Players, recs[i].Steps = playersOf[recs[i].ID], stepsOf[recs[i].ID]
+		recs[i].Steps = stepsOf[recs[i].ID]
+		for _, row := range playersOf[recs[i].ID] {
+			recs[i].Players = append(recs[i].Players, row.player)
+			if recs[i].Finish != nil {
+				recs[i].Finish.Standings[row.player.User] = Standing{Outcome: row.outcome.V, Score: row.score.V}
+			}
+		}
 	}
 	return recs, nil
+}
+
+func (s *Store) ongoingSteps(ctx context.Context, recs []GameRecord) ([]ofGame[StepRecord], error) {
+	var ongoing []game.GameID
+	for _, rec := range recs {
+		if rec.Finish == nil {
+			ongoing = append(ongoing, rec.ID)
+		}
+	}
+	if len(ongoing) == 0 {
+		return nil, nil
+	}
+	return queryAll(ctx, s.db, scanStep,
+		`SELECT game_id, seq, username, kind, action_json, server_ts, clock_json
+		 FROM actions WHERE `+inSet(len(ongoing))+` ORDER BY game_id, seq`, anySlice(ongoing)...)
+}
+
+func inSet(n int) string {
+	return `game_id IN (?` + strings.Repeat(`, ?`, n-1) + `)`
+}
+
+func anySlice[T any](values []T) []any {
+	return xslices.Map(values, func(v T) any { return v })
 }
 
 type scanner interface {
@@ -246,14 +337,65 @@ func scanGame(row scanner) (GameRecord, error) {
 	var rec GameRecord
 	var seed, createdMS int64
 	var options []byte
-	err := row.Scan(&rec.ID, &rec.Type, &options, &seed, &createdMS)
+	var finishedMS, finalSeq sql.Null[int64]
+	var kind, reason sql.Null[string]
+	var summary []byte
+	var digest sql.Null[game.Digest]
+	if err := row.Scan(&rec.ID, &rec.Type, &options, &seed, &createdMS,
+		&finishedMS, &finalSeq, &kind, &reason, &summary, &digest); err != nil {
+		return rec, err
+	}
 	rec.Options, rec.Seed, rec.CreatedAt = options, game.Seed(seed), time.UnixMilli(createdMS)
-	return rec, err
+	if !finishedMS.Valid {
+		return rec, nil
+	}
+	resultKind, err := kindNamed(kind.V)
+	if err != nil {
+		return rec, fmt.Errorf("store: game %s: %w", rec.ID, err)
+	}
+	rec.Finish = &Finish{
+		At:      time.UnixMilli(finishedMS.V),
+		Seq:     game.Seq(finalSeq.V),
+		Ending:  Ending{Kind: resultKind, Reason: game.ResultReason(reason.V), Standings: map[game.UserID]Standing{}},
+		Summary: summary,
+		Digest:  digest.V,
+	}
+	return rec, nil
 }
 
-func scanPlayer(row scanner) (ofGame[game.Player], error) {
-	var p ofGame[game.Player]
-	return p, row.Scan(&p.game, &p.value.User, &p.value.Seat)
+func kindName(k game.ResultKind) (string, error) {
+	switch k {
+	case game.ResultDecisive:
+		return "decisive", nil
+	case game.ResultDraw:
+		return "draw", nil
+	case game.ResultAborted:
+		return "aborted", nil
+	}
+	return "", fmt.Errorf("store: unknown result kind %d", k)
+}
+
+func kindNamed(name string) (game.ResultKind, error) {
+	switch name {
+	case "decisive":
+		return game.ResultDecisive, nil
+	case "draw":
+		return game.ResultDraw, nil
+	case "aborted":
+		return game.ResultAborted, nil
+	}
+	return 0, fmt.Errorf("store: unknown result kind %q", name)
+}
+
+type playerRow struct {
+	player  game.Player
+	outcome sql.Null[Outcome]
+	score   sql.Null[int64]
+}
+
+func scanPlayer(row scanner) (ofGame[playerRow], error) {
+	var p ofGame[playerRow]
+	return p, row.Scan(&p.game, &p.value.player.User, &p.value.player.Seat, &p.value.outcome, &p.value.score)
 }
 
 func scanStep(row scanner) (ofGame[StepRecord], error) {

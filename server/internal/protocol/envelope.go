@@ -23,6 +23,7 @@ const (
 	TypeGameAct          MessageType = "game.act"
 	TypeGameControl      MessageType = "game.control"
 	TypeStatsGet         MessageType = "stats.get"
+	TypeGameVerify       MessageType = "game.verify"
 	TypeChallengeChanged MessageType = "challenge.changed"
 	TypeGameUpdate       MessageType = "game.update"
 )
@@ -39,6 +40,7 @@ const (
 	CodeIllegalAction   ErrorCode = "illegal_action"
 	CodeStale           ErrorCode = "stale"
 	CodeInternal        ErrorCode = "internal"
+	CodeSummaryMismatch ErrorCode = "summary_mismatch"
 )
 
 // RequestID is chosen by the client and echoed on the reply.

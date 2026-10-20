@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/archive"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clock"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
@@ -24,7 +25,7 @@ var (
 
 type Persister interface {
 	AppendStep(ctx context.Context, id game.GameID, step store.StepRecord) error
-	FinishGame(ctx context.Context, id game.GameID, step store.StepRecord, reason game.ResultReason, outcomes map[game.UserID]store.Outcome) error
+	FinishGame(ctx context.Context, id game.GameID, f store.Finish) error
 }
 
 type Broadcaster interface {
@@ -87,6 +88,17 @@ func (g Setup) usersAt(seats []game.Seat) []game.UserID {
 	return xslices.Map(seats, func(seat game.Seat) game.UserID { return g.users[seat] })
 }
 
+func (g Setup) finished(s roomState, at time.Time) (archive.Finished, error) {
+	ending, err := s.ending(g)
+	if err != nil {
+		return archive.Finished{}, err
+	}
+	return archive.Finished{
+		ID: g.ID, Type: g.info.Type, Options: g.Options, Players: g.Players, StartedAt: g.CreatedAt,
+		Finish: store.Finish{At: at, Seq: s.seq, Ending: ending},
+	}.Sealed()
+}
+
 // roomState is the per-step state; apply returns a new value so a rejected or
 // unpersisted step leaves the current one untouched.
 type roomState struct {
@@ -99,6 +111,7 @@ type roomState struct {
 	remaining  map[game.UserID]time.Duration
 	since      time.Time
 	lastStepAt time.Time
+	final      *archive.Finished
 }
 
 func initialState(g Setup, state game.ErasedState, now time.Time) roomState {
@@ -194,35 +207,65 @@ func (s roomState) eliminate(g Setup, user game.UserID, reason game.ResultReason
 	return s, nil
 }
 
-func (s roomState) outcomes(g Setup) (game.ResultReason, map[game.UserID]store.Outcome) {
+func (s roomState) ending(g Setup) (store.Ending, error) {
 	result, _ := s.result()
-	outcomes := make(map[game.UserID]store.Outcome, len(g.Players))
+	scores, scored := s.gameScores()
+	standings := make(map[game.UserID]store.Standing, len(g.Players))
 	for _, player := range g.Players {
-		switch result.Kind {
-		case game.ResultDecisive:
-			outcomes[player.User] = store.OutcomeLoss
-			if slices.Contains(result.Winners, player.Seat) {
-				outcomes[player.User] = store.OutcomeWin
-			}
-		case game.ResultDraw:
-			outcomes[player.User] = store.OutcomeDraw
+		standing, err := standingOf(result, player.Seat)
+		if err != nil {
+			return store.Ending{}, err
 		}
+		if scored {
+			standing.Score = scores[player.Seat]
+		}
+		standings[player.User] = standing
 	}
-	return result.Reason, outcomes
+	return store.Ending{Kind: result.Kind, Reason: result.Reason, Standings: standings}, nil
 }
 
-func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.GameUpdate, error) {
+// standingOf scores winners +1 and losers -1, and a draw or an abort 0.
+func standingOf(result game.Result, seat game.Seat) (store.Standing, error) {
+	switch result.Kind {
+	case game.ResultDecisive:
+		if slices.Contains(result.Winners, seat) {
+			return store.Standing{Outcome: store.OutcomeWin, Score: 1}, nil
+		}
+		return store.Standing{Outcome: store.OutcomeLoss, Score: -1}, nil
+	case game.ResultDraw:
+		return store.Standing{Outcome: store.OutcomeDraw}, nil
+	case game.ResultAborted:
+		return store.Standing{Outcome: store.OutcomeNone}, nil
+	}
+	return store.Standing{}, fmt.Errorf("room: unknown result kind %d", result.Kind)
+}
+
+// gameScores are the game's own when its final state is a game.Scorer and the
+// result is the game's, not one the core imposed (draw agreed, abort).
+func (s roomState) gameScores() (map[game.Seat]int64, bool) {
+	if s.imposed != nil {
+		return nil, false
+	}
+	return s.game.Scores()
+}
+
+func (s roomState) view(g Setup, user game.UserID) (json.RawMessage, error) {
 	view, err := s.game.View(g.seats[user])
 	if err != nil {
-		return protocol.GameUpdate{}, fmt.Errorf("room: view for %s: %w", user, err)
+		return nil, fmt.Errorf("room: view for %s: %w", user, err)
 	}
-	var wireResult *protocol.WireResult
-	if result, done := s.result(); done {
-		kind, err := protocol.ResultKindOf(result.Kind)
-		if err != nil {
-			return protocol.GameUpdate{}, err
-		}
-		wireResult = &protocol.WireResult{Kind: kind, Winners: g.usersAt(result.Winners), Reason: result.Reason}
+	return view, nil
+}
+
+// update is a finished game's metadata only; broadcastUpdate adds what the
+// finishing step's broadcast alone carries.
+func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.GameUpdate, error) {
+	if s.final != nil {
+		return s.final.Update()
+	}
+	view, err := s.view(g, user)
+	if err != nil {
+		return protocol.GameUpdate{}, err
 	}
 	return protocol.GameUpdate{
 		GameID:     g.ID,
@@ -231,12 +274,12 @@ func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.Gam
 		Seq:        s.seq,
 		Players:    slices.Clone(g.Players),
 		ToAct:      s.toAct(g),
-		Result:     wireResult,
 		Clock:      s.wireClock(g, at),
 		DrawAgreed: slices.Clone(s.drawAgreed),
 		Controls:   s.controls(g, user),
 		Events:     slices.Clone(s.events),
 		View:       view,
+		StartedAt:  protocol.UnixMSOf(g.CreatedAt),
 	}, nil
 }
 
@@ -358,11 +401,7 @@ func (r *Room) commit(st step) (game.Seq, error) {
 	if err != nil {
 		return 0, err
 	}
-	rec, err := st.record(next.remaining)
-	if err != nil {
-		return 0, err
-	}
-	if err := r.persist(rec, next); err != nil {
+	if next, err = r.persist(st, next); err != nil {
 		return 0, err
 	}
 	r.cur = next
@@ -372,18 +411,39 @@ func (r *Room) commit(st step) (game.Seq, error) {
 }
 
 // persist runs on the room's context, not the request's: a client hanging up
-// mid-write must not leave memory behind a row that already committed.
-func (r *Room) persist(rec store.StepRecord, next roomState) error {
-	if !next.finished() {
-		return r.setup.Persist.AppendStep(r.ctx, r.setup.ID, rec)
+// mid-write must not leave memory behind a row that already committed. The
+// finishing step is not stored: the finish replaces all steps with a summary.
+func (r *Room) persist(st step, next roomState) (roomState, error) {
+	if next.finished() {
+		final, err := r.setup.finished(next, st.at)
+		if err != nil {
+			return roomState{}, err
+		}
+		next.final = &final
+		return next, r.setup.Persist.FinishGame(r.ctx, r.setup.ID, final.Finish)
 	}
-	reason, outcomes := next.outcomes(r.setup)
-	return r.setup.Persist.FinishGame(r.ctx, r.setup.ID, rec, reason, outcomes)
+	rec, err := st.record(next.remaining)
+	if err != nil {
+		return roomState{}, err
+	}
+	return next, r.setup.Persist.AppendStep(r.ctx, r.setup.ID, rec)
+}
+
+func (s roomState) broadcastUpdate(g Setup, user game.UserID) (protocol.GameUpdate, error) {
+	u, err := s.update(g, user, s.since)
+	if err != nil || s.final == nil {
+		return u, err
+	}
+	if u.View, err = s.view(g, user); err != nil {
+		return protocol.GameUpdate{}, err
+	}
+	u.Events, u.Clock = slices.Clone(s.events), s.wireClock(g, s.since)
+	return u, nil
 }
 
 func (r *Room) broadcast() {
 	for _, player := range r.setup.Players {
-		u, err := r.cur.update(r.setup, player.User, r.cur.since)
+		u, err := r.cur.broadcastUpdate(r.setup, player.User)
 		if err != nil {
 			slog.Error("room: build update", "game", r.setup.ID, "user", player.User, "err", err)
 			continue

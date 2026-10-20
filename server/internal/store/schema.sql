@@ -11,7 +11,11 @@ CREATE TABLE IF NOT EXISTS games (
     rng_seed      INTEGER NOT NULL,
     result_reason TEXT,
     created_at    INTEGER NOT NULL,
-    finished_at   INTEGER
+    finished_at   INTEGER,
+    final_seq     INTEGER,
+    result_kind   TEXT CHECK (result_kind IN ('decisive', 'draw', 'aborted')),
+    summary       BLOB,
+    digest        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS game_players (
@@ -19,6 +23,7 @@ CREATE TABLE IF NOT EXISTS game_players (
     username TEXT NOT NULL REFERENCES users(username),
     seat     TEXT NOT NULL,
     outcome  TEXT CHECK (outcome IN ('win', 'loss', 'draw')),
+    score    INTEGER,
     PRIMARY KEY (game_id, username)
 );
 

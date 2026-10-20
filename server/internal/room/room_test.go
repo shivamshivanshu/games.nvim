@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"slices"
 	"sync"
 	"testing"
@@ -27,15 +28,10 @@ const (
 
 const waitTimeout = 5 * time.Second
 
-type finishRecord struct {
-	reason   game.ResultReason
-	outcomes map[game.UserID]store.Outcome
-}
-
 type fakePersister struct {
 	mu       sync.Mutex
 	steps    []store.StepRecord
-	finished *finishRecord
+	finished *store.Finish
 	fail     error
 	attempts int
 }
@@ -51,15 +47,14 @@ func (p *fakePersister) AppendStep(_ context.Context, _ game.GameID, step store.
 	return nil
 }
 
-func (p *fakePersister) FinishGame(_ context.Context, _ game.GameID, step store.StepRecord, reason game.ResultReason, outcomes map[game.UserID]store.Outcome) error {
+func (p *fakePersister) FinishGame(_ context.Context, _ game.GameID, f store.Finish) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.attempts++
 	if p.fail != nil {
 		return p.fail
 	}
-	p.steps = append(p.steps, step)
-	p.finished = &finishRecord{reason: reason, outcomes: outcomes}
+	p.finished = &f
 	return nil
 }
 
@@ -75,7 +70,7 @@ func (p *fakePersister) attempted() int {
 	return p.attempts
 }
 
-func (p *fakePersister) recorded() ([]store.StepRecord, *finishRecord) {
+func (p *fakePersister) recorded() ([]store.StepRecord, *store.Finish) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return slices.Clone(p.steps), p.finished
@@ -277,14 +272,15 @@ func TestResignEndsGame(t *testing.T) {
 	waitDone(t, h.room)
 
 	steps, finished := h.persist.recorded()
-	if finished == nil || finished.reason != game.ReasonResign {
+	if finished == nil || finished.Reason != game.ReasonResign || finished.Kind != game.ResultDecisive || finished.Seq != 2 {
 		t.Fatalf("finish record %+v", finished)
 	}
-	if diff := cmp.Diff(map[game.UserID]store.Outcome{alice: store.OutcomeWin, bob: store.OutcomeLoss}, finished.outcomes); diff != "" {
-		t.Fatalf("outcomes (-want +got):\n%s", diff)
+	want := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeWin, Score: 1}, bob: {Outcome: store.OutcomeLoss, Score: -1}}
+	if diff := cmp.Diff(want, finished.Standings); diff != "" {
+		t.Fatalf("standings (-want +got):\n%s", diff)
 	}
-	if last := steps[len(steps)-1]; last.Kind != store.StepControl || string(last.Payload) != `"resign"` || last.User != bob {
-		t.Fatalf("resign step %+v", last)
+	if len(steps) != 1 {
+		t.Fatalf("persisted %d steps, want only the move: the finish replaces steps", len(steps))
 	}
 	for _, user := range []game.UserID{alice, bob} {
 		u, _ := h.sent.last(user)
@@ -305,11 +301,12 @@ func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 		h.control(t, bob, seq, protocol.ControlOfferDraw)
 		waitDone(t, h.room)
 		_, finished := h.persist.recorded()
-		if finished == nil || finished.reason != game.ReasonDrawAgreed {
+		if finished == nil || finished.Reason != game.ReasonDrawAgreed || finished.Kind != game.ResultDraw {
 			t.Fatalf("finish record %+v", finished)
 		}
-		if diff := cmp.Diff(map[game.UserID]store.Outcome{alice: store.OutcomeDraw, bob: store.OutcomeDraw}, finished.outcomes); diff != "" {
-			t.Fatalf("outcomes (-want +got):\n%s", diff)
+		draw := store.Standing{Outcome: store.OutcomeDraw}
+		if diff := cmp.Diff(map[game.UserID]store.Standing{alice: draw, bob: draw}, finished.Standings); diff != "" {
+			t.Fatalf("standings (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("decline", func(t *testing.T) {
@@ -352,7 +349,9 @@ func TestAbortWindow(t *testing.T) {
 	early.control(t, bob, early.play(t, alice, 0, "e4"), protocol.ControlAbort)
 	waitDone(t, early.room)
 	_, finished := early.persist.recorded()
-	if finished == nil || finished.reason != game.ReasonAborted || len(finished.outcomes) != 0 {
+	none := store.Standing{Outcome: store.OutcomeNone}
+	if finished == nil || finished.Reason != game.ReasonAborted || finished.Kind != game.ResultAborted ||
+		!maps.Equal(finished.Standings, map[game.UserID]store.Standing{alice: none, bob: none}) {
 		t.Fatalf("abort finish record %+v", finished)
 	}
 }
@@ -363,16 +362,13 @@ func TestTimeoutEliminates(t *testing.T) {
 	h.clock.Advance(10 * time.Minute)
 	waitDone(t, h.room)
 
-	steps, finished := h.persist.recorded()
-	if finished == nil || finished.reason != game.ReasonTimeout {
-		t.Fatalf("finish record %+v", finished)
+	_, finished := h.persist.recorded()
+	if finished == nil || finished.Reason != game.ReasonTimeout || !finished.At.Equal(h.clock.Now()) {
+		t.Fatalf("finish record %+v at %v", finished, h.clock.Now())
 	}
-	if diff := cmp.Diff(map[game.UserID]store.Outcome{alice: store.OutcomeLoss, bob: store.OutcomeWin}, finished.outcomes); diff != "" {
-		t.Fatalf("outcomes (-want +got):\n%s", diff)
-	}
-	last := steps[len(steps)-1]
-	if last.Kind != store.StepTimeout || last.User != alice || last.Payload != nil || last.ClockRemaining[alice] != 0 {
-		t.Fatalf("timeout step %+v", last)
+	want := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeLoss, Score: -1}, bob: {Outcome: store.OutcomeWin, Score: 1}}
+	if diff := cmp.Diff(want, finished.Standings); diff != "" {
+		t.Fatalf("standings (-want +got):\n%s", diff)
 	}
 	if u, _ := h.sent.last(bob); u.Result == nil || u.Result.Reason != game.ReasonTimeout {
 		t.Fatalf("bob's final update result %+v", u.Result)

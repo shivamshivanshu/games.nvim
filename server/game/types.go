@@ -18,6 +18,9 @@ type (
 	Seed       uint64
 )
 
+// Digest is the lowercase hex SHA-256 of a finished game's summary bytes.
+type Digest string
+
 type Player struct {
 	User UserID `json:"user"`
 	Seat Seat   `json:"seat"`

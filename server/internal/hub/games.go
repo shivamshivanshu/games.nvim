@@ -238,41 +238,29 @@ func turnRankOf(u protocol.GameUpdate, user game.UserID) turnRank {
 }
 
 func (h *Hub) finishedGames(ctx context.Context, user game.UserID) ([]protocol.GameUpdate, error) {
-	ids, err := h.deps.Store.FinishedGameIDs(ctx, user, h.deps.Limits.FinishedListLimit)
+	recs, err := h.deps.Store.LoadFinished(ctx, user, h.deps.Limits.FinishedListLimit)
 	if err != nil {
 		return nil, err
 	}
-	return xslices.MapErr(ids, func(id game.GameID) (protocol.GameUpdate, error) {
-		return h.replayedSnapshot(ctx, id, user)
+	return xslices.MapErr(recs, func(rec store.GameRecord) (protocol.GameUpdate, error) {
+		return finishedUpdate(rec, user)
 	})
 }
 
+// snapshot reads a finished game from its stored metadata; every ongoing game has a live room.
 func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
 	if r, err := h.liveRoom(id); err == nil {
 		s, err := r.Snapshot(ctx, user)
 		return s.Update, err
 	}
-	return h.replayedSnapshot(ctx, id, user)
-}
-
-// replayedSnapshot rebuilds a game that has no live room, then stops the
-// rebuilt room so it never acts on its own.
-func (h *Hub) replayedSnapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
 	rec, err := h.deps.Store.LoadGame(ctx, id)
-	if errors.Is(err, store.ErrNotFound) {
-		return protocol.GameUpdate{}, protocol.Error{Code: protocol.CodeNotFound, Msg: err.Error()}
+	if errors.Is(err, store.ErrNotFound) || err == nil && rec.Finish == nil {
+		return protocol.GameUpdate{}, protocol.Error{Code: protocol.CodeNotFound, Msg: fmt.Sprintf("no game %s", id)}
 	}
 	if err != nil {
 		return protocol.GameUpdate{}, err
 	}
-	roomCtx, stop := context.WithCancel(h.ctx)
-	defer stop()
-	r, err := h.restore(roomCtx, rec)
-	if err != nil {
-		return protocol.GameUpdate{}, err
-	}
-	s, err := r.Snapshot(ctx, user)
-	return s.Update, err
+	return finishedUpdate(rec, user)
 }
 
 func (h *Hub) gameType(t game.GameType) (game.Game, error) {

@@ -194,6 +194,12 @@ type WireClock struct {
 	Running     *game.UserID          `json:"running"`
 }
 
+// UnixMS is a wall-clock instant as milliseconds since the Unix epoch.
+type UnixMS int64
+
+func UnixMSOf(t time.Time) UnixMS { return UnixMS(t.UnixMilli()) }
+
+// GameUpdate.Summary carries a finished game's summary as the exact bytes Digest covers.
 type GameUpdate struct {
 	GameID     game.GameID       `json:"game_id"`
 	Game       game.GameType     `json:"game"`
@@ -207,6 +213,14 @@ type GameUpdate struct {
 	Controls   []Control         `json:"controls"`
 	Events     []json.RawMessage `json:"events"`
 	View       json.RawMessage   `json:"view"`
+	StartedAt  UnixMS            `json:"started_at"`
+	FinishedAt *UnixMS           `json:"finished_at"`
+	Summary    *string           `json:"summary"`
+	Digest     *game.Digest      `json:"digest"`
+}
+
+type GameVerifyRequest struct {
+	Summary string `json:"summary"`
 }
 
 type Tally struct {

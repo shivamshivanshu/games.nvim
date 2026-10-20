@@ -48,6 +48,7 @@ func (h *Hub) Routes() session.Router {
 		protocol.TypeGameAct:          session.Handle(h.act),
 		protocol.TypeGameControl:      session.Handle(h.control),
 		protocol.TypeStatsGet:         session.Handle(h.stats),
+		protocol.TypeGameVerify:       session.Handle(h.verify),
 	}
 }
 

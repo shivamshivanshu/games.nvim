@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/games/chess"
 	"github.com/shivamshivanshu/games.nvim/server/internal/auth"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
@@ -29,6 +30,7 @@ import (
 const (
 	alice         game.UserID   = "alice"
 	bob           game.UserID   = "bob"
+	carol         game.UserID   = "carol"
 	testPassword                = "correct horse"
 	chessType     game.GameType = "chess"
 	shutdownWait                = 5 * time.Second
@@ -57,7 +59,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, user := range []game.UserID{alice, bob} {
+	for _, user := range []game.UserID{alice, bob, carol} {
 		if err := st.CreateUser(ctx, user, hash); err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +78,7 @@ func (e *env) start(t *testing.T) server {
 	ctx, cancel := context.WithCancel(context.Background())
 	h, err := hub.New(ctx, hub.Deps{
 		Store:   e.store,
-		Games:   []game.Game{game.Adapt(chess.Rules{})},
+		Games:   []game.Game{game.Adapt(chess.Rules{}), game.Adapt(gametest.CounterRules{}), game.Adapt(gametest.ScoredCounterRules{})},
 		Limits:  lim,
 		Time:    e.clock,
 		Lockout: auth.NewLockout(lim.LockoutFailures, lim.LockoutWindow, lim.LockoutDuration, e.clock.Now),
@@ -125,8 +127,13 @@ func startGame(t *testing.T, challenger, opponent *testClient, to game.UserID, o
 	if err != nil {
 		t.Fatal(err)
 	}
+	return startGameOf(t, challenger, opponent, to, chessType, rawOpts)
+}
+
+func startGameOf(t *testing.T, challenger, opponent *testClient, to game.UserID, typ game.GameType, rawOpts json.RawMessage) game.GameID {
+	t.Helper()
 	created := call[protocol.ChallengeCreateResult](t, challenger, protocol.TypeChallengeCreate,
-		protocol.ChallengeCreateRequest{To: []game.UserID{to}, Game: chessType, Options: rawOpts})
+		protocol.ChallengeCreateRequest{To: []game.UserID{to}, Game: typ, Options: rawOpts})
 	for {
 		invite := waitPush[protocol.Challenge](t, opponent, protocol.TypeChallengeChanged)
 		if invite.ChallengeID == created.ChallengeID && invite.State == protocol.ChallengePending {
@@ -167,7 +174,8 @@ func ongoing(t *testing.T, c *testClient) []protocol.GameUpdate {
 
 func TestFoolsMateEndToEnd(t *testing.T) {
 	t.Parallel()
-	srv := newEnv(t).start(t)
+	e := newEnv(t)
+	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
 
 	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControlNone, Color: chess.ColorWhite})
@@ -188,6 +196,10 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 		final := waitUpdate(t, c, seq)
 		if final.Result == nil || final.Result.Reason != chess.ReasonCheckmate || !slices.Equal(final.Result.Winners, []game.UserID{bob}) {
 			t.Fatalf("final result = %+v, want checkmate won by bob", final.Result)
+		}
+		e.requireSealed(t, final)
+		if !strings.Contains(string(final.View), "Qh4#") {
+			t.Fatalf("finishing broadcast view %s lacks the mating move", final.View)
 		}
 	}
 
@@ -274,7 +286,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	}
 }
 
-func TestTimeoutReplaysAsFinishedAfterRestart(t *testing.T) {
+func TestTimeoutListsAsFinishedAfterRestart(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
@@ -295,11 +307,8 @@ func TestTimeoutReplaysAsFinishedAfterRestart(t *testing.T) {
 		t.Fatalf("ongoing after restart = %+v, want none", games)
 	}
 	finished := call[protocol.GameListResult](t, a, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
-	if len(finished) != 1 || finished[0].GameID != id || finished[0].Seq != final.Seq || finished[0].Result == nil {
-		t.Fatalf("finished after restart = %+v, want the timed-out game at seq %d", finished, final.Seq)
-	}
-	if diff := cmp.Diff(final.Result, finished[0].Result); diff != "" {
-		t.Fatalf("replayed result (-live +replayed):\n%s", diff)
+	if diff := cmp.Diff([]protocol.GameUpdate{metadataOnly(final)}, finished); diff != "" {
+		t.Fatalf("finished list after restart (-want +listed):\n%s", diff)
 	}
 }
 

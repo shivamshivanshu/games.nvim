@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -51,9 +52,23 @@ func step(seq game.Seq, user game.UserID) StepRecord {
 	}
 }
 
-func finish(t *testing.T, s *Store, id game.GameID, seq game.Seq, reason game.ResultReason, outcomes map[game.UserID]Outcome) {
+var (
+	won  = Standing{Outcome: OutcomeWin, Score: 1}
+	lost = Standing{Outcome: OutcomeLoss, Score: -1}
+	drew = Standing{Outcome: OutcomeDraw, Score: 0}
+)
+
+func finishOf(seq game.Seq, kind game.ResultKind, reason game.ResultReason, standings map[game.UserID]Standing) Finish {
+	return Finish{
+		At: epoch.Add(time.Duration(seq) * time.Second), Seq: seq,
+		Ending:  Ending{Kind: kind, Reason: reason, Standings: standings},
+		Summary: []byte(`{"game_id":"x"}`), Digest: "d1",
+	}
+}
+
+func finish(t *testing.T, s *Store, id game.GameID, f Finish) {
 	t.Helper()
-	if err := s.FinishGame(t.Context(), id, step(seq, alice), reason, outcomes); err != nil {
+	if err := s.FinishGame(t.Context(), id, f); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -188,16 +203,19 @@ func TestFinishGameRejectsOutcomeForNonPlayer(t *testing.T) {
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
-	err := s.FinishGame(ctx, "g1", step(1, alice), game.ReasonResign, map[game.UserID]Outcome{"mallory": OutcomeWin})
+	if err := s.AppendStep(ctx, "g1", step(1, alice)); err != nil {
+		t.Fatal(err)
+	}
+	err := s.FinishGame(ctx, "g1", finishOf(2, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{"mallory": won}))
 	if err == nil {
 		t.Fatal("want error")
 	}
-	if ongoing, _ := s.LoadOngoing(ctx); len(ongoing) != 1 || len(ongoing[0].Steps) != 0 {
+	if ongoing, _ := s.LoadOngoing(ctx); len(ongoing) != 1 || len(ongoing[0].Steps) != 1 {
 		t.Fatal("finish was not rolled back")
 	}
 }
 
-func TestFinishGameIsAtomicAndLeavesOngoing(t *testing.T) {
+func TestFinishGameStoresEndingAndDeletesSteps(t *testing.T) {
 	ctx := t.Context()
 	s := openTemp(t)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
@@ -208,27 +226,79 @@ func TestFinishGameIsAtomicAndLeavesOngoing(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	finish(t, s, "g1", 4, game.ReasonResign, map[game.UserID]Outcome{alice: OutcomeWin, bob: OutcomeLoss})
+	want := finishOf(4, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{alice: won, bob: lost})
+	if err := s.FinishGame(ctx, "g1", want); err != nil {
+		t.Fatal(err)
+	}
 
 	ongoing, err := s.LoadOngoing(ctx)
 	if err != nil || len(ongoing) != 0 {
 		t.Fatalf("ongoing = %v, err = %v", ongoing, err)
 	}
 	rec, err := s.LoadGame(ctx, "g1")
-	if err != nil || len(rec.Steps) != 4 {
-		t.Fatalf("steps = %d, err = %v", len(rec.Steps), err)
+	if err != nil || len(rec.Steps) != 0 {
+		t.Fatalf("steps = %d, err = %v; want the finish to delete them", len(rec.Steps), err)
+	}
+	if diff := cmp.Diff(&want, rec.Finish); diff != "" {
+		t.Fatalf("finish (-stored +loaded):\n%s", diff)
+	}
+	if digest, err := s.Digest(ctx, "g1"); err != nil || digest != want.Digest {
+		t.Fatalf("digest = %q, %v", digest, err)
 	}
 }
 
-func TestFinishGameRollsBackStepWhenGameMissing(t *testing.T) {
+func TestFinishGameRefusesSecondFinish(t *testing.T) {
+	ctx := t.Context()
 	s := openTemp(t)
-	err := s.FinishGame(t.Context(), "nope", step(1, alice), game.ReasonResign, nil)
-	if err == nil {
-		t.Fatal("want error for unknown game")
+	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
+		t.Fatal(err)
 	}
-	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM actions`).Scan(&n); err != nil || n != 0 {
-		t.Fatalf("actions rows = %d, err = %v", n, err)
+	finish(t, s, "g1", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{alice: won, bob: lost}))
+	again := finishOf(2, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]Standing{alice: drew, bob: drew})
+	again.Digest = "d2"
+	if err := s.FinishGame(ctx, "g1", again); !errors.Is(err, ErrNotOngoing) {
+		t.Fatalf("second finish: want ErrNotOngoing, got %v", err)
+	}
+	rec, err := s.LoadGame(ctx, "g1")
+	if err != nil || rec.Finish.Digest != "d1" || rec.Finish.Standings[alice] != won {
+		t.Fatalf("after a refused second finish: %+v, %v", rec.Finish, err)
+	}
+}
+
+func TestLoadFinishedKeepsPlayersWhenTopNShiftsMidLoad(t *testing.T) {
+	ctx := t.Context()
+	s := openTemp(t)
+	for _, id := range []game.GameID{"g1", "g2", "g3"} {
+		if err := s.CreateGame(ctx, newGame(id)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	standings := map[game.UserID]Standing{alice: won, bob: lost}
+	finish(t, s, "g1", finishOf(1, game.ResultDecisive, game.ReasonResign, standings))
+	finish(t, s, "g2", finishOf(2, game.ResultDecisive, game.ReasonResign, standings))
+	shifted := false
+	s.afterResolve = func() {
+		if !shifted {
+			shifted = true
+			finish(t, s, "g3", finishOf(3, game.ResultDecisive, game.ReasonResign, standings))
+		}
+	}
+
+	recs, err := s.LoadFinished(ctx, alice, 2)
+	if err != nil || !shifted {
+		t.Fatalf("load = %v, shifted = %t", err, shifted)
+	}
+	for _, rec := range recs {
+		if len(rec.Players) != 2 || len(rec.Finish.Standings) != 2 {
+			t.Errorf("%s: players %v, standings %v; want both", rec.ID, rec.Players, rec.Finish.Standings)
+		}
+	}
+	ids := make([]game.GameID, 0, len(recs))
+	for _, rec := range recs {
+		ids = append(ids, rec.ID)
+	}
+	if !slices.Equal(ids, []game.GameID{"g2", "g1"}) {
+		t.Errorf("ids %v, want those resolved before the shift, newest first", ids)
 	}
 }
 
@@ -240,9 +310,9 @@ func TestStatsExcludeAborted(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	finish(t, s, "win", 1, game.ReasonResign, map[game.UserID]Outcome{alice: OutcomeWin, bob: OutcomeLoss})
-	finish(t, s, "draw", 1, game.ReasonDrawAgreed, map[game.UserID]Outcome{alice: OutcomeDraw, bob: OutcomeDraw})
-	finish(t, s, "abort", 1, game.ReasonAborted, nil)
+	finish(t, s, "win", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{alice: won, bob: lost}))
+	finish(t, s, "draw", finishOf(1, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]Standing{alice: drew, bob: drew}))
+	finish(t, s, "abort", finishOf(1, game.ResultAborted, game.ReasonAborted, nil))
 
 	stats, h2h, err := s.Stats(ctx)
 	if err != nil {
@@ -263,9 +333,9 @@ func TestStatsExcludeAborted(t *testing.T) {
 		t.Fatalf("head-to-head (-want +got):\n%s", diff)
 	}
 
-	ids, err := s.FinishedGameIDs(ctx, alice, 10)
-	if err != nil || len(ids) != 3 {
-		t.Fatalf("finished ids = %v, err = %v", ids, err)
+	finished, err := s.LoadFinished(ctx, alice, 10)
+	if err != nil || len(finished) != 3 {
+		t.Fatalf("finished = %v, err = %v", finished, err)
 	}
 }
 
