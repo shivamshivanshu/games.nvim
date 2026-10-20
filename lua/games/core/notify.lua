@@ -43,7 +43,7 @@ end
 ---@param client games.Client
 ---@param game_id games.GameID
 local function open_board(client, game_id)
-  require("games.ui.shell").open(client, game_id, require("games").open_options())
+  require("games.ui.shell").open(client, game_id)
 end
 
 ---@param client games.Client

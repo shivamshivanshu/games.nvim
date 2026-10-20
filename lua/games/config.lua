@@ -22,10 +22,13 @@ local M = {}
 
 local GLYPHS = { unicode = true, ascii = true }
 
-M.DEFAULTS = {
+---@type games.Glyphs
+M.DEFAULT_GLYPHS = "unicode"
+
+local DEFAULTS = {
   server = { host = "127.0.0.1", port = 7777 },
   autoconnect = true,
-  glyphs = "unicode",
+  glyphs = M.DEFAULT_GLYPHS,
 }
 
 ---@param port any
@@ -39,7 +42,7 @@ end
 ---@return games.Config
 function M.resolve(opts)
   vim.validate("opts", opts, "table")
-  local config = vim.tbl_deep_extend("force", M.DEFAULTS, opts)
+  local config = vim.tbl_deep_extend("force", DEFAULTS, opts)
   vim.validate("server.host", config.server.host, "string")
   vim.validate("server.port", config.server.port, is_port, "port number 1-65535")
   vim.validate("username", config.username, "string")

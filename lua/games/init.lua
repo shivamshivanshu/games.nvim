@@ -54,7 +54,7 @@ end
 ---Options for every board this plugin opens, taken from the user's config.
 ---@return games.OpenOptions
 function M.open_options()
-  return { glyphs = M.config and M.config.glyphs }
+  return { glyphs = M.config and M.config.glyphs or config.DEFAULT_GLYPHS }
 end
 
 return M

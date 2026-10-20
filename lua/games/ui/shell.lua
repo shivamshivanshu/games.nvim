@@ -1,5 +1,6 @@
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
+local games = require("games")
 local notify = require("games.core.notify")
 local paint = require("games.ui.paint")
 local theme = require("games.ui.theme")
@@ -33,7 +34,7 @@ local Control = types.Control
 ---@field describe_event? fun(event: games.Event, update: games.GameUpdate): string|nil
 
 ---@class games.OpenOptions
----@field glyphs? games.Glyphs
+---@field glyphs games.Glyphs
 
 ---@class games.Board
 ---@field buf integer
@@ -66,7 +67,6 @@ local CONTROL_KEYS = {
 local INPUT_KEY = "m"
 local NEXT_GAME_KEY = "]g"
 local CLOSE_KEY = "q"
-local DEFAULT_GLYPHS = "unicode"
 local CLOCK_TICK_MS = 1000
 local CONFIRM_YES = 1
 
@@ -487,7 +487,7 @@ end
 
 ---@param client games.Client
 ---@param game_id games.GameID
----@param opts? games.OpenOptions
+---@param opts? games.OpenOptions defaults to the user's config
 ---@return integer|nil buf
 function M.open(client, game_id, opts)
   local me = notify.require_me(client)
@@ -527,7 +527,7 @@ function M.open(client, game_id, opts)
     client = client,
     module = module,
     me = me,
-    view = { glyphs = opts and opts.glyphs or DEFAULT_GLYPHS, flipped = false },
+    view = { glyphs = (opts or games.open_options()).glyphs, flipped = false },
     update = update,
     header_height = 0,
     mapped_keys = {},
@@ -542,7 +542,7 @@ end
 
 ---@param client games.Client
 ---@param after_game_id? games.GameID
----@param opts? games.OpenOptions
+---@param opts? games.OpenOptions defaults to the user's config
 ---@return integer|nil buf
 function M.open_next(client, after_game_id, opts)
   local me = notify.require_me(client)

@@ -271,7 +271,7 @@ local function list(client, me, args)
           return picker.format_game(update, me)
         end,
       }, function(update)
-        shell.open(client, update.game_id, require("games").open_options())
+        shell.open(client, update.game_id)
       end)
     end)
   )
@@ -312,7 +312,7 @@ end
 
 ---@type games.SubcommandRun
 local function next_game(client)
-  shell.open_next(client, nil, require("games").open_options())
+  shell.open_next(client)
 end
 
 ---@type games.Subcommand[]
