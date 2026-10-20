@@ -13,6 +13,7 @@ local assert_eq = helpers.assert_eq
 local function with_plugin(fn)
   helpers.with_server(nil, function(env)
     local original = { select = vim.ui.select, input = vim.ui.input, notify = vim.notify }
+    local plugin = { config = games.config, client = games.client }
     ---@type games.test.UiStubs
     local stubs = { notified = {} }
     vim.ui.select = function(items, _, on_choice)
@@ -39,6 +40,7 @@ local function with_plugin(fn)
     if games.client then
       games.client.conn:close()
     end
+    games.config, games.client = plugin.config, plugin.client
     vim.cmd("silent! %bwipeout!")
     if not ok then
       error(err, 0)
