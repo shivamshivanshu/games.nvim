@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
@@ -28,8 +29,8 @@ type UserTally struct {
 }
 
 // Stats holds Records grouped by game and ranked within each, HeadToHead by
-// user, opponent and game, and Leaderboard every user's totals over all games,
-// ranked. A rank orders most wins, then fewest losses, then most draws, then user.
+// user, opponent and game, and Leaderboard every user's totals over the ranked
+// games, ranked. A rank orders most wins, then fewest losses, then most draws, then user.
 type Stats struct {
 	Records     []StatRecord
 	HeadToHead  []HeadToHeadRecord
@@ -47,8 +48,14 @@ const (
 )
 
 // Stats reads the records and head-to-head of user alone, or of everyone when
-// user is "", and the whole leaderboard either way.
-func (s *Store) Stats(ctx context.Context, user game.UserID) (Stats, error) {
+// user is "", and the whole leaderboard either way, which leaves out the games
+// of the unranked types.
+func (s *Store) Stats(ctx context.Context, user game.UserID, unranked []game.GameType) (Stats, error) {
+	// A nil slice encodes as null, which json_each reads as one NULL row that NOT IN never passes.
+	unrankedJSON, err := json.Marshal(append([]game.GameType{}, unranked...))
+	if err != nil {
+		return Stats{}, err
+	}
 	records, err := queryAll(ctx, s.reader, func(row scanner) (StatRecord, error) {
 		var r StatRecord
 		return r, row.Scan(&r.User, &r.Game, &r.Wins, &r.Losses, &r.Draws)
@@ -80,9 +87,10 @@ func (s *Store) Stats(ctx context.Context, user game.UserID) (Stats, error) {
 		return r, row.Scan(&r.User, &r.Wins, &r.Losses, &r.Draws)
 	}, `
 		SELECT a.username,`+outcomeTallies+`
-		FROM game_players a
+		FROM game_players a JOIN games g ON g.game_id = a.game_id
 		WHERE a.outcome IS NOT NULL
+		AND g.game_type NOT IN (SELECT value FROM json_each(?))
 		GROUP BY a.username
-		ORDER BY `+byRank)
+		ORDER BY `+byRank, string(unrankedJSON))
 	return Stats{Records: records, HeadToHead: headToHead, Leaderboard: leaderboard}, err
 }

@@ -109,4 +109,7 @@ func TestSoloGiveUpSealsLossWithNoWinner(t *testing.T) {
 	if want := []protocol.StatsRecord{{User: alice, Game: soloCounterType, Tally: protocol.Tally{Losses: 1}}}; !cmp.Equal(want, stats.Records) {
 		t.Errorf("stats %+v, want the solo loss on its own game's board", stats.Records)
 	}
+	if len(stats.Leaderboard) != 0 {
+		t.Errorf("leaderboard %+v, want the solo loss left out of the total", stats.Leaderboard)
+	}
 }

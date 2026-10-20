@@ -321,7 +321,7 @@ func TestStatsExcludeAborted(t *testing.T) {
 	finish(t, s, "draw", finishOf(1, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: drew, bob: drew}))
 	finish(t, s, "abort", finishOf(1, game.ResultAborted, game.ReasonAborted, nil))
 
-	stats, err := s.Stats(ctx, "")
+	stats, err := s.Stats(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +369,7 @@ func TestStatsRankAndFilterByUser(t *testing.T) {
 		{User: alice, Tally: store.Tally{Wins: 2, Losses: 1}},
 		{User: bob, Tally: store.Tally{Wins: 1, Losses: 4}},
 	}
-	all, err := s.Stats(ctx, "")
+	all, err := s.Stats(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +380,7 @@ func TestStatsRankAndFilterByUser(t *testing.T) {
 	if !slices.Equal(ranked, []game.UserID{carol, alice, bob}) {
 		t.Errorf("records ranked %v, want carol, alice, bob", ranked)
 	}
-	alices, err := s.Stats(ctx, alice)
+	alices, err := s.Stats(ctx, alice, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,7 +419,7 @@ func TestStatsRankMoreDrawsFirstAmongEqualWinsAndLosses(t *testing.T) {
 		}
 		finish(t, s, id, finishOf(1, kind, game.ReasonResign, standings))
 	}
-	stats, err := s.Stats(ctx, "")
+	stats, err := s.Stats(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,6 +429,42 @@ func TestStatsRankMoreDrawsFirstAmongEqualWinsAndLosses(t *testing.T) {
 	}
 	if want := []game.UserID{carol, bob, alice}; !slices.Equal(ranked, want) {
 		t.Errorf("leaderboard %v, want %v: bob's draw ranks him above alice's equal wins and losses", ranked, want)
+	}
+}
+
+func TestStatsLeaderboardLeavesOutUnrankedGames(t *testing.T) {
+	const solo game.GameType = "solo"
+	ctx := t.Context()
+	s := storetest.Open(t, passwordHash, alice, bob)
+	duel := newGame("duel")
+	alone := newGame("alone")
+	alone.Type, alone.Players = solo, []game.Player{{User: alice, Seat: "a"}}
+	for _, rec := range []store.GameRecord{duel, alone} {
+		if err := s.CreateGame(ctx, rec); err != nil {
+			t.Fatal(err)
+		}
+	}
+	finish(t, s, "duel", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{alice: won, bob: lost}))
+	finish(t, s, "alone", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{alice: lost}))
+
+	stats, err := s.Stats(ctx, "", []game.GameType{solo})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRecords := []store.StatRecord{
+		{User: alice, Game: "chess", Tally: store.Tally{Wins: 1}},
+		{User: bob, Game: "chess", Tally: store.Tally{Losses: 1}},
+		{User: alice, Game: solo, Tally: store.Tally{Losses: 1}},
+	}
+	if diff := cmp.Diff(wantRecords, stats.Records); diff != "" {
+		t.Errorf("records (-want +got):\n%s", diff)
+	}
+	wantLeaderboard := []store.UserTally{
+		{User: alice, Tally: store.Tally{Wins: 1}},
+		{User: bob, Tally: store.Tally{Losses: 1}},
+	}
+	if diff := cmp.Diff(wantLeaderboard, stats.Leaderboard); diff != "" {
+		t.Errorf("leaderboard (-want +got):\n%s", diff)
 	}
 }
 

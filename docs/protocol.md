@@ -246,7 +246,7 @@ by the server.
 - A rank orders most wins, then fewest losses, then most draws, then user name.
 - `records`: `[{user, game, wins, losses, draws}]`, grouped by game, ranked within each game.
 - `head_to_head`: `[{user, opponent, game, wins, losses, draws}]`, by user, opponent, game.
-- `leaderboard`: `[{user, wins, losses, draws}]`, totals over every game, ranked.
+- `leaderboard`: `[{user, wins, losses, draws}]`, totals over every game but solo ones (`players.max == 1`), ranked; a solo game counts only in its own `records`.
 - `user` limits `records` and `head_to_head` to that user; a user with no finished games gets them empty. `leaderboard` is never filtered.
 
 ## Times
