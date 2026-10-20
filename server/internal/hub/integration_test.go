@@ -199,11 +199,18 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 
 	stats := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.Empty{})
 	want := []protocol.StatsRecord{
-		{User: alice, Game: chessType, Tally: protocol.Tally{Losses: 1}},
 		{User: bob, Game: chessType, Tally: protocol.Tally{Wins: 1}},
+		{User: alice, Game: chessType, Tally: protocol.Tally{Losses: 1}},
 	}
 	if diff := cmp.Diff(want, stats.Records); diff != "" {
 		t.Fatalf("stats records (-want +got):\n%s", diff)
+	}
+	wantLeaderboard := []protocol.LeaderboardEntry{{User: bob, Tally: protocol.Tally{Wins: 1}}, {User: alice, Tally: protocol.Tally{Losses: 1}}}
+	if diff := cmp.Diff(wantLeaderboard, stats.Leaderboard); diff != "" {
+		t.Fatalf("leaderboard (-want +got):\n%s", diff)
+	}
+	if own := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.StatsRequest{User: alice}); len(own.Records) != 1 || own.Records[0].User != alice {
+		t.Fatalf("alice's stats records %+v, want hers alone", own.Records)
 	}
 	wantHeadToHead := []protocol.HeadToHeadRecord{
 		{User: alice, Opponent: bob, Game: chessType, Tally: protocol.Tally{Losses: 1}},
@@ -413,7 +420,7 @@ func TestFreshUserListsEncodeEmptyArrays(t *testing.T) {
 		{protocol.TypeGameList, protocol.GameListRequest{}, `{"games":[]}`},
 		{protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}, `{"games":[]}`},
 		{protocol.TypeChallengeList, protocol.Empty{}, `{"challenges":[]}`},
-		{protocol.TypeStatsGet, protocol.Empty{}, `{"records":[],"head_to_head":[]}`},
+		{protocol.TypeStatsGet, protocol.Empty{}, `{"records":[],"head_to_head":[],"leaderboard":[]}`},
 	} {
 		raw, err := a.Request(tc.typ, tc.body)
 		if err != nil {

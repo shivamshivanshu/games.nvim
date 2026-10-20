@@ -164,21 +164,24 @@ func (h *Hub) control(ctx context.Context, s *session.Session, req protocol.Game
 	return protocol.SeqResult{Seq: seq}, err
 }
 
-func (h *Hub) stats(ctx context.Context, _ *session.Session, _ protocol.Empty) (protocol.StatsResult, error) {
-	records, headToHead, err := h.deps.Store.Stats(ctx)
+func (h *Hub) stats(ctx context.Context, _ *session.Session, req protocol.StatsRequest) (protocol.StatsResult, error) {
+	stats, err := h.deps.Store.Stats(ctx, req.User)
 	if err != nil {
 		return protocol.StatsResult{}, err
 	}
 	return protocol.StatsResult{
-		Records: xslices.Map(records, func(r store.StatRecord) protocol.StatsRecord {
+		Records: xslices.Map(stats.Records, func(r store.StatRecord) protocol.StatsRecord {
 			return protocol.StatsRecord{
 				User: r.User, Game: r.Game, Tally: protocol.Tally(r.Tally),
 			}
 		}),
-		HeadToHead: xslices.Map(headToHead, func(r store.HeadToHeadRecord) protocol.HeadToHeadRecord {
+		HeadToHead: xslices.Map(stats.HeadToHead, func(r store.HeadToHeadRecord) protocol.HeadToHeadRecord {
 			return protocol.HeadToHeadRecord{
 				User: r.User, Opponent: r.Opponent, Game: r.Game, Tally: protocol.Tally(r.Tally),
 			}
+		}),
+		Leaderboard: xslices.Map(stats.Leaderboard, func(r store.UserTally) protocol.LeaderboardEntry {
+			return protocol.LeaderboardEntry{User: r.User, Tally: protocol.Tally(r.Tally)}
 		}),
 	}, nil
 }

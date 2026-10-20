@@ -290,7 +290,21 @@ type HeadToHeadRecord struct {
 	Tally
 }
 
+// StatsRequest.User, when set, limits the records and head-to-head to that user.
+type StatsRequest struct {
+	User game.UserID `json:"user,omitempty"`
+}
+
+type LeaderboardEntry struct {
+	User game.UserID `json:"user"`
+	Tally
+}
+
+// StatsResult is ranked by the server: Records by game, then rank within it;
+// Leaderboard by rank over every game and every user. A rank orders most wins,
+// then fewest losses, then most draws, then user.
 type StatsResult struct {
-	Records    []StatsRecord      `json:"records"`
-	HeadToHead []HeadToHeadRecord `json:"head_to_head"`
+	Records     []StatsRecord      `json:"records"`
+	HeadToHead  []HeadToHeadRecord `json:"head_to_head"`
+	Leaderboard []LeaderboardEntry `json:"leaderboard"`
 }

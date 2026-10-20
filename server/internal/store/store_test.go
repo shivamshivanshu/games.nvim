@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -308,7 +309,7 @@ func TestStatsExcludeAborted(t *testing.T) {
 	finish(t, s, "draw", finishOf(1, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: drew, bob: drew}))
 	finish(t, s, "abort", finishOf(1, game.ResultAborted, game.ReasonAborted, nil))
 
-	stats, h2h, err := s.Stats(ctx)
+	stats, err := s.Stats(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,20 +317,106 @@ func TestStatsExcludeAborted(t *testing.T) {
 		{User: alice, Game: "chess", Tally: store.Tally{Wins: 1, Draws: 1}},
 		{User: bob, Game: "chess", Tally: store.Tally{Losses: 1, Draws: 1}},
 	}
-	if diff := cmp.Diff(wantStats, stats); diff != "" {
+	if diff := cmp.Diff(wantStats, stats.Records); diff != "" {
 		t.Fatalf("stats (-want +got):\n%s", diff)
 	}
 	wantH2H := []store.HeadToHeadRecord{
 		{User: alice, Opponent: bob, Game: "chess", Tally: store.Tally{Wins: 1, Draws: 1}},
 		{User: bob, Opponent: alice, Game: "chess", Tally: store.Tally{Losses: 1, Draws: 1}},
 	}
-	if diff := cmp.Diff(wantH2H, h2h); diff != "" {
+	if diff := cmp.Diff(wantH2H, stats.HeadToHead); diff != "" {
 		t.Fatalf("head-to-head (-want +got):\n%s", diff)
 	}
 
 	finished, err := s.LoadFinished(ctx, alice, 10)
 	if err != nil || len(finished) != 3 {
 		t.Fatalf("finished = %v, err = %v", finished, err)
+	}
+}
+
+func TestStatsRankAndFilterByUser(t *testing.T) {
+	const carol game.UserID = "carol"
+	ctx := t.Context()
+	s := storetest.Open(t, passwordHash, alice, bob, carol)
+	games := []struct {
+		id            game.GameID
+		winner, loser game.UserID
+	}{
+		{"g1", carol, bob}, {"g2", carol, bob}, {"g3", alice, bob}, {"g4", alice, bob}, {"g5", bob, alice},
+	}
+	for _, g := range games {
+		rec := newGame(g.id)
+		rec.Players = []game.Player{{User: g.winner, Seat: "white"}, {User: g.loser, Seat: "black"}}
+		if err := s.CreateGame(ctx, rec); err != nil {
+			t.Fatal(err)
+		}
+		finish(t, s, g.id, finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{g.winner: won, g.loser: lost}))
+	}
+	wantLeaderboard := []store.UserTally{
+		{User: carol, Tally: store.Tally{Wins: 2}},
+		{User: alice, Tally: store.Tally{Wins: 2, Losses: 1}},
+		{User: bob, Tally: store.Tally{Wins: 1, Losses: 4}},
+	}
+	all, err := s.Stats(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ranked := make([]game.UserID, 0, len(all.Records))
+	for _, r := range all.Records {
+		ranked = append(ranked, r.User)
+	}
+	if !slices.Equal(ranked, []game.UserID{carol, alice, bob}) {
+		t.Errorf("records ranked %v, want carol, alice, bob", ranked)
+	}
+	alices, err := s.Stats(ctx, alice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(alices.Records) != 1 || alices.Records[0].User != alice || len(alices.HeadToHead) != 1 || alices.HeadToHead[0].User != alice {
+		t.Errorf("alice's stats %+v, want only her own rows", alices)
+	}
+	for name, got := range map[string][]store.UserTally{"unfiltered": all.Leaderboard, "filtered": alices.Leaderboard} {
+		if diff := cmp.Diff(wantLeaderboard, got); diff != "" {
+			t.Errorf("%s leaderboard (-want +got):\n%s", name, diff)
+		}
+	}
+}
+
+func TestStatsRankMoreDrawsFirstAmongEqualWinsAndLosses(t *testing.T) {
+	const carol game.UserID = "carol"
+	ctx := t.Context()
+	s := storetest.Open(t, passwordHash, alice, bob, carol)
+	games := []map[game.UserID]store.Standing{
+		{alice: won, carol: lost}, {carol: won, alice: lost},
+		{bob: won, carol: lost}, {carol: won, bob: lost},
+		{bob: drew, carol: drew},
+	}
+	for i, standings := range games {
+		id := game.GameID(fmt.Sprintf("g%d", i))
+		rec := newGame(id)
+		rec.Players = nil
+		for user := range standings {
+			rec.Players = append(rec.Players, game.Player{User: user, Seat: game.Seat(user)})
+		}
+		if err := s.CreateGame(ctx, rec); err != nil {
+			t.Fatal(err)
+		}
+		kind := game.ResultDecisive
+		if standings[bob] == drew {
+			kind = game.ResultDraw
+		}
+		finish(t, s, id, finishOf(1, kind, game.ReasonResign, standings))
+	}
+	stats, err := s.Stats(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ranked := make([]game.UserID, 0, len(stats.Leaderboard))
+	for _, entry := range stats.Leaderboard {
+		ranked = append(ranked, entry.User)
+	}
+	if want := []game.UserID{carol, bob, alice}; !slices.Equal(ranked, want) {
+		t.Errorf("leaderboard %v, want %v: bob's draw ranks him above alice's equal wins and losses", ranked, want)
 	}
 }
 
