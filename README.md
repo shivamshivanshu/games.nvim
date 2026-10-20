@@ -169,7 +169,7 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 | `:Games stats [user]` | W/L/D float (default: you) |
 | `:Games leaderboard [game]` | leaderboard float, optionally for one game type |
 | `:Games next` | open the next game waiting on your move |
-| `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or had no view |
+| `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or failed |
 
 Incoming challenges and moves in boards you are not viewing arrive as `vim.notify` messages. Accepting a challenge opens the board when the game starts.
 
@@ -226,9 +226,13 @@ Transport is plain TCP, with no TLS. The username and password cross the wire in
 
 ## Development
 
+The wire protocol, for writing another client: [docs/protocol.md](docs/protocol.md), with its JSON Schema under `docs/schema/` and replayable transcripts under `docs/conformance/`.
+
 | Target | Runs |
 |---|---|
-| `make check` | lint, test-go, test-lua |
+| `make check` | lint, schema-check, test-go, test-lua |
+| `make schema` | regenerates `docs/schema/` from the Go types |
+| `make schema-check` | fails when `docs/schema/` differs from what `make schema` writes |
 | `make test-go` | `go test -race -short ./...` plus chess perft |
 | `make test-lua` | headless Neovim tests (`tests/lua/run.lua`); builds the server first |
 | `make lint` | gofmt, `go vet`, `stylua --check`, lua-language-server |

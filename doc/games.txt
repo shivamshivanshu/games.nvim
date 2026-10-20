@@ -219,7 +219,7 @@ same `dir` can both append the same events to `events.jsonl`.
                         Archive the finished games the server lists for
                         you, its 50 most recent (|games-archive|), and
                         report how many were written, already present, or
-                        had no view.
+                        failed.
 
 Incoming challenges, and moves in boards you are not viewing, arrive as
 |vim.notify()| messages. Accepting a challenge opens the board when the game
