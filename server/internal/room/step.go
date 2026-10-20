@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
 // step is a step as the room applies it; only persistence sees its JSON form.

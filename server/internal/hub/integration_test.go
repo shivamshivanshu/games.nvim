@@ -13,16 +13,16 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"games.nvim/server/game"
-	"games.nvim/server/games/chess"
-	"games.nvim/server/internal/auth"
-	"games.nvim/server/internal/clocktest"
-	"games.nvim/server/internal/hub"
-	"games.nvim/server/internal/limits"
-	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/session"
-	"games.nvim/server/internal/store"
-	"games.nvim/server/internal/xslices"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/games/chess"
+	"github.com/shivamshivanshu/games.nvim/server/internal/auth"
+	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/hub"
+	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/session"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (

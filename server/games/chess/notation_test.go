@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 func mustFEN(t *testing.T, fen string) Position {

@@ -3,7 +3,7 @@ package gametest
 import (
 	"math/rand/v2"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 // CounterRules is a minimal game for testing the harness and the adapter:

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"games.nvim/server/internal/clocktest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 )
 
 var testIP = netip.MustParseAddr("203.0.113.7")

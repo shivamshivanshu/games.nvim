@@ -9,11 +9,11 @@ import (
 	"slices"
 	"time"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/clock"
-	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/store"
-	"games.nvim/server/internal/xslices"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/clock"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 var (

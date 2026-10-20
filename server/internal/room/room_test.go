@@ -11,12 +11,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"games.nvim/server/game"
-	"games.nvim/server/games/chess"
-	"games.nvim/server/internal/clocktest"
-	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/store"
-	"games.nvim/server/internal/xslices"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/games/chess"
+	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (

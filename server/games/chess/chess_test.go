@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"games.nvim/server/game"
-	"games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 const (

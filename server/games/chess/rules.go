@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 const TypeChess game.GameType = "chess"

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
 const testMaxLine = 64 * 1024

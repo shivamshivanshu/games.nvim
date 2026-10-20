@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
 const (

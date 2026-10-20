@@ -12,9 +12,9 @@ import (
 
 	"golang.org/x/term"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/auth"
-	"games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/auth"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
 var (

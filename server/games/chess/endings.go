@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 const (

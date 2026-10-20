@@ -8,14 +8,14 @@ import (
 	"slices"
 	"sync"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/auth"
-	"games.nvim/server/internal/challenge"
-	"games.nvim/server/internal/clock"
-	"games.nvim/server/internal/limits"
-	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/session"
-	"games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/auth"
+	"github.com/shivamshivanshu/games.nvim/server/internal/challenge"
+	"github.com/shivamshivanshu/games.nvim/server/internal/clock"
+	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/session"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
 type Deps struct {

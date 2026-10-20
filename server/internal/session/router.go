@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
 var errUnauthenticated = protocol.Error{Code: protocol.CodeUnauthenticated, Msg: "login required"}

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"games.nvim/server/internal/clock"
+	"github.com/shivamshivanshu/games.nvim/server/internal/clock"
 )
 
 type timer struct {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 const (

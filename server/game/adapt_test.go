@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"games.nvim/server/game"
-	"games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 func resolve(t *testing.T, raw string) (game.Options, error) {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 type Control string

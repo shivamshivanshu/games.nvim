@@ -4,7 +4,7 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 type state struct {

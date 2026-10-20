@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/limits"
-	"games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
 const closeFlushTimeout = time.Second

@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 type Tally struct {

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"games.nvim/server/internal/limits"
-	"games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
 const serverFullMessage = "server full"

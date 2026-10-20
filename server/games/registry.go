@@ -1,8 +1,8 @@
 package games
 
 import (
-	"games.nvim/server/game"
-	"games.nvim/server/games/chess"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/games/chess"
 )
 
 func All() []game.Game {

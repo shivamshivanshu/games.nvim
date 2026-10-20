@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"maps"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
 func Restore(ctx context.Context, g Setup, steps []store.StepRecord) (*Room, error) {

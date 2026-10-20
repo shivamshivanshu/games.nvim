@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"time"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/xslices"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 
 	_ "modernc.org/sqlite"
 )

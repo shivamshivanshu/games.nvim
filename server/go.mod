@@ -1,4 +1,4 @@
-module games.nvim/server
+module github.com/shivamshivanshu/games.nvim/server
 
 go 1.26.0
 

@@ -1,6 +1,6 @@
 package chess
 
-import "games.nvim/server/game"
+import "github.com/shivamshivanshu/games.nvim/server/game"
 
 type TimeControl string
 

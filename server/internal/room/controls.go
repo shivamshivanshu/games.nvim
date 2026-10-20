@@ -3,8 +3,8 @@ package room
 import (
 	"slices"
 
-	"games.nvim/server/game"
-	"games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
 func (g Setup) can(c game.Capability) bool { return slices.Contains(g.info.Capabilities, c) }
