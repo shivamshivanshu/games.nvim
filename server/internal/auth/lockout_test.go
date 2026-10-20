@@ -4,18 +4,15 @@ import (
 	"net/netip"
 	"testing"
 	"time"
+
+	"games.nvim/server/internal/clocktest"
 )
-
-type fakeClock struct{ t time.Time }
-
-func (c *fakeClock) now() time.Time          { return c.t }
-func (c *fakeClock) advance(d time.Duration) { c.t = c.t.Add(d) }
 
 var testIP = netip.MustParseAddr("203.0.113.7")
 
-func newTestLockout() (*Lockout, *fakeClock) {
-	clock := &fakeClock{t: time.Unix(1_700_000_000, 0)}
-	return NewLockout(5, 5*time.Minute, 5*time.Minute, clock.now), clock
+func newTestLockout() (*Lockout, *clocktest.FakeClock) {
+	clock := clocktest.New(time.Unix(1_700_000_000, 0))
+	return NewLockout(5, 5*time.Minute, 5*time.Minute, clock.Now), clock
 }
 
 func recordFailures(l *Lockout, n int) {
@@ -39,7 +36,7 @@ func TestLockoutAfterFiveFailuresInWindow(t *testing.T) {
 func TestLockoutExpires(t *testing.T) {
 	l, clock := newTestLockout()
 	recordFailures(l, 5)
-	clock.advance(5*time.Minute + time.Second)
+	clock.Advance(5*time.Minute + time.Second)
 	if l.Locked(testIP) {
 		t.Fatal("still locked after duration elapsed")
 	}
@@ -52,7 +49,7 @@ func TestLockoutExpires(t *testing.T) {
 func TestFailuresOutsideWindowDontCount(t *testing.T) {
 	l, clock := newTestLockout()
 	recordFailures(l, 4)
-	clock.advance(6 * time.Minute)
+	clock.Advance(6 * time.Minute)
 	l.RecordFailure(testIP)
 	if l.Locked(testIP) {
 		t.Fatal("stale failures counted toward lockout")

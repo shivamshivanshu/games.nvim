@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"games.nvim/server/game"
+	"games.nvim/server/internal/clock"
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/store"
 	"games.nvim/server/internal/xslices"
@@ -31,13 +32,6 @@ type Broadcaster interface {
 	SendUpdate(to game.UserID, u protocol.GameUpdate)
 }
 
-type Timer = interface{ Stop() bool }
-
-type Clock interface {
-	Now() time.Time
-	AfterFunc(d time.Duration, f func()) Timer
-}
-
 type Params struct {
 	ID        game.GameID
 	Game      game.Game
@@ -47,7 +41,7 @@ type Params struct {
 	Clock     game.ClockConfig
 	Persist   Persister
 	Broadcast Broadcaster
-	Time      Clock
+	Time      clock.Clock
 }
 
 // setup is everything about a game that is fixed when it starts.
@@ -232,7 +226,7 @@ type Room struct {
 	setup  setup
 	ctx    context.Context
 	cur    roomState
-	timer  Timer
+	timer  clock.Timer
 	inbox  chan func()
 	done   chan struct{}
 	exited chan struct{}

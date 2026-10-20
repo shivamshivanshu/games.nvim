@@ -4,11 +4,9 @@ import (
 	"slices"
 	"sync"
 	"time"
-)
 
-// Stopper mirrors room.Timer as an alias so this package need not import room,
-// which would be an import cycle for room's own tests.
-type Stopper = interface{ Stop() bool }
+	"games.nvim/server/internal/clock"
+)
 
 type timer struct {
 	clock   *FakeClock
@@ -39,7 +37,7 @@ func (c *FakeClock) Now() time.Time {
 	return c.now
 }
 
-func (c *FakeClock) AfterFunc(d time.Duration, f func()) Stopper {
+func (c *FakeClock) AfterFunc(d time.Duration, f func()) clock.Timer {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	t := &timer{clock: c, at: c.now.Add(d), f: f}

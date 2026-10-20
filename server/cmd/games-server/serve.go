@@ -14,9 +14,9 @@ import (
 
 	"games.nvim/server/games"
 	"games.nvim/server/internal/auth"
+	"games.nvim/server/internal/clock"
 	"games.nvim/server/internal/hub"
 	"games.nvim/server/internal/limits"
-	"games.nvim/server/internal/room"
 	"games.nvim/server/internal/session"
 	"games.nvim/server/internal/store"
 )
@@ -45,7 +45,7 @@ func serve(args []string) error {
 		Store:   st,
 		Games:   games.All(),
 		Limits:  lim,
-		Time:    room.SystemClock{},
+		Time:    clock.System{},
 		Lockout: auth.NewLockout(lim.LockoutFailures, lim.LockoutWindow, lim.LockoutDuration, time.Now),
 	})
 	if err != nil {

@@ -62,11 +62,11 @@ func (s roomState) wireClock(g setup, at time.Time) *protocol.WireClock {
 	if !g.Clock.Enabled {
 		return nil
 	}
-	clock := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(g, at), time.Duration.Milliseconds)}
+	wire := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(g, at), time.Duration.Milliseconds)}
 	if users := s.toAct(g); s.clockRunning(g) && len(users) > 0 {
-		clock.Running = &users[0]
+		wire.Running = &users[0]
 	}
-	return clock
+	return wire
 }
 
 func durationFromMS(ms int64) time.Duration { return time.Duration(ms) * time.Millisecond }

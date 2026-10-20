@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"games.nvim/server/game"
+	"games.nvim/server/internal/clock"
 	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/room"
 )
 
 const idBytes = 8
@@ -34,14 +34,14 @@ type StartFunc func(Challenge) (game.GameID, error)
 
 type pendingChallenge struct {
 	Challenge
-	expiry room.Timer
+	expiry clock.Timer
 }
 
 // Registry never holds its mutex while calling onChange or start, because the
 // hub's callbacks may call back into it.
 type Registry struct {
 	ttl      time.Duration
-	clock    room.Clock
+	clock    clock.Clock
 	onChange func(Challenge)
 	start    StartFunc
 
@@ -49,7 +49,7 @@ type Registry struct {
 	pending map[protocol.ChallengeID]*pendingChallenge
 }
 
-func NewRegistry(ttl time.Duration, clock room.Clock, onChange func(Challenge), start StartFunc) *Registry {
+func NewRegistry(ttl time.Duration, clock clock.Clock, onChange func(Challenge), start StartFunc) *Registry {
 	return &Registry{
 		ttl:      ttl,
 		clock:    clock,

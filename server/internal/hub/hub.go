@@ -11,9 +11,9 @@ import (
 	"games.nvim/server/game"
 	"games.nvim/server/internal/auth"
 	"games.nvim/server/internal/challenge"
+	"games.nvim/server/internal/clock"
 	"games.nvim/server/internal/limits"
 	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/room"
 	"games.nvim/server/internal/session"
 	"games.nvim/server/internal/store"
 )
@@ -22,7 +22,7 @@ type Deps struct {
 	Store   *store.Store
 	Games   []game.Game
 	Limits  limits.Limits
-	Time    room.Clock
+	Time    clock.Clock
 	Lockout *auth.Lockout
 }
 
