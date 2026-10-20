@@ -18,7 +18,10 @@ import (
 //go:embed schema.sql
 var schema string
 
-var ErrNotFound = errors.New("store: not found")
+var (
+	ErrNotFound       = errors.New("store: not found")
+	ErrMissingOptions = errors.New("store: game options must be non-empty JSON")
+)
 
 type StepKind string
 
@@ -128,6 +131,9 @@ func (s *Store) ListUsers(ctx context.Context) ([]game.UserID, error) {
 }
 
 func (s *Store) CreateGame(ctx context.Context, rec GameRecord) error {
+	if len(rec.Options) == 0 {
+		return ErrMissingOptions
+	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx,
 			`INSERT INTO games (game_id, game_type, options_json, rng_seed, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -172,10 +178,16 @@ func (s *Store) FinishGame(ctx context.Context, id game.GameID, step StepRecord,
 			return ErrNotFound
 		}
 		for user, outcome := range outcomes {
-			if _, err := tx.ExecContext(ctx,
+			res, err := tx.ExecContext(ctx,
 				`UPDATE game_players SET outcome = ? WHERE game_id = ? AND username = ?`,
-				outcome, id, user); err != nil {
+				outcome, id, user)
+			if err != nil {
 				return err
+			}
+			if n, err := res.RowsAffected(); err != nil {
+				return err
+			} else if n == 0 {
+				return fmt.Errorf("store: outcome for %q: not a player of game %q", user, id)
 			}
 		}
 		return nil

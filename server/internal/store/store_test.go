@@ -72,12 +72,82 @@ func TestStepsRoundTrip(t *testing.T) {
 		rec.Steps = append(rec.Steps, step(seq, alice))
 	}
 
+	control := step(4, bob)
+	control.Kind = StepControl
+	control.Payload = json.RawMessage(`{"op":"resign"}`)
+	timeout := StepRecord{Seq: 5, Kind: StepTimeout, At: epoch.Add(time.Minute)}
+	for _, st := range []StepRecord{control, timeout} {
+		if err := s.AppendStep(ctx, "g1", st); err != nil {
+			t.Fatal(err)
+		}
+		rec.Steps = append(rec.Steps, st)
+	}
+
 	got, err := s.LoadOngoing(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff([]GameRecord{rec}, got); diff != "" {
 		t.Fatalf("mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestReopenKeepsOngoingGames(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "games.db")
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range []game.UserID{alice, bob} {
+		if err := s.CreateUser(ctx, u, []byte("hash")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := newGame("g1")
+	rec.Steps = []StepRecord{step(1, alice), step(2, bob)}
+	if err := s.CreateGame(ctx, rec); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	got, err := reopened.LoadOngoing(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]GameRecord{rec}, got); diff != "" {
+		t.Fatalf("mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCreateGameRejectsEmptyOptions(t *testing.T) {
+	s := openTemp(t)
+	rec := newGame("g1")
+	rec.Options = nil
+	if err := s.CreateGame(context.Background(), rec); !errors.Is(err, ErrMissingOptions) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestFinishGameRejectsOutcomeForNonPlayer(t *testing.T) {
+	ctx := context.Background()
+	s := openTemp(t)
+	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
+		t.Fatal(err)
+	}
+	err := s.FinishGame(ctx, "g1", step(1, alice), game.ReasonResign, map[game.UserID]Outcome{"mallory": OutcomeWin})
+	if err == nil {
+		t.Fatal("want error")
+	}
+	if ongoing, _ := s.LoadOngoing(ctx); len(ongoing) != 1 || len(ongoing[0].Steps) != 0 {
+		t.Fatal("finish was not rolled back")
 	}
 }
 

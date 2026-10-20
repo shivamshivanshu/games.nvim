@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS actions (
     seq         INTEGER NOT NULL,
     username    TEXT NOT NULL,
     kind        TEXT NOT NULL,
-    action_json BLOB NOT NULL,
+    action_json BLOB,
     server_ts   INTEGER NOT NULL,
     clock_json  BLOB,
     PRIMARY KEY (game_id, seq)
