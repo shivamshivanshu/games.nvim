@@ -2,14 +2,15 @@ package chess
 
 import "github.com/shivamshivanshu/games.nvim/server/game"
 
-type TimeControl string
+// TimeControl and its presets alias the shared ones so existing callers keep compiling.
+type TimeControl = game.TimeControl
 
 const (
-	TimeControlNone     TimeControl = "none"
-	TimeControl3Plus2   TimeControl = "3+2"
-	TimeControl5Plus0   TimeControl = "5+0"
-	TimeControl10Plus5  TimeControl = "10+5"
-	TimeControl15Plus10 TimeControl = "15+10"
+	TimeControlNone     = game.TimeControlNone
+	TimeControl3Plus2   = game.TimeControl3Plus2
+	TimeControl5Plus0   = game.TimeControl5Plus0
+	TimeControl10Plus5  = game.TimeControl10Plus5
+	TimeControl15Plus10 = game.TimeControl15Plus10
 )
 
 type ColorChoice string
@@ -19,6 +20,16 @@ const (
 	ColorWhite  ColorChoice = "white"
 	ColorBlack  ColorChoice = "black"
 )
+
+func (c ColorChoice) firstMover() game.FirstMover {
+	switch c {
+	case ColorWhite:
+		return game.FirstMoverMe
+	case ColorBlack:
+		return game.FirstMoverOpponent
+	}
+	return game.FirstMoverRandom
+}
 
 type Opts struct {
 	TimeControl TimeControl `json:"time_control"`

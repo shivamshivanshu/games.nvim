@@ -81,8 +81,6 @@ type Options map[OptionName]OptionValue
 
 const OptionTimeControl OptionName = "time_control"
 
-const timeControlNone OptionValue = "none"
-
 type ClockConfig struct {
 	Initial, Increment time.Duration
 	Enabled            bool
@@ -90,14 +88,14 @@ type ClockConfig struct {
 
 func (o Options) Clock() (ClockConfig, error) {
 	spec, ok := o[OptionTimeControl]
-	if !ok || spec == timeControlNone {
+	if !ok || spec == OptionValue(TimeControlNone) {
 		return ClockConfig{}, nil
 	}
 	minutes, seconds, found := strings.Cut(string(spec), "+")
 	m, errM := strconv.Atoi(minutes)
 	s, errS := strconv.Atoi(seconds)
 	if !found || errM != nil || errS != nil || m < 0 || s < 0 {
-		return ClockConfig{}, fmt.Errorf("invalid %s %q: want \"M+S\" or %q", OptionTimeControl, spec, timeControlNone)
+		return ClockConfig{}, fmt.Errorf("invalid %s %q: want \"M+S\" or %q", OptionTimeControl, spec, TimeControlNone)
 	}
 	return ClockConfig{
 		Initial:   time.Duration(m) * time.Minute,
