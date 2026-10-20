@@ -32,6 +32,8 @@ local Control = types.Control
 ---@field input? games.GameInput
 ---@field actions? games.GameAction[]
 ---@field describe_event? fun(event: games.Event, update: games.GameUpdate): string|nil
+---Files to archive beside the summary when a game finishes, by name; events are all this client saw.
+---@field export? fun(update: games.GameUpdate, events: games.Event[]): table<string, string>
 
 ---@class games.OpenOptions
 ---@field glyphs games.Glyphs

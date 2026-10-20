@@ -23,6 +23,13 @@ local function load(modname)
   return { err = result }
 end
 
+---Whether name has the shape of a game type, so it is safe in module names and paths.
+---@param name any
+---@return boolean
+function M.is_game_type(name)
+  return type(name) == "string" and name:match(GAME_TYPE_PATTERN) ~= nil
+end
+
 ---The plugin's module for a game type, or nil when it has none; a module that fails to load raises,
 ---on every lookup, without running the broken file again.
 ---@param game games.GameType
@@ -30,7 +37,7 @@ end
 function M.game_module(game)
   local entry = loaded[game]
   if entry == nil then
-    local found = game:match(GAME_TYPE_PATTERN) and load(MODULE_PREFIX .. game)
+    local found = M.is_game_type(game) and load(MODULE_PREFIX .. game)
     if not found then
       return nil
     end

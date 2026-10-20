@@ -1,3 +1,4 @@
+local Archive = require("games.core.archive")
 local Client = require("games.core.client")
 local Conn = require("games.core.conn")
 local config = require("games.config")
@@ -20,6 +21,9 @@ M.config = nil
 
 ---@type games.Client|nil
 M.client = nil
+
+---@type games.Archive|nil nil while archive.dir is unset
+M.archive = nil
 
 local function connect_current()
   if M.client then
@@ -47,6 +51,8 @@ function M.setup(opts)
     password = M.config.password,
   }))
   notify.attach(M.client)
+  local archive_dir = M.config.archive.dir
+  M.archive = archive_dir and Archive.attach(M.client, archive_dir) or nil
 
   local group = vim.api.nvim_create_augroup(AUTOCONNECT_GROUP, { clear = true })
   if not (M.config.autoconnect and vim.tbl_isempty(M.client.conn:missing_credentials())) then

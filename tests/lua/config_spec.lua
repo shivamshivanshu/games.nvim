@@ -28,4 +28,13 @@ function T.palette_and_highlights_are_validated()
   end
 end
 
+function T.archive_dir_is_optional_and_expanded()
+  assert(config.resolve({}).archive.dir == nil)
+  local resolved = config.resolve({ archive = { dir = "~/games-archive" } }).archive.dir
+  assert(resolved == vim.fs.joinpath(vim.env.HOME, "games-archive"), resolved)
+  for _, archive in ipairs({ { dir = "" }, { dir = 42 }, "~/games" }) do
+    assert(not pcall(config.resolve, { archive = archive }), "accepted " .. vim.inspect(archive))
+  end
+end
+
 return T

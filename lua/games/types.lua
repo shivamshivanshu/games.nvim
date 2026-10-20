@@ -137,8 +137,8 @@
 ---@field view? table nil in a read of a finished game after the live finish
 ---@field started_at integer unix ms
 ---@field finished_at? integer unix ms
----@field summary string
----@field digest string lowercase hex
+---@field summary? string the server's canonical summary bytes, once finished
+---@field digest? string lowercase hex sha256 of summary
 
 ---@class games.Tally
 ---@field wins integer

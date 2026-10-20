@@ -182,6 +182,37 @@ function M.wait_for(predicate, what)
   assert(vim.wait(M.WAIT_MS, predicate), "timed out waiting for " .. what)
 end
 
+---Runs fn with a fresh temp dir path, not yet created, and removes the dir afterwards.
+---@param fn fun(dir: string)
+function M.with_temp_dir(fn)
+  local dir = vim.fn.tempname()
+  local ok, err = xpcall(fn, debug.traceback, dir)
+  vim.fn.delete(dir, "rf")
+  if not ok then
+    error(err, 0)
+  end
+end
+
+---@param path string
+---@return string|nil nil when the file does not exist
+function M.read_file(path)
+  local file = io.open(path, "rb")
+  if not file then
+    return nil
+  end
+  local data = file:read("*a")
+  file:close()
+  return data
+end
+
+---A copy of update finished with summary, carrying summary's digest as the server would.
+---@param update games.GameUpdate
+---@param summary string
+---@return games.GameUpdate
+function M.seal(update, summary)
+  return vim.tbl_extend("force", update, { summary = summary, digest = vim.fn.sha256(summary) })
+end
+
 ---@class games.test.StubConn
 ---@field handlers table<string, fun(body: table)[]>
 ---@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil)}[]

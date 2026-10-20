@@ -8,6 +8,9 @@ local M = {}
 ---@field host string
 ---@field port integer
 
+---@class games.ArchiveConfig
+---@field dir? string absolute; archiving is off when nil
+
 ---@class games.Config
 ---@field server games.ServerAddress
 ---@field username? string asked for on the first :Games when nil
@@ -16,6 +19,7 @@ local M = {}
 ---@field glyphs games.Glyphs
 ---@field palette games.Palette
 ---@field highlights games.HlDefinitions Games* group -> nvim_set_hl attributes, over the palette
+---@field archive games.ArchiveConfig
 
 ---@class games.SetupOpts
 ---@field server? {host?: string, port?: integer}
@@ -25,6 +29,7 @@ local M = {}
 ---@field glyphs? games.Glyphs
 ---@field palette? games.Palette
 ---@field highlights? games.HlDefinitions
+---@field archive? {dir?: string}
 
 local GLYPHS = { unicode = true, ascii = true }
 local PALETTES = { theme = true, vivid = true }
@@ -38,6 +43,7 @@ local DEFAULTS = {
   glyphs = M.DEFAULT_GLYPHS,
   palette = "theme",
   highlights = {},
+  archive = {},
 }
 
 ---@param port any
@@ -64,6 +70,12 @@ local function valid_highlights(definitions)
   return true
 end
 
+---@param value any
+---@return boolean
+local function is_nonempty_string(value)
+  return type(value) == "string" and value ~= ""
+end
+
 ---Merges opts over the defaults and validates the result.
 ---@param opts games.SetupOpts
 ---@return games.Config
@@ -82,6 +94,10 @@ function M.resolve(opts)
     return PALETTES[palette] ~= nil
   end, '"theme" or "vivid"')
   vim.validate("highlights", config.highlights, valid_highlights, "Games* group -> attributes")
+  vim.validate("archive", config.archive, "table")
+  vim.validate("archive.dir", config.archive.dir, is_nonempty_string, true, "non-empty path")
+  local archive_dir = config.archive.dir
+  config.archive = { dir = archive_dir and vim.fs.abspath(vim.fs.normalize(archive_dir)) }
   return config
 end
 
