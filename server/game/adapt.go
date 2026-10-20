@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
+	"reflect"
 	"slices"
 )
 
@@ -16,6 +17,20 @@ func Adapt[Opts, Action, View any](rules Rules[Opts, Action, View]) Game {
 }
 
 func (g adapted[Opts, Action, View]) Info() Info { return g.rules.Info() }
+
+func (g adapted[Opts, Action, View]) WireTypes() (action, view reflect.Type) {
+	return reflect.TypeFor[Action](), reflect.TypeFor[View]()
+}
+
+func (g adapted[Opts, Action, View]) EventCatalog() (EventCatalog, bool) {
+	catalog, ok := any(g.rules).(EventCatalog)
+	return catalog, ok
+}
+
+func (g adapted[Opts, Action, View]) ReasonCatalog() (ReasonCatalog, bool) {
+	catalog, ok := any(g.rules).(ReasonCatalog)
+	return catalog, ok
+}
 
 func (g adapted[Opts, Action, View]) ResolveOptions(raw json.RawMessage) (Options, error) {
 	given, err := decodeGivenOptions(raw)
@@ -145,7 +160,8 @@ func erasedWithEvents[Action, View any](next State[Action, View], events []Event
 	return erased[Action, View]{state: next}, encoded, nil
 }
 
-const eventKindField = "kind"
+// EventKindField is the field of an encoded event that holds its kind.
+const EventKindField = "kind"
 
 // EncodeEvent is the wire form of e: its JSON object with the event kind added.
 func EncodeEvent(e Event) (json.RawMessage, error) {
@@ -164,6 +180,6 @@ func EncodeEvent(e Event) (json.RawMessage, error) {
 	if fields == nil {
 		fields = map[string]json.RawMessage{}
 	}
-	fields[eventKindField] = kind
+	fields[EventKindField] = kind
 	return json.Marshal(fields)
 }

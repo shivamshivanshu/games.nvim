@@ -1,0 +1,1095 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/Envelope",
+  "$defs": {
+    "ActionInputWire": {
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "field",
+        "description",
+        "values"
+      ],
+      "description": "ActionInputWire has a Pattern (RE2 syntax) or Values, never both."
+    },
+    "ActionWire": {
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "input": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ActionInputWire"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "description",
+        "input"
+      ],
+      "description": "ActionWire.Input is nil for an action that is its kind alone."
+    },
+    "Capability": {
+      "type": "string",
+      "enum": [
+        "resign",
+        "draw",
+        "abort",
+        "clock"
+      ]
+    },
+    "CatalogResult": {
+      "properties": {
+        "games": {
+          "items": {
+            "$ref": "#/$defs/GameInfoWire"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "games"
+      ]
+    },
+    "Challenge": {
+      "properties": {
+        "challenge_id": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "accepted": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "game": {
+          "type": "string"
+        },
+        "options": {
+          "$ref": "#/$defs/Options"
+        },
+        "state": {
+          "$ref": "#/$defs/ChallengeState"
+        },
+        "by": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "game_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expires_at": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "challenge_id",
+        "from",
+        "to",
+        "accepted",
+        "game",
+        "options",
+        "state",
+        "by",
+        "game_id",
+        "expires_at"
+      ]
+    },
+    "ChallengeCreateRequest": {
+      "properties": {
+        "to": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "game": {
+          "type": "string"
+        },
+        "options": true
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "to",
+        "game",
+        "options"
+      ]
+    },
+    "ChallengeCreateResult": {
+      "properties": {
+        "challenge_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "challenge_id"
+      ]
+    },
+    "ChallengeListResult": {
+      "properties": {
+        "challenges": {
+          "items": {
+            "$ref": "#/$defs/Challenge"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "challenges"
+      ]
+    },
+    "ChallengeRef": {
+      "properties": {
+        "challenge_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "challenge_id"
+      ]
+    },
+    "ChallengeState": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "declined",
+        "cancelled",
+        "expired"
+      ]
+    },
+    "Control": {
+      "type": "string",
+      "enum": [
+        "resign",
+        "offer_draw",
+        "decline_draw",
+        "abort"
+      ]
+    },
+    "Empty": {
+      "properties": {},
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Envelope": {
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "type": {
+          "$ref": "#/$defs/MessageType"
+        },
+        "body": true
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "type",
+        "body"
+      ],
+      "description": "Envelope.ID is nil on pushes."
+    },
+    "ErrorBody": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "bad_request",
+        "version_mismatch",
+        "unauthenticated",
+        "auth_failed",
+        "not_found",
+        "not_your_turn",
+        "illegal_action",
+        "stale",
+        "internal",
+        "summary_mismatch"
+      ]
+    },
+    "GameActRequest": {
+      "properties": {
+        "game_id": {
+          "type": "string"
+        },
+        "seq": {
+          "type": "integer"
+        },
+        "action": true
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "game_id",
+        "seq",
+        "action"
+      ]
+    },
+    "GameControlRequest": {
+      "properties": {
+        "game_id": {
+          "type": "string"
+        },
+        "seq": {
+          "type": "integer"
+        },
+        "control": {
+          "$ref": "#/$defs/Control"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "game_id",
+        "seq",
+        "control"
+      ]
+    },
+    "GameInfoWire": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "players": {
+          "$ref": "#/$defs/PlayersWire"
+        },
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/Capability"
+          },
+          "type": "array"
+        },
+        "options": {
+          "additionalProperties": {
+            "$ref": "#/$defs/OptionWire"
+          },
+          "type": "object"
+        },
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/ActionWire"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "players",
+        "capabilities",
+        "options",
+        "actions"
+      ]
+    },
+    "GameListRequest": {
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/GameStatus"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "GameListResult": {
+      "properties": {
+        "games": {
+          "items": {
+            "$ref": "#/$defs/GameUpdate"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "games"
+      ]
+    },
+    "GameSnapshotRequest": {
+      "properties": {
+        "game_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "game_id"
+      ]
+    },
+    "GameStartRequest": {
+      "properties": {
+        "game": {
+          "type": "string"
+        },
+        "options": true
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "game",
+        "options"
+      ],
+      "description": "GameStartRequest starts a solo game; its reply is the game's first GameUpdate."
+    },
+    "GameStatus": {
+      "type": "string",
+      "enum": [
+        "ongoing",
+        "finished"
+      ]
+    },
+    "GameUpdate": {
+      "properties": {
+        "game_id": {
+          "type": "string"
+        },
+        "game": {
+          "type": "string"
+        },
+        "options": {
+          "$ref": "#/$defs/Options"
+        },
+        "seq": {
+          "type": "integer"
+        },
+        "players": {
+          "items": {
+            "$ref": "#/$defs/Player"
+          },
+          "type": "array"
+        },
+        "to_act": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/WireResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clock": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/WireClock"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "draw_agreed": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "controls": {
+          "items": {
+            "$ref": "#/$defs/Control"
+          },
+          "type": "array"
+        },
+        "events": {
+          "items": true,
+          "type": "array"
+        },
+        "view": true,
+        "started_at": {
+          "type": "integer"
+        },
+        "finished_at": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "digest": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exports": {
+          "oneOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "game_id",
+        "game",
+        "options",
+        "seq",
+        "players",
+        "to_act",
+        "result",
+        "clock",
+        "draw_agreed",
+        "controls",
+        "events",
+        "view",
+        "started_at",
+        "finished_at",
+        "summary",
+        "digest",
+        "exports"
+      ],
+      "description": "GameUpdate.Summary carries a finished game's summary as the exact bytes\nDigest covers; Exports, also null until the game finishes, holds the files\nthe game records itself in, by name. Events and View are the game's own,\nas its schema under docs/schema/games/ gives them."
+    },
+    "GameVerifyRequest": {
+      "properties": {
+        "summary": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "summary"
+      ]
+    },
+    "HeadToHeadRecord": {
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "opponent": {
+          "type": "string"
+        },
+        "game": {
+          "type": "string"
+        },
+        "wins": {
+          "type": "integer"
+        },
+        "losses": {
+          "type": "integer"
+        },
+        "draws": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "user",
+        "opponent",
+        "game",
+        "wins",
+        "losses",
+        "draws"
+      ]
+    },
+    "LeaderboardEntry": {
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "wins": {
+          "type": "integer"
+        },
+        "losses": {
+          "type": "integer"
+        },
+        "draws": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "user",
+        "wins",
+        "losses",
+        "draws"
+      ]
+    },
+    "LoginRequest": {
+      "properties": {
+        "v": {
+          "type": "integer"
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "v",
+        "username",
+        "password"
+      ]
+    },
+    "LoginResult": {
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "heartbeat_ms": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "user",
+        "heartbeat_ms"
+      ]
+    },
+    "MessageType": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "error",
+        "auth.login",
+        "ping",
+        "catalog.list",
+        "user.list",
+        "challenge.create",
+        "challenge.accept",
+        "challenge.decline",
+        "challenge.cancel",
+        "challenge.list",
+        "game.list",
+        "game.snapshot",
+        "game.act",
+        "game.control",
+        "game.start",
+        "stats.get",
+        "game.verify",
+        "challenge.changed",
+        "game.update"
+      ]
+    },
+    "OptionRole": {
+      "type": "string",
+      "enum": [
+        "clock"
+      ],
+      "description": "OptionRole marks an option whose meaning the core knows, so clients find it\nby role rather than by name."
+    },
+    "OptionType": {
+      "type": "string",
+      "enum": [
+        "enum",
+        "text"
+      ]
+    },
+    "OptionWire": {
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/OptionType"
+        },
+        "values": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "default": {
+          "type": "string"
+        },
+        "max_len": {
+          "type": "integer"
+        },
+        "role": {
+          "$ref": "#/$defs/OptionRole"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "type",
+        "values",
+        "default"
+      ],
+      "description": "OptionWire.MaxLen is sent only for OptionText, and Role only for an option\nthe core gives a meaning."
+    },
+    "Options": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object",
+      "description": "Options is the validated, default-filled option set stored with a game."
+    },
+    "Player": {
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "user",
+        "seat"
+      ]
+    },
+    "PlayersWire": {
+      "properties": {
+        "min": {
+          "type": "integer"
+        },
+        "max": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "min",
+        "max"
+      ]
+    },
+    "ResultKind": {
+      "type": "string",
+      "enum": [
+        "decisive",
+        "draw",
+        "aborted"
+      ],
+      "description": "ResultKind encodes as its name, both on the wire and in the store."
+    },
+    "ResultReason": {
+      "type": "string",
+      "description": "ResultReason is open: the core's reasons below, and those each game adds.",
+      "examples": [
+        "resign",
+        "timeout",
+        "draw_agreed",
+        "aborted"
+      ]
+    },
+    "SeqResult": {
+      "properties": {
+        "seq": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seq"
+      ]
+    },
+    "StatsRecord": {
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "game": {
+          "type": "string"
+        },
+        "wins": {
+          "type": "integer"
+        },
+        "losses": {
+          "type": "integer"
+        },
+        "draws": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "user",
+        "game",
+        "wins",
+        "losses",
+        "draws"
+      ]
+    },
+    "StatsRequest": {
+      "properties": {
+        "user": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "StatsRequest.User, when set, limits the records and head-to-head to that user."
+    },
+    "StatsResult": {
+      "properties": {
+        "records": {
+          "items": {
+            "$ref": "#/$defs/StatsRecord"
+          },
+          "type": "array"
+        },
+        "head_to_head": {
+          "items": {
+            "$ref": "#/$defs/HeadToHeadRecord"
+          },
+          "type": "array"
+        },
+        "leaderboard": {
+          "items": {
+            "$ref": "#/$defs/LeaderboardEntry"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "records",
+        "head_to_head",
+        "leaderboard"
+      ],
+      "description": "StatsResult is ranked by the server: Records by game, then rank within it;\nLeaderboard by rank over every game and every user. A rank orders most wins,\nthen fewest losses, then most draws, then user."
+    },
+    "UserListResult": {
+      "properties": {
+        "users": {
+          "items": {
+            "$ref": "#/$defs/UserPresence"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "users"
+      ]
+    },
+    "UserPresence": {
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "online": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "user",
+        "online"
+      ]
+    },
+    "WireClock": {
+      "properties": {
+        "remaining_ms": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "running": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "as_of_ms": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "remaining_ms",
+        "running",
+        "as_of_ms"
+      ],
+      "description": "WireClock is the clock as of AsOfMS: the step's time on a push, the read's\non a snapshot. Running's remaining time keeps falling from then on."
+    },
+    "WireResult": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ResultKind"
+        },
+        "winners": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "$ref": "#/$defs/ResultReason"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "winners",
+        "reason"
+      ]
+    }
+  },
+  "title": "games.nvim protocol",
+  "description": "One NDJSON line. x-messages maps each message type to the schemas of its body: a request's, its ok reply's, or a push's.",
+  "x-messages": {
+    "auth.login": {
+      "request": {
+        "$ref": "#/$defs/LoginRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/LoginResult"
+      }
+    },
+    "catalog.list": {
+      "request": {
+        "$ref": "#/$defs/Empty"
+      },
+      "reply": {
+        "$ref": "#/$defs/CatalogResult"
+      }
+    },
+    "challenge.accept": {
+      "request": {
+        "$ref": "#/$defs/ChallengeRef"
+      },
+      "reply": {
+        "$ref": "#/$defs/Empty"
+      }
+    },
+    "challenge.cancel": {
+      "request": {
+        "$ref": "#/$defs/ChallengeRef"
+      },
+      "reply": {
+        "$ref": "#/$defs/Empty"
+      }
+    },
+    "challenge.changed": {
+      "push": {
+        "$ref": "#/$defs/Challenge"
+      }
+    },
+    "challenge.create": {
+      "request": {
+        "$ref": "#/$defs/ChallengeCreateRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/ChallengeCreateResult"
+      }
+    },
+    "challenge.decline": {
+      "request": {
+        "$ref": "#/$defs/ChallengeRef"
+      },
+      "reply": {
+        "$ref": "#/$defs/Empty"
+      }
+    },
+    "challenge.list": {
+      "request": {
+        "$ref": "#/$defs/Empty"
+      },
+      "reply": {
+        "$ref": "#/$defs/ChallengeListResult"
+      }
+    },
+    "game.act": {
+      "request": {
+        "$ref": "#/$defs/GameActRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/SeqResult"
+      }
+    },
+    "game.control": {
+      "request": {
+        "$ref": "#/$defs/GameControlRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/SeqResult"
+      }
+    },
+    "game.list": {
+      "request": {
+        "$ref": "#/$defs/GameListRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/GameListResult"
+      }
+    },
+    "game.snapshot": {
+      "request": {
+        "$ref": "#/$defs/GameSnapshotRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/GameUpdate"
+      }
+    },
+    "game.start": {
+      "request": {
+        "$ref": "#/$defs/GameStartRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/GameUpdate"
+      }
+    },
+    "game.update": {
+      "push": {
+        "$ref": "#/$defs/GameUpdate"
+      }
+    },
+    "game.verify": {
+      "request": {
+        "$ref": "#/$defs/GameVerifyRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/Empty"
+      }
+    },
+    "ping": {
+      "request": {
+        "$ref": "#/$defs/Empty"
+      },
+      "reply": {
+        "$ref": "#/$defs/Empty"
+      }
+    },
+    "stats.get": {
+      "request": {
+        "$ref": "#/$defs/StatsRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/StatsResult"
+      }
+    },
+    "user.list": {
+      "request": {
+        "$ref": "#/$defs/Empty"
+      },
+      "reply": {
+        "$ref": "#/$defs/UserListResult"
+      }
+    }
+  },
+  "x-version": 1
+}

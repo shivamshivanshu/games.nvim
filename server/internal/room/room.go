@@ -327,7 +327,7 @@ func (s roomState) live(g Setup, at time.Time) protocol.GameUpdate {
 		Players:    slices.Clone(g.Players),
 		ToAct:      slices.Clone(s.toAct),
 		Clock:      s.wireClock(g, at),
-		DrawAgreed: slices.Clone(s.drawAgreed),
+		DrawAgreed: append([]game.UserID{}, s.drawAgreed...),
 		Events:     slices.Clone(s.events),
 		StartedAt:  protocol.UnixMSOf(g.CreatedAt),
 	}

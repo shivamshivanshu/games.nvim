@@ -151,13 +151,13 @@
 ---@class games.GameUpdate
 ---@field game_id games.GameID
 ---@field game games.GameType
----@field options? games.Options
+---@field options games.Options
 ---@field seq integer
 ---@field players games.PlayerSeat[]
 ---@field to_act games.UserID[]
 ---@field result? games.WireResult
 ---@field clock? games.WireClock
----@field draw_agreed? games.UserID[]
+---@field draw_agreed games.UserID[]
 ---@field controls games.Control[]
 ---@field events games.Event[]
 ---@field view table the game's own view, as this player sees it; a finished game's final one

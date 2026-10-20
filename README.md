@@ -217,7 +217,7 @@ Chess move input is case-insensitive (`nf3`, `o-o`); the capital `B` is needed o
 No core edits.
 
 1. `server/games/<id>/`: implement `game.Rules[Opts, Action, View]` with typed options, actions, and view; its test calls `gametest.Run(t, <id>.Rules{}, scripts)`.
-2. Add one line to `server/games/registry.go`.
+2. Add one line to `server/games/registry.go`. Have `Rules` list its events (`game.EventCatalog`) and, if it adds any, its result reasons (`game.ReasonCatalog`), then run `make schema`.
 3. `lua/games/games/<id>.lua`: a declarative layout plus an action table (20-60 lines, no window, buffer, keymap, or highlight code). The shell loads it by game id.
 
 ## Security

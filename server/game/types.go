@@ -34,6 +34,7 @@ const (
 	CapClock  Capability = "clock"
 )
 
+// ResultReason is open: the core's reasons below, and those each game adds.
 type ResultReason string
 
 const (

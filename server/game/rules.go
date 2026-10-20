@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"math/rand/v2"
+	"reflect"
 	"slices"
 	"time"
 )
@@ -48,11 +49,28 @@ type Concluder[Action, View any] interface {
 	Conclude(result Result) State[Action, View]
 }
 
+// EventCatalog is optionally implemented by Rules to list one value of each
+// event type its states emit, so the wire schema can describe them.
+type EventCatalog interface {
+	EventTypes() []Event
+}
+
+// ReasonCatalog is optionally implemented by Rules to list the result reasons
+// it adds to the core's.
+type ReasonCatalog interface {
+	Reasons() []ResultReason
+}
+
 // Game is the type-erased side the server core uses.
 type Game interface {
 	Info() Info
 	ResolveOptions(raw json.RawMessage) (Options, error)
 	New(opts Options, challenger UserID, invitees []UserID, rng *rand.Rand) (ErasedState, map[UserID]Seat, error)
+	// WireTypes are the Go types of the game's action and view.
+	WireTypes() (action, view reflect.Type)
+	// EventCatalog and ReasonCatalog are the rules' own, if they implement them.
+	EventCatalog() (EventCatalog, bool)
+	ReasonCatalog() (ReasonCatalog, bool)
 }
 
 type ErasedState interface {

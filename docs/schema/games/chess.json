@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "move": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ]
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "move",
+        "claim_draw"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "MoveSquares": {
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "MovedEvent": {
+      "properties": {
+        "kind": {
+          "const": "moved"
+        },
+        "by": {
+          "type": "string"
+        },
+        "san": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "san"
+      ]
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "checkmate",
+        "stalemate",
+        "insufficient_material",
+        "fivefold_repetition",
+        "seventy_five_move",
+        "threefold_repetition",
+        "fifty_move"
+      ],
+      "description": "The result reasons Chess adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "fen": {
+          "type": "string"
+        },
+        "history_san": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "last_move": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MoveSquares"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legal_moves": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "claimable_draw": {
+          "type": "boolean"
+        },
+        "check_square": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "fen",
+        "history_san",
+        "last_move",
+        "legal_moves",
+        "claimable_draw",
+        "check_square"
+      ],
+      "description": "View.LegalMoves and View.ClaimableDraw are the viewer's own: empty and\nfalse for a seat that is not to move. CheckSquare holds the king of the\nside to move while it is in check."
+    }
+  },
+  "title": "Chess",
+  "description": "The game-specific bodies inside a chess game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "moved": {
+      "$ref": "#/$defs/MovedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

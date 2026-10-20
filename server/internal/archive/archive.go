@@ -105,6 +105,7 @@ func (f Finished) Update() protocol.GameUpdate {
 		Players:    append([]game.Player{}, f.Players...),
 		ToAct:      []game.UserID{},
 		Result:     &protocol.WireResult{Kind: f.Finish.Kind, Winners: f.winners(), Reason: f.Finish.Reason},
+		DrawAgreed: []game.UserID{},
 		Controls:   []protocol.Control{},
 		Events:     []json.RawMessage{},
 		StartedAt:  protocol.UnixMSOf(f.StartedAt),

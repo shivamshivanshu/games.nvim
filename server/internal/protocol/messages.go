@@ -95,7 +95,7 @@ func optionToWire(spec game.OptionSpec) OptionWire {
 type ActionWire struct {
 	Kind        game.ActionKind  `json:"kind"`
 	Description string           `json:"description"`
-	Input       *ActionInputWire `json:"input"`
+	Input       *ActionInputWire `json:"input" jsonschema:"nullable"`
 }
 
 // ActionInputWire has a Pattern (RE2 syntax) or Values, never both.
@@ -173,8 +173,8 @@ type Challenge struct {
 	Game        game.GameType  `json:"game"`
 	Options     game.Options   `json:"options"`
 	State       ChallengeState `json:"state"`
-	By          *game.UserID   `json:"by"`
-	GameID      *game.GameID   `json:"game_id"`
+	By          *game.UserID   `json:"by" jsonschema:"nullable"`
+	GameID      *game.GameID   `json:"game_id" jsonschema:"nullable"`
 	ExpiresAt   UnixMS         `json:"expires_at"`
 }
 
@@ -235,7 +235,7 @@ type WireResult struct {
 // on a snapshot. Running's remaining time keeps falling from then on.
 type WireClock struct {
 	RemainingMS map[game.UserID]int64 `json:"remaining_ms"`
-	Running     *game.UserID          `json:"running"`
+	Running     *game.UserID          `json:"running" jsonschema:"nullable"`
 	AsOfMS      UnixMS                `json:"as_of_ms"`
 }
 
@@ -246,7 +246,8 @@ func UnixMSOf(t time.Time) UnixMS { return UnixMS(t.UnixMilli()) }
 
 // GameUpdate.Summary carries a finished game's summary as the exact bytes
 // Digest covers; Exports, also null until the game finishes, holds the files
-// the game records itself in, by name.
+// the game records itself in, by name. Events and View are the game's own,
+// as its schema under docs/schema/games/ gives them.
 type GameUpdate struct {
 	GameID     game.GameID       `json:"game_id"`
 	Game       game.GameType     `json:"game"`
@@ -254,17 +255,17 @@ type GameUpdate struct {
 	Seq        game.Seq          `json:"seq"`
 	Players    []game.Player     `json:"players"`
 	ToAct      []game.UserID     `json:"to_act"`
-	Result     *WireResult       `json:"result"`
-	Clock      *WireClock        `json:"clock"`
+	Result     *WireResult       `json:"result" jsonschema:"nullable"`
+	Clock      *WireClock        `json:"clock" jsonschema:"nullable"`
 	DrawAgreed []game.UserID     `json:"draw_agreed"`
 	Controls   []Control         `json:"controls"`
 	Events     []json.RawMessage `json:"events"`
 	View       json.RawMessage   `json:"view"`
 	StartedAt  UnixMS            `json:"started_at"`
-	FinishedAt *UnixMS           `json:"finished_at"`
-	Summary    *string           `json:"summary"`
-	Digest     *game.Digest      `json:"digest"`
-	Exports    map[string]string `json:"exports"`
+	FinishedAt *UnixMS           `json:"finished_at" jsonschema:"nullable"`
+	Summary    *string           `json:"summary" jsonschema:"nullable"`
+	Digest     *game.Digest      `json:"digest" jsonschema:"nullable"`
+	Exports    map[string]string `json:"exports" jsonschema:"nullable"`
 }
 
 type GameVerifyRequest struct {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -181,5 +182,23 @@ func TestForfeitToRemaining(t *testing.T) {
 		if got.Kind != game.ResultDecisive || got.Winners == nil || !slices.Equal(got.Winners, tc.want) || got.Reason != game.ReasonResign {
 			t.Errorf("%s: got %+v", name, got)
 		}
+	}
+}
+
+type cataloguedCounterRules struct{ gametest.CounterRules }
+
+func (cataloguedCounterRules) EventTypes() []game.Event { return []game.Event{gametest.CountedEvent{}} }
+
+func TestAdaptForwardsTheRulesCatalogs(t *testing.T) {
+	action, view := game.Adapt(gametest.CounterRules{}).WireTypes()
+	if action != reflect.TypeFor[gametest.CounterAction]() || view != reflect.TypeFor[gametest.CounterView]() {
+		t.Errorf("wire types %v, %v", action, view)
+	}
+	if _, ok := game.Adapt(gametest.CounterRules{}).EventCatalog(); ok {
+		t.Error("counter rules have no event catalog")
+	}
+	catalog, ok := game.Adapt(cataloguedCounterRules{}).EventCatalog()
+	if !ok || len(catalog.EventTypes()) != 1 {
+		t.Errorf("event catalog %v, %t", catalog, ok)
 	}
 }

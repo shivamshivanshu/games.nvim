@@ -3,6 +3,7 @@ package chess
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -234,4 +235,11 @@ func TestConformance(t *testing.T) {
 		script("threefold claim", repeated, game.Result{Kind: game.ResultDraw, Reason: ReasonThreefold},
 			gametest.Step[Action]{Seat: SeatWhite, Action: Action{Kind: ActionClaimDraw}}),
 	})
+}
+
+func TestMoveInputFieldIsTheActionsJSONField(t *testing.T) {
+	field, ok := reflect.TypeFor[Action]().FieldByName("Move")
+	if tag, _, _ := strings.Cut(field.Tag.Get("json"), ","); !ok || tag != moveField {
+		t.Errorf("Action.Move is JSON field %q, the catalogue's input field is %q", tag, moveField)
+	}
 }

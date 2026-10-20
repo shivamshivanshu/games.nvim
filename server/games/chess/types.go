@@ -46,10 +46,10 @@ type MoveSquares struct {
 type View struct {
 	FEN           string       `json:"fen"`
 	HistorySAN    []string     `json:"history_san"`
-	LastMove      *MoveSquares `json:"last_move"`
+	LastMove      *MoveSquares `json:"last_move" jsonschema:"nullable"`
 	LegalMoves    []string     `json:"legal_moves"`
 	ClaimableDraw bool         `json:"claimable_draw"`
-	CheckSquare   *string      `json:"check_square"`
+	CheckSquare   *string      `json:"check_square" jsonschema:"nullable"`
 }
 
 type MovedEvent struct {

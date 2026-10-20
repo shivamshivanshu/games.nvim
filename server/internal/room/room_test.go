@@ -324,8 +324,8 @@ func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 			t.Fatalf("draw_agreed %v after offer", got)
 		}
 		h.control(t, bob, seq, protocol.ControlDeclineDraw)
-		if got := h.snapshot(t, alice).DrawAgreed; got != nil {
-			t.Fatalf("draw_agreed %v after decline", got)
+		if got := h.snapshot(t, alice).DrawAgreed; got == nil || len(got) > 0 {
+			t.Fatalf("draw_agreed %#v after decline, want empty and not null", got)
 		}
 	})
 	t.Run("cleared by move", func(t *testing.T) {
@@ -333,8 +333,8 @@ func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 		seq := h.play(t, alice, 0, "e4")
 		seq = h.control(t, alice, seq, protocol.ControlOfferDraw)
 		h.play(t, bob, seq, "e5")
-		if got := h.snapshot(t, alice).DrawAgreed; got != nil {
-			t.Fatalf("draw_agreed %v after a move", got)
+		if got := h.snapshot(t, alice).DrawAgreed; got == nil || len(got) > 0 {
+			t.Fatalf("draw_agreed %#v after a move, want empty and not null", got)
 		}
 	})
 }
