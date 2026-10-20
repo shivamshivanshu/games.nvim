@@ -74,13 +74,13 @@ type GameInfoWire struct {
 func InfoToWire(info game.Info) GameInfoWire {
 	options := make(map[game.OptionName]OptionWire, len(info.Options))
 	for _, spec := range info.Options {
-		options[spec.Name] = OptionWire{Type: OptionEnum, Values: spec.Values, Default: spec.Default}
+		options[spec.Name] = OptionWire{Type: OptionEnum, Values: append([]game.OptionValue{}, spec.Values...), Default: spec.Default}
 	}
 	return GameInfoWire{
 		ID:           info.Type,
 		Name:         info.Name,
 		Players:      PlayersWire{Min: info.Players.Min, Max: info.Players.Max},
-		Capabilities: info.Capabilities,
+		Capabilities: append([]game.Capability{}, info.Capabilities...),
 		Options:      options,
 	}
 }

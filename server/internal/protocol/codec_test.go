@@ -2,6 +2,7 @@ package protocol_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"strings"
@@ -77,5 +78,16 @@ func TestInfoToWireKeysOptionsByName(t *testing.T) {
 	opt := wire.Options["color"]
 	if opt.Type != protocol.OptionEnum || opt.Default != "white" || len(opt.Values) != 2 {
 		t.Fatalf("option = %+v", opt)
+	}
+}
+
+func TestInfoToWireEncodesMissingListsAsEmptyArrays(t *testing.T) {
+	raw, err := json.Marshal(protocol.InfoToWire(game.Info{Type: "stub", Options: []game.OptionSpec{{Name: "x"}}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"id":"stub","name":"","players":{"min":0,"max":0},"capabilities":[],"options":{"x":{"type":"enum","values":[],"default":""}}}`
+	if string(raw) != want {
+		t.Fatalf("got %s, want %s", raw, want)
 	}
 }

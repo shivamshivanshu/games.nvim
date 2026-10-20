@@ -224,6 +224,15 @@ func TestUpdateDoesNotShareRoomState(t *testing.T) {
 	}
 }
 
+func TestMovedEventWireShape(t *testing.T) {
+	h := newHarness(t, chess.TimeControlNone)
+	h.play(t, alice, 0, "e4")
+	events := h.snapshot(t, bob).Events
+	if want := `{"by":"white","kind":"moved","san":"e4"}`; len(events) != 1 || string(events[0]) != want {
+		t.Fatalf("events %s, want [%s]", events, want)
+	}
+}
+
 func TestStaleSeqRejected(t *testing.T) {
 	h := newHarness(t, chess.TimeControl10Plus5)
 	if _, err := h.room.Act(t.Context(), alice, 1, move("e4")); !errors.Is(err, ErrStale) {
