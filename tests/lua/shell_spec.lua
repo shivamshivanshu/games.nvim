@@ -134,9 +134,9 @@ function T.last_move_and_check_marks()
   })
   local rendered = shell.render(update, chess, ASCII, "alice")
 
-  assert_eq("GamesLastMove", hl_at_square(rendered, "d8"))
-  assert_eq("GamesLastMove", hl_at_square(rendered, "h4"))
-  assert_eq("GamesCheck", hl_at_square(rendered, "e1"))
+  assert_eq({ "GamesSquareDark", "GamesLastMove" }, hl_at_square(rendered, "d8"))
+  assert_eq({ "GamesSquareDark", "GamesLastMove" }, hl_at_square(rendered, "h4"))
+  assert_eq({ "GamesSquareDark", "GamesCheck" }, hl_at_square(rendered, "e1"))
   assert(table.concat(rendered.lines, "\n"):find("bob won", 1, true), vim.inspect(rendered.lines))
 end
 

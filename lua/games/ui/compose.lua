@@ -1,8 +1,10 @@
+---@alias games.Hl string|string[] one group, or groups layered so later ones override only the attributes they set
+
 ---@class games.Extmark
 ---@field row integer 0-based line index
 ---@field col integer byte column
 ---@field end_col integer byte column, exclusive
----@field hl string
+---@field hl games.Hl
 
 ---@class games.Rendered
 ---@field lines string[]
@@ -11,7 +13,7 @@
 ---@class games.TextNode
 ---@field kind "text"
 ---@field str string
----@field hl? string
+---@field hl? games.Hl
 
 ---@class games.RowNode
 ---@field kind "row"
@@ -35,10 +37,29 @@
 local M = {}
 
 ---@param str string
----@param hl? string
+---@param hl? games.Hl
 ---@return games.TextNode
 function M.text(str, hl)
   return { kind = "text", str = str, hl = hl }
+end
+
+---Layers that are set, in order, flattened into one highlight; nil when none is set.
+---@param ... games.Hl|nil
+---@return games.Hl|nil
+function M.layers(...)
+  local groups = {}
+  for i = 1, select("#", ...) do
+    local hl = select(i, ...)
+    if type(hl) == "table" then
+      vim.list_extend(groups, hl)
+    elseif hl then
+      groups[#groups + 1] = hl
+    end
+  end
+  if #groups <= 1 then
+    return groups[1]
+  end
+  return groups
 end
 
 ---@param children games.Node[]

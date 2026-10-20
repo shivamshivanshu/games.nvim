@@ -91,10 +91,18 @@ return {
     assert_eq({ "1 s r", "2 q p", "  b a" }, rendered.lines)
   end,
 
-  grid_mark_overrides_shade = function()
-    local rendered = compose.render(small_grid({ marks = { ["1,1"] = "GamesLastMove" } }))
-    assert_eq("GamesLastMove", hl_at(rendered, 0, 2))
-    assert_eq("GamesSquareDark", hl_at(rendered, 0, 4))
+  grid_layers_shade_then_mark_then_cell_foreground = function()
+    local rendered = compose.render(small_grid({
+      cell = function()
+        return { "x", "GamesPieceWhite" }
+      end,
+      marks = { ["1,1"] = { "GamesLastMove", "GamesLastMoveDark" } },
+    }))
+    assert_eq(
+      { "GamesSquareLight", "GamesLastMove", "GamesLastMoveDark", "GamesPieceWhite" },
+      hl_at(rendered, 0, 2)
+    )
+    assert_eq({ "GamesSquareDark", "GamesPieceWhite" }, hl_at(rendered, 0, 4))
   end,
 
   row_pads_mixed_width = function()

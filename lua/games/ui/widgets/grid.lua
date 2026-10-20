@@ -3,7 +3,7 @@ local text_util = require("games.ui.text")
 
 ---@class games.GridCell
 ---@field [1] string glyph
----@field [2]? string highlight group overriding the shade
+---@field [2]? games.Hl foreground layered last, over shade and mark
 
 ---@class games.GridLabels
 ---@field cols string one character per column
@@ -15,13 +15,14 @@ local text_util = require("games.ui.text")
 ---@field cell fun(row: integer, col: integer): games.GridCell
 ---@field shade "checker"|"plain"
 ---@field labels? games.GridLabels
----@field marks? table<string, string> mark_key(row, col) -> highlight group
+---@field marks? table<string, games.Hl> mark_key(row, col) -> highlight layered over the cell
 ---@field flip? boolean
 ---@field cell_width? integer display columns per cell, default 1
 ---@field blocks? integer positive: draw a thin separator after every this many rows and columns
 ---@field glyphs? games.Glyphs separator characters, default "unicode"
 
-local SHADE_BY_PARITY = { [0] = "GamesSquareLight", [1] = "GamesSquareDark" }
+local LIGHT_SQUARE_HL = "GamesSquareLight"
+local DARK_SQUARE_HL = "GamesSquareDark"
 local CELL_GAP = " "
 
 ---@class (private) games.BlockSeparators
@@ -38,6 +39,7 @@ local SEPARATOR_HL = "GamesMuted"
 
 ---@class games.GridWidget
 ---@field mark_key fun(row: integer, col: integer): string
+---@field is_dark fun(row: integer, col: integer): boolean
 ---@overload fun(props: games.GridProps): games.Node
 
 local M = {}
@@ -48,6 +50,25 @@ local M = {}
 ---@return string
 function M.mark_key(row, col)
   return row .. "," .. col
+end
+
+---Whether the cell at logical row and col takes the dark shade of a checker grid.
+---@param row integer
+---@param col integer
+---@return boolean
+function M.is_dark(row, col)
+  return (row + col) % 2 == 1
+end
+
+---@param shade "checker"|"plain"
+---@param row integer
+---@param col integer
+---@return string|nil
+local function shade_hl(shade, row, col)
+  if shade ~= "checker" then
+    return nil
+  end
+  return M.is_dark(row, col) and DARK_SQUARE_HL or LIGHT_SQUARE_HL
 end
 
 ---@param n integer
@@ -120,8 +141,7 @@ local function render(props)
 
   local function cell_node(r, c)
     local glyph, own_hl = unpack(props.cell(r, c))
-    local shade = props.shade == "checker" and SHADE_BY_PARITY[(r + c) % 2] or nil
-    local hl = marks[M.mark_key(r, c)] or own_hl or shade
+    local hl = compose.layers(shade_hl(props.shade, r, c), marks[M.mark_key(r, c)], own_hl)
     return compose.text(text_util.pad_to_width(glyph, cell_width), hl)
   end
 
