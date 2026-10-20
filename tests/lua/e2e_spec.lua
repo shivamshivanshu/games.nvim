@@ -2,13 +2,11 @@ local Client = require("games.core.client")
 local games = require("games")
 local helpers = require("helpers")
 
+local assert_eq = helpers.assert_eq
+
 ---@class games.test.UiStubs
 ---@field notified string[]
 ---@field input_text? string
-
-local function assert_eq(expected, actual)
-  assert(vim.deep_equal(expected, actual), vim.inspect({ expected = expected, actual = actual }))
-end
 
 ---Alice is the plugin's own client; ui and notify are stubbed and restored even if fn fails.
 ---@param fn fun(env: games.test.Env, alice: games.Client, stubs: games.test.UiStubs)

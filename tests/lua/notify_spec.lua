@@ -2,11 +2,9 @@ local Client = require("games.core.client")
 local helpers = require("helpers")
 local notify = require("games.core.notify")
 
-local AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+local assert_eq = helpers.assert_eq
 
-local function assert_eq(expected, actual)
-  assert(vim.deep_equal(expected, actual), vim.inspect({ expected = expected, actual = actual }))
-end
+local AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 
 ---@return games.test.StubConn conn
 ---@return {[1]: string, [2]: integer}[] notified

@@ -1,6 +1,9 @@
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local movelist = require("games.ui.widgets.movelist")
+local helpers = require("helpers")
+
+local assert_eq = helpers.assert_eq
 
 local function small_grid(overrides)
   return grid(vim.tbl_extend("force", {
@@ -20,10 +23,6 @@ local function hl_at(rendered, row, col)
       return mark.hl
     end
   end
-end
-
-local function assert_eq(expected, actual)
-  assert(vim.deep_equal(expected, actual), vim.inspect({ expected = expected, actual = actual }))
 end
 
 local function assert_uniform_width(lines)

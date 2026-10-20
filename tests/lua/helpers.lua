@@ -149,6 +149,12 @@ function M.record_lifecycle(conn)
   return log
 end
 
+---@param expected any
+---@param actual any
+function M.assert_eq(expected, actual)
+  assert(vim.deep_equal(expected, actual), vim.inspect({ expected = expected, actual = actual }))
+end
+
 ---@param predicate fun(): boolean
 ---@param what string
 function M.wait_for(predicate, what)

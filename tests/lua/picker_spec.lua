@@ -1,8 +1,7 @@
 local picker = require("games.ui.picker")
+local helpers = require("helpers")
 
-local function assert_eq(expected, actual)
-  assert(vim.deep_equal(expected, actual), vim.inspect({ expected = expected, actual = actual }))
-end
+local assert_eq = helpers.assert_eq
 
 local function ravi_played_nf3(overrides)
   return vim.tbl_extend("force", {

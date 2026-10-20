@@ -1,8 +1,7 @@
 local stats = require("games.core.stats")
+local helpers = require("helpers")
 
-local function assert_eq(expected, actual)
-  assert(vim.deep_equal(expected, actual), vim.inspect({ expected = expected, actual = actual }))
-end
+local assert_eq = helpers.assert_eq
 
 local function record(user, game, wins, losses, draws)
   return { user = user, game = game, wins = wins, losses = losses, draws = draws }
