@@ -102,4 +102,36 @@ function T.setup_maps_the_keys_opts_set_and_drops_those_an_earlier_setup_mapped(
   end)
 end
 
+function T.setup_leaves_a_key_the_user_remapped_since()
+  with_plugin_state(function()
+    local function users_own() end
+    local ok, err = pcall(function()
+      games.setup({ autoconnect = false, keys = { dashboard = "<leader>gg" } })
+      vim.keymap.set("n", "<leader>gg", users_own)
+      games.setup({ autoconnect = false })
+      assert_eq(users_own, vim.fn.maparg("<leader>gg", "n", false, true).callback)
+    end)
+    pcall(vim.keymap.del, "n", "<leader>gg")
+    assert(ok, err)
+  end)
+end
+
+function T.setup_closes_the_dashboard_of_the_client_it_replaces()
+  with_plugin_state(function()
+    local hub = require("fixtures.hub")
+    local dashboard = require("games.ui.dashboard")
+    local client, conn = hub.client()
+    conn.close = function() end
+    games.client = client
+    dashboard.open(client)
+    local ok, err = pcall(function()
+      assert(dashboard.is_open(), "no dashboard")
+      games.setup({ autoconnect = false })
+      assert(not dashboard.is_open(), "the dashboard kept following the replaced client")
+    end)
+    dashboard.close()
+    assert(ok, err)
+  end)
+end
+
 return T

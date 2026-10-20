@@ -27,23 +27,35 @@ M.client = nil
 ---@type games.Archive|nil nil while archive.dir is unset
 M.archive = nil
 
----@type string[] the global keys the last setup() mapped
+---@class (private) games.GlobalKey
+---@field lhs string
+---@field run fun() the callback it was mapped to, which tells it from a user's remap
+
+---@type games.GlobalKey[] the global keys the last setup() mapped
 local mapped_keys = {}
 
----Maps each key keys sets, after unmapping the keys an earlier setup() mapped.
+---@param key games.GlobalKey
+---@return boolean
+local function still_ours(key)
+  return vim.fn.maparg(key.lhs, "n", false, true).callback == key.run
+end
+
+---Maps each key keys sets, after unmapping the keys an earlier setup() mapped that nothing has
+---remapped since.
 ---@param keys games.KeysConfig
 local function map_global_keys(keys)
-  for _, lhs in ipairs(mapped_keys) do
-    pcall(vim.keymap.del, "n", lhs)
+  for _, key in ipairs(vim.tbl_filter(still_ours, mapped_keys)) do
+    vim.keymap.del("n", key.lhs)
   end
   mapped_keys = {}
   for name, fargs in pairs(KEY_COMMANDS) do
     local lhs = keys[name]
     if lhs then
-      vim.keymap.set("n", lhs, function()
+      local function run()
         require("games.core.commands").run(fargs)
-      end, { desc = "games: " .. name })
-      mapped_keys[#mapped_keys + 1] = lhs
+      end
+      vim.keymap.set("n", lhs, run, { desc = "games: " .. name })
+      mapped_keys[#mapped_keys + 1] = { lhs = lhs, run = run }
     end
   end
 end
@@ -66,6 +78,7 @@ function M.setup(opts)
   theme.setup({ palette = M.config.palette, highlights = M.config.highlights })
   map_global_keys(M.config.keys)
   if M.client then
+    require("games.ui.dashboard").close()
     M.client.conn:close()
   end
   M.client = Client.new(Conn.new({

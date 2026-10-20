@@ -115,11 +115,23 @@ end
 
 ---@param keys any
 ---@return boolean
+---@return string|nil reason
 local function valid_keys(keys)
-  return type(keys) == "table"
-    and vim.iter(keys):all(function(name, lhs)
-      return KEY_NAMES[name] ~= nil and is_nonempty_string(lhs)
-    end)
+  if type(keys) ~= "table" then
+    return false, "not a table"
+  end
+  for name, lhs in pairs(keys) do
+    if KEY_NAMES[name] == nil then
+      return false, ("unknown key %s"):format(vim.inspect(name))
+    end
+    if not is_nonempty_string(lhs) then
+      return false, ("%s: a key must be a non-empty string"):format(name)
+    end
+  end
+  if keys.dashboard and keys.find and vim.keycode(keys.dashboard) == vim.keycode(keys.find) then
+    return false, ("dashboard and find are both %s"):format(keys.find)
+  end
+  return true
 end
 
 ---Merges opts over the defaults and validates the result.

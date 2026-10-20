@@ -66,6 +66,7 @@ function T.picker_and_keys_are_validated()
     { keys = "<leader>gg" },
     { keys = { finder = "<leader>gf" } },
     { keys = { dashboard = "" } },
+    { keys = { dashboard = "<leader>g", find = "<Leader>g" } },
   }) do
     local rejected = pcall(config.resolve, opts)
     assert(not rejected, "accepted " .. vim.inspect(opts))
