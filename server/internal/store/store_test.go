@@ -38,12 +38,12 @@ func openTemp(t *testing.T) *Store {
 func newGame(id game.GameID) GameRecord {
 	return GameRecord{
 		ID: id, Type: "chess", Options: json.RawMessage(`{"clock":300}`), Seed: 1<<63 + 7,
-		Players:   []PlayerRecord{{alice, "white"}, {bob, "black"}},
+		Players:   []game.Player{{User: alice, Seat: "white"}, {User: bob, Seat: "black"}},
 		CreatedAt: epoch,
 	}
 }
 
-func step(seq uint64, user game.UserID) StepRecord {
+func step(seq game.Seq, user game.UserID) StepRecord {
 	return StepRecord{
 		Seq: seq, User: user, Kind: StepAction, Payload: json.RawMessage(`"e4"`),
 		At:               epoch.Add(time.Duration(seq) * time.Second),
@@ -51,7 +51,7 @@ func step(seq uint64, user game.UserID) StepRecord {
 	}
 }
 
-func finish(t *testing.T, s *Store, id game.GameID, seq uint64, reason game.ResultReason, outcomes map[game.UserID]Outcome) {
+func finish(t *testing.T, s *Store, id game.GameID, seq game.Seq, reason game.ResultReason, outcomes map[game.UserID]Outcome) {
 	t.Helper()
 	if err := s.FinishGame(context.Background(), id, step(seq, alice), reason, outcomes); err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestStepsRoundTrip(t *testing.T) {
 	if err := s.CreateGame(ctx, rec); err != nil {
 		t.Fatal(err)
 	}
-	for seq := uint64(1); seq <= 3; seq++ {
+	for seq := game.Seq(1); seq <= 3; seq++ {
 		if err := s.AppendStep(ctx, "g1", step(seq, alice)); err != nil {
 			t.Fatal(err)
 		}
@@ -157,7 +157,7 @@ func TestFinishGameIsAtomicAndLeavesOngoing(t *testing.T) {
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
-	for seq := uint64(1); seq <= 3; seq++ {
+	for seq := game.Seq(1); seq <= 3; seq++ {
 		if err := s.AppendStep(ctx, "g1", step(seq, alice)); err != nil {
 			t.Fatal(err)
 		}

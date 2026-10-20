@@ -16,7 +16,7 @@ const (
 	bob   game.UserID = "bob"
 )
 
-func newGame(t *testing.T, color ColorChoice, seed uint64) (game.ErasedState, map[game.UserID]game.Seat) {
+func newGame(t *testing.T, color ColorChoice, seed game.Seed) (game.ErasedState, map[game.UserID]game.Seat) {
 	t.Helper()
 	g := game.Adapt(Rules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{"color":"` + string(color) + `"}`))

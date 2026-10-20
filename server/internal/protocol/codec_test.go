@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"games.nvim/server/game"
-	"games.nvim/server/games/chess"
 	"games.nvim/server/internal/protocol"
 )
 
@@ -58,7 +57,7 @@ func TestReaderAcceptsLineAtLimit(t *testing.T) {
 }
 
 func TestWriteEnvelopeRoundTrips(t *testing.T) {
-	id := uint64(7)
+	id := protocol.RequestID(7)
 	var buf bytes.Buffer
 	in := protocol.Envelope{ID: &id, Type: protocol.TypeOK, Body: []byte(`{"seq":3}`)}
 	if err := protocol.WriteEnvelope(&buf, in); err != nil {
@@ -67,16 +66,6 @@ func TestWriteEnvelopeRoundTrips(t *testing.T) {
 	out, err := protocol.NewReader(&buf, testMaxLine).Next()
 	if err != nil || *out.ID != id || out.Type != in.Type || string(out.Body) != `{"seq":3}` {
 		t.Fatalf("out = %+v, %v", out, err)
-	}
-}
-
-func TestEncodeEventAddsKind(t *testing.T) {
-	got, err := protocol.EncodeEvent(chess.MovedEvent{By: "white", SAN: "e4"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := `{"by":"white","kind":"moved","san":"e4"}`; string(got) != want {
-		t.Fatalf("got %s, want %s", got, want)
 	}
 }
 

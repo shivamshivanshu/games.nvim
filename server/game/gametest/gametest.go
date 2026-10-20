@@ -21,7 +21,7 @@ type Script[Opts, Action any] struct {
 	Opts       Opts
 	Challenger game.UserID
 	Invitees   []game.UserID
-	Seed       uint64
+	Seed       game.Seed
 	Steps      []Step[Action]
 	WantResult *game.Result
 }
@@ -63,7 +63,7 @@ func play[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, V
 	}
 	allSeats := sortedSeats(seats)
 	observed := []observation[View]{observe(t, state, allSeats)}
-	applied := uint64(0)
+	applied := game.Seq(0)
 	for i, step := range script.Steps {
 		before := observe(t, state, allSeats)
 		next, _, err := state.Apply(step.Seat, step.Action, game.StepRNG(script.Seed, applied+1))

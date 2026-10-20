@@ -20,9 +20,16 @@ type counterView struct{ Total int }
 
 type counterState struct{ total, step int }
 
+type countedEvent struct {
+	By    Seat `json:"by"`
+	Total int  `json:"total"`
+}
+
+func (countedEvent) EventKind() EventKind { return "counted" }
+
 func (s counterState) Apply(seat Seat, a counterAction, _ *rand.Rand) (State[counterAction, counterView], []Event, error) {
 	s.total += a.Add * s.step
-	return s, nil, nil
+	return s, []Event{countedEvent{By: seat, Total: s.total}}, nil
 }
 func (s counterState) View(Seat) counterView   { return counterView{Total: s.total} }
 func (s counterState) ToAct() []Seat           { return []Seat{"a"} }
@@ -101,6 +108,20 @@ func TestOptionsClock(t *testing.T) {
 	}
 	if _, err := (Options{OptionTimeControl: "x+y"}).Clock(); err == nil {
 		t.Error("x+y: want error")
+	}
+}
+
+func TestAdaptEncodesEventsWithKind(t *testing.T) {
+	st, _, err := Adapt(counterRules{}).New(Options{"step": "1"}, "u", nil, StepRNG(1, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, events, err := st.Apply("a", json.RawMessage(`{"Add":5}`), StepRNG(1, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"by":"a","kind":"counted","total":5}`; len(events) != 1 || string(events[0]) != want {
+		t.Fatalf("events %s, want [%s]", events, want)
 	}
 }
 

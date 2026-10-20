@@ -135,7 +135,7 @@ func startGame(t *testing.T, challenger, opponent *testClient, to game.UserID, o
 	return first.GameID
 }
 
-func waitUpdate(t *testing.T, c *testClient, seq uint64) protocol.GameUpdate {
+func waitUpdate(t *testing.T, c *testClient, seq game.Seq) protocol.GameUpdate {
 	t.Helper()
 	for {
 		u := waitPush[protocol.GameUpdate](t, c, protocol.TypeGameUpdate)
@@ -148,7 +148,7 @@ func waitUpdate(t *testing.T, c *testClient, seq uint64) protocol.GameUpdate {
 	}
 }
 
-func move(t *testing.T, c *testClient, id game.GameID, seq uint64, san string) uint64 {
+func move(t *testing.T, c *testClient, id game.GameID, seq game.Seq, san string) game.Seq {
 	t.Helper()
 	action, err := json.Marshal(chess.Action{Kind: chess.ActionMove, Move: san})
 	if err != nil {
@@ -172,7 +172,7 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 		t.Fatalf("bob's first update is for %s, want %s", u.GameID, id)
 	}
 
-	var seq uint64
+	var seq game.Seq
 	for i, san := range []string{"f3", "e5", "g4", "Qh4#"} {
 		player := a
 		if i%2 == 1 {
@@ -233,7 +233,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
 	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControl10Plus5, Color: chess.ColorWhite})
-	var seq uint64
+	var seq game.Seq
 	for i, san := range []string{"e4", "e5", "Nf3", "Nc6"} {
 		player := a
 		if i%2 == 1 {

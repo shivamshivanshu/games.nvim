@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+
+	"games.nvim/server/internal/xslices"
 )
 
 type adapted[Opts, Action, View any] struct {
@@ -66,7 +68,7 @@ type erased[Action, View any] struct {
 	state State[Action, View]
 }
 
-func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Rand) (ErasedState, []Event, error) {
+func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Rand) (ErasedState, []json.RawMessage, error) {
 	var action Action
 	if err := json.Unmarshal(raw, &action); err != nil {
 		return nil, nil, BadRequestError{Msg: fmt.Sprintf("malformed action: %v", err)}
@@ -75,7 +77,7 @@ func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Ra
 	if err != nil {
 		return nil, nil, err
 	}
-	return erased[Action, View]{state: next}, events, nil
+	return erasedWithEvents(next, events)
 }
 
 func (e erased[Action, View]) View(seat Seat) (json.RawMessage, error) {
@@ -85,7 +87,33 @@ func (e erased[Action, View]) View(seat Seat) (json.RawMessage, error) {
 func (e erased[Action, View]) ToAct() []Seat           { return e.state.ToAct() }
 func (e erased[Action, View]) Outcome() (Result, bool) { return e.state.Outcome() }
 
-func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedState, []Event) {
+func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error) {
 	next, events := e.state.Eliminate(seat, reason)
-	return erased[Action, View]{state: next}, events
+	return erasedWithEvents(next, events)
+}
+
+func erasedWithEvents[Action, View any](next State[Action, View], events []Event) (ErasedState, []json.RawMessage, error) {
+	encoded, err := xslices.MapErr(events, encodeEvent)
+	if err != nil {
+		return nil, nil, err
+	}
+	return erased[Action, View]{state: next}, encoded, nil
+}
+
+const eventKindField = "kind"
+
+func encodeEvent(e Event) (json.RawMessage, error) {
+	raw, err := json.Marshal(e)
+	if err != nil {
+		return nil, fmt.Errorf("encode %s event: %w", e.EventKind(), err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, fmt.Errorf("event %s is not a JSON object: %w", e.EventKind(), err)
+	}
+	kind, err := json.Marshal(e.EventKind())
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(xslices.With(fields, eventKindField, kind))
 }

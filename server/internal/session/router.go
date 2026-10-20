@@ -72,12 +72,12 @@ func errorBody(err error) protocol.ErrorBody {
 	}
 }
 
-func errorEnvelope(id *uint64, body protocol.ErrorBody) protocol.Envelope {
+func errorEnvelope(id *protocol.RequestID, body protocol.ErrorBody) protocol.Envelope {
 	raw, _ := json.Marshal(body)
 	return protocol.Envelope{ID: id, Type: protocol.TypeError, Body: raw}
 }
 
-func replyEnvelope(id *uint64, result any, err error) protocol.Envelope {
+func replyEnvelope(id *protocol.RequestID, result any, err error) protocol.Envelope {
 	if err != nil {
 		return errorEnvelope(id, errorBody(err))
 	}

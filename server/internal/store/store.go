@@ -40,7 +40,7 @@ const (
 )
 
 type StepRecord struct {
-	Seq              uint64
+	Seq              game.Seq
 	User             game.UserID
 	Kind             StepKind
 	Payload          json.RawMessage
@@ -48,19 +48,22 @@ type StepRecord struct {
 	ClockRemainingMS map[game.UserID]int64
 }
 
-type PlayerRecord struct {
-	User game.UserID
-	Seat game.Seat
-}
-
 type GameRecord struct {
 	ID        game.GameID
 	Type      game.GameType
 	Options   json.RawMessage
-	Seed      uint64
-	Players   []PlayerRecord
+	Seed      game.Seed
+	Players   []game.Player
 	Steps     []StepRecord
 	CreatedAt time.Time
+}
+
+// Challenger relies on players being stored challenger first.
+func (r GameRecord) Challenger() (game.UserID, bool) {
+	if len(r.Players) == 0 {
+		return "", false
+	}
+	return r.Players[0].User, true
 }
 
 type Store struct {
@@ -234,7 +237,7 @@ func (s *Store) loadGames(ctx context.Context, where string, args ...any) ([]Gam
 		var seed, createdMS int64
 		var options []byte
 		err := rows.Scan(&rec.ID, &rec.Type, &options, &seed, &createdMS)
-		rec.Options, rec.Seed, rec.CreatedAt = options, uint64(seed), time.UnixMilli(createdMS)
+		rec.Options, rec.Seed, rec.CreatedAt = options, game.Seed(seed), time.UnixMilli(createdMS)
 		return rec, err
 	})
 	if err != nil {
@@ -251,14 +254,14 @@ func (s *Store) loadGames(ctx context.Context, where string, args ...any) ([]Gam
 	return recs, nil
 }
 
-func (s *Store) loadPlayers(ctx context.Context, id game.GameID) ([]PlayerRecord, error) {
+func (s *Store) loadPlayers(ctx context.Context, id game.GameID) ([]game.Player, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT username, seat FROM game_players WHERE game_id = ? ORDER BY rowid`, id)
 	if err != nil {
 		return nil, err
 	}
-	return collect(rows, func() (PlayerRecord, error) {
-		var p PlayerRecord
+	return collect(rows, func() (game.Player, error) {
+		var p game.Player
 		return p, rows.Scan(&p.User, &p.Seat)
 	})
 }
@@ -277,7 +280,7 @@ func (s *Store) loadSteps(ctx context.Context, id game.GameID) ([]StepRecord, er
 		if err := rows.Scan(&seq, &step.User, &step.Kind, &payload, &atMS, &clock); err != nil {
 			return step, err
 		}
-		step.Seq, step.Payload, step.At = uint64(seq), payload, time.UnixMilli(atMS)
+		step.Seq, step.Payload, step.At = game.Seq(seq), payload, time.UnixMilli(atMS)
 		if clock != nil {
 			if err := json.Unmarshal(clock, &step.ClockRemainingMS); err != nil {
 				return step, fmt.Errorf("store: decode clock: %w", err)

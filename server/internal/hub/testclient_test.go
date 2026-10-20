@@ -26,7 +26,7 @@ func (e errorReply) Error() string { return fmt.Sprintf("%s: %s", e.Code, e.Mess
 // background reader only routes replies and pushes onto channels.
 type testClient struct {
 	conn    net.Conn
-	nextID  uint64
+	nextID  protocol.RequestID
 	replies chan protocol.Envelope
 	pushes  chan protocol.Envelope
 	backlog []protocol.Envelope

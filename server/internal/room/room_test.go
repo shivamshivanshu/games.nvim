@@ -135,8 +135,8 @@ func newHarness(t *testing.T, timeControl chess.TimeControl) *harness {
 		clock:   clocktest.New(time.UnixMilli(1_700_000_000_000)),
 	}
 	h.params = Params{
-		ID: "g1", Game: g, Options: opts, Seed: seed, Clock: clockCfg,
-		Players: []store.PlayerRecord{{User: alice, Seat: seats[alice]}, {User: bob, Seat: seats[bob]}},
+		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: alice, Clock: clockCfg,
+		Players: []game.Player{{User: alice, Seat: seats[alice]}, {User: bob, Seat: seats[bob]}},
 		Persist: h.persist, Broadcast: h.sent, Time: h.clock,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -150,7 +150,7 @@ func move(san string) json.RawMessage {
 	return json.RawMessage(`{"kind":"move","move":"` + san + `"}`)
 }
 
-func (h *harness) play(t *testing.T, user game.UserID, seq uint64, san string) uint64 {
+func (h *harness) play(t *testing.T, user game.UserID, seq game.Seq, san string) game.Seq {
 	t.Helper()
 	next, err := h.room.Act(context.Background(), user, seq, move(san))
 	if err != nil {
@@ -159,7 +159,7 @@ func (h *harness) play(t *testing.T, user game.UserID, seq uint64, san string) u
 	return next
 }
 
-func (h *harness) control(t *testing.T, user game.UserID, seq uint64, c protocol.Control) uint64 {
+func (h *harness) control(t *testing.T, user game.UserID, seq game.Seq, c protocol.Control) game.Seq {
 	t.Helper()
 	next, err := h.room.Control(context.Background(), user, seq, c)
 	if err != nil {
@@ -363,7 +363,7 @@ func TestClockNotChargedBeforeFirstMoves(t *testing.T) {
 
 func TestRestoreReplaysAndResumesClock(t *testing.T) {
 	h := newHarness(t, chess.TimeControl10Plus5)
-	seq := uint64(0)
+	seq := game.Seq(0)
 	for i, san := range []string{"e4", "e5", "Nf3", "Nc6"} {
 		h.clock.Advance(time.Duration(i+1) * 7 * time.Second)
 		seq = h.play(t, []game.UserID{alice, bob}[i%2], seq, san)

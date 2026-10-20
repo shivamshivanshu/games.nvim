@@ -54,7 +54,9 @@ type MovedEvent struct {
 	SAN string    `json:"san"`
 }
 
-func (MovedEvent) EventKind() string { return "moved" }
+const EventMoved game.EventKind = "moved"
+
+func (MovedEvent) EventKind() game.EventKind { return EventMoved }
 
 const (
 	SeatWhite game.Seat = "white"

@@ -41,9 +41,12 @@ const (
 	CodeInternal        ErrorCode = "internal"
 )
 
-// Envelope.ID is nil on pushes; requests and their replies share a client-chosen id.
+// RequestID is chosen by the client and echoed on the reply.
+type RequestID uint64
+
+// Envelope.ID is nil on pushes.
 type Envelope struct {
-	ID   *uint64         `json:"id,omitempty"`
+	ID   *RequestID      `json:"id,omitempty"`
 	Type MessageType     `json:"type"`
 	Body json.RawMessage `json:"body"`
 }

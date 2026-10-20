@@ -28,11 +28,11 @@ type Game interface {
 }
 
 type ErasedState interface {
-	Apply(seat Seat, action json.RawMessage, rng *rand.Rand) (ErasedState, []Event, error)
+	Apply(seat Seat, action json.RawMessage, rng *rand.Rand) (ErasedState, []json.RawMessage, error)
 	View(seat Seat) (json.RawMessage, error)
 	ToAct() []Seat
 	Outcome() (Result, bool)
-	Eliminate(seat Seat, reason ResultReason) (ErasedState, []Event)
+	Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error)
 }
 
 // ForfeitToRemaining makes every seat except the eliminated one a winner.

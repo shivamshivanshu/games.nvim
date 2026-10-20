@@ -72,6 +72,20 @@ type GameInfoWire struct {
 	Options      map[string]OptionWire `json:"options"`
 }
 
+func InfoToWire(info game.Info) GameInfoWire {
+	options := make(map[string]OptionWire, len(info.Options))
+	for _, spec := range info.Options {
+		options[spec.Name] = OptionWire{Type: OptionEnum, Values: spec.Values, Default: spec.Default}
+	}
+	return GameInfoWire{
+		ID:           info.Type,
+		Name:         info.Name,
+		Players:      PlayersWire{Min: info.Players.Min, Max: info.Players.Max},
+		Capabilities: info.Capabilities,
+		Options:      options,
+	}
+}
+
 type CatalogResult struct {
 	Games []GameInfoWire `json:"games"`
 }
@@ -130,23 +144,18 @@ type GameSnapshotRequest struct {
 
 type GameActRequest struct {
 	GameID game.GameID     `json:"game_id"`
-	Seq    uint64          `json:"seq"`
+	Seq    game.Seq        `json:"seq"`
 	Action json.RawMessage `json:"action"`
 }
 
 type GameControlRequest struct {
 	GameID  game.GameID `json:"game_id"`
-	Seq     uint64      `json:"seq"`
+	Seq     game.Seq    `json:"seq"`
 	Control Control     `json:"control"`
 }
 
 type SeqResult struct {
-	Seq uint64 `json:"seq"`
-}
-
-type PlayerSeat struct {
-	User game.UserID `json:"user"`
-	Seat game.Seat   `json:"seat"`
+	Seq game.Seq `json:"seq"`
 }
 
 type WireResult struct {
@@ -163,8 +172,8 @@ type GameUpdate struct {
 	GameID     game.GameID       `json:"game_id"`
 	Game       game.GameType     `json:"game"`
 	Options    json.RawMessage   `json:"options"`
-	Seq        uint64            `json:"seq"`
-	Players    []PlayerSeat      `json:"players"`
+	Seq        game.Seq          `json:"seq"`
+	Players    []game.Player     `json:"players"`
 	ToAct      []game.UserID     `json:"to_act"`
 	Result     *WireResult       `json:"result"`
 	Clock      *WireClock        `json:"clock"`

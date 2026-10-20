@@ -93,7 +93,7 @@ type client struct {
 	t      *testing.T
 	conn   net.Conn
 	reader *protocol.Reader
-	nextID uint64
+	nextID protocol.RequestID
 }
 
 func dial(t *testing.T, addr string) *client {
@@ -113,7 +113,7 @@ func (c *client) sendLine(line string) {
 	}
 }
 
-func (c *client) send(typ protocol.MessageType, body any) uint64 {
+func (c *client) send(typ protocol.MessageType, body any) protocol.RequestID {
 	c.t.Helper()
 	raw, err := json.Marshal(body)
 	if err != nil {

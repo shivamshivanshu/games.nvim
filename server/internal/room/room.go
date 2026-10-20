@@ -33,15 +33,16 @@ type Broadcaster interface {
 }
 
 type Params struct {
-	ID        game.GameID
-	Game      game.Game
-	Options   game.Options
-	Seed      uint64
-	Players   []store.PlayerRecord
-	Clock     game.ClockConfig
-	Persist   Persister
-	Broadcast Broadcaster
-	Time      clock.Clock
+	ID         game.GameID
+	Game       game.Game
+	Options    game.Options
+	Seed       game.Seed
+	Challenger game.UserID
+	Players    []game.Player
+	Clock      game.ClockConfig
+	Persist    Persister
+	Broadcast  Broadcaster
+	Time       clock.Clock
 }
 
 // setup is everything about a game that is fixed when it starts.
@@ -69,6 +70,11 @@ func newSetup(p Params) setup {
 	return g
 }
 
+func (p Params) invitees() []game.UserID {
+	users := xslices.Map(p.Players, func(player game.Player) game.UserID { return player.User })
+	return slices.DeleteFunc(users, func(u game.UserID) bool { return u == p.Challenger })
+}
+
 func (g setup) usersAt(seats []game.Seat) []game.UserID {
 	return xslices.Map(seats, func(seat game.Seat) game.UserID { return g.users[seat] })
 }
@@ -77,7 +83,7 @@ func (g setup) usersAt(seats []game.Seat) []game.UserID {
 // unpersisted step leaves the current one untouched.
 type roomState struct {
 	game       game.ErasedState
-	seq        uint64
+	seq        game.Seq
 	acted      map[game.UserID]bool
 	drawAgreed []game.UserID
 	imposed    *game.Result
@@ -121,58 +127,62 @@ func (s roomState) apply(g setup, rec store.StepRecord) (roomState, error) {
 	next.seq = rec.Seq
 	next.remaining = s.charged(g, rec.At)
 	next.since = rec.At
-	var events []game.Event
+	next.events = []json.RawMessage{}
 	var err error
 	switch rec.Kind {
 	case store.StepAction:
-		next, events, err = next.applyAction(g, rec, s.clockRunning(g))
+		next, err = next.applyAction(g, rec, s.clockRunning(g))
 	case store.StepControl:
-		next, events, err = next.applyControl(g, rec)
+		next, err = next.applyControl(g, rec)
 	case store.StepTimeout:
-		next, events, err = next.applyTimeout(g, rec)
+		next, err = next.applyTimeout(g, rec)
 	default:
 		err = fmt.Errorf("room: unknown step kind %q", rec.Kind)
 	}
 	if err != nil {
 		return roomState{}, err
 	}
-	if next.events, err = encodeEvents(events); err != nil {
-		return roomState{}, err
-	}
 	return next, nil
 }
 
-func (s roomState) applyAction(g setup, rec store.StepRecord, clockWasRunning bool) (roomState, []game.Event, error) {
+func (s roomState) applyAction(g setup, rec store.StepRecord, clockWasRunning bool) (roomState, error) {
 	if s.finished() {
-		return s, nil, errGameOver
+		return s, errGameOver
 	}
 	state, events, err := s.game.Apply(g.seats[rec.User], rec.Payload, game.StepRNG(g.Seed, rec.Seq))
 	if err != nil {
-		return s, nil, err
+		return s, err
 	}
-	s.game = state
+	s.game, s.events = state, events
 	s.drawAgreed = nil
 	s.acted = xslices.With(s.acted, rec.User, true)
 	if clockWasRunning {
 		s.remaining[rec.User] += g.Clock.Increment
 	}
-	return s, events, nil
+	return s, nil
 }
 
-func (s roomState) applyTimeout(g setup, rec store.StepRecord) (roomState, []game.Event, error) {
+func (s roomState) applyTimeout(g setup, rec store.StepRecord) (roomState, error) {
 	if s.finished() {
-		return s, nil, errGameOver
+		return s, errGameOver
 	}
-	state, events := s.game.Eliminate(g.seats[rec.User], game.ReasonTimeout)
-	s.game = state
+	s, err := s.eliminate(g, rec.User, game.ReasonTimeout)
+	if err != nil {
+		return s, err
+	}
 	if s.remaining != nil {
 		s.remaining[rec.User] = 0
 	}
-	return s, events, nil
+	return s, nil
 }
 
-func encodeEvents(events []game.Event) ([]json.RawMessage, error) {
-	return xslices.MapErr(events, protocol.EncodeEvent)
+func (s roomState) eliminate(g setup, user game.UserID, reason game.ResultReason) (roomState, error) {
+	state, events, err := s.game.Eliminate(g.seats[user], reason)
+	if err != nil {
+		return s, err
+	}
+	s.game, s.events = state, events
+	return s, nil
 }
 
 func (s roomState) outcomes(g setup) (game.ResultReason, map[game.UserID]store.Outcome) {
@@ -201,7 +211,6 @@ func (s roomState) update(g setup, user game.UserID, at time.Time) (protocol.Gam
 	if err != nil {
 		return protocol.GameUpdate{}, fmt.Errorf("room: encode options: %w", err)
 	}
-	players := xslices.Map(g.Players, func(p store.PlayerRecord) protocol.PlayerSeat { return protocol.PlayerSeat(p) })
 	var wireResult *protocol.WireResult
 	if result, done := s.result(); done {
 		wireResult = &protocol.WireResult{Winners: g.usersAt(result.Winners), Reason: result.Reason}
@@ -211,7 +220,7 @@ func (s roomState) update(g setup, user game.UserID, at time.Time) (protocol.Gam
 		Game:       g.gameType,
 		Options:    options,
 		Seq:        s.seq,
-		Players:    players,
+		Players:    g.Players,
 		ToAct:      s.toAct(g),
 		Result:     wireResult,
 		Clock:      s.wireClock(g, at),
@@ -268,18 +277,18 @@ func (r *Room) run() {
 	close(r.done)
 }
 
-func (r *Room) Act(ctx context.Context, user game.UserID, seq uint64, action json.RawMessage) (uint64, error) {
-	return ask(ctx, r, func() (uint64, error) {
+func (r *Room) Act(ctx context.Context, user game.UserID, seq game.Seq, action json.RawMessage) (game.Seq, error) {
+	return ask(ctx, r, func() (game.Seq, error) {
 		return r.submit(user, seq, store.StepAction, action)
 	}, r.rejectAfterExit)
 }
 
-func (r *Room) Control(ctx context.Context, user game.UserID, seq uint64, c protocol.Control) (uint64, error) {
+func (r *Room) Control(ctx context.Context, user game.UserID, seq game.Seq, c protocol.Control) (game.Seq, error) {
 	payload, err := json.Marshal(c)
 	if err != nil {
 		return 0, err
 	}
-	return ask(ctx, r, func() (uint64, error) {
+	return ask(ctx, r, func() (game.Seq, error) {
 		return r.submit(user, seq, store.StepControl, payload)
 	}, r.rejectAfterExit)
 }
@@ -295,7 +304,7 @@ func (r *Room) Snapshot(ctx context.Context, user game.UserID) (protocol.GameUpd
 	return ask(ctx, r, snapshot, snapshot)
 }
 
-func (r *Room) rejectAfterExit() (uint64, error) {
+func (r *Room) rejectAfterExit() (game.Seq, error) {
 	if r.cur.finished() {
 		return 0, errGameOver
 	}
@@ -325,7 +334,7 @@ func ask[T any](ctx context.Context, r *Room, inActor, afterExit func() (T, erro
 	}
 }
 
-func (r *Room) submit(user game.UserID, seq uint64, kind store.StepKind, payload json.RawMessage) (uint64, error) {
+func (r *Room) submit(user game.UserID, seq game.Seq, kind store.StepKind, payload json.RawMessage) (game.Seq, error) {
 	if _, ok := r.setup.seats[user]; !ok {
 		return 0, ErrNotAPlayer
 	}
@@ -335,7 +344,7 @@ func (r *Room) submit(user game.UserID, seq uint64, kind store.StepKind, payload
 	return r.commit(store.StepRecord{Seq: seq + 1, User: user, Kind: kind, Payload: payload, At: r.setup.Time.Now()})
 }
 
-func (r *Room) commit(rec store.StepRecord) (uint64, error) {
+func (r *Room) commit(rec store.StepRecord) (game.Seq, error) {
 	next, err := r.cur.apply(r.setup, rec)
 	if err != nil {
 		return 0, err

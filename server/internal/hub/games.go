@@ -66,27 +66,27 @@ func (h *Hub) startGame(c challenge.Challenge) (game.GameID, error) {
 	}); err != nil {
 		return "", err
 	}
-	r := room.New(h.ctx, h.roomParams(id, g, opts, seed, players, clock), state)
+	r := room.New(h.ctx, h.roomParams(id, g, opts, seed, c.From, players, clock), state)
 	h.track(id, r, players, now)
 	h.sendCurrent(r, players)
 	return id, nil
 }
 
 // seated lists players in challenger-first order, which room.Restore relies on.
-func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]store.PlayerRecord, error) {
+func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]game.Player, error) {
 	if len(seats) != len(users) {
 		return nil, fmt.Errorf("hub: game assigned %d seats for %d players", len(seats), len(users))
 	}
-	return xslices.MapErr(users, func(user game.UserID) (store.PlayerRecord, error) {
+	return xslices.MapErr(users, func(user game.UserID) (game.Player, error) {
 		seat, ok := seats[user]
 		if !ok {
-			return store.PlayerRecord{}, fmt.Errorf("hub: game assigned no seat to %s", user)
+			return game.Player{}, fmt.Errorf("hub: game assigned no seat to %s", user)
 		}
-		return store.PlayerRecord{User: user, Seat: seat}, nil
+		return game.Player{User: user, Seat: seat}, nil
 	})
 }
 
-func (h *Hub) sendCurrent(r *room.Room, players []store.PlayerRecord) {
+func (h *Hub) sendCurrent(r *room.Room, players []game.Player) {
 	for _, p := range players {
 		u, err := r.Snapshot(h.ctx, p.User)
 		if err != nil {
@@ -132,25 +132,30 @@ func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, er
 	if err != nil {
 		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
 	}
-	return room.Restore(ctx, h.roomParams(rec.ID, g, opts, rec.Seed, rec.Players, clock), rec.Steps)
+	challenger, ok := rec.Challenger()
+	if !ok {
+		return nil, fmt.Errorf("hub: restore %s: no players", rec.ID)
+	}
+	return room.Restore(ctx, h.roomParams(rec.ID, g, opts, rec.Seed, challenger, rec.Players, clock), rec.Steps)
 }
 
-func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed uint64, players []store.PlayerRecord, clock game.ClockConfig) room.Params {
+func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed game.Seed, challenger game.UserID, players []game.Player, clock game.ClockConfig) room.Params {
 	return room.Params{
-		ID:        id,
-		Game:      g,
-		Options:   opts,
-		Seed:      seed,
-		Players:   players,
-		Clock:     clock,
-		Persist:   h.deps.Store,
-		Broadcast: h,
-		Time:      h.deps.Time,
+		ID:         id,
+		Game:       g,
+		Options:    opts,
+		Seed:       seed,
+		Challenger: challenger,
+		Players:    players,
+		Clock:      clock,
+		Persist:    h.deps.Store,
+		Broadcast:  h,
+		Time:       h.deps.Time,
 	}
 }
 
-func (h *Hub) track(id game.GameID, r *room.Room, players []store.PlayerRecord, lastStep time.Time) {
-	users := xslices.Map(players, func(p store.PlayerRecord) game.UserID { return p.User })
+func (h *Hub) track(id game.GameID, r *room.Room, players []game.Player, lastStep time.Time) {
+	users := xslices.Map(players, func(p game.Player) game.UserID { return p.User })
 	h.mu.Lock()
 	h.live[id] = &liveGame{room: r, players: users, lastStep: lastStep}
 	h.mu.Unlock()
@@ -270,8 +275,8 @@ func (h *Hub) gameType(t game.GameType) (game.Game, error) {
 	return g, nil
 }
 
-func newSeed() uint64 {
+func newSeed() game.Seed {
 	var b [8]byte
 	_, _ = rand.Read(b[:])
-	return binary.LittleEndian.Uint64(b[:])
+	return game.Seed(binary.LittleEndian.Uint64(b[:]))
 }

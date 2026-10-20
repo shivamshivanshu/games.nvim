@@ -13,7 +13,15 @@ type (
 	Seat       string
 	GameType   string
 	Capability string
+	EventKind  string
+	Seq        uint64
+	Seed       uint64
 )
+
+type Player struct {
+	User UserID `json:"user"`
+	Seat Seat   `json:"seat"`
+}
 
 const (
 	CapResign Capability = "resign"
@@ -61,7 +69,7 @@ type Info struct {
 	Options      []OptionSpec
 }
 
-type Event interface{ EventKind() string }
+type Event interface{ EventKind() EventKind }
 
 // Options is the validated, default-filled option set stored with a game.
 type Options map[string]string

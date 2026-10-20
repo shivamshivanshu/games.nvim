@@ -32,19 +32,17 @@ func (s roomState) controls(g setup, user game.UserID) []protocol.Control {
 	return controls
 }
 
-func (s roomState) applyControl(g setup, rec store.StepRecord) (roomState, []game.Event, error) {
+func (s roomState) applyControl(g setup, rec store.StepRecord) (roomState, error) {
 	var c protocol.Control
 	if err := json.Unmarshal(rec.Payload, &c); err != nil {
-		return s, nil, game.BadRequestError{Msg: fmt.Sprintf("malformed control: %v", err)}
+		return s, game.BadRequestError{Msg: fmt.Sprintf("malformed control: %v", err)}
 	}
 	if !slices.Contains(s.controls(g, rec.User), c) {
-		return s, nil, game.IllegalActionError{Msg: "control not available: " + string(c)}
+		return s, game.IllegalActionError{Msg: "control not available: " + string(c)}
 	}
 	switch c {
 	case protocol.ControlResign:
-		state, events := s.game.Eliminate(g.seats[rec.User], game.ReasonResign)
-		s.game = state
-		return s, events, nil
+		return s.eliminate(g, rec.User, game.ReasonResign)
 	case protocol.ControlOfferDraw:
 		s.drawAgreed = append(slices.Clip(s.drawAgreed), rec.User)
 		if len(s.drawAgreed) == len(g.Players) {
@@ -55,5 +53,5 @@ func (s roomState) applyControl(g setup, rec store.StepRecord) (roomState, []gam
 	case protocol.ControlAbort:
 		s.imposed = &game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
 	}
-	return s, nil, nil
+	return s, nil
 }
