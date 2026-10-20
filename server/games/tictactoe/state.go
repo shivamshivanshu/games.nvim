@@ -1,6 +1,7 @@
 package tictactoe
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"slices"
 
@@ -18,7 +19,7 @@ type state struct {
 	finished     bool
 }
 
-var allSeats = []game.Seat{SeatX, SeatO}
+func seats() []game.Seat { return []game.Seat{SeatX, SeatO} }
 
 func newState() state {
 	return state{toMove: SeatX, winningLines: [][]Cell{}}
@@ -38,10 +39,14 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	if action.Kind != ActionPlace {
 		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
 	}
-	if err := s.board.placeError(action.Cell); err != nil {
+	cell, err := parseCell(action.Cell)
+	if err != nil {
 		return nil, nil, err
 	}
-	return s.place(seat, action.Cell), []game.Event{PlacedEvent{By: seat, Cell: action.Cell}}, nil
+	if s.board.owner(cell) != noSeat {
+		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("cell %d is taken", cell)}
+	}
+	return s.place(seat, cell), []game.Event{PlacedEvent{By: seat, Cell: cell}}, nil
 }
 
 func (s state) place(seat game.Seat, cell Cell) state {
@@ -51,17 +56,20 @@ func (s state) place(seat game.Seat, cell Cell) state {
 	case len(next.winningLines) > 0:
 		next.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat}, Reason: ReasonThreeInARow}
 		next.finished = true
-	case next.board.full():
+	case len(next.board.emptyCells()) == 0:
 		next.result, next.finished = game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull}, true
 	}
 	return next
 }
 
-func (s state) View(game.Seat) View {
-	view := View{Cells: s.board, WinningLines: s.winningLines}
+func (s state) View(seat game.Seat) View {
+	view := View{Cells: s.board, WinningLines: s.winningLines, LegalCells: []Cell{}}
 	if s.last != noCell {
 		last := s.last
 		view.Last = &last
+	}
+	if slices.Contains(s.ToAct(), seat) {
+		view.LegalCells = s.board.emptyCells()
 	}
 	return view
 }
@@ -76,9 +84,14 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
+	return s.Conclude(game.ForfeitToRemaining(seats(), seat, reason)), nil
+}
+
+// Conclude keeps a result already reached; otherwise result ends the game.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
 	if s.finished {
-		return s, nil
+		return s
 	}
-	s.result, s.finished = game.ForfeitToRemaining(allSeats, seat, reason), true
-	return s, nil
+	s.result, s.finished = result, true
+	return s
 }

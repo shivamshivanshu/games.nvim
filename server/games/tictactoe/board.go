@@ -3,6 +3,7 @@ package tictactoe
 import (
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
@@ -15,6 +16,23 @@ const (
 )
 
 type board [cellCount]game.Seat
+
+// cellInputs are the texts a place action accepts, "1" to "9", in cell order.
+func cellInputs() []string {
+	inputs := make([]string, cellCount)
+	for i := range inputs {
+		inputs[i] = strconv.Itoa(i + 1)
+	}
+	return inputs
+}
+
+func parseCell(text string) (Cell, error) {
+	i := slices.Index(cellInputs(), text)
+	if i < 0 {
+		return 0, game.IllegalActionError{Msg: fmt.Sprintf("cell must be 1-%d, got %q", cellCount, text)}
+	}
+	return Cell(i + 1), nil
+}
 
 func (c Cell) point() grid.Point {
 	i := int(c) - 1
@@ -30,16 +48,14 @@ func (b board) with(c Cell, seat game.Seat) board {
 	return b
 }
 
-func (b board) full() bool { return !slices.Contains(b[:], noSeat) }
-
-func (b board) placeError(c Cell) error {
-	switch {
-	case c < 1 || c > cellCount:
-		return game.IllegalActionError{Msg: fmt.Sprintf("cell must be 1-%d, got %d", cellCount, c)}
-	case b.owner(c) != noSeat:
-		return game.IllegalActionError{Msg: fmt.Sprintf("cell %d is taken", c)}
+func (b board) emptyCells() []Cell {
+	cells := []Cell{}
+	for i, owner := range b {
+		if owner == noSeat {
+			cells = append(cells, Cell(i+1))
+		}
 	}
-	return nil
+	return cells
 }
 
 func (b board) rows() [][]game.Seat {

@@ -3,7 +3,9 @@ package tictactoe
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,7 +32,7 @@ func play(t *testing.T, cells ...Cell) game.State[Action, View] {
 	t.Helper()
 	st := newGame(t)
 	for _, c := range cells {
-		next, _, err := st.Apply(st.ToAct()[0], Action{Kind: ActionPlace, Cell: c}, game.StepRNG(1, 1))
+		next, _, err := st.Apply(st.ToAct()[0], place(c), game.StepRNG(1, 1))
 		if err != nil {
 			t.Fatalf("place %d: %v", c, err)
 		}
@@ -39,22 +41,29 @@ func play(t *testing.T, cells ...Cell) game.State[Action, View] {
 	return st
 }
 
+func place(c Cell) Action { return Action{Kind: ActionPlace, Cell: strconv.Itoa(int(c))} }
+
 func TestNewSeatsFirstMoverAsX(t *testing.T) {
 	tests := []struct {
 		first     game.FirstMover
+		seed      game.Seed
 		wantAlice game.Seat
 	}{
-		{game.FirstMoverMe, SeatX},
-		{game.FirstMoverOpponent, SeatO},
+		{game.FirstMoverMe, 1, SeatX},
+		{game.FirstMoverOpponent, 1, SeatO},
+		{game.FirstMoverRandom, 1, SeatO},
+		{game.FirstMoverRandom, 6, SeatX},
 	}
 	for _, tc := range tests {
-		t.Run(string(tc.first), func(t *testing.T) {
-			_, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if seats[alice] != tc.wantAlice || seats[bob] != opponent(tc.wantAlice) {
-				t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
+		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
+			for range 2 {
+				_, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if seats[alice] != tc.wantAlice || seats[bob] != opponent(tc.wantAlice) {
+					t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
+				}
 			}
 		})
 	}
@@ -77,13 +86,15 @@ func TestApplyRejects(t *testing.T) {
 		action  Action
 		wantErr error
 	}{
-		{"cell 0", nil, SeatX, Action{Kind: ActionPlace, Cell: 0}, game.IllegalActionError{Msg: "cell must be 1-9, got 0"}},
-		{"cell 10", nil, SeatX, Action{Kind: ActionPlace, Cell: 10}, game.IllegalActionError{Msg: "cell must be 1-9, got 10"}},
-		{"taken cell", []Cell{5}, SeatO, Action{Kind: ActionPlace, Cell: 5}, game.IllegalActionError{Msg: "cell 5 is taken"}},
-		{"unknown kind", nil, SeatX, Action{Kind: "move", Cell: 1}, game.IllegalActionError{Msg: "unknown action: move"}},
-		{"O moves first", nil, SeatO, Action{Kind: ActionPlace, Cell: 1}, game.ErrNotYourTurn},
-		{"X moves twice", []Cell{1}, SeatX, Action{Kind: ActionPlace, Cell: 2}, game.ErrNotYourTurn},
-		{"after a win", []Cell{1, 4, 2, 5, 3}, SeatO, Action{Kind: ActionPlace, Cell: 6}, game.ErrNotYourTurn},
+		{"cell 0", nil, SeatX, place(0), game.IllegalActionError{Msg: `cell must be 1-9, got "0"`}},
+		{"cell 10", nil, SeatX, place(10), game.IllegalActionError{Msg: `cell must be 1-9, got "10"`}},
+		{"no cell", nil, SeatX, Action{Kind: ActionPlace}, game.IllegalActionError{Msg: `cell must be 1-9, got ""`}},
+		{"signed cell", nil, SeatX, Action{Kind: ActionPlace, Cell: "+5"}, game.IllegalActionError{Msg: `cell must be 1-9, got "+5"`}},
+		{"taken cell", []Cell{5}, SeatO, place(5), game.IllegalActionError{Msg: "cell 5 is taken"}},
+		{"unknown kind", nil, SeatX, Action{Kind: "move", Cell: "1"}, game.IllegalActionError{Msg: "unknown action: move"}},
+		{"O moves first", nil, SeatO, place(1), game.ErrNotYourTurn},
+		{"X moves twice", []Cell{1}, SeatX, place(2), game.ErrNotYourTurn},
+		{"after a win", []Cell{1, 4, 2, 5, 3}, SeatO, place(6), game.ErrNotYourTurn},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -131,6 +142,72 @@ func TestOutcome(t *testing.T) {
 	}
 }
 
+func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
+	before := play(t, 1, 4, 2, 5)
+	want := before.View(SeatX)
+	if _, _, err := before.Apply(SeatX, place(3), game.StepRNG(1, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(want, before.View(SeatX)); diff != "" {
+		t.Errorf("earlier state changed (-before +after):\n%s", diff)
+	}
+	if _, finished := before.Outcome(); finished {
+		t.Error("earlier state finished")
+	}
+}
+
+func TestLegalCellsAreTheMoversOwn(t *testing.T) {
+	imposed := game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
+	concluded, ok := play(t, 5).(game.Concluder[Action, View])
+	if !ok {
+		t.Fatal("state is not a game.Concluder")
+	}
+	tests := []struct {
+		name         string
+		state        game.State[Action, View]
+		wantX, wantO []Cell
+	}{
+		{"start", play(t), []Cell{1, 2, 3, 4, 5, 6, 7, 8, 9}, []Cell{}},
+		{"after X plays 5", play(t, 5), []Cell{}, []Cell{1, 2, 3, 4, 6, 7, 8, 9}},
+		{"after a win", play(t, 1, 4, 2, 5, 3), []Cell{}, []Cell{}},
+		{"after an imposed result", concluded.Conclude(imposed), []Cell{}, []Cell{}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.wantX, tc.state.View(SeatX).LegalCells); diff != "" {
+				t.Errorf("x (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantO, tc.state.View(SeatO).LegalCells); diff != "" {
+				t.Errorf("o (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestConcludeKeepsAReachedResult(t *testing.T) {
+	imposed := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
+	tests := []struct {
+		name   string
+		played []Cell
+		want   game.Result
+	}{
+		{"ongoing takes the imposed result", []Cell{1}, imposed},
+		{"finished keeps its own", []Cell{1, 4, 2, 5, 3}, game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatX}, Reason: ReasonThreeInARow}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			st := play(t, tc.played...).(game.Concluder[Action, View]).Conclude(imposed)
+			got, finished := st.Outcome()
+			if !finished || len(st.ToAct()) != 0 {
+				t.Fatalf("finished %t, to act %v", finished, st.ToAct())
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("result (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestWireShape(t *testing.T) {
 	g := game.Adapt(Rules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{"first":"me"}`))
@@ -141,15 +218,15 @@ func TestWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantView(t, st, `{"cells":["","","","","","","","",""],"last":null,"winning_lines":[]}`)
-	st, events, err := st.Apply(SeatX, json.RawMessage(`{"kind":"place","cell":3}`), game.StepRNG(1, 1))
+	wantView(t, st, `{"cells":["","","","","","","","",""],"last":null,"winning_lines":[],"legal_cells":[]}`)
+	st, events, err := st.Apply(SeatX, json.RawMessage(`{"kind":"place","cell":"3"}`), game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(events) != 1 || string(events[0]) != `{"by":"x","cell":3,"kind":"placed"}` {
 		t.Errorf("events %s", events)
 	}
-	wantView(t, st, `{"cells":["","","x","","","","","",""],"last":3,"winning_lines":[]}`)
+	wantView(t, st, `{"cells":["","","x","","","","","",""],"last":3,"winning_lines":[],"legal_cells":[1,2,4,5,6,7,8,9]}`)
 }
 
 func wantView(t *testing.T, st game.ErasedState, want string) {
@@ -167,7 +244,7 @@ func places(cells ...Cell) []gametest.Step[Action] {
 	steps := make([]gametest.Step[Action], len(cells))
 	seat := SeatX
 	for i, c := range cells {
-		steps[i] = gametest.Step[Action]{Seat: seat, Action: Action{Kind: ActionPlace, Cell: c}}
+		steps[i] = gametest.Step[Action]{Seat: seat, Action: place(c)}
 		seat = opponent(seat)
 	}
 	return steps
@@ -185,7 +262,7 @@ func TestConformance(t *testing.T) {
 			WantResult: want,
 		}
 	}
-	taken := gametest.Step[Action]{Seat: SeatO, Action: Action{Kind: ActionPlace, Cell: 1}, WantErr: true}
+	taken := gametest.Step[Action]{Seat: SeatO, Action: place(1), WantErr: true}
 	gametest.Run(t, Rules{}, []gametest.Script[Opts, Action]{
 		script("x wins after a rejected move", slices.Insert(places(1, 4, 2, 5, 3), 1, taken),
 			&game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatX}, Reason: ReasonThreeInARow}),

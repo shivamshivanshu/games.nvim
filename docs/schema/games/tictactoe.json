@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "cell": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "cell"
+      ],
+      "description": "Action is a player's move. Cell is the cell's number as text, \"1\" to \"9\"."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "place"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "PlacedEvent": {
+      "properties": {
+        "kind": {
+          "const": "placed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "cell": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "cell"
+      ],
+      "description": "PlacedEvent reports a mark placed on Cell."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "three_in_a_row",
+        "board_full"
+      ],
+      "description": "The result reasons Tic-Tac-Toe adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "cells": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "maxItems": 9,
+          "minItems": 9
+        },
+        "last": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "winning_lines": {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "legal_cells": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "cells",
+        "last",
+        "winning_lines",
+        "legal_cells"
+      ],
+      "description": "View is the board as every seat sees it. Cells holds each cell's owner, \"\"\nwhen empty. LegalCells is the viewer's own: empty unless it is to move."
+    }
+  },
+  "title": "Tic-Tac-Toe",
+  "description": "The game-specific bodies inside a tictactoe game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "placed": {
+      "$ref": "#/$defs/PlacedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
