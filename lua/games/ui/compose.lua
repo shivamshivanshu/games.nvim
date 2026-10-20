@@ -236,16 +236,18 @@ local function fits(size, space)
   return size.w <= space.w and size.h <= space.h
 end
 
----The first candidate that fits space, building only the candidates a binary search probes.
----Candidates must be monotone: once one fits, every later one fits too.
+---The first candidate that fits space, and its size, building only the candidates a binary
+---search probes. Candidates must be monotone: once one fits, every later one fits too.
 ---@param space games.Size
 ---@param candidates (fun(): games.Node)[] largest first
 ---@return games.Node|nil
+---@return games.Size|nil
 function M.first_fit(space, candidates)
-  local built = {}
+  local built, sizes = {}, {}
   local function fitting(i)
     built[i] = built[i] or candidates[i]()
-    return fits(M.measure(built[i]), space)
+    sizes[i] = sizes[i] or M.measure(built[i])
+    return fits(sizes[i], space)
   end
   local low, high = 1, #candidates + 1
   while low < high do
@@ -256,7 +258,7 @@ function M.first_fit(space, candidates)
       low = mid + 1
     end
   end
-  return built[low]
+  return built[low], sizes[low]
 end
 
 return M

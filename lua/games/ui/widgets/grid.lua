@@ -24,6 +24,7 @@ local text_util = require("games.ui.text")
 ---@field cell_width? integer display columns per cell, default 1
 ---@field cell_height? integer lines per cell, default 1; taller cells touch, with no gap
 ---@field art? games.ArtSet resolves cell keys; without it a key is drawn as it is
+---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
 ---@field blocks? integer positive: draw a thin separator after every this many rows and columns
 ---@field glyphs? games.Glyphs separator characters, default "unicode"
 
@@ -31,6 +32,8 @@ local LIGHT_SQUARE_HL = "GamesSquareLight"
 local DARK_SQUARE_HL = "GamesSquareDark"
 local CELL_GAP = " "
 local LABEL_GAP = " "
+---@type games.Ambiwidth
+local DEFAULT_AMBIWIDTH = "single"
 
 ---@class (private) games.BlockSeparators
 ---@field col string
@@ -43,6 +46,21 @@ local BLOCK_SEPARATORS = {
   ascii = { col = "|", row = "-", crossing = "+" },
 }
 local SEPARATOR_HL = "GamesMuted"
+---@type games.ArtEntry[]
+local UNICODE_SEPARATOR_GLYPHS = vim.tbl_map(function(separator)
+  return { h = 1, w = 1, lines = { separator } }
+end, vim.tbl_values(BLOCK_SEPARATORS.unicode))
+
+---The separators of glyph mode, or ascii ones where unicode box drawing would widen.
+---@param glyphs games.Glyphs
+---@param ambiwidth games.Ambiwidth
+---@return games.BlockSeparators
+local function separators_for(glyphs, ambiwidth)
+  local drawable = vim.iter(UNICODE_SEPARATOR_GLYPHS):all(function(entry)
+    return art.drawable(entry, ambiwidth)
+  end)
+  return BLOCK_SEPARATORS[drawable and glyphs or "ascii"]
+end
 
 ---@class games.GridWidget
 ---@field mark_key fun(row: integer, col: integer): string
@@ -138,12 +156,13 @@ end
 ---@param props games.GridProps
 ---@param key string
 ---@param box games.Size
+---@param ambiwidth games.Ambiwidth
 ---@return games.Node
-local function cell_content(props, key, box)
+local function cell_content(props, key, box, ambiwidth)
   if not props.art then
     return compose.text(key)
   end
-  return compose.col(vim.tbl_map(compose.text, art.pick(props.art, key, box).lines))
+  return compose.col(vim.tbl_map(compose.text, art.pick(props.art, key, box, ambiwidth).lines))
 end
 
 ---@param props games.GridProps
@@ -183,7 +202,8 @@ end
 ---@return games.Node
 local function render(props)
   validate_blocks(props.blocks)
-  local separators = BLOCK_SEPARATORS[props.glyphs or "unicode"]
+  local ambiwidth = props.ambiwidth or DEFAULT_AMBIWIDTH
+  local separators = separators_for(props.glyphs or "unicode", ambiwidth)
   local cell_height = props.cell_height or 1
   local marks = props.marks or {}
   local row_order = display_order(props.rows, props.flip == true)
@@ -205,7 +225,12 @@ local function render(props)
     local hl = own_hl and compose.layers(shade, mark, own_hl)
       or highlights.with_ink(compose.layers(shade, mark))
     local box = geometry.cell
-    return compose.box({ w = box.w, h = box.h, hl = hl, child = cell_content(props, key, box) })
+    return compose.box({
+      w = box.w,
+      h = box.h,
+      hl = hl,
+      child = cell_content(props, key, box, ambiwidth),
+    })
   end
 
   local function gap_node(j)

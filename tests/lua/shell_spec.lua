@@ -1,5 +1,6 @@
 local Client = require("games.core.client")
 local board_widget = require("games.ui.widgets.board")
+local text_util = require("games.ui.text")
 local shell = require("games.ui.shell")
 local chess = require("games.games.chess")
 local helpers = require("helpers")
@@ -365,13 +366,13 @@ function T.hidden_buffer_marked_dirty()
   assert(table.concat(fresh, "\n"):find("1. e4", 1, true), vim.inspect(fresh))
 end
 
----A 2 x 2 game on board(), so a headless 80 x 24 editor has room to scale it.
+---A 2 x 4 game on board(), so a headless 80 x 24 editor has room to scale it.
 local SQUARE_GAME = {
   layout = function(_, ctx)
     return board_widget({
       grid = {
         rows = 2,
-        cols = 2,
+        cols = 4,
         shade = "checker",
         cell = function()
           return { "x" }
@@ -380,49 +381,210 @@ local SQUARE_GAME = {
     }, ctx)
   end,
 }
+local HEADER_AND_CHROME_LINES = 3 + 3
 
----Cell height of the shown square game, from the buffer: its lines less header and chrome.
+---Cell height of the shown square game, from the buffer.
 ---@param buf integer
 ---@return number
 local function square_cell_height(buf)
-  return (vim.api.nvim_buf_line_count(buf) - 2 - 3) / 2
+  return (vim.api.nvim_buf_line_count(buf) - HEADER_AND_CHROME_LINES) / 2
 end
 
-function T.refit_renders_once_per_resize_to_the_smallest_window()
+---@param buf integer
+---@return integer display width of the square game's grid
+local function square_board_width(buf)
+  local first = 4
+  local rows =
+    vim.api.nvim_buf_get_lines(buf, first - 1, first - 1 + 2 * square_cell_height(buf), false)
+  return text_util.max_display_width(rows)
+end
+
+---Opens the square game in the current window, runs fn with its buffer, then cleans up.
+---@param game_id string
+---@param fn fun(buf: integer)
+local function with_square_board(game_id, fn)
   package.preload["games.games.square"] = function()
     return SQUARE_GAME
   end
-  local client = client_with("alice", { chess_update({ game_id = "fit01", game = "square" }) })
-  local buf = assert(shell.open(client, "fit01"))
-  local full_height = square_cell_height(buf)
+  local client = client_with("alice", { chess_update({ game_id = game_id, game = "square" }) })
+  local buf = assert(shell.open(client, game_id))
+  local ok, err = xpcall(fn, debug.traceback, buf)
+  vim.cmd("silent! tabonly")
+  vim.cmd("silent! only")
+  vim.api.nvim_buf_delete(buf, { force = true })
+  package.preload["games.games.square"] = nil
+  assert(ok, err)
+end
+
+---@param buf integer
+---@return fun(): integer renders whole-buffer renders since the call
+local function count_renders(buf)
   local renders = 0
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function(_, _, _, first)
       renders = renders + (first == 0 and 1 or 0)
     end,
   })
+  return function()
+    return renders
+  end
+end
 
-  vim.cmd.split()
-  helpers.wait_for(function()
-    return renders > 0
-  end, "the split to refit")
-  vim.wait(50)
-  assert_eq(1, renders)
-  local split_height = square_cell_height(buf)
-  assert(split_height < full_height, vim.inspect({ full_height, split_height }))
-  assert_eq(false, vim.wo.wrap)
-  assert_eq("no", vim.wo.signcolumn)
-
-  vim.cmd.resize(vim.api.nvim_win_get_height(0) + 4)
-  -- Without an attached UI nothing redraws, so Neovim never checks for WinResized itself.
+---Without an attached UI nothing redraws, so Neovim never checks for WinResized itself.
+local function fire_win_resized()
   vim.api.nvim_exec_autocmds("WinResized", {})
+end
+
+function T.refit_renders_once_per_split_and_fits_the_narrowest_window()
+  with_square_board("fit01", function(buf)
+    local full_height = square_cell_height(buf)
+    local renders = count_renders(buf)
+
+    vim.cmd.vsplit()
+    helpers.wait_for(function()
+      return renders() > 0
+    end, "the split to refit")
+    vim.wait(50)
+    assert_eq(1, renders())
+    local narrowest =
+      math.min(unpack(vim.tbl_map(vim.api.nvim_win_get_width, vim.fn.win_findbuf(buf))))
+    assert(square_cell_height(buf) < full_height, "the split shrank the board")
+    assert(
+      square_board_width(buf) <= narrowest,
+      ("%d > %d"):format(square_board_width(buf), narrowest)
+    )
+    assert_eq(false, vim.wo.wrap)
+    assert_eq("no", vim.wo.signcolumn)
+
+    vim.cmd("vertical resize 50")
+    fire_win_resized()
+    helpers.wait_for(function()
+      return renders() > 1
+    end, "the resize to refit")
+    narrowest = math.min(unpack(vim.tbl_map(vim.api.nvim_win_get_width, vim.fn.win_findbuf(buf))))
+    assert(
+      square_board_width(buf) <= narrowest,
+      ("%d > %d"):format(square_board_width(buf), narrowest)
+    )
+  end)
+end
+
+function T.a_small_window_in_another_tab_does_not_size_the_current_tab()
+  with_square_board("tab01", function(buf)
+    local full_height = square_cell_height(buf)
+    vim.cmd.tabnew()
+    vim.cmd.sbuffer(buf)
+    vim.cmd.resize(8)
+    fire_win_resized()
+    helpers.wait_for(function()
+      return square_cell_height(buf) < full_height
+    end, "the small window to refit")
+    local small_height = square_cell_height(buf)
+
+    vim.cmd.tabprevious()
+    helpers.wait_for(function()
+      return square_cell_height(buf) > small_height
+    end, "the first tab to refit to its own window")
+  end)
+end
+
+---Splits off a 5-line window on buf, too short for its board, scrolled to topline 3.
+---@param buf integer
+local function scroll_a_too_tall_board(buf)
+  vim.cmd.split()
+  vim.cmd.resize(5)
+  fire_win_resized()
   helpers.wait_for(function()
-    return renders > 1
-  end, "the resize to refit")
-  assert(square_cell_height(buf) < split_height, "fits the window that shrank")
-  vim.cmd.only()
+    return square_cell_height(buf) == 1
+  end, "the board to shrink below the window")
+  vim.wait(20)
+  vim.fn.winrestview({ topline = 3, lnum = 4 })
+  assert_eq(3, vim.fn.winsaveview().topline)
+end
+
+function T.a_refit_that_re_renders_scrolls_the_board_to_its_top()
+  with_square_board("top01", function(buf)
+    scroll_a_too_tall_board(buf)
+    vim.cmd.resize(6)
+    fire_win_resized()
+    helpers.wait_for(function()
+      return vim.fn.winsaveview().topline == 1
+    end, "topline 1 after the refit")
+    assert_eq(1, vim.fn.line("."))
+  end)
+end
+
+function T.a_refit_with_nothing_changed_keeps_the_scroll()
+  with_square_board("top02", function(buf)
+    scroll_a_too_tall_board(buf)
+    vim.api.nvim_exec_autocmds("WinEnter", {})
+    vim.wait(50)
+    assert_eq(3, vim.fn.winsaveview().topline)
+    assert_eq(4, vim.fn.line("."))
+  end)
+end
+
+---Counts vim.schedule calls while fn runs; the scheduled work still runs.
+---@param fn fun()
+---@return integer
+local function count_schedules(fn)
+  local schedule, count = vim.schedule, 0
+  helpers.with_overrides({
+    {
+      vim,
+      "schedule",
+      function(callback)
+        count = count + 1
+        schedule(callback)
+      end,
+    },
+  }, fn)
+  return count
+end
+
+function T.a_burst_of_window_events_schedules_one_refit_and_none_for_hidden_boards()
+  with_square_board("burst01", function(buf)
+    vim.wait(20)
+    local burst = count_schedules(function()
+      for _, event in ipairs({ "WinEnter", "WinResized", "VimResized", "TabEnter" }) do
+        vim.api.nvim_exec_autocmds(event, {})
+      end
+    end)
+    assert_eq(1, burst)
+    vim.wait(20)
+
+    vim.cmd.enew()
+    assert_eq(0, count_schedules(fire_win_resized))
+    vim.api.nvim_set_current_buf(buf)
+  end)
+end
+
+function T.header_always_has_its_status_line()
+  local offered = chess_update({ draw_agreed = { "bob" } })
+  local plain, plain_height = shell.render(chess_update({}), chess, ASCII, "alice")
+  local _, offered_height = shell.render(offered, chess, ASCII, "alice")
+
+  assert_eq("", plain.lines[3])
+  assert_eq(3, plain_height)
+  assert_eq(3, offered_height)
+end
+
+function T.changing_ambiwidth_refits_shown_boards()
+  local client = client_with("alice", { chess_update({ game_id = "amb01" }) })
+  local buf = assert(shell.open(client, "amb01"))
+  local function text()
+    return table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+  end
+  assert(text():find("·", 1, true), text())
+  helpers.with_overrides({ { vim.o, "ambiwidth", "double" } }, function()
+    helpers.wait_for(function()
+      return not text():find("·", 1, true)
+    end, "the board to redraw without the widened dot")
+  end)
+  helpers.wait_for(function()
+    return text():find("·", 1, true) ~= nil
+  end, "the dot back under ambiwidth=single")
   vim.api.nvim_buf_delete(buf, { force = true })
-  package.preload["games.games.square"] = nil
 end
 
 function T.clock_repaint_renders_fully_when_the_header_changed_height()

@@ -20,6 +20,12 @@ local Control = types.Control
 ---@class games.LayoutCtx: games.ViewOptions
 ---@field me games.UserID
 ---@field space? games.Size what the board and its panels may fill; nil draws the smallest board
+---@field ambiwidth games.Ambiwidth
+
+---@class games.Display what the shell measured for one render
+---@field text_area? games.Size the window space to fill; nil draws the smallest board
+---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
+---@field seats? integer player lines the header reserves, held from the board's first update
 
 ---@class games.GameInput
 ---@field prompt string
@@ -39,6 +45,7 @@ local Control = types.Control
 ---Files to archive beside the summary when a game finishes, by name; events are all this client saw.
 ---@field export? fun(update: games.GameUpdate, events: games.Event[]): table<string, string>
 ---@field asset_keys? string[] keys every asset pack of the game must draw
+---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
 
 ---@class games.OpenOptions
 ---@field glyphs games.Glyphs
@@ -57,6 +64,7 @@ local Control = types.Control
 ---@field bindings table<string, games.KeyBinding> by key; each is mapped in the buffer
 ---@field text_area? games.Size the window space it was last fitted to, nil until shown
 ---@field refit_pending boolean
+---@field seats integer players in its first update, which size the header for its whole life
 
 ---@class games.KeyBinding
 ---@field key string
@@ -82,9 +90,11 @@ local CLOSE_KEY = "q"
 local CLOCK_TICK_MS = 1000
 local LOW_CLOCK_MS = 10000
 local CONFIRM_YES = 1
----The header keeps a line for the status banner even without one, so a banner never resizes the board.
+---The header always has a status line, blank without a banner, so a banner never moves the board.
 local STATUS_LINES = 1
 local BODY_CHROME_LINES = 3
+---@type games.Ambiwidth
+local DEFAULT_AMBIWIDTH = "single"
 
 ---@type table<string, true> keys the shell owns whether or not they are active
 local CORE_KEYS = vim.iter(CONTROL_KEYS):fold(
@@ -185,7 +195,9 @@ local function render_header(update, me, elapsed_ms)
       return turn_marker(update, player.user, me)
     end)
   )
-  return compose.render(compose.col({ compose.row(columns), status_banner(update, me) }))
+  return compose.render(
+    compose.col({ compose.row(columns), status_banner(update, me) or compose.text("") })
+  )
 end
 
 ---@param update games.GameUpdate
@@ -362,14 +374,14 @@ local function bindings_for(update, module)
 end
 
 ---What the game layout may fill of a text area, after the header, blank lines and footer.
----@param update games.GameUpdate
+---@param seats integer player lines in the header
 ---@param text_area games.Size|nil
 ---@return games.Size|nil
-local function layout_space(update, text_area)
+local function layout_space(seats, text_area)
   if not text_area then
     return nil
   end
-  local chrome = #update.players + STATUS_LINES + BODY_CHROME_LINES
+  local chrome = seats + STATUS_LINES + BODY_CHROME_LINES
   return { w = text_area.w, h = text_area.h - chrome }
 end
 
@@ -378,13 +390,18 @@ end
 ---@param view games.ViewOptions
 ---@param me games.UserID
 ---@param elapsed_ms? integer time since `update` arrived, charged to the running clock
----@param text_area? games.Size the window space to fill; nil draws the smallest board
+---@param display? games.Display nil draws the smallest board
 ---@return games.Rendered
 ---@return integer header_height lines owned by the header, which the clock rewrites
 ---@return games.KeyBinding[] bindings the footer lists
-function M.render(update, module, view, me, elapsed_ms, text_area)
+function M.render(update, module, view, me, elapsed_ms, display)
+  local measured = display or {}
   local header = render_header(update, me, elapsed_ms or 0)
-  local ctx = vim.tbl_extend("force", view, { me = me, space = layout_space(update, text_area) }) --[[@as games.LayoutCtx]]
+  local ctx = vim.tbl_extend("force", view, {
+    me = me,
+    space = layout_space(measured.seats or #update.players, measured.text_area),
+    ambiwidth = measured.ambiwidth or DEFAULT_AMBIWIDTH,
+  }) --[[@as games.LayoutCtx]]
   local bindings = bindings_for(update, module)
   local body = compose.render(compose.col({
     compose.text(""),
@@ -432,7 +449,11 @@ end
 
 render_board = function(board)
   local rendered, header_height, bindings =
-    M.render(board.update, board.module, board.view, board.me, elapsed_ms(board), board.text_area)
+    M.render(board.update, board.module, board.view, board.me, elapsed_ms(board), {
+      text_area = board.text_area,
+      ambiwidth = vim.o.ambiwidth,
+      seats = board.seats,
+    })
   paint(board.buf, NAMESPACE, 0, -1, rendered)
   board.header_height = header_height
   vim.b[board.buf].games_dirty = false
@@ -485,8 +506,15 @@ local function shared_text_area(wins)
   }
 end
 
----Fits the board to the windows of the current tabpage that show it, re-rendering only when
----their space changed or the board is dirty.
+---@param win integer
+local function scroll_to_top(win)
+  vim.api.nvim_win_call(win, function()
+    vim.fn.winrestview({ topline = 1, lnum = 1, col = 0 })
+  end)
+end
+
+---Fits the board to the windows of the current tabpage that show it, re-rendering and scrolling
+---them to the top only when their space changed or the board is dirty.
 ---@param board games.Board
 local function refit(board)
   local wins = windows_in_tab(board.buf)
@@ -498,11 +526,7 @@ local function refit(board)
   if vim.b[board.buf].games_dirty or not vim.deep_equal(text_area, board.text_area) then
     board.text_area = text_area
     render_board(board)
-  end
-  for _, win in ipairs(wins) do
-    vim.api.nvim_win_call(win, function()
-      vim.fn.winrestview({ topline = 1 })
-    end)
+    vim.iter(wins):each(scroll_to_top)
   end
 end
 
@@ -521,10 +545,28 @@ local function request_refit(board)
   end)
 end
 
+---@return games.Board[] boards with a window in the current tabpage
+local function boards_in_tab()
+  return vim.tbl_filter(function(board)
+    return #windows_in_tab(board.buf) > 0
+  end, vim.tbl_values(boards))
+end
+
 vim.api.nvim_create_autocmd({ "WinResized", "VimResized", "WinEnter", "TabEnter" }, {
   group = AUGROUP,
   callback = function()
-    vim.iter(vim.tbl_values(boards)):each(request_refit)
+    vim.iter(boards_in_tab()):each(request_refit)
+  end,
+})
+
+vim.api.nvim_create_autocmd("OptionSet", {
+  group = AUGROUP,
+  pattern = "ambiwidth",
+  callback = function()
+    for _, board in pairs(boards) do
+      vim.b[board.buf].games_dirty = true
+    end
+    vim.iter(boards_in_tab()):each(request_refit)
   end,
 })
 
@@ -615,6 +657,9 @@ local function watch_buffer(board)
     group = AUGROUP,
     buffer = buf,
     callback = function()
+      if vim.api.nvim_win_get_buf(0) == buf then
+        scroll_to_top(vim.api.nvim_get_current_win())
+      end
       request_refit(board)
       sync_clock_timer()
     end,
@@ -654,7 +699,8 @@ local function view_for(game, module, opts)
   local art
   if module.asset_keys then
     local pack_name = (opts.assets or {})[game] or assets.DEFAULT_PACK
-    art = assets.art_set(assets.load(game, pack_name, module.asset_keys), opts.glyphs)
+    local spec = { keys = module.asset_keys, glyph_width = module.glyph_width or 1 }
+    art = assets.art_set(assets.load(game, pack_name, spec), opts.glyphs)
   end
   return { glyphs = opts.glyphs, flipped = false, max_cell_height = opts.max_cell_height, art = art }
 end
@@ -708,6 +754,7 @@ function M.open(client, game_id, opts)
     header_height = 0,
     bindings = {},
     refit_pending = false,
+    seats = #update.players,
   }
   boards[buf] = board
   watch_buffer(board)

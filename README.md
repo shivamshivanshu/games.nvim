@@ -143,7 +143,7 @@ require("games").setup({
 
 A board grows to fill its window: squares are as many lines tall as fit (twice as many columns wide), with the legend and move list beside it, and it refits when windows are resized, split or switched. When several windows show one board it fits the smallest. Squares 3 or more lines tall draw block-character art centred in them; smaller ones draw the one-line glyph. The board's size never depends on the game's state; the move list shows its latest moves within the board's height.
 
-Under `ambiwidth=double` block characters draw two cells wide, so boards keep their one-line glyphs (and any glyph that would widen, such as chess's `·`, falls back to an ASCII one).
+Under `ambiwidth=double` block characters draw two cells wide, so boards keep their one-line glyphs; any glyph that would widen (chess's `·`) falls back to the pack's ASCII one, and block separators to `|-+`. Changing `ambiwidth` redraws open boards.
 
 Every glyph and sprite a game draws comes from an asset pack, `lua/games/assets/<game>/<pack>.lua`, so art can be swapped without touching game code. `assets = { chess = "name" }` picks a shipped pack by name or any Lua module by its module name. A pack returns:
 
@@ -155,7 +155,7 @@ Every glyph and sprite a game draws comes from an asset pack, `lua/games/assets/
 }
 ```
 
-Each entry is `h` lines of exactly `w` display columns. Art lines hold only spaces and U+2580-259F, uncoloured: colour comes from the board's highlight groups. Every key the game needs (chess: `K Q R B N P k q r b n p empty`) needs a one-line glyph in both glyph modes; `art` is optional per key, drawn under `glyphs = "unicode"` only. A pack that fails these checks is replaced by `"default"` with one notice.
+Each entry is `h` lines of exactly `w` display columns. Art lines hold only spaces and U+2580-259F, uncoloured: colour comes from the board's highlight groups. Every key the game needs (chess: `K Q R B N P k q r b n p empty`) needs a one-line glyph in both glyph modes, as wide as the game's one-line cell (1 for chess); ascii glyphs must be printable ASCII, and one stands in for any unicode glyph that would widen under the current `ambiwidth`. `art` is optional per key, drawn under `glyphs = "unicode"` only. A pack that fails these checks, or raises an error while they run, is replaced by `"default"` with one notice.
 
 ## Commands
 

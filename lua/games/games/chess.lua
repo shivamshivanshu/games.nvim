@@ -63,10 +63,11 @@ local SAN_LEGEND = {
 }
 
 ---@param set games.ArtSet
+---@param ambiwidth games.Ambiwidth
 ---@return games.KvPair[]
-local function san_legend(set)
+local function san_legend(set, ambiwidth)
   return vim.tbl_map(function(entry)
-    local glyph = entry.piece and art.glyph(set, entry.piece)
+    local glyph = entry.piece and art.glyph(set, entry.piece, ambiwidth)
     local key = (glyph and glyph ~= entry.piece) and ("%s %s"):format(glyph, entry.san) or entry.san
     return { key, entry.name }
   end, SAN_LEGEND)
@@ -189,7 +190,11 @@ function M.layout(update, ctx)
     panels = {
       {
         node = function()
-          return kv({ pairs = san_legend(set), key_hl = "GamesKey", value_hl = "GamesLabel" })
+          return kv({
+            pairs = san_legend(set, ctx.ambiwidth),
+            key_hl = "GamesKey",
+            value_hl = "GamesLabel",
+          })
         end,
       },
       {

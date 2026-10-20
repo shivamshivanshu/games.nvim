@@ -176,7 +176,8 @@ end
 ---@return games.ViewOptions
 function M.chess_view(glyphs, flipped)
   local assets = require("games.ui.assets")
-  local pack = assets.load("chess", assets.DEFAULT_PACK, require("games.games.chess").asset_keys)
+  local spec = { keys = require("games.games.chess").asset_keys, glyph_width = 1 }
+  local pack = assets.load("chess", assets.DEFAULT_PACK, spec)
   return { glyphs = glyphs, flipped = flipped == true, art = assets.art_set(pack, glyphs) }
 end
 

@@ -135,8 +135,9 @@ square height, and 1 keeps one-line glyphs. Squares 3 or more lines tall draw
 block-character art; smaller ones draw the glyph. The size never follows game
 state: the move list shows its latest moves within the board's height. Under
 'ambiwidth' "double" block characters are two cells wide, so boards keep their
-one-line glyphs, and a glyph that would widen (chess's `·`) falls back to an
-ASCII one.
+one-line glyphs, a glyph that would widen (chess's `·`) falls back to the pack's
+ASCII one, and block separators fall back to `|-+`. Changing 'ambiwidth'
+redraws open boards.
 
 Every glyph and sprite a game draws comes from an asset pack,
 `lua/games/assets/<game>/<pack>.lua`. `assets = { chess = "name" }` selects a
@@ -153,9 +154,11 @@ shipped pack by name or any Lua module by its module name. A pack returns >lua
 Each entry is `h` lines of exactly `w` display columns. Art lines hold only
 spaces and U+2580-259F and carry no colour; the board's highlight groups colour
 them. Every key the game needs (chess: `K Q R B N P k q r b n p empty`) needs a
-one-line glyph in both glyph modes; art, drawn under `glyphs = "unicode"` only,
-is optional per key. A pack that fails these checks is replaced by "default"
-with one notice.
+one-line glyph in both glyph modes, as wide as the game's one-line cell (1 for
+chess). Ascii glyphs must be printable ASCII; one stands in for any unicode
+glyph that would widen under the current 'ambiwidth'. Art, drawn under
+`glyphs = "unicode"` only, is optional per key. A pack that fails these checks,
+or raises an error while they run, is replaced by "default" with one notice.
 
                                                                 *games-archive*
 `archive.dir` (`~` is expanded) turns on the archive: every game this client

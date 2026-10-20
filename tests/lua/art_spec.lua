@@ -18,20 +18,33 @@ end
 
 return {
   pick_takes_the_largest_entry_that_fits = function()
-    assert_eq(BLOCK4, art.pick(SET, "piece", { w = 8, h = 4 }))
-    assert_eq(BLOCK3, art.pick(SET, "piece", { w = 3, h = 9 }))
-    assert_eq(DOT, art.pick(SET, "piece", { w = 1, h = 2 }))
-    assert_eq(DOT, art.pick(SET, "piece", { w = 0, h = 0 }))
+    assert_eq(BLOCK4, art.pick(SET, "piece", { w = 8, h = 4 }, "single"))
+    assert_eq(BLOCK3, art.pick(SET, "piece", { w = 3, h = 9 }, "single"))
+    assert_eq(DOT, art.pick(SET, "piece", { w = 1, h = 2 }, "single"))
+    assert_eq(DOT, art.pick(SET, "piece", { w = 0, h = 0 }, "single"))
   end,
 
   ambiwidth_double_draws_no_multi_line_art_and_skips_widened_glyphs = function()
     with_ambiwidth("double", function()
-      assert_eq(PERIOD, art.pick(SET, "piece", { w = 8, h = 4 }))
-      assert_eq(".", art.glyph(SET, "piece"))
+      assert_eq(PERIOD, art.pick(SET, "piece", { w = 8, h = 4 }, "double"))
+      assert_eq(".", art.glyph(SET, "piece", "double"))
     end)
     with_ambiwidth("single", function()
-      assert_eq(BLOCK4, art.pick(SET, "piece", { w = 8, h = 4 }))
-      assert_eq("·", art.glyph(SET, "piece"))
+      assert_eq(BLOCK4, art.pick(SET, "piece", { w = 8, h = 4 }, "single"))
+      assert_eq("·", art.glyph(SET, "piece", "single"))
+    end)
+  end,
+
+  a_key_with_no_drawable_glyph_is_an_error_not_a_misdrawn_board = function()
+    with_ambiwidth("double", function()
+      local ok, err = pcall(
+        art.pick,
+        { piece = { DOT, BLOCK3 } },
+        "piece",
+        { w = 1, h = 1 },
+        "double"
+      )
+      assert(not ok and err:find('no glyph of key "piece" draws', 1, true), err)
     end)
   end,
 }

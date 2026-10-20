@@ -22,8 +22,8 @@ return {
       b = { glyph("♝") },
       n = { glyph("♞") },
       p = { glyph("♟") },
-      -- "·" is two cells wide under ambiwidth=double, where "." stands in for it.
-      empty = { glyph("·"), glyph(".") },
+      -- "·" is two cells wide under ambiwidth=double, where the ascii "." stands in for it.
+      empty = { glyph("·") },
     },
     ascii = {
       K = { glyph("K") },

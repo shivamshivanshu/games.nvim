@@ -184,6 +184,15 @@ return {
     }, rendered.lines)
   end,
 
+  grid_blocks_fall_back_to_ascii_separators_under_ambiwidth_double = function()
+    helpers.with_overrides({ { vim.o, "ambiwidth", "double" } }, function()
+      local rendered = compose.render(digit_grid({ ambiwidth = "double" }))
+      assert_eq("6 2 3 4|5 6 7", rendered.lines[1])
+      assert_eq("  -----+-----", rendered.lines[4])
+      assert_uniform_width(rendered.lines)
+    end)
+  end,
+
   grid_rejects_blocks_that_are_not_positive_integers = function()
     for _, blocks in ipairs({ 0, -3, 1.5 }) do
       local ok, err = pcall(digit_grid, { blocks = blocks })

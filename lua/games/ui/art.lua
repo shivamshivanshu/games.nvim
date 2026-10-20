@@ -5,11 +5,13 @@
 
 ---@alias games.ArtSet table<string, games.ArtEntry[]> key -> its entries; a glyph is an h = 1 entry
 
+---@alias games.Ambiwidth "single"|"double" the 'ambiwidth' a render measures under
+
 local AMBIWIDTH_DOUBLE = "double"
 
 local M = {}
 
----@type table<string, table<games.ArtEntry, boolean>> 'ambiwidth' -> entry -> drawable
+---@type table<games.Ambiwidth, table<games.ArtEntry, boolean>> ambiwidth -> entry -> drawable
 local drawable_by_ambiwidth = vim.defaulttable(function()
   return setmetatable({}, { __mode = "k" })
 end)
@@ -25,12 +27,12 @@ local function renders_at_declared_size(entry)
   end)
 end
 
----Whether entry draws at its declared size under the current 'ambiwidth'. Multi-line art is
----never drawn under "double", where U+2580-258F render two cells wide.
+---Whether entry draws at its declared size under ambiwidth, which must be the 'ambiwidth' in
+---effect. Multi-line art is never drawn under "double", where U+2580-258F render two cells wide.
 ---@param entry games.ArtEntry
+---@param ambiwidth games.Ambiwidth
 ---@return boolean
-function M.drawable(entry)
-  local ambiwidth = vim.o.ambiwidth
+function M.drawable(entry, ambiwidth)
   local cache = drawable_by_ambiwidth[ambiwidth]
   if cache[entry] == nil then
     cache[entry] = (entry.h == 1 or ambiwidth ~= AMBIWIDTH_DOUBLE)
@@ -50,14 +52,19 @@ local function entries_of(set, key)
   return entries
 end
 
----The first drawable h = 1 entry, else the first h = 1 entry.
+---The first drawable h = 1 entry.
 ---@param entries games.ArtEntry[]
+---@param key string
+---@param ambiwidth games.Ambiwidth
 ---@return games.ArtEntry
-local function glyph_entry(entries)
-  local glyphs = vim.tbl_filter(function(entry)
-    return entry.h == 1
-  end, entries)
-  return vim.iter(glyphs):find(M.drawable) or glyphs[1] or entries[1]
+local function glyph_entry(entries, key, ambiwidth)
+  local glyph = vim.iter(entries):find(function(entry)
+    return entry.h == 1 and M.drawable(entry, ambiwidth)
+  end)
+  if not glyph then
+    error(("art: no glyph of key %q draws under ambiwidth=%s"):format(key, ambiwidth), 3)
+  end
+  return glyph
 end
 
 ---@param a games.ArtEntry
@@ -67,29 +74,31 @@ local function larger(a, b)
   return a.h > b.h or (a.h == b.h and a.w > b.w)
 end
 
----The largest drawable entry of key that fits box, falling back to its h = 1 glyph.
+---The largest drawable entry of key that fits box, falling back to its first drawable glyph.
 ---@param set games.ArtSet
 ---@param key string
 ---@param box games.Size
+---@param ambiwidth games.Ambiwidth
 ---@return games.ArtEntry
-function M.pick(set, key, box)
+function M.pick(set, key, box, ambiwidth)
   local entries = entries_of(set, key)
   local best
   for _, entry in ipairs(entries) do
     local fits = entry.h <= box.h and entry.w <= box.w
-    if fits and M.drawable(entry) and (best == nil or larger(entry, best)) then
+    if fits and M.drawable(entry, ambiwidth) and (best == nil or larger(entry, best)) then
       best = entry
     end
   end
-  return best or glyph_entry(entries)
+  return best or glyph_entry(entries, key, ambiwidth)
 end
 
 ---The one-line glyph of key.
 ---@param set games.ArtSet
 ---@param key string
+---@param ambiwidth games.Ambiwidth
 ---@return string
-function M.glyph(set, key)
-  return glyph_entry(entries_of(set, key)).lines[1]
+function M.glyph(set, key, ambiwidth)
+  return glyph_entry(entries_of(set, key), key, ambiwidth).lines[1]
 end
 
 return M

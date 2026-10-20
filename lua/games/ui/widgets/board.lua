@@ -9,18 +9,22 @@ local CELL_ASPECT = 2
 ---@field node fun(max_height: integer): games.Node drawn beside the board, at most max_height lines
 ---@field width? integer display columns it reserves; required when its width follows game state
 
+---compose.first_fit assumes the board's size grows with cell height h. Above h = 1 the cell is
+---max(grid.cell_width, 2h) wide, so a game whose h = 1 cell_width is 4 or more keeps it until 2h
+---passes it and the board never narrows as h grows.
 ---@class games.BoardProps
----@field grid games.GridProps the board sets cell_height, art, and cell_width above height 1
+---@field grid games.GridProps the board sets cell_height, art, ambiwidth, and cell_width above h = 1
 ---@field art? games.ArtSet
 ---@field panels? games.BoardPanel[] beside the board, left to right
 
 ---@param props games.BoardProps
 ---@param cell_height integer
+---@param ambiwidth games.Ambiwidth
 ---@return games.Node
-local function grid_at(props, cell_height)
-  local scaled = { cell_height = cell_height, art = props.art }
+local function grid_at(props, cell_height, ambiwidth)
+  local scaled = { cell_height = cell_height, art = props.art, ambiwidth = ambiwidth }
   if cell_height > 1 then
-    scaled.cell_width = CELL_ASPECT * cell_height
+    scaled.cell_width = math.max(props.grid.cell_width or 1, CELL_ASPECT * cell_height)
   end
   return grid(vim.tbl_extend("force", props.grid, scaled))
 end
@@ -58,13 +62,20 @@ return function(props, ctx)
   local candidates = {}
   for cell_height = tallest_cell(props, space, ctx.max_cell_height), 1, -1 do
     candidates[#candidates + 1] = function()
-      return grid_at(props, cell_height)
+      return grid_at(props, cell_height, ctx.ambiwidth)
     end
   end
-  local fitted = space
-    and compose.first_fit({ w = space.w - panels_width(panels, space), h = space.h }, candidates)
-  local board = fitted or candidates[#candidates]()
-  local max_height = compose.measure(board).h
+  local board, size
+  if space then
+    local grid_space = { w = space.w - panels_width(panels, space), h = space.h }
+    board, size = compose.first_fit(grid_space, candidates)
+  end
+  if not board then
+    board = candidates[#candidates]()
+    size = compose.measure(board)
+  end
+  ---@cast size games.Size
+  local max_height = size.h
   local parts = { board }
   for _, panel in ipairs(panels) do
     parts[#parts + 1] = compose.pad(PANEL_GAP, panel.node(max_height))

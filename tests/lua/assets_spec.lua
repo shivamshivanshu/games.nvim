@@ -5,10 +5,11 @@ local registry = require("games.core.registry")
 local assert_eq = helpers.assert_eq
 
 local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
-local KEYS = { "x" }
+local art = require("games.ui.art")
+local SPEC = { keys = { "x" }, glyph_width = 1 }
 
 ---@param edit? fun(pack: table)
----@return table a pack for KEYS, with edit applied
+---@return table a pack for SPEC, with edit applied
 local function pack(edit)
   local fresh = {
     name = "test",
@@ -41,21 +42,26 @@ local function shipped_packs()
 end
 
 return {
-  every_shipped_pack_draws_its_game_under_either_ambiwidth = function()
+  every_shipped_pack_draws_every_key_of_its_game_under_either_ambiwidth = function()
     local packs = shipped_packs()
     assert(#packs > 0, "no shipped packs found")
-    for _, ambiwidth in ipairs({ "single", "double" }) do
-      helpers.with_overrides({ { vim.o, "ambiwidth", ambiwidth } }, function()
-        for _, shipped in ipairs(packs) do
-          local module = assert(registry.game_module(shipped.game), shipped.game)
-          local loaded = require(("games.assets.%s.%s"):format(shipped.game, shipped.name))
-          local problem = assets.problem(loaded, assert(module.asset_keys))
-          assert(
-            not problem,
-            ("%s/%s under %s: %s"):format(shipped.game, shipped.name, ambiwidth, problem)
-          )
-        end
-      end)
+    for _, shipped in ipairs(packs) do
+      local module = assert(registry.game_module(shipped.game), shipped.game)
+      local spec = { keys = assert(module.asset_keys), glyph_width = module.glyph_width or 1 }
+      local loaded = require(("games.assets.%s.%s"):format(shipped.game, shipped.name))
+      local problem = assets.problem(loaded, spec)
+      assert(not problem, ("%s/%s: %s"):format(shipped.game, shipped.name, problem))
+      for _, ambiwidth in ipairs({ "single", "double" }) do
+        helpers.with_overrides({ { vim.o, "ambiwidth", ambiwidth } }, function()
+          for _, glyphs in ipairs({ "unicode", "ascii" }) do
+            local set = assets.art_set(loaded, glyphs)
+            for _, key in ipairs(spec.keys) do
+              local glyph = art.glyph(set, key, ambiwidth)
+              assert_eq(spec.glyph_width, vim.fn.strdisplaywidth(glyph))
+            end
+          end
+        end)
+      end
     end
   end,
 
@@ -66,7 +72,7 @@ return {
         pack(function(edited)
           edited.glyphs.ascii.x = {}
         end),
-        "glyphs.ascii.x: no one-line glyph",
+        "glyphs.ascii.x: no glyph",
       },
       {
         pack(function(edited)
@@ -80,6 +86,18 @@ return {
         end),
         "glyphs.unicode.x[1]: a glyph is one line",
       },
+      {
+        pack(function(edited)
+          edited.glyphs.unicode.x = { { h = 1, w = 2, lines = { "中" } } }
+        end),
+        "glyphs.unicode.x[1]: a glyph is the cell width, w = 1",
+      },
+      {
+        pack(function(edited)
+          edited.glyphs.ascii.x = { { h = 1, w = 1, lines = { "·" } } }
+        end),
+        'glyphs.ascii.x[1]: "·" is not printable ascii',
+      },
       { pack(with_art({ "▄▄" })), "art.x[1]: needs exactly h = 2 lines" },
       { pack(with_art({ "▄#", "▀▀" })), "art.x[1]: line 1 holds characters" },
       { pack(with_art({ "▄▄▄", "▀▀" })), "art.x[1]: line 1 is not w = 2 wide" },
@@ -91,41 +109,48 @@ return {
       },
     }
     for _, case in ipairs(cases) do
-      local problem = assets.problem(case[1], KEYS)
+      local problem = assets.problem(case[1], SPEC)
       local matches = case[2] == nil and problem == nil
         or (problem ~= nil and case[2] ~= nil and vim.startswith(problem, case[2]))
       assert(matches, vim.inspect({ expected = case[2], actual = problem }))
     end
   end,
 
-  a_bad_user_pack_falls_back_to_default_with_one_notice = function()
-    package.preload["test.bad_chess_art"] = function()
-      return pack()
-    end
-    local chess = require("games.games.chess")
-    local notices = {}
-    helpers.with_overrides({
-      {
-        vim,
-        "notify",
-        function(message)
-          notices[#notices + 1] = message
-        end,
-      },
-    }, function()
-      for _ = 1, 2 do
-        assert_eq("default", assets.load("chess", "test.bad_chess_art", chess.asset_keys).name)
+  bad_user_packs_fall_back_to_default_with_one_notice_each = function()
+    local throwing = setmetatable({}, {
+      __index = function()
+        error("boom")
+      end,
+    })
+    local chess_spec = { keys = require("games.games.chess").asset_keys, glyph_width = 1 }
+    for module, made in pairs({ ["test.wrong_keys_art"] = pack(), ["test.throwing_art"] = throwing }) do
+      package.preload[module] = function()
+        return made
       end
-    end)
-    package.preload["test.bad_chess_art"] = nil
-    assert_eq(1, #notices)
-    assert(notices[1]:find('"test.bad_chess_art" is unusable', 1, true), notices[1])
+      local notices = {}
+      helpers.with_overrides({
+        {
+          vim,
+          "notify",
+          function(message)
+            notices[#notices + 1] = message
+          end,
+        },
+      }, function()
+        for _ = 1, 2 do
+          assert_eq("default", assets.load("chess", module, chess_spec).name)
+        end
+      end)
+      package.preload[module] = nil
+      assert_eq(1, #notices)
+      assert(notices[1]:find(("%q is unusable"):format(module), 1, true), notices[1])
+    end
   end,
 
-  unicode_art_set_adds_art_to_glyphs_and_ascii_has_none = function()
+  unicode_art_set_adds_art_then_ascii_fallback_and_ascii_has_only_glyphs = function()
     local set = assets.art_set(pack(), "unicode")
     assert_eq(
-      { 1, 2 },
+      { 1, 2, 1 },
       vim.tbl_map(function(entry)
         return entry.h
       end, set.x)
