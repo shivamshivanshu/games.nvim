@@ -1,0 +1,172 @@
+*games.txt*  Turn-based board games against friends inside Neovim
+
+==============================================================================
+CONTENTS                                                         *games-contents*
+
+    1. Introduction ........................ |games-intro|
+    2. Install ............................. |games-install|
+    3. Configuration ....................... |games-config|
+    4. Commands ............................ |games-commands|
+    5. Board keys .......................... |games-keys|
+    6. Health .............................. |games-health|
+    7. Running and joining a server ........ |games-server|
+    8. Security ............................ |games-security|
+
+==============================================================================
+1. INTRODUCTION                                                    *games-intro*
+
+games.nvim renders boards in Neovim buffers and talks to a Go game server
+over TCP (NDJSON). The server owns all state and rules; the plugin renders
+what it is sent and forwards your input. Only chess exists today.
+
+Requires Neovim 0.11+. The server needs Go 1.26+ to build.
+
+==============================================================================
+2. INSTALL                                                        *games-install*
+
+lazy.nvim: >lua
+    {
+      "shivamshivanshu/games.nvim",
+      cmd = "Games",
+      opts = {
+        server = { host = "games.example.net", port = 7777 },
+        username = "alice",
+        password = function()
+          return os.getenv("NVIM_GAMES_PASSWORD")
+        end,
+      },
+    }
+<
+`username` and `password` may be left out; the first `:Games` then prompts for
+them (|games-credentials|). Other plugin managers: call
+`require("games").setup({...})` after the plugin is on 'runtimepath'. Native
+packages: >
+    git clone https://github.com/shivamshivanshu/games.nvim \
+      ~/.local/share/nvim/site/pack/games/start/games.nvim
+<
+Run `:helptags ALL` once after a native install; lazy.nvim and packer generate
+tags themselves.
+
+==============================================================================
+3. CONFIGURATION                                                   *games-config*
+
+Passed to `require("games").setup({opts})`.
+
+    Option          Type                       Default        ~
+    `server.host`     string                     `"127.0.0.1"`
+    `server.port`     integer 1-65535            `7777`
+    `username`        string, optional           prompted
+    `password`        string or `fun(): string`    prompted
+    `autoconnect`     boolean                    `true`
+    `glyphs`          `"unicode"` or `"ascii"`       `"unicode"`
+
+`password` as a function is called at each connect, never during setup(), so
+the secret need not live in your dotfiles.
+
+                                                              *games-credentials*
+When `username` or `password` is missing, the first |:Games| prompts for the
+username with |vim.ui.input()| and for the password with |inputsecret()| (not
+echoed), keeps them for the session, then runs the command once connected.
+Autoconnect is skipped when no username is configured.
+
+`autoconnect` connects after |VimEnter| (or on the next tick if Neovim has
+already started). A bad login or protocol mismatch stops auto-reconnect and
+notifies; fix the config and restart Neovim (or call setup() again).
+
+==============================================================================
+4. COMMANDS                                                      *games-commands*
+
+                                                                       *:Games*
+:Games                  Open a menu of the subcommands. Pickers use
+                        |vim.ui.select()|, so a picker plugin (telescope,
+                        snacks, fzf-lua) gives fuzzy search.
+
+:Games challenge [user] [game]
+                        Challenge someone. Prompts for a missing user, game
+                        and options.
+
+:Games challenges       Pick a pending challenge: accept or decline
+                        (incoming), or cancel (outgoing).
+
+:Games list [ongoing|finished]
+                        Pick a game and open its board. Default `ongoing`.
+
+:Games stats [user]     Win/loss/draw float. Default: you.
+
+:Games leaderboard [game]
+                        Leaderboard float, optionally for one game type.
+
+:Games next             Open the next game waiting on your move.
+
+Incoming challenges, and moves in boards you are not viewing, arrive as
+|vim.notify()| messages. Accepting a challenge opens the board when the game
+starts.
+
+==============================================================================
+5. BOARD KEYS                                                       *games-keys*
+
+Buffer-local, Normal mode, in a `games://` board buffer. Only keys valid for
+the current state are mapped; the footer lists them.
+
+    Key     Action ~
+    m       enter a move (chess: SAN or UCI)
+    R       resign (confirms)
+    D       offer draw (the opponent's D agrees)
+    X       decline draw
+    A       abort
+    C       claim draw (chess)
+    F       flip board (chess)
+    ]g      next game waiting on your move
+    q       close
+
+==============================================================================
+6. HEALTH                                                          *games-health*
+
+>vim
+    :checkhealth games
+<
+Reports: Neovim version (0.11+), whether setup() was called, the effective
+configuration (password masked), connection state and last error, and whether
+glyph rendering works (if not, try `glyphs = "ascii"`).
+
+==============================================================================
+7. RUNNING AND JOINING A SERVER                                    *games-server*
+
+Joining: get an account and the server address from whoever hosts it, set
+`server.host` / `server.port` (|games-config|), then run |:Games|. There is no
+self-registration.
+
+Hosting (needs Go 1.26+): >sh
+    go install github.com/shivamshivanshu/games.nvim/server/cmd/games-server@latest
+    games-server adduser alice          # prompts for a password
+    games-server serve --addr 100.64.0.1:7777
+<
+From a checkout, `make build` produces `bin/games-server` instead.
+
+`serve` flags:
+
+    Flag            Default            Meaning ~
+    `--addr`          `127.0.0.1:7777`     listen address
+    `--db`            `games.db`           SQLite file
+    `--heartbeat`     `15s`                heartbeat interval
+    `--idle`          `45s`                idle timeout before a client is dropped
+
+`adduser [--db games.db] [--password-stdin] <name>`: `--password-stdin` reads
+the password from one line of stdin. Use the same `--db` as `serve`.
+
+==============================================================================
+8. SECURITY                                                      *games-security*
+
+Transport is plain TCP, no TLS: username, password and game traffic are
+readable by anyone on the path. Passwords are stored as bcrypt hashes.
+
+For anything beyond localhost, bind `--addr` to a Tailscale or WireGuard
+address, or keep the default and use an SSH tunnel: >
+    ssh -L 7777:127.0.0.1:7777 host
+<
+Use a password you use nowhere else.
+
+Failed logins are locked out per IP: 5 failures in 5 minutes locks that IP
+out for 5 minutes.
+
+ vim:tw=78:ts=8:ft=help:norl:
