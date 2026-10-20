@@ -12,6 +12,7 @@ Only chess exists today. The server owns all state and rules; Neovim renders wha
 | Tic-Tac-Toe | 2 | [docs/games/tictactoe.md](docs/games/tictactoe.md) |
 | Connect4 | 2 | [docs/games/connect4.md](docs/games/connect4.md) |
 | Checkers | 2 | [docs/games/checkers.md](docs/games/checkers.md) |
+| Ludo | 2–4 | [docs/games/ludo.md](docs/games/ludo.md) |
 
 ## Requirements
 
@@ -267,6 +268,8 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `C` | claim draw (chess), when a draw is claimable |
 | `F` | flip board (chess) |
 | `1`-`9` | place a mark on that free cell (tictactoe: phone layout, 1 top-left) |
+| `r` | roll the die (ludo), on your roll |
+| `1`-`4` | move that token by your roll (ludo), when it can move |
 | `]g` | next game waiting on your move |
 | `q` | close |
 
