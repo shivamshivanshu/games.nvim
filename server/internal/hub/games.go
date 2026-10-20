@@ -15,6 +15,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/room"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/internal/uuid"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
@@ -58,7 +59,7 @@ func (h *Hub) prepareGame(c protocol.Challenge) (room.Setup, game.ErasedState, e
 		return room.Setup{}, nil, err
 	}
 	setup, err := h.roomSetup(room.Params{
-		ID:         game.GameID(rand.Text()),
+		ID:         game.GameID(uuid.NewV4()),
 		Game:       g,
 		Options:    c.Options,
 		Seed:       seed,

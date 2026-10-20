@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -34,6 +35,8 @@ const (
 	moveThinkTime               = 7 * time.Second
 	lockedOutText               = "locked out, retry later"
 )
+
+var uuidV4 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 var passwordHash = sync.OnceValues(func() ([]byte, error) { return auth.HashPassword(testPassword) })
 
@@ -233,6 +236,9 @@ func TestRestartRestoresGame(t *testing.T) {
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
 	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControl10Plus5, Color: chess.ColorWhite})
+	if !uuidV4.MatchString(string(id)) {
+		t.Fatalf("game id %q is not a UUIDv4", id)
+	}
 	var seq game.Seq
 	for i, san := range []string{"e4", "e5", "Nf3", "Nc6"} {
 		player := a
