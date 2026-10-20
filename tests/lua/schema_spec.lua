@@ -25,6 +25,10 @@ local GAME_CLASS = {
     MovedEvent = "games.ChessMovedEvent",
     View = "games.ChessView",
   },
+  tictactoe = {
+    PlacedEvent = "games.TicTacToePlacedEvent",
+    View = "games.TicTacToeView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
