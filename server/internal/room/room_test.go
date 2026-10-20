@@ -35,11 +35,13 @@ type fakePersister struct {
 	steps    []store.StepRecord
 	finished *finishRecord
 	fail     error
+	attempts int
 }
 
 func (p *fakePersister) AppendStep(_ context.Context, _ game.GameID, step store.StepRecord) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.attempts++
 	if p.fail != nil {
 		return p.fail
 	}
@@ -50,12 +52,25 @@ func (p *fakePersister) AppendStep(_ context.Context, _ game.GameID, step store.
 func (p *fakePersister) FinishGame(_ context.Context, _ game.GameID, step store.StepRecord, reason game.ResultReason, outcomes map[game.UserID]store.Outcome) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.attempts++
 	if p.fail != nil {
 		return p.fail
 	}
 	p.steps = append(p.steps, step)
 	p.finished = &finishRecord{reason: reason, outcomes: outcomes}
 	return nil
+}
+
+func (p *fakePersister) setFail(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.fail = err
+}
+
+func (p *fakePersister) attempted() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.attempts
 }
 
 func (p *fakePersister) recorded() ([]store.StepRecord, *finishRecord) {
@@ -123,7 +138,19 @@ func (c *fakeClock) AfterFunc(d time.Duration, f func()) Timer {
 	return t
 }
 
-func (c *fakeClock) Advance(d time.Duration) {
+func (c *fakeClock) armed() []time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var deadlines []time.Time
+	for _, t := range c.timers {
+		if !t.stopped {
+			deadlines = append(deadlines, t.at)
+		}
+	}
+	return deadlines
+}
+
+func (c *fakeClock) Advance(d time.Duration) int {
 	c.mu.Lock()
 	c.now = c.now.Add(d)
 	var due []*fakeTimer
@@ -138,6 +165,7 @@ func (c *fakeClock) Advance(d time.Duration) {
 	for _, t := range due {
 		t.f()
 	}
+	return len(due)
 }
 
 type harness struct {
@@ -455,11 +483,33 @@ func TestPersistFailureLeavesStateUnchanged(t *testing.T) {
 	if _, n := h.sent.last(alice); n != 0 {
 		t.Fatalf("failed step broadcast %d updates", n)
 	}
-	h.persist.mu.Lock()
-	h.persist.fail = nil
-	h.persist.mu.Unlock()
+	h.persist.setFail(nil)
 	if got := h.play(t, alice, 0, "e4"); got != 1 {
 		t.Fatalf("retry seq %d, want 1", got)
+	}
+}
+
+func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
+	h := newHarness(t, chess.TimeControl10Plus5)
+	h.play(t, bob, h.play(t, alice, 0, "e4"), "e5")
+	h.persist.setFail(errors.New("disk full"))
+	h.clock.Advance(10 * time.Minute)
+
+	retryAt := h.clock.Now().Add(timeoutRetryDelay)
+	deadline := time.Now().Add(waitTimeout)
+	for h.persist.attempted() < 3 || !slices.Equal(h.clock.armed(), []time.Time{retryAt}) {
+		if time.Now().After(deadline) {
+			t.Fatalf("after a failed timeout persist: armed %v, want only %v", h.clock.armed(), retryAt)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	time.Sleep(20 * time.Millisecond)
+	before := h.persist.attempted()
+	if fired := h.clock.Advance(0); fired != 0 {
+		t.Fatalf("Advance(0) fired %d timers; armed %v", fired, h.clock.armed())
+	}
+	if got := h.persist.attempted(); got != before {
+		t.Fatalf("persist attempts %d -> %d without the retry delay elapsing", before, got)
 	}
 }
 

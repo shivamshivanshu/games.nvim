@@ -110,9 +110,10 @@ func (r *Room) stopTimer() {
 	}
 }
 
+// tick only wakes the actor: the loop expires flagged players before every message.
 func (r *Room) tick() {
 	select {
-	case r.inbox <- r.armTimer:
+	case r.inbox <- func() {}:
 	case <-r.exited:
 	}
 }
@@ -124,7 +125,7 @@ func (r *Room) expireFlagged() {
 		return
 	}
 	rec := store.StepRecord{Seq: r.cur.seq + 1, User: user, Kind: store.StepTimeout, At: now}
-	if _, err := r.commit(r.ctx, rec); err != nil {
+	if _, err := r.commit(rec); err != nil {
 		slog.Error("room: persist timeout", "game", r.setup.ID, "user", user, "err", err)
 		r.armIn(timeoutRetryDelay)
 	}

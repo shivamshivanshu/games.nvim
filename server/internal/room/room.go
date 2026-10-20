@@ -300,7 +300,7 @@ func (r *Room) run() {
 
 func (r *Room) Act(ctx context.Context, user game.UserID, seq uint64, action json.RawMessage) (uint64, error) {
 	return ask(ctx, r, func() (uint64, error) {
-		return r.submit(ctx, user, seq, store.StepAction, action)
+		return r.submit(user, seq, store.StepAction, action)
 	}, r.rejectAfterExit)
 }
 
@@ -310,7 +310,7 @@ func (r *Room) Control(ctx context.Context, user game.UserID, seq uint64, c prot
 		return 0, err
 	}
 	return ask(ctx, r, func() (uint64, error) {
-		return r.submit(ctx, user, seq, store.StepControl, payload)
+		return r.submit(user, seq, store.StepControl, payload)
 	}, r.rejectAfterExit)
 }
 
@@ -355,23 +355,23 @@ func ask[T any](ctx context.Context, r *Room, inActor, afterExit func() (T, erro
 	}
 }
 
-func (r *Room) submit(ctx context.Context, user game.UserID, seq uint64, kind store.StepKind, payload json.RawMessage) (uint64, error) {
+func (r *Room) submit(user game.UserID, seq uint64, kind store.StepKind, payload json.RawMessage) (uint64, error) {
 	if _, ok := r.setup.seats[user]; !ok {
 		return 0, ErrNotAPlayer
 	}
 	if seq != r.cur.seq {
 		return 0, ErrStale
 	}
-	return r.commit(ctx, store.StepRecord{Seq: seq + 1, User: user, Kind: kind, Payload: payload, At: r.setup.Time.Now()})
+	return r.commit(store.StepRecord{Seq: seq + 1, User: user, Kind: kind, Payload: payload, At: r.setup.Time.Now()})
 }
 
-func (r *Room) commit(ctx context.Context, rec store.StepRecord) (uint64, error) {
+func (r *Room) commit(rec store.StepRecord) (uint64, error) {
 	next, err := r.cur.apply(r.setup, rec)
 	if err != nil {
 		return 0, err
 	}
 	rec.ClockRemainingMS = next.remainingMS()
-	if err := r.persist(ctx, rec, next); err != nil {
+	if err := r.persist(rec, next); err != nil {
 		return 0, err
 	}
 	r.cur = next
@@ -380,12 +380,14 @@ func (r *Room) commit(ctx context.Context, rec store.StepRecord) (uint64, error)
 	return next.seq, nil
 }
 
-func (r *Room) persist(ctx context.Context, rec store.StepRecord, next roomState) error {
+// persist runs on the room's context, not the request's: a client hanging up
+// mid-write must not leave memory behind a row that already committed.
+func (r *Room) persist(rec store.StepRecord, next roomState) error {
 	if !next.finished() {
-		return r.setup.Persist.AppendStep(ctx, r.setup.ID, rec)
+		return r.setup.Persist.AppendStep(r.ctx, r.setup.ID, rec)
 	}
 	reason, outcomes := next.outcomes(r.setup)
-	return r.setup.Persist.FinishGame(ctx, r.setup.ID, rec, reason, outcomes)
+	return r.setup.Persist.FinishGame(r.ctx, r.setup.ID, rec, reason, outcomes)
 }
 
 func (r *Room) broadcast() {
