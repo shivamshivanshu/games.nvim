@@ -7,6 +7,7 @@ import (
 
 	"games.nvim/server/game"
 	"games.nvim/server/internal/store"
+	"games.nvim/server/internal/xslices"
 )
 
 // Restore rebuilds a room from its persisted steps. p.Players[0] must be the
@@ -16,10 +17,7 @@ func Restore(ctx context.Context, p Params, steps []store.StepRecord) (*Room, er
 		return nil, fmt.Errorf("room: restore %s: no players", p.ID)
 	}
 	g := newSetup(p)
-	invitees := make([]game.UserID, 0, len(p.Players)-1)
-	for _, player := range p.Players[1:] {
-		invitees = append(invitees, player.User)
-	}
+	invitees := xslices.Map(p.Players[1:], func(player store.PlayerRecord) game.UserID { return player.User })
 	state, seats, err := p.Game.New(p.Options, p.Players[0].User, invitees, game.StepRNG(p.Seed, 0))
 	if err != nil {
 		return nil, fmt.Errorf("room: restore %s: %w", p.ID, err)
@@ -37,7 +35,7 @@ func Restore(ctx context.Context, p Params, steps []store.StepRecord) (*Room, er
 		}
 	}
 	if len(steps) > 0 && g.Clock.Enabled {
-		s.remaining = fromMS(steps[len(steps)-1].ClockRemainingMS)
+		s.remaining = xslices.MapValues(steps[len(steps)-1].ClockRemainingMS, durationFromMS)
 	}
 	// Downtime is not charged: clocks resume from the last persisted values as of now.
 	s.since = p.Time.Now()

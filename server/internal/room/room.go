@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"slices"
 	"time"
 
 	"games.nvim/server/game"
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/store"
+	"games.nvim/server/internal/xslices"
 )
 
 var (
@@ -76,11 +76,7 @@ func newSetup(p Params) setup {
 }
 
 func (g setup) usersAt(seats []game.Seat) []game.UserID {
-	users := make([]game.UserID, 0, len(seats))
-	for _, seat := range seats {
-		users = append(users, g.users[seat])
-	}
-	return users
+	return xslices.Map(seats, func(seat game.Seat) game.UserID { return g.users[seat] })
 }
 
 // roomState is the per-step state; apply returns a new value so a rejected or
@@ -162,7 +158,7 @@ func (s roomState) applyAction(g setup, rec store.StepRecord, clockWasRunning bo
 	}
 	s.game = state
 	s.drawAgreed = nil
-	s.acted = withEntry(s.acted, rec.User, true)
+	s.acted = xslices.With(s.acted, rec.User, true)
 	if clockWasRunning {
 		s.remaining[rec.User] += g.Clock.Increment
 	}
@@ -181,25 +177,8 @@ func (s roomState) applyTimeout(g setup, rec store.StepRecord) (roomState, []gam
 	return s, events, nil
 }
 
-func withEntry[K comparable, V any](m map[K]V, k K, v V) map[K]V {
-	out := maps.Clone(m)
-	if out == nil {
-		out = map[K]V{}
-	}
-	out[k] = v
-	return out
-}
-
 func encodeEvents(events []game.Event) ([]json.RawMessage, error) {
-	encoded := make([]json.RawMessage, 0, len(events))
-	for _, e := range events {
-		raw, err := protocol.EncodeEvent(e)
-		if err != nil {
-			return nil, err
-		}
-		encoded = append(encoded, raw)
-	}
-	return encoded, nil
+	return xslices.MapErr(events, protocol.EncodeEvent)
 }
 
 func (s roomState) outcomes(g setup) (game.ResultReason, map[game.UserID]store.Outcome) {
@@ -228,10 +207,7 @@ func (s roomState) update(g setup, user game.UserID, at time.Time) (protocol.Gam
 	if err != nil {
 		return protocol.GameUpdate{}, fmt.Errorf("room: encode options: %w", err)
 	}
-	players := make([]protocol.PlayerSeat, 0, len(g.Players))
-	for _, player := range g.Players {
-		players = append(players, protocol.PlayerSeat{User: player.User, Seat: player.Seat})
-	}
+	players := xslices.Map(g.Players, func(p store.PlayerRecord) protocol.PlayerSeat { return protocol.PlayerSeat(p) })
 	var wireResult *protocol.WireResult
 	if result, done := s.result(); done {
 		wireResult = &protocol.WireResult{Winners: g.usersAt(result.Winners), Reason: result.Reason}
@@ -370,7 +346,7 @@ func (r *Room) commit(rec store.StepRecord) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	rec.ClockRemainingMS = next.remainingMS()
+	rec.ClockRemainingMS = xslices.MapValues(next.remaining, time.Duration.Milliseconds)
 	if err := r.persist(rec, next); err != nil {
 		return 0, err
 	}

@@ -11,6 +11,7 @@ import (
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/session"
 	"games.nvim/server/internal/store"
+	"games.nvim/server/internal/xslices"
 )
 
 var (
@@ -53,11 +54,9 @@ func (h *Hub) Routes() session.Router {
 }
 
 func (h *Hub) catalog(context.Context, *session.Session, protocol.Empty) (protocol.CatalogResult, error) {
-	games := make([]protocol.GameInfoWire, 0, len(h.deps.Games))
-	for _, g := range h.deps.Games {
-		games = append(games, protocol.InfoToWire(g.Info()))
-	}
-	return protocol.CatalogResult{Games: games}, nil
+	return protocol.CatalogResult{Games: xslices.Map(h.deps.Games, func(g game.Game) protocol.GameInfoWire {
+		return protocol.InfoToWire(g.Info())
+	})}, nil
 }
 
 func (h *Hub) users(ctx context.Context, _ *session.Session, _ protocol.Empty) (protocol.UserListResult, error) {
@@ -65,11 +64,9 @@ func (h *Hub) users(ctx context.Context, _ *session.Session, _ protocol.Empty) (
 	if err != nil {
 		return protocol.UserListResult{}, err
 	}
-	presence := make([]protocol.UserPresence, 0, len(users))
-	for _, user := range users {
-		presence = append(presence, protocol.UserPresence{User: user, Online: h.online(user)})
-	}
-	return protocol.UserListResult{Users: presence}, nil
+	return protocol.UserListResult{Users: xslices.Map(users, func(user game.UserID) protocol.UserPresence {
+		return protocol.UserPresence{User: user, Online: h.online(user)}
+	})}, nil
 }
 
 func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req protocol.ChallengeCreateRequest) (protocol.ChallengeCreateResult, error) {
@@ -108,12 +105,7 @@ func resolveChallenge(resolve func(protocol.ChallengeID, game.UserID) error) ses
 }
 
 func (h *Hub) pendingChallenges(_ context.Context, s *session.Session, _ protocol.Empty) (protocol.ChallengeListResult, error) {
-	pending := h.challenges.Pending(s.User())
-	challenges := make([]protocol.Challenge, 0, len(pending))
-	for _, c := range pending {
-		challenges = append(challenges, wireChallenge(c))
-	}
-	return protocol.ChallengeListResult{Challenges: challenges}, nil
+	return protocol.ChallengeListResult{Challenges: xslices.Map(h.challenges.Pending(s.User()), wireChallenge)}, nil
 }
 
 func (h *Hub) listGames(ctx context.Context, s *session.Session, req protocol.GameListRequest) (protocol.GameListResult, error) {
@@ -157,19 +149,16 @@ func (h *Hub) stats(ctx context.Context, _ *session.Session, _ protocol.Empty) (
 	if err != nil {
 		return protocol.StatsResult{}, err
 	}
-	out := protocol.StatsResult{
-		Records:    make([]protocol.StatsRecord, 0, len(records)),
-		HeadToHead: make([]protocol.HeadToHeadRecord, 0, len(headToHead)),
-	}
-	for _, r := range records {
-		out.Records = append(out.Records, protocol.StatsRecord{
-			User: r.User, Game: r.Game, Tally: protocol.Tally{Wins: r.Wins, Losses: r.Losses, Draws: r.Draws},
-		})
-	}
-	for _, r := range headToHead {
-		out.HeadToHead = append(out.HeadToHead, protocol.HeadToHeadRecord{
-			User: r.User, Opponent: r.Opponent, Game: r.Game, Tally: protocol.Tally{Wins: r.Wins, Losses: r.Losses, Draws: r.Draws},
-		})
-	}
-	return out, nil
+	return protocol.StatsResult{
+		Records: xslices.Map(records, func(r store.StatRecord) protocol.StatsRecord {
+			return protocol.StatsRecord{
+				User: r.User, Game: r.Game, Tally: protocol.Tally{Wins: r.Wins, Losses: r.Losses, Draws: r.Draws},
+			}
+		}),
+		HeadToHead: xslices.Map(headToHead, func(r store.HeadToHeadRecord) protocol.HeadToHeadRecord {
+			return protocol.HeadToHeadRecord{
+				User: r.User, Opponent: r.Opponent, Game: r.Game, Tally: protocol.Tally{Wins: r.Wins, Losses: r.Losses, Draws: r.Draws},
+			}
+		}),
+	}, nil
 }

@@ -8,6 +8,7 @@ import (
 	"games.nvim/server/game"
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/store"
+	"games.nvim/server/internal/xslices"
 )
 
 // timeoutRetryDelay paces retries after a timeout fails to persist, so a flag
@@ -57,39 +58,18 @@ func (s roomState) flagged(g setup, at time.Time) (game.UserID, bool) {
 	return "", false
 }
 
-func (s roomState) remainingMS() map[game.UserID]int64 {
-	return toMS(s.remaining)
-}
-
 func (s roomState) wireClock(g setup, at time.Time) *protocol.WireClock {
 	if !g.Clock.Enabled {
 		return nil
 	}
-	clock := &protocol.WireClock{RemainingMS: toMS(s.charged(g, at))}
+	clock := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(g, at), time.Duration.Milliseconds)}
 	if users := s.toAct(g); s.clockRunning(g) && len(users) > 0 {
 		clock.Running = &users[0]
 	}
 	return clock
 }
 
-func toMS(remaining map[game.UserID]time.Duration) map[game.UserID]int64 {
-	if remaining == nil {
-		return nil
-	}
-	ms := make(map[game.UserID]int64, len(remaining))
-	for user, d := range remaining {
-		ms[user] = d.Milliseconds()
-	}
-	return ms
-}
-
-func fromMS(ms map[game.UserID]int64) map[game.UserID]time.Duration {
-	remaining := make(map[game.UserID]time.Duration, len(ms))
-	for user, v := range ms {
-		remaining[user] = time.Duration(v) * time.Millisecond
-	}
-	return remaining
-}
+func durationFromMS(ms int64) time.Duration { return time.Duration(ms) * time.Millisecond }
 
 func (r *Room) armTimer() {
 	r.stopTimer()

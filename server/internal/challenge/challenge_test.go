@@ -13,6 +13,7 @@ import (
 	"games.nvim/server/game"
 	"games.nvim/server/internal/clocktest"
 	"games.nvim/server/internal/protocol"
+	"games.nvim/server/internal/xslices"
 )
 
 const (
@@ -54,11 +55,7 @@ func newHarness(t *testing.T) *harness {
 func (h *harness) states() []protocol.ChallengeState {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	var out []protocol.ChallengeState
-	for _, c := range h.changes {
-		out = append(out, c.State)
-	}
-	return out
+	return xslices.Map(h.changes, func(c Challenge) protocol.ChallengeState { return c.State })
 }
 
 func (h *harness) create(t *testing.T, to ...game.UserID) Challenge {
@@ -203,11 +200,7 @@ func TestPendingOrderAndScope(t *testing.T) {
 	second := h.create(t, carol)
 	third := h.create(t, carol)
 	ids := func(cs []Challenge) []protocol.ChallengeID {
-		var out []protocol.ChallengeID
-		for _, c := range cs {
-			out = append(out, c.ID)
-		}
-		return out
+		return xslices.Map(cs, func(c Challenge) protocol.ChallengeID { return c.ID })
 	}
 	if got := ids(h.reg.Pending(bob)); !slices.Equal(got, []protocol.ChallengeID{first.ID}) {
 		t.Fatalf("bob sees %v", got)

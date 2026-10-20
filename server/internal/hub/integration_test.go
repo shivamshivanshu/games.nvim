@@ -22,6 +22,7 @@ import (
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/session"
 	"games.nvim/server/internal/store"
+	"games.nvim/server/internal/xslices"
 )
 
 const (
@@ -333,11 +334,7 @@ func TestOngoingListsYourTurnFirstThenMostRecent(t *testing.T) {
 }
 
 func gameIDs(games []protocol.GameUpdate) []game.GameID {
-	ids := make([]game.GameID, 0, len(games))
-	for _, g := range games {
-		ids = append(ids, g.GameID)
-	}
-	return ids
+	return xslices.Map(games, func(g protocol.GameUpdate) game.GameID { return g.GameID })
 }
 
 func TestChallengeUnknownUser(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/room"
 	"games.nvim/server/internal/store"
+	"games.nvim/server/internal/xslices"
 )
 
 type liveGame struct {
@@ -76,15 +77,13 @@ func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]store.Playe
 	if len(seats) != len(users) {
 		return nil, fmt.Errorf("hub: game assigned %d seats for %d players", len(seats), len(users))
 	}
-	players := make([]store.PlayerRecord, 0, len(users))
-	for _, user := range users {
+	return xslices.MapErr(users, func(user game.UserID) (store.PlayerRecord, error) {
 		seat, ok := seats[user]
 		if !ok {
-			return nil, fmt.Errorf("hub: game assigned no seat to %s", user)
+			return store.PlayerRecord{}, fmt.Errorf("hub: game assigned no seat to %s", user)
 		}
-		players = append(players, store.PlayerRecord{User: user, Seat: seat})
-	}
-	return players, nil
+		return store.PlayerRecord{User: user, Seat: seat}, nil
+	})
 }
 
 func (h *Hub) sendCurrent(r *room.Room, players []store.PlayerRecord) {
@@ -151,10 +150,7 @@ func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed ui
 }
 
 func (h *Hub) track(id game.GameID, r *room.Room, players []store.PlayerRecord, lastStep time.Time) {
-	users := make([]game.UserID, 0, len(players))
-	for _, p := range players {
-		users = append(users, p.User)
-	}
+	users := xslices.Map(players, func(p store.PlayerRecord) game.UserID { return p.User })
 	h.mu.Lock()
 	h.live[id] = &liveGame{room: r, players: users, lastStep: lastStep}
 	h.mu.Unlock()
@@ -223,11 +219,7 @@ func (h *Hub) ongoingGames(ctx context.Context, user game.UserID) ([]protocol.Ga
 			cmp.Compare(a.update.GameID, b.update.GameID),
 		)
 	})
-	updates := make([]protocol.GameUpdate, 0, len(games))
-	for _, g := range games {
-		updates = append(updates, g.update)
-	}
-	return updates, nil
+	return xslices.Map(games, func(g listed) protocol.GameUpdate { return g.update }), nil
 }
 
 func turnRank(u protocol.GameUpdate, user game.UserID) int {
@@ -242,15 +234,9 @@ func (h *Hub) finishedGames(ctx context.Context, user game.UserID) ([]protocol.G
 	if err != nil {
 		return nil, err
 	}
-	updates := make([]protocol.GameUpdate, 0, len(ids))
-	for _, id := range ids {
-		u, err := h.replayedSnapshot(ctx, id, user)
-		if err != nil {
-			return nil, err
-		}
-		updates = append(updates, u)
-	}
-	return updates, nil
+	return xslices.MapErr(ids, func(id game.GameID) (protocol.GameUpdate, error) {
+		return h.replayedSnapshot(ctx, id, user)
+	})
 }
 
 func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
