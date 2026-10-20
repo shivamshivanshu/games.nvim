@@ -98,7 +98,6 @@ func (r *Registry) Cancel(id protocol.ChallengeID, by game.UserID) error {
 	}))
 }
 
-// Pending returns the open challenges a user sent or received, soonest expiry first.
 func (r *Registry) Pending(user game.UserID) []protocol.Challenge {
 	out, _ := locked(&r.mu, func() ([]protocol.Challenge, error) {
 		out := []protocol.Challenge{}
@@ -137,7 +136,6 @@ func (r *Registry) started(c protocol.Challenge) protocol.Challenge {
 	return c
 }
 
-// announce reports a change, if there was one, to onChange.
 func (r *Registry) announce(changed *protocol.Challenge, err error) error {
 	if err != nil || changed == nil {
 		return err

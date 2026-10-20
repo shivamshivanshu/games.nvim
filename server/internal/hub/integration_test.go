@@ -44,7 +44,7 @@ type env struct {
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	st, err := store.Open(ctx, filepath.Join(t.TempDir(), "games.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -366,7 +366,7 @@ func TestWrongPasswordAndLockout(t *testing.T) {
 	if unknownUser.Message != wrongPassword.Message {
 		t.Fatalf("unknown user says %q, wrong password says %q", unknownUser.Message, wrongPassword.Message)
 	}
-	for range limits.LockoutFailures - 2 {
+	for range limits.Default().LockoutFailures - 2 {
 		wantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
 	}
 	locked := wantCode(t, attempt(alice, testPassword), protocol.CodeAuthFailed)

@@ -33,7 +33,6 @@ func (s roomState) charged(g setup, at time.Time) map[game.UserID]time.Duration 
 	return remaining
 }
 
-// soonestFlag is the player to act whose clock runs out first, and their time left.
 func (s roomState) soonestFlag(g setup, at time.Time) (game.UserID, time.Duration, bool) {
 	users := s.toAct(g)
 	if !s.clockRunning(g) || len(users) == 0 {

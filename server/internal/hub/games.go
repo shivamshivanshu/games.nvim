@@ -208,7 +208,7 @@ func (h *Hub) ongoingGames(ctx context.Context, user game.UserID) ([]protocol.Ga
 	}
 	slices.SortFunc(games, func(a, b room.Snapshot) int {
 		return cmp.Or(
-			cmp.Compare(turnRank(a.Update, user), turnRank(b.Update, user)),
+			cmp.Compare(turnRankOf(a.Update, user), turnRankOf(b.Update, user)),
 			b.LastStepAt.Compare(a.LastStepAt),
 			cmp.Compare(a.Update.GameID, b.Update.GameID),
 		)
@@ -216,11 +216,18 @@ func (h *Hub) ongoingGames(ctx context.Context, user game.UserID) ([]protocol.Ga
 	return xslices.Map(games, func(s room.Snapshot) protocol.GameUpdate { return s.Update }), nil
 }
 
-func turnRank(u protocol.GameUpdate, user game.UserID) int {
+type turnRank int
+
+const (
+	yourTurn turnRank = iota
+	notYourTurn
+)
+
+func turnRankOf(u protocol.GameUpdate, user game.UserID) turnRank {
 	if slices.Contains(u.ToAct, user) {
-		return 0
+		return yourTurn
 	}
-	return 1
+	return notYourTurn
 }
 
 func (h *Hub) finishedGames(ctx context.Context, user game.UserID) ([]protocol.GameUpdate, error) {

@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -22,13 +21,13 @@ var epoch = time.UnixMilli(1_700_000_000_000)
 
 func openTemp(t *testing.T) *Store {
 	t.Helper()
-	s, err := Open(context.Background(), filepath.Join(t.TempDir(), "games.db"))
+	s, err := Open(t.Context(), filepath.Join(t.TempDir(), "games.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	for _, u := range []game.UserID{alice, bob} {
-		if err := s.CreateUser(context.Background(), u, []byte("hash")); err != nil {
+		if err := s.CreateUser(t.Context(), u, []byte("hash")); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -53,13 +52,13 @@ func step(seq game.Seq, user game.UserID) StepRecord {
 
 func finish(t *testing.T, s *Store, id game.GameID, seq game.Seq, reason game.ResultReason, outcomes map[game.UserID]Outcome) {
 	t.Helper()
-	if err := s.FinishGame(context.Background(), id, step(seq, alice), reason, outcomes); err != nil {
+	if err := s.FinishGame(t.Context(), id, step(seq, alice), reason, outcomes); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestStepsRoundTrip(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	s := openTemp(t)
 	rec := newGame("g1")
 	if err := s.CreateGame(ctx, rec); err != nil {
@@ -93,7 +92,7 @@ func TestStepsRoundTrip(t *testing.T) {
 }
 
 func TestLoadOngoingGroupsPlayersAndStepsPerGame(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	s := openTemp(t)
 	first := newGame("g1")
 	first.Steps = []StepRecord{step(1, alice), step(2, bob), step(3, alice)}
@@ -116,7 +115,7 @@ func TestLoadOngoingGroupsPlayersAndStepsPerGame(t *testing.T) {
 }
 
 func TestReopenKeepsOngoingGames(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "games.db")
 	s, err := Open(ctx, path)
 	if err != nil {
@@ -154,13 +153,13 @@ func TestCreateGameRejectsEmptyOptions(t *testing.T) {
 	s := openTemp(t)
 	rec := newGame("g1")
 	rec.Options = nil
-	if err := s.CreateGame(context.Background(), rec); !errors.Is(err, ErrMissingOptions) {
+	if err := s.CreateGame(t.Context(), rec); !errors.Is(err, ErrMissingOptions) {
 		t.Fatalf("err = %v", err)
 	}
 }
 
 func TestFinishGameRejectsOutcomeForNonPlayer(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	s := openTemp(t)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
@@ -175,7 +174,7 @@ func TestFinishGameRejectsOutcomeForNonPlayer(t *testing.T) {
 }
 
 func TestFinishGameIsAtomicAndLeavesOngoing(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	s := openTemp(t)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
@@ -199,7 +198,7 @@ func TestFinishGameIsAtomicAndLeavesOngoing(t *testing.T) {
 
 func TestFinishGameRollsBackStepWhenGameMissing(t *testing.T) {
 	s := openTemp(t)
-	err := s.FinishGame(context.Background(), "nope", step(1, alice), game.ReasonResign, nil)
+	err := s.FinishGame(t.Context(), "nope", step(1, alice), game.ReasonResign, nil)
 	if err == nil {
 		t.Fatal("want error for unknown game")
 	}
@@ -210,7 +209,7 @@ func TestFinishGameRollsBackStepWhenGameMissing(t *testing.T) {
 }
 
 func TestStatsExcludeAborted(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	s := openTemp(t)
 	for _, id := range []game.GameID{"win", "draw", "abort"} {
 		if err := s.CreateGame(ctx, newGame(id)); err != nil {
@@ -248,7 +247,7 @@ func TestStatsExcludeAborted(t *testing.T) {
 
 func TestPasswordHashNotFound(t *testing.T) {
 	s := openTemp(t)
-	if _, err := s.PasswordHash(context.Background(), "ghost"); !errors.Is(err, ErrNotFound) {
+	if _, err := s.PasswordHash(t.Context(), "ghost"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v", err)
 	}
 }

@@ -29,7 +29,6 @@ func NewReader(r io.Reader, maxLine int) *Reader {
 	return &Reader{scanner: scanner}
 }
 
-// Next returns io.EOF at end of stream and skips blank lines.
 func (r *Reader) Next() (Envelope, error) {
 	for r.scanner.Scan() {
 		line := bytes.TrimSpace(r.scanner.Bytes())

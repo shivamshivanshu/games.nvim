@@ -49,7 +49,12 @@ func addUser(args []string, stdin io.Reader) error {
 		return fmt.Errorf("user %q already exists", name)
 	}
 
-	password, err := readPassword(stdin, *fromStdin)
+	var password string
+	if *fromStdin {
+		password, err = readPasswordLine(stdin)
+	} else {
+		password, err = promptPassword()
+	}
 	if err != nil {
 		return err
 	}
@@ -63,14 +68,15 @@ func addUser(args []string, stdin io.Reader) error {
 	return st.CreateUser(ctx, name, hash)
 }
 
-func readPassword(stdin io.Reader, fromStdin bool) (string, error) {
-	if fromStdin {
-		line, err := bufio.NewReader(stdin).ReadString('\n')
-		if err != nil && !errors.Is(err, io.EOF) {
-			return "", err
-		}
-		return strings.TrimRight(line, "\r\n"), nil
+func readPasswordLine(stdin io.Reader) (string, error) {
+	line, err := bufio.NewReader(stdin).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", err
 	}
+	return strings.TrimRight(line, "\r\n"), nil
+}
+
+func promptPassword() (string, error) {
 	fmt.Fprint(os.Stderr, "Password: ")
 	raw, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Fprintln(os.Stderr)

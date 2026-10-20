@@ -9,7 +9,6 @@ import (
 	"games.nvim/server/internal/store"
 )
 
-// Restore rebuilds a room from its persisted steps.
 func Restore(ctx context.Context, p Params, steps []store.StepRecord) (*Room, error) {
 	g, err := newSetup(p)
 	if err != nil {

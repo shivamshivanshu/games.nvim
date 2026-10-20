@@ -136,7 +136,7 @@ func newHarness(t *testing.T, timeControl chess.TimeControl) *harness {
 		Players: []game.Player{{User: alice, Seat: seats[alice]}, {User: bob, Seat: seats[bob]}},
 		Persist: h.persist, Broadcast: h.sent, Time: h.clock,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	h.cancel = cancel
 	t.Cleanup(cancel)
 	if h.room, err = New(ctx, h.params, state); err != nil {
@@ -151,7 +151,7 @@ func move(san string) json.RawMessage {
 
 func (h *harness) play(t *testing.T, user game.UserID, seq game.Seq, san string) game.Seq {
 	t.Helper()
-	next, err := h.room.Act(context.Background(), user, seq, move(san))
+	next, err := h.room.Act(t.Context(), user, seq, move(san))
 	if err != nil {
 		t.Fatalf("%s plays %s at seq %d: %v", user, san, seq, err)
 	}
@@ -160,7 +160,7 @@ func (h *harness) play(t *testing.T, user game.UserID, seq game.Seq, san string)
 
 func (h *harness) control(t *testing.T, user game.UserID, seq game.Seq, c protocol.Control) game.Seq {
 	t.Helper()
-	next, err := h.room.Control(context.Background(), user, seq, c)
+	next, err := h.room.Control(t.Context(), user, seq, c)
 	if err != nil {
 		t.Fatalf("%s %s at seq %d: %v", user, c, seq, err)
 	}
@@ -174,7 +174,7 @@ func (h *harness) snapshot(t *testing.T, user game.UserID) protocol.GameUpdate {
 
 func (h *harness) fullSnapshot(t *testing.T, user game.UserID) Snapshot {
 	t.Helper()
-	s, err := h.room.Snapshot(context.Background(), user)
+	s, err := h.room.Snapshot(t.Context(), user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,11 +197,11 @@ func waitDone(t *testing.T, r *Room) {
 
 func TestStaleSeqRejected(t *testing.T) {
 	h := newHarness(t, chess.TimeControl10Plus5)
-	if _, err := h.room.Act(context.Background(), alice, 1, move("e4")); !errors.Is(err, ErrStale) {
+	if _, err := h.room.Act(t.Context(), alice, 1, move("e4")); !errors.Is(err, ErrStale) {
 		t.Fatalf("want ErrStale, got %v", err)
 	}
 	seq := h.play(t, alice, 0, "e4")
-	if _, err := h.room.Control(context.Background(), bob, seq-1, protocol.ControlResign); !errors.Is(err, ErrStale) {
+	if _, err := h.room.Control(t.Context(), bob, seq-1, protocol.ControlResign); !errors.Is(err, ErrStale) {
 		t.Fatalf("control: want ErrStale, got %v", err)
 	}
 	if steps, _ := h.persist.recorded(); len(steps) != 1 {
@@ -214,7 +214,7 @@ func TestStaleSeqRejected(t *testing.T) {
 
 func TestNotYourTurn(t *testing.T) {
 	h := newHarness(t, chess.TimeControl10Plus5)
-	if _, err := h.room.Act(context.Background(), bob, 0, move("e5")); !errors.Is(err, game.ErrNotYourTurn) {
+	if _, err := h.room.Act(t.Context(), bob, 0, move("e5")); !errors.Is(err, game.ErrNotYourTurn) {
 		t.Fatalf("want ErrNotYourTurn, got %v", err)
 	}
 	if _, n := h.sent.last(alice); n != 0 {
@@ -224,10 +224,10 @@ func TestNotYourTurn(t *testing.T) {
 
 func TestNonPlayerRejected(t *testing.T) {
 	h := newHarness(t, chess.TimeControl10Plus5)
-	if _, err := h.room.Act(context.Background(), carol, 0, move("e4")); !errors.Is(err, ErrNotAPlayer) {
+	if _, err := h.room.Act(t.Context(), carol, 0, move("e4")); !errors.Is(err, ErrNotAPlayer) {
 		t.Fatalf("act: want ErrNotAPlayer, got %v", err)
 	}
-	if _, err := h.room.Snapshot(context.Background(), carol); !errors.Is(err, ErrNotAPlayer) {
+	if _, err := h.room.Snapshot(t.Context(), carol); !errors.Is(err, ErrNotAPlayer) {
 		t.Fatalf("snapshot: want ErrNotAPlayer, got %v", err)
 	}
 }
@@ -306,7 +306,7 @@ func TestAbortWindow(t *testing.T) {
 	if controls := h.snapshot(t, alice).Controls; slices.Contains(controls, protocol.ControlAbort) {
 		t.Fatalf("abort still offered after both moved: %v", controls)
 	}
-	if _, err := h.room.Control(context.Background(), alice, seq+1, protocol.ControlAbort); !isCode(err, protocol.CodeIllegalAction) {
+	if _, err := h.room.Control(t.Context(), alice, seq+1, protocol.ControlAbort); !isCode(err, protocol.CodeIllegalAction) {
 		t.Fatalf("want illegal_action, got %v", err)
 	}
 
@@ -355,15 +355,14 @@ func TestClockNotChargedBeforeFirstMoves(t *testing.T) {
 	seq = h.play(t, bob, seq, "e5")
 	h.clock.Advance(time.Minute)
 	clock = h.snapshot(t, bob).Clock
-	white, black := alice, bob
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000}, Running: &white}
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000}, Running: new(alice)}
 	if diff := cmp.Diff(want, clock); diff != "" {
 		t.Fatalf("clock once running (-want +got):\n%s", diff)
 	}
 
 	h.play(t, alice, seq, "Nf3")
 	clock = h.snapshot(t, bob).Clock
-	want = &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 545_000, bob: 600_000}, Running: &black}
+	want = &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 545_000, bob: 600_000}, Running: new(bob)}
 	if diff := cmp.Diff(want, clock); diff != "" {
 		t.Fatalf("clock after an incremented move (-want +got):\n%s", diff)
 	}
@@ -381,12 +380,12 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 
 	steps, _ := h.persist.recorded()
 	h.clock.Advance(time.Hour)
-	restored, err := Restore(context.Background(), h.params, steps)
+	restored, err := Restore(t.Context(), h.params, steps)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for user, original := range want {
-		got, err := restored.Snapshot(context.Background(), user)
+		got, err := restored.Snapshot(t.Context(), user)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -421,7 +420,7 @@ func TestPersistFailureLeavesStateUnchanged(t *testing.T) {
 	h := newHarness(t, chess.TimeControl10Plus5)
 	diskFull := errors.New("disk full")
 	h.persist.fail = diskFull
-	if _, err := h.room.Act(context.Background(), alice, 0, move("e4")); !errors.Is(err, diskFull) {
+	if _, err := h.room.Act(t.Context(), alice, 0, move("e4")); !errors.Is(err, diskFull) {
 		t.Fatalf("want persist error, got %v", err)
 	}
 	if _, n := h.sent.last(alice); n != 0 {

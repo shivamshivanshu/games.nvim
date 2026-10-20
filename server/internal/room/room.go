@@ -43,7 +43,6 @@ type Params struct {
 	Time       clock.Clock
 }
 
-// setup is everything about a game that is fixed when it starts.
 type setup struct {
 	Params
 	info  game.Info
@@ -286,7 +285,6 @@ func (r *Room) Control(ctx context.Context, user game.UserID, seq game.Seq, c pr
 	return r.submit(ctx, seq, step{user: user, kind: store.StepControl, control: c})
 }
 
-// Snapshot is one player's view of the game and when it last moved.
 type Snapshot struct {
 	Update     protocol.GameUpdate
 	LastStepAt time.Time

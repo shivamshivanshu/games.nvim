@@ -88,7 +88,6 @@ type ClockConfig struct {
 	Enabled            bool
 }
 
-// Clock parses the "M+S" time control: M minutes initial, S seconds increment.
 func (o Options) Clock() (ClockConfig, error) {
 	spec, ok := o[OptionTimeControl]
 	if !ok || spec == timeControlNone {

@@ -13,7 +13,6 @@ type adapted[Opts, Action, View any] struct {
 	rules Rules[Opts, Action, View]
 }
 
-// Adapt wraps typed rules so JSON encoding and decoding happen once, here.
 func Adapt[Opts, Action, View any](rules Rules[Opts, Action, View]) Game {
 	return adapted[Opts, Action, View]{rules: rules}
 }

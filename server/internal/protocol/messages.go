@@ -39,7 +39,6 @@ const OptionEnum OptionType = "enum"
 
 type ChallengeID string
 
-// Empty is the body of requests and results that carry no fields.
 type Empty struct{}
 
 type LoginRequest struct {

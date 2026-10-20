@@ -2,20 +2,6 @@ package limits
 
 import "time"
 
-const (
-	LoginDeadline     = 10 * time.Second
-	Heartbeat         = 15 * time.Second
-	IdleTimeout       = 3 * Heartbeat
-	LockoutFailures   = 5
-	LockoutWindow     = 5 * time.Minute
-	LockoutDuration   = 5 * time.Minute
-	MaxConnections    = 256
-	WriteQueueFrames  = 64
-	MaxLineBytes      = 64 * 1024
-	ChallengeTTL      = 5 * time.Minute
-	FinishedListLimit = 50
-)
-
 type Limits struct {
 	LoginDeadline     time.Duration
 	Heartbeat         time.Duration
@@ -31,17 +17,18 @@ type Limits struct {
 }
 
 func Default() Limits {
+	const heartbeat = 15 * time.Second
 	return Limits{
-		LoginDeadline:     LoginDeadline,
-		Heartbeat:         Heartbeat,
-		IdleTimeout:       IdleTimeout,
-		LockoutFailures:   LockoutFailures,
-		LockoutWindow:     LockoutWindow,
-		LockoutDuration:   LockoutDuration,
-		MaxConnections:    MaxConnections,
-		WriteQueueFrames:  WriteQueueFrames,
-		MaxLineBytes:      MaxLineBytes,
-		ChallengeTTL:      ChallengeTTL,
-		FinishedListLimit: FinishedListLimit,
+		LoginDeadline:     10 * time.Second,
+		Heartbeat:         heartbeat,
+		IdleTimeout:       3 * heartbeat,
+		LockoutFailures:   5,
+		LockoutWindow:     5 * time.Minute,
+		LockoutDuration:   5 * time.Minute,
+		MaxConnections:    256,
+		WriteQueueFrames:  64,
+		MaxLineBytes:      64 * 1024,
+		ChallengeTTL:      5 * time.Minute,
+		FinishedListLimit: 50,
 	}
 }

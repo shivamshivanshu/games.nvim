@@ -334,7 +334,6 @@ func queryAll[T any](ctx context.Context, db *sql.DB, scan func(scanner) (T, err
 	return out, rows.Err()
 }
 
-// requireAffected runs a statement that must change a row, returning missing when it changes none.
 func requireAffected(ctx context.Context, db execer, missing error, query string, args ...any) error {
 	res, err := db.ExecContext(ctx, query, args...)
 	if err != nil {

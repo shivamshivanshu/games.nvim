@@ -1,88 +1,45 @@
-package game
+package game_test
 
 import (
 	"encoding/json"
 	"errors"
 	"maps"
-	"math/rand/v2"
 	"slices"
 	"testing"
 	"time"
+
+	"games.nvim/server/game"
+	"games.nvim/server/game/gametest"
 )
 
-type counterOpts struct {
-	Step string `json:"step"`
-}
-
-type counterAction struct{ Add int }
-
-type counterView struct{ Total int }
-
-type counterState struct{ total, step int }
-
-type countedEvent struct {
-	By    Seat `json:"by"`
-	Total int  `json:"total"`
-}
-
-func (countedEvent) EventKind() EventKind { return "counted" }
-
-func (s counterState) Apply(seat Seat, a counterAction, _ *rand.Rand) (State[counterAction, counterView], []Event, error) {
-	s.total += a.Add * s.step
-	return s, []Event{countedEvent{By: seat, Total: s.total}}, nil
-}
-func (s counterState) View(Seat) counterView   { return counterView{Total: s.total} }
-func (s counterState) ToAct() []Seat           { return []Seat{"a"} }
-func (s counterState) Outcome() (Result, bool) { return Result{}, false }
-func (s counterState) Eliminate(Seat, ResultReason) (State[counterAction, counterView], []Event) {
-	return s, nil
-}
-
-type counterRules struct{}
-
-func (counterRules) Info() Info {
-	return Info{
-		Type:    "counter",
-		Options: []OptionSpec{{Name: "step", Values: []OptionValue{"1", "2"}, Default: "1"}},
-	}
-}
-
-func (counterRules) New(o counterOpts, challenger UserID, _ []UserID, _ *rand.Rand) (State[counterAction, counterView], map[UserID]Seat, error) {
-	step := 1
-	if o.Step == "2" {
-		step = 2
-	}
-	return counterState{step: step}, map[UserID]Seat{challenger: "a"}, nil
-}
-
-func resolve(t *testing.T, raw string) (Options, error) {
+func resolve(t *testing.T, raw string) (game.Options, error) {
 	t.Helper()
-	return Adapt(counterRules{}).ResolveOptions(json.RawMessage(raw))
+	return game.Adapt(gametest.CounterRules{}).ResolveOptions(json.RawMessage(raw))
 }
 
 func TestResolveOptionsRejectsUnknownValue(t *testing.T) {
 	for _, raw := range []string{`{"step":"9"}`, `{"bogus":"1"}`} {
 		_, err := resolve(t, raw)
-		if !errors.As(err, &BadRequestError{}) {
-			t.Errorf("%s: want BadRequestError, got %v", raw, err)
+		if !errors.As(err, &game.BadRequestError{}) {
+			t.Errorf("%s: want game.BadRequestError, got %v", raw, err)
 		}
 	}
 }
 
 func TestResolveOptionsFillsDefaults(t *testing.T) {
-	g := Adapt(counterRules{})
+	g := game.Adapt(gametest.CounterRules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (Options{"step": "1"}); !maps.Equal(opts, want) {
+	if want := (game.Options{"step": "1"}); !maps.Equal(opts, want) {
 		t.Fatalf("got %v want %v", opts, want)
 	}
-	st, _, err := g.New(opts, "u", nil, StepRNG(1, 1))
+	st, _, err := g.New(opts, "u", nil, game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
-	st, _, err = st.Apply("a", json.RawMessage(`{"Add":5}`), StepRNG(1, 1))
+	st, _, err = st.Apply("a", json.RawMessage(`{"Add":5}`), game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,27 +53,27 @@ func TestResolveOptionsFillsDefaults(t *testing.T) {
 }
 
 func TestOptionsClock(t *testing.T) {
-	got, err := Options{OptionTimeControl: "10+5"}.Clock()
-	if err != nil || got != (ClockConfig{Initial: 10 * time.Minute, Increment: 5 * time.Second, Enabled: true}) {
+	got, err := game.Options{game.OptionTimeControl: "10+5"}.Clock()
+	if err != nil || got != (game.ClockConfig{Initial: 10 * time.Minute, Increment: 5 * time.Second, Enabled: true}) {
 		t.Errorf("10+5: got %+v, %v", got, err)
 	}
-	for _, o := range []Options{{OptionTimeControl: "none"}, {}} {
+	for _, o := range []game.Options{{game.OptionTimeControl: "none"}, {}} {
 		got, err := o.Clock()
 		if err != nil || got.Enabled {
 			t.Errorf("%v: got %+v, %v", o, got, err)
 		}
 	}
-	if _, err := (Options{OptionTimeControl: "x+y"}).Clock(); err == nil {
+	if _, err := (game.Options{game.OptionTimeControl: "x+y"}).Clock(); err == nil {
 		t.Error("x+y: want error")
 	}
 }
 
 func TestAdaptEncodesEventsWithKind(t *testing.T) {
-	st, _, err := Adapt(counterRules{}).New(Options{"step": "1"}, "u", nil, StepRNG(1, 1))
+	st, _, err := game.Adapt(gametest.CounterRules{}).New(game.Options{"step": "1"}, "u", nil, game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, events, err := st.Apply("a", json.RawMessage(`{"Add":5}`), StepRNG(1, 1))
+	_, events, err := st.Apply("a", json.RawMessage(`{"Add":5}`), game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,29 +83,29 @@ func TestAdaptEncodesEventsWithKind(t *testing.T) {
 }
 
 func TestAdaptRejectsMalformedAction(t *testing.T) {
-	g := Adapt(counterRules{})
-	st, _, err := g.New(Options{"step": "1"}, "u", nil, StepRNG(1, 1))
+	g := game.Adapt(gametest.CounterRules{})
+	st, _, err := g.New(game.Options{"step": "1"}, "u", nil, game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = st.Apply("a", json.RawMessage(`"not json"`), StepRNG(1, 1))
-	if !errors.As(err, &BadRequestError{}) {
-		t.Fatalf("want BadRequestError, got %v", err)
+	_, _, err = st.Apply("a", json.RawMessage(`"not json"`), game.StepRNG(1, 1))
+	if !errors.As(err, &game.BadRequestError{}) {
+		t.Fatalf("want game.BadRequestError, got %v", err)
 	}
 }
 
 func TestStepRNGDeterministic(t *testing.T) {
-	if StepRNG(7, 3).Uint64() != StepRNG(7, 3).Uint64() {
+	if game.StepRNG(7, 3).Uint64() != game.StepRNG(7, 3).Uint64() {
 		t.Error("same (seed, seq) must repeat")
 	}
-	if StepRNG(7, 3).Uint64() == StepRNG(7, 4).Uint64() {
+	if game.StepRNG(7, 3).Uint64() == game.StepRNG(7, 4).Uint64() {
 		t.Error("different seq must differ")
 	}
 }
 
 func TestForfeitToRemaining(t *testing.T) {
-	got := ForfeitToRemaining([]Seat{"w", "b"}, "w", ReasonResign)
-	if got.Kind != ResultDecisive || !slices.Equal(got.Winners, []Seat{"b"}) || got.Reason != ReasonResign {
+	got := game.ForfeitToRemaining([]game.Seat{"w", "b"}, "w", game.ReasonResign)
+	if got.Kind != game.ResultDecisive || !slices.Equal(got.Winners, []game.Seat{"b"}) || got.Reason != game.ReasonResign {
 		t.Fatalf("got %+v", got)
 	}
 }

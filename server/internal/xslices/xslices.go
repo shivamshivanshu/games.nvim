@@ -12,7 +12,6 @@ func Map[S ~[]E, E, R any](s S, f func(E) R) []R {
 	return out
 }
 
-// MapErr is Map that stops at the first error.
 func MapErr[S ~[]E, E, R any](s S, f func(E) (R, error)) ([]R, error) {
 	out := make([]R, 0, len(s))
 	for _, e := range s {

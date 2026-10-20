@@ -35,7 +35,6 @@ type ErasedState interface {
 	Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error)
 }
 
-// ForfeitToRemaining makes every seat except the eliminated one a winner.
 func ForfeitToRemaining(all []Seat, eliminated Seat, reason ResultReason) Result {
 	winners := slices.DeleteFunc(slices.Clone(all), func(s Seat) bool { return s == eliminated })
 	return Result{Kind: ResultDecisive, Winners: winners, Reason: reason}

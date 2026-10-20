@@ -102,7 +102,7 @@ func dial(t *testing.T, addr string) *client {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { conn.Close() })
-	return &client{t: t, conn: conn, reader: protocol.NewReader(conn, limits.MaxLineBytes)}
+	return &client{t: t, conn: conn, reader: protocol.NewReader(conn, limits.Default().MaxLineBytes)}
 }
 
 func (c *client) sendLine(line string) {
