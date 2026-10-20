@@ -1,3 +1,4 @@
+local finder = require("games.ui.finder")
 local highlights = require("games.ui.highlights")
 local predicates = require("games.core.predicates")
 
@@ -26,6 +27,7 @@ local M = {}
 ---@field archive games.ArchiveConfig
 ---@field board games.BoardConfig
 ---@field assets table<games.GameType, string> asset pack per game: a shipped name or a module name
+---@field picker? games.PickerName the finder's picker; nil takes the first installed
 
 ---@class games.SetupOpts
 ---@field server? {host?: string, port?: integer}
@@ -38,6 +40,7 @@ local M = {}
 ---@field archive? {dir?: string}
 ---@field board? games.BoardConfig
 ---@field assets? table<games.GameType, string>
+---@field picker? games.PickerName
 
 local GLYPHS = { unicode = true, ascii = true }
 local PALETTES = { theme = true, vivid = true }
@@ -126,6 +129,9 @@ function M.resolve(opts)
   config.archive = { dir = archive_dir and vim.fs.abspath(vim.fs.normalize(archive_dir)) }
   vim.validate("board", config.board, valid_board, "{ max_cell_height = positive integer }")
   vim.validate("assets", config.assets, valid_assets, "game -> asset pack name")
+  vim.validate("picker", config.picker, function(picker)
+    return vim.tbl_contains(finder.PICKER_NAMES, picker)
+  end, true, '"snacks", "telescope", "fzf" or "select"')
   return config
 end
 

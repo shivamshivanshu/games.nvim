@@ -14,6 +14,7 @@ jobs:
     env:
       LUALS_VERSION: 3.15.0
       STYLUA_VERSION: 2.5.2
+      FZF_VERSION: 0.74.0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -42,6 +43,16 @@ jobs:
       - name: Lint and all tests
         if: matrix.neovim == 'stable'
         run: make check
+      - name: Install fzf
+        if: matrix.neovim == 'stable'
+        run: |
+          dir="$RUNNER_TEMP/fzf"
+          mkdir -p "$dir"
+          curl -fsSL "https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_amd64.tar.gz" | tar -xz -C "$dir"
+          echo "$dir" >> "$GITHUB_PATH"
+      - name: Finder smoke tests against the real pickers
+        if: matrix.neovim == 'stable'
+        run: make smoke-finders PICKERS_PACK="$RUNNER_TEMP/pickers"
       - name: Lua tests on the oldest supported Neovim
         if: matrix.neovim != 'stable'
         run: make test-lua

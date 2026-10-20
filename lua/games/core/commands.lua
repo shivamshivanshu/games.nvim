@@ -1,4 +1,5 @@
 local Archive = require("games.core.archive")
+local finder = require("games.ui.finder")
 local float = require("games.ui.float")
 local kv = require("games.ui.widgets.kv")
 local login = require("games.core.login")
@@ -519,6 +520,81 @@ local function next_game(client)
   shell.open_next(client)
 end
 
+---@alias (private) games.ExtraFetch fun(client: games.Client, done: fun(extra: games.SourceExtra))
+
+---What each source needs fetched beyond the client cache; a source not listed needs nothing.
+---@type table<games.SourceName, games.ExtraFetch>
+local EXTRA_FETCHES = {
+  [sources.SourceName.GAMES] = function(client, done)
+    client:game_list(
+      { status = GameStatus.FINISHED },
+      on_ok(
+        ---@param result games.GameListResult
+        function(result)
+          done({ finished = result.games })
+        end
+      )
+    )
+  end,
+  [sources.SourceName.TYPES] = function(client, done)
+    client:catalog_list(
+      nil,
+      on_ok(function()
+        done({})
+      end)
+    )
+  end,
+  [sources.SourceName.PLAYERS] = function(client, done)
+    client:user_list(
+      nil,
+      on_ok(
+        ---@param listed games.UserListResult
+        function(listed)
+          client:stats_get(
+            nil,
+            on_ok(
+              ---@param result games.StatsResult
+              function(result)
+                done({ users = listed.users, stats = result })
+              end
+            )
+          )
+        end
+      )
+    )
+  end,
+}
+
+---Opens the finder over source name once what it lists is fetched.
+---@param client games.Client
+---@param me games.UserID
+---@param name games.SourceName
+function M.find(client, me, name)
+  local fetch = EXTRA_FETCHES[name] or function(_, done)
+    done({})
+  end
+  fetch(client, function(extra)
+    local config = require("games").config
+    finder.open(sources.build(name, sources.snapshot(client, me, extra)), config and config.picker)
+  end)
+end
+
+---@type games.SubcommandRun
+local function find(client, me, args)
+  local name = args[1]
+  if not name then
+    picker.pick(sources.NAMES, { prompt = "Find:" }, function(picked)
+      M.find(client, me, picked)
+    end)
+    return
+  end
+  if not sources.is_source_name(name) then
+    say(("games: find takes %s, not %q"):format(table.concat(sources.NAMES, ", "), name), ERROR)
+    return
+  end
+  M.find(client, me, name)
+end
+
 ---@type games.Subcommand[]
 local SUBCOMMANDS = {
   { name = "challenge", usage = "challenge [game] [user…]", run = challenge },
@@ -528,6 +604,7 @@ local SUBCOMMANDS = {
   { name = "leaderboard", usage = "leaderboard [game]", run = show_leaderboard },
   { name = "next", usage = "next", run = next_game },
   { name = "export", usage = "export", run = export },
+  { name = "find", usage = "find [source]", run = find, arg_choices = sources.NAMES },
 }
 
 ---@param name string

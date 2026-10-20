@@ -1,10 +1,11 @@
 LUALS ?= $(HOME)/.local/share/nvim/mason/bin/lua-language-server
-LUA_DIRS := $(wildcard lua tests/lua)
+LUA_DIRS := $(wildcard lua tests/lua tests/smoke)
 HAS_GO_PACKAGES := $(shell cd server && go list ./... 2>/dev/null)
 
 SCHEMA_DIR := $(CURDIR)/docs/schema
+PICKERS_PACK ?= $(CURDIR)/.pickers
 
-.PHONY: fmt lint schema schema-check test-go build test-lua check
+.PHONY: fmt lint schema schema-check test-go build test-lua check smoke-finders
 
 fmt:
 	cd server && gofmt -w .
@@ -33,3 +34,7 @@ test-lua: $(if $(wildcard server/cmd/games-server),build)
 	$(if $(wildcard tests/lua),nvim --headless -u NONE -l tests/lua/run.lua)
 
 check: lint schema-check test-go test-lua
+
+smoke-finders:
+	tests/smoke/fetch-pickers.sh $(PICKERS_PACK)
+	PICKERS_PACK=$(PICKERS_PACK) nvim --headless -u NONE -l tests/smoke/finders.lua
