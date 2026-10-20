@@ -110,6 +110,8 @@ Details and flags are under Server below.
 | `palette` | `"theme"` or `"vivid"` | `"theme"` | colours derived from your colourscheme, or a fixed lichess-style board with near-black ink pieces; `vivid` needs `termguicolors` and falls back to `theme` without it |
 | `highlights` | table | `{}` | `{ GamesX = {...} }`, each passed to `nvim_set_hl` in place of the palette's definition |
 | `archive.dir` | string | unset | archive folder (`~` expanded); archiving is off when unset; see Archive below |
+| `board.max_cell_height` | integer | unset | lines per board square at most; `1` keeps one-line glyphs; see Board size below |
+| `assets` | table | `{}` | asset pack per game, e.g. `{ chess = "my.chess_art" }`; every game defaults to `"default"` |
 
 A bad login or protocol mismatch stops auto-reconnect and notifies; fix the config and restart Neovim (or call `setup()` again).
 
@@ -136,6 +138,24 @@ require("games").setup({
   highlights = { GamesLastMove = { bg = "#9bc700" } },
 })
 ```
+
+### Board size and asset packs
+
+A board grows to fill its window: squares are as many lines tall as fit (twice as many columns wide), with the legend and move list beside it, and it refits when windows are resized, split or switched. When several windows show one board it fits the smallest. Squares 3 or more lines tall draw block-character art centred in them; smaller ones draw the one-line glyph. The board's size never depends on the game's state; the move list shows its latest moves within the board's height.
+
+Under `ambiwidth=double` block characters draw two cells wide, so boards keep their one-line glyphs (and any glyph that would widen, such as chess's `·`, falls back to an ASCII one).
+
+Every glyph and sprite a game draws comes from an asset pack, `lua/games/assets/<game>/<pack>.lua`, so art can be swapped without touching game code. `assets = { chess = "name" }` picks a shipped pack by name or any Lua module by its module name. A pack returns:
+
+```lua
+{
+  name = "mine",
+  glyphs = { unicode = { K = { { h = 1, w = 1, lines = { "♔" } } }, ... }, ascii = { ... } },
+  art = { K = { { h = 3, w = 4, lines = { " ▞▚ ", "▗▞▚▖", "▗▙▟▖" } }, ... }, ... },
+}
+```
+
+Each entry is `h` lines of exactly `w` display columns. Art lines hold only spaces and U+2580-259F, uncoloured: colour comes from the board's highlight groups. Every key the game needs (chess: `K Q R B N P k q r b n p empty`) needs a one-line glyph in both glyph modes; `art` is optional per key, drawn under `glyphs = "unicode"` only. A pack that fails these checks is replaced by `"default"` with one notice.
 
 ## Commands
 

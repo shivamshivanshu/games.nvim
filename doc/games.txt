@@ -62,6 +62,8 @@ Passed to `require("games").setup({opts})`.
     `palette`         `"theme"` or `"vivid"`         `"theme"`
     `highlights`      table of group -> attributes `{}`
     `archive.dir`     string, optional           unset (no archive)
+    `board`           `{ max_cell_height? }`       `{}` (no cap)
+    `assets`          table of game -> pack      `{}` (`"default"`)
 
 `password` as a function is called at each connect, never during setup(), so
 the secret need not live in your dotfiles.
@@ -123,6 +125,37 @@ and are kept as they are, roles unchecked. >lua
       highlights = { GamesLastMove = { bg = "#9bc700" } },
     })
 <
+
+                                                   *games-board* *games-assets*
+A board grows to fill its window: squares are as many lines tall as fit, twice
+as many columns wide, with the legend and move list beside it. It refits when
+windows are resized, split or switched; when several windows of the tabpage
+show it, it fits the smallest. `board = { max_cell_height = n }` caps the
+square height, and 1 keeps one-line glyphs. Squares 3 or more lines tall draw
+block-character art; smaller ones draw the glyph. The size never follows game
+state: the move list shows its latest moves within the board's height. Under
+'ambiwidth' "double" block characters are two cells wide, so boards keep their
+one-line glyphs, and a glyph that would widen (chess's `·`) falls back to an
+ASCII one.
+
+Every glyph and sprite a game draws comes from an asset pack,
+`lua/games/assets/<game>/<pack>.lua`. `assets = { chess = "name" }` selects a
+shipped pack by name or any Lua module by its module name. A pack returns >lua
+    {
+      name = "mine",
+      glyphs = {
+        unicode = { K = { { h = 1, w = 1, lines = { "♔" } } }, ... },
+        ascii = { K = { { h = 1, w = 1, lines = { "K" } } }, ... },
+      },
+      art = { K = { { h = 3, w = 4, lines = { ... } } }, ... },
+    }
+<
+Each entry is `h` lines of exactly `w` display columns. Art lines hold only
+spaces and U+2580-259F and carry no colour; the board's highlight groups colour
+them. Every key the game needs (chess: `K Q R B N P k q r b n p empty`) needs a
+one-line glyph in both glyph modes; art, drawn under `glyphs = "unicode"` only,
+is optional per key. A pack that fails these checks is replaced by "default"
+with one notice.
 
                                                                 *games-archive*
 `archive.dir` (`~` is expanded) turns on the archive: every game this client
