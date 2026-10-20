@@ -291,7 +291,7 @@ func TestResignEndsGame(t *testing.T) {
 	}
 	for _, user := range []game.UserID{alice, bob} {
 		u, _ := h.sent.last(user)
-		want := &protocol.WireResult{Kind: protocol.ResultDecisive, Winners: []game.UserID{alice}, Reason: game.ReasonResign}
+		want := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{alice}, Reason: game.ReasonResign}
 		if diff := cmp.Diff(want, u.Result); diff != "" {
 			t.Errorf("%s final result (-want +got):\n%s", user, diff)
 		}

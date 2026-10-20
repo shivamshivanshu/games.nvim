@@ -88,11 +88,7 @@ func (f Finished) Sealed() (Finished, error) {
 }
 
 // Update is the finished game as every player sees it: metadata only.
-func (f Finished) Update() (protocol.GameUpdate, error) {
-	kind, err := protocol.ResultKindOf(f.Finish.Kind)
-	if err != nil {
-		return protocol.GameUpdate{}, err
-	}
+func (f Finished) Update() protocol.GameUpdate {
 	return protocol.GameUpdate{
 		GameID:     f.ID,
 		Game:       f.Type,
@@ -100,14 +96,14 @@ func (f Finished) Update() (protocol.GameUpdate, error) {
 		Seq:        f.Finish.Seq,
 		Players:    append([]game.Player{}, f.Players...),
 		ToAct:      []game.UserID{},
-		Result:     &protocol.WireResult{Kind: kind, Winners: f.winners(), Reason: f.Finish.Reason},
+		Result:     &protocol.WireResult{Kind: f.Finish.Kind, Winners: f.winners(), Reason: f.Finish.Reason},
 		Controls:   []protocol.Control{},
 		Events:     []json.RawMessage{},
 		StartedAt:  protocol.UnixMSOf(f.StartedAt),
 		FinishedAt: new(protocol.UnixMSOf(f.Finish.At)),
 		Summary:    new(string(f.Finish.Summary)),
 		Digest:     new(f.Finish.Digest),
-	}, nil
+	}
 }
 
 func (f Finished) winners() []game.UserID {

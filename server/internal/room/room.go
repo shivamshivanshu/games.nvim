@@ -293,7 +293,7 @@ func (s roomState) view(g Setup, user game.UserID) (json.RawMessage, error) {
 // finishing step's broadcast alone carries.
 func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.GameUpdate, error) {
 	if s.final != nil {
-		return s.final.Update()
+		return s.final.Update(), nil
 	}
 	view, err := s.view(g, user)
 	if err != nil {

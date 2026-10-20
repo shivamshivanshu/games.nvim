@@ -90,7 +90,7 @@ func TestFinishSealsCanonicalSummaryAndDeletesSteps(t *testing.T) {
 	if *final.Summary != want {
 		t.Fatalf("summary\n got %s\nwant %s", *final.Summary, want)
 	}
-	wantResult := &protocol.WireResult{Kind: protocol.ResultDecisive, Winners: []game.UserID{bob}, Reason: "target_reached"}
+	wantResult := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{bob}, Reason: "target_reached"}
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}

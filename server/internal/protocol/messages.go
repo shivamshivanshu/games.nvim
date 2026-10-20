@@ -197,28 +197,8 @@ type SeqResult struct {
 	Seq game.Seq `json:"seq"`
 }
 
-type ResultKind string
-
-const (
-	ResultDecisive ResultKind = "decisive"
-	ResultDraw     ResultKind = "draw"
-	ResultAborted  ResultKind = "aborted"
-)
-
-func ResultKindOf(k game.ResultKind) (ResultKind, error) {
-	switch k {
-	case game.ResultDecisive:
-		return ResultDecisive, nil
-	case game.ResultDraw:
-		return ResultDraw, nil
-	case game.ResultAborted:
-		return ResultAborted, nil
-	}
-	return "", fmt.Errorf("protocol: unknown result kind %d", k)
-}
-
 type WireResult struct {
-	Kind    ResultKind        `json:"kind"`
+	Kind    game.ResultKind   `json:"kind"`
 	Winners []game.UserID     `json:"winners"`
 	Reason  game.ResultReason `json:"reason"`
 }

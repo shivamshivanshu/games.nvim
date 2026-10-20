@@ -202,15 +202,15 @@ func (s *Store) AppendStep(ctx context.Context, id game.GameID, step StepRecord)
 
 // FinishGame stores a game's ending and summary and deletes its steps.
 func (s *Store) FinishGame(ctx context.Context, id game.GameID, f Finish) error {
-	kind, err := kindName(f.Kind)
+	kind, err := f.Kind.MarshalText()
 	if err != nil {
-		return err
+		return fmt.Errorf("store: %w", err)
 	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		if err := requireAffected(ctx, tx, ErrNotOngoing,
 			`UPDATE games SET finished_at = ?, final_seq = ?, result_kind = ?, result_reason = ?, summary = ?, digest = ?
 			 WHERE game_id = ? AND finished_at IS NULL`,
-			f.At.UnixMilli(), int64(f.Seq), kind, f.Reason, f.Summary, f.Digest, id); err != nil {
+			f.At.UnixMilli(), int64(f.Seq), string(kind), f.Reason, f.Summary, f.Digest, id); err != nil {
 			return err
 		}
 		for user, standing := range f.Standings {
@@ -369,8 +369,8 @@ func scanGame(row scanner) (GameRecord, error) {
 	if !finishedMS.Valid {
 		return rec, nil
 	}
-	resultKind, err := kindNamed(kind.V)
-	if err != nil {
+	var resultKind game.ResultKind
+	if err := resultKind.UnmarshalText([]byte(kind.V)); err != nil {
 		return rec, fmt.Errorf("store: game %s: %w", rec.ID, err)
 	}
 	rec.Finish = &Finish{
@@ -381,30 +381,6 @@ func scanGame(row scanner) (GameRecord, error) {
 		Digest:  digest.V,
 	}
 	return rec, nil
-}
-
-func kindName(k game.ResultKind) (string, error) {
-	switch k {
-	case game.ResultDecisive:
-		return "decisive", nil
-	case game.ResultDraw:
-		return "draw", nil
-	case game.ResultAborted:
-		return "aborted", nil
-	}
-	return "", fmt.Errorf("store: unknown result kind %d", k)
-}
-
-func kindNamed(name string) (game.ResultKind, error) {
-	switch name {
-	case "decisive":
-		return game.ResultDecisive, nil
-	case "draw":
-		return game.ResultDraw, nil
-	case "aborted":
-		return game.ResultAborted, nil
-	}
-	return 0, fmt.Errorf("store: unknown result kind %q", name)
 }
 
 type playerRow struct {

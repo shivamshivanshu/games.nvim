@@ -82,7 +82,7 @@ func TestSoloGameSurvivesRestartAndFinishes(t *testing.T) {
 	}
 	final := waitUpdate(t, a, add(t, a, id, seq+1, 4))
 	e.requireSealed(t, final)
-	wantResult := &protocol.WireResult{Kind: protocol.ResultDecisive, Winners: []game.UserID{alice}, Reason: gametest.ReasonTargetReached}
+	wantResult := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{alice}, Reason: gametest.ReasonTargetReached}
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}
@@ -98,7 +98,7 @@ func TestSoloGiveUpSealsLossWithNoWinner(t *testing.T) {
 
 	final := waitUpdate(t, a, seq)
 	e.requireSealed(t, final)
-	wantResult := &protocol.WireResult{Kind: protocol.ResultDecisive, Winners: []game.UserID{}, Reason: game.ReasonResign}
+	wantResult := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{}, Reason: game.ReasonResign}
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}
