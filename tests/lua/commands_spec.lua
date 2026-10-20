@@ -345,18 +345,17 @@ local ARCHIVED_BEFORE = "5ee17e00-0000-4000-8000-000000000003"
 
 ---@param game_id string
 ---@param seq integer
----@return games.GameUpdate
+---@return games.GameUpdate without a view
 local function chess_game(game_id, seq)
-  return {
+  local update = helpers.chess_update({
     game_id = game_id,
-    game = "chess",
     seq = seq,
-    players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
     to_act = {},
     controls = {},
-    events = {},
     started_at = 1792584000000,
-  }
+  })
+  update.view = nil
+  return update
 end
 
 ---@param game_id string

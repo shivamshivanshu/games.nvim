@@ -181,6 +181,25 @@ function M.chess_view(glyphs, flipped)
   return { glyphs = glyphs, flipped = flipped == true, art = assets.art_set(pack, glyphs) }
 end
 
+local CHESS_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+---Game 0000 at the start position, alice (white) to move against bob, with overrides on top.
+---@param overrides table
+---@return games.ChessUpdate
+function M.chess_update(overrides)
+  return vim.tbl_extend("force", {
+    game_id = "0000",
+    game = "chess",
+    seq = 0,
+    options = {},
+    players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
+    to_act = { "alice" },
+    controls = { "resign", "offer_draw", "abort" },
+    events = {},
+    view = { fen = CHESS_START_FEN, history_san = {}, in_check = false },
+  }, overrides)
+end
+
 ---@param expected any
 ---@param actual any
 function M.assert_eq(expected, actual)

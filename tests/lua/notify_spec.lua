@@ -27,16 +27,14 @@ end
 ---@param to_act games.UserID[]
 ---@return games.GameUpdate
 local function chess_update(seq, moved_by, to_act)
-  return {
+  return helpers.chess_update({
     game_id = "notify01",
-    game = "chess",
     seq = seq,
-    players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
     to_act = to_act,
     controls = {},
     events = moved_by and { { kind = "moved", by = moved_by, san = "e4" } } or {},
     view = { fen = AFTER_E4_FEN, history_san = { "e4" }, in_check = false },
-  }
+  })
 end
 
 ---@param fn fun(conn: games.test.StubConn, notified: {[1]: string, [2]: integer}[])

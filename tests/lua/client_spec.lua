@@ -6,15 +6,7 @@ local stub_conn = helpers.stub_conn
 ---@param seq integer
 ---@return games.GameUpdate
 local function update(seq)
-  return {
-    game_id = "g1",
-    game = "chess",
-    seq = seq,
-    players = {},
-    to_act = {},
-    controls = {},
-    events = {},
-  }
+  return helpers.chess_update({ game_id = "g1", seq = seq })
 end
 
 local T = {}

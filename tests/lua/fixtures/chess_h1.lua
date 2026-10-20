@@ -2,23 +2,10 @@
 ---before scalable boards, changed only by rulings R1 (a blank status line without a banner) and
 ---R2 (the move list shows its tail within the board's height).
 
-local START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+local update = require("helpers").chess_update
+
 local FOOLS_MATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
 local ITALIAN_FEN = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
-
-local function update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "chess",
-    seq = 0,
-    options = {},
-    players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
-    to_act = { "alice" },
-    controls = { "resign", "offer_draw", "abort" },
-    events = {},
-    view = { fen = START_FEN, history_san = {}, in_check = false },
-  }, overrides)
-end
 
 local fools_mate = update({
   seq = 4,

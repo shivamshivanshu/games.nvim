@@ -9,18 +9,14 @@ local NOON_UTC_2026_10_21 = 1792584000000
 ---@param result games.WireResult|nil
 ---@return games.ChessUpdate
 local function chess_game(history_san, result)
-  return {
-    game_id = "g1",
-    game = "chess",
+  return helpers.chess_update({
     seq = #history_san,
-    players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
     to_act = {},
     controls = {},
-    events = {},
     result = result,
     view = { fen = "unused", history_san = history_san, in_check = false },
     started_at = NOON_UTC_2026_10_21,
-  }
+  })
 end
 
 ---@param pgn_text string

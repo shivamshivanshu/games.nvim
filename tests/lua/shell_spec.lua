@@ -7,25 +7,12 @@ local helpers = require("helpers")
 
 local assert_eq = helpers.assert_eq
 
-local START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 local AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 local FOOLS_MATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
 local ASCII = helpers.chess_view("ascii")
 local UNICODE = helpers.chess_view("unicode")
 
-local function chess_update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "chess",
-    seq = 0,
-    options = {},
-    players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
-    to_act = { "alice" },
-    controls = { "resign", "offer_draw", "abort" },
-    events = {},
-    view = { fen = START_FEN, history_san = {}, in_check = false },
-  }, overrides)
-end
+local chess_update = helpers.chess_update
 
 local function board_lines(lines)
   return vim.tbl_filter(function(line)
