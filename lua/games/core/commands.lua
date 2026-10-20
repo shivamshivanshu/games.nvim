@@ -29,8 +29,9 @@ local M = {}
 local say = notify.say
 
 ---Reply callback that reports request errors and hands successful results on.
----@param on_result fun(result: any)
----@return games.ReplyCallback
+---@generic R
+---@param on_result fun(result: R)
+---@return games.Reply<R>
 local function on_ok(on_result)
   return function(err, result)
     if err then
@@ -49,30 +50,32 @@ local function ignore() end
 local function pick_opponent(client, me, on_user)
   client:user_list(
     nil,
-    on_ok(function(result)
-      ---@cast result games.UserListResult
-      local others = vim.tbl_filter(function(presence)
-        return presence.user ~= me
-      end, result.users)
-      if #others == 0 then
-        say("games: no other users")
-        return
-      end
-      table.sort(others, function(a, b)
-        if a.online ~= b.online then
-          return a.online
+    on_ok(
+      ---@param result games.UserListResult
+      function(result)
+        local others = vim.tbl_filter(function(presence)
+          return presence.user ~= me
+        end, result.users)
+        if #others == 0 then
+          say("games: no other users")
+          return
         end
-        return a.user < b.user
-      end)
-      picker.pick(others, {
-        prompt = "Challenge whom?",
-        format_item = function(presence)
-          return presence.online and (presence.user .. " (online)") or presence.user
-        end,
-      }, function(presence)
-        on_user(presence.user)
-      end)
-    end)
+        table.sort(others, function(a, b)
+          if a.online ~= b.online then
+            return a.online
+          end
+          return a.user < b.user
+        end)
+        picker.pick(others, {
+          prompt = "Challenge whom?",
+          format_item = function(presence)
+            return presence.online and (presence.user .. " (online)") or presence.user
+          end,
+        }, function(presence)
+          on_user(presence.user)
+        end)
+      end
+    )
   )
 end
 
@@ -150,19 +153,23 @@ local function challenge(client, me, args)
   local function challenge_opponent(opponent)
     client:catalog_list(
       nil,
-      on_ok(function(catalog)
-        ---@cast catalog games.CatalogResult
-        pick_game(catalog.games, args[2], function(info)
-          pick_options(info, function(options)
-            client:challenge_create(
-              { to = { opponent }, game = info.id, options = options },
-              on_ok(function()
-                say(("challenged %s: %s"):format(opponent, picker.game_summary(info.name, options)))
-              end)
-            )
+      on_ok(
+        ---@param catalog games.CatalogResult
+        function(catalog)
+          pick_game(catalog.games, args[2], function(info)
+            pick_options(info, function(options)
+              client:challenge_create(
+                { to = { opponent }, game = info.id, options = options },
+                on_ok(function()
+                  say(
+                    ("challenged %s: %s"):format(opponent, picker.game_summary(info.name, options))
+                  )
+                end)
+              )
+            end)
           end)
-        end)
-      end)
+        end
+      )
     )
   end
   if args[1] then
@@ -260,21 +267,23 @@ local function list(client, me, args)
   end
   client:game_list(
     { status = status },
-    on_ok(function(result)
-      ---@cast result games.GameListResult
-      if #result.games == 0 then
-        say(("games: no %s games"):format(status))
-        return
+    on_ok(
+      ---@param result games.GameListResult
+      function(result)
+        if #result.games == 0 then
+          say(("games: no %s games"):format(status))
+          return
+        end
+        picker.pick(result.games, {
+          prompt = ("%s games:"):format(status),
+          format_item = function(update)
+            return picker.format_game(update, me)
+          end,
+        }, function(update)
+          shell.open(client, update.game_id)
+        end)
       end
-      picker.pick(result.games, {
-        prompt = ("%s games:"):format(status),
-        format_item = function(update)
-          return picker.format_game(update, me)
-        end,
-      }, function(update)
-        shell.open(client, update.game_id)
-      end)
-    end)
+    )
   )
 end
 
@@ -294,13 +303,16 @@ local function show_stats(client, me, args)
   local user = args[1] or me
   client:stats_get(
     nil,
-    on_ok(function(result)
-      show_rows(
-        " stats: " .. user .. " ",
-        ("games: %s has no finished games"):format(user),
-        stats.stats_pairs(result, user)
-      )
-    end)
+    on_ok(
+      ---@param result games.StatsResult
+      function(result)
+        show_rows(
+          " stats: " .. user .. " ",
+          ("games: %s has no finished games"):format(user),
+          stats.stats_pairs(result, user)
+        )
+      end
+    )
   )
 end
 
@@ -309,14 +321,16 @@ local function show_leaderboard(client, _, args)
   local game = args[1]
   client:stats_get(
     nil,
-    on_ok(function(result)
-      ---@cast result games.StatsResult
-      show_rows(
-        (" leaderboard: %s "):format(game or "all games"),
-        ("games: no finished %sgames"):format(game and (game .. " ") or ""),
-        stats.leaderboard_pairs(result.records, game)
-      )
-    end)
+    on_ok(
+      ---@param result games.StatsResult
+      function(result)
+        show_rows(
+          (" leaderboard: %s "):format(game or "all games"),
+          ("games: no finished %sgames"):format(game and (game .. " ") or ""),
+          stats.leaderboard_pairs(result.records, game)
+        )
+      end
+    )
   )
 end
 

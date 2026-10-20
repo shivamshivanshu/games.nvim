@@ -6,7 +6,8 @@
 ---@alias games.Capability "resign"|"draw"|"abort"|"clock"
 ---@alias games.ResultReason "resign"|"timeout"|"draw_agreed"|"aborted"|string
 ---@alias games.Options table<string, string>
----@alias games.ReplyCallback fun(err: games.ErrorBody|nil, result: table|nil)
+---@alias games.Reply<R> fun(err: games.ErrorBody|nil, result: R|nil)
+---@alias games.ReplyCallback games.Reply<table>
 
 ---@class games.Envelope
 ---@field id? integer

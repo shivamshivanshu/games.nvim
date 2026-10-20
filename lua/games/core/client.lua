@@ -17,17 +17,17 @@ local ChallengeState = types.ChallengeState
 ---@field package catalog? games.CatalogResult static per server process, so refetched per connection
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
----@field user_list fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.UserListResult|nil))
----@field challenge_create fun(self: games.Client, body: games.ChallengeCreateRequest, cb?: fun(err: games.ErrorBody|nil, result: games.ChallengeCreateResult|nil))
+---@field user_list fun(self: games.Client, body: nil, cb?: games.Reply<games.UserListResult>)
+---@field challenge_create fun(self: games.Client, body: games.ChallengeCreateRequest, cb?: games.Reply<games.ChallengeCreateResult>)
 ---@field challenge_accept fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
 ---@field challenge_decline fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
 ---@field challenge_cancel fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
----@field challenge_list fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.ChallengeListResult|nil))
----@field game_list fun(self: games.Client, body: games.GameListRequest|nil, cb?: fun(err: games.ErrorBody|nil, result: games.GameListResult|nil))
----@field game_snapshot fun(self: games.Client, body: games.GameSnapshotRequest, cb?: fun(err: games.ErrorBody|nil, result: games.GameUpdate|nil))
----@field game_act fun(self: games.Client, body: games.GameActRequest, cb?: fun(err: games.ErrorBody|nil, result: games.SeqResult|nil))
----@field game_control fun(self: games.Client, body: games.GameControlRequest, cb?: fun(err: games.ErrorBody|nil, result: games.SeqResult|nil))
----@field stats_get fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.StatsResult|nil))
+---@field challenge_list fun(self: games.Client, body: nil, cb?: games.Reply<games.ChallengeListResult>)
+---@field game_list fun(self: games.Client, body: games.GameListRequest|nil, cb?: games.Reply<games.GameListResult>)
+---@field game_snapshot fun(self: games.Client, body: games.GameSnapshotRequest, cb?: games.Reply<games.GameUpdate>)
+---@field game_act fun(self: games.Client, body: games.GameActRequest, cb?: games.Reply<games.SeqResult>)
+---@field game_control fun(self: games.Client, body: games.GameControlRequest, cb?: games.Reply<games.SeqResult>)
+---@field stats_get fun(self: games.Client, body: nil, cb?: games.Reply<games.StatsResult>)
 local Client = {}
 Client.__index = Client
 
