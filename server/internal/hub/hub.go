@@ -93,7 +93,6 @@ func (h *Hub) online(user game.UserID) bool {
 
 // SendUpdate runs on a room's actor goroutine, so it only queues frames.
 func (h *Hub) SendUpdate(to game.UserID, u protocol.GameUpdate) {
-	h.touch(u.GameID)
 	h.push(protocol.TypeGameUpdate, u, to)
 }
 

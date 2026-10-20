@@ -37,6 +37,7 @@ type Params struct {
 	Seed       game.Seed
 	Challenger game.UserID
 	Players    []game.Player
+	CreatedAt  time.Time
 	Persist    Persister
 	Broadcast  Broadcaster
 	Time       clock.Clock
@@ -84,16 +85,17 @@ func (g setup) usersAt(seats []game.Seat) []game.UserID {
 type roomState struct {
 	game       game.ErasedState
 	seq        game.Seq
-	acted      map[game.UserID]bool
+	acted      map[game.UserID]struct{}
 	drawAgreed []game.UserID
 	imposed    *game.Result
 	events     []json.RawMessage
 	remaining  map[game.UserID]time.Duration
 	since      time.Time
+	lastStepAt time.Time
 }
 
 func initialState(g setup, state game.ErasedState, now time.Time) roomState {
-	s := roomState{game: state, events: []json.RawMessage{}, since: now}
+	s := roomState{game: state, events: []json.RawMessage{}, since: now, lastStepAt: g.CreatedAt}
 	if g.clock.Enabled {
 		s.remaining = make(map[game.UserID]time.Duration, len(g.Players))
 		for _, player := range g.Players {
@@ -122,22 +124,22 @@ func (s roomState) toAct(g setup) []game.UserID {
 	return g.usersAt(s.game.ToAct())
 }
 
-func (s roomState) apply(g setup, rec store.StepRecord) (roomState, error) {
+func (s roomState) apply(g setup, st step) (roomState, error) {
 	next := s
-	next.seq = rec.Seq
-	next.remaining = s.charged(g, rec.At)
-	next.since = rec.At
+	next.seq = st.seq
+	next.remaining = s.charged(g, st.at)
+	next.since, next.lastStepAt = st.at, st.at
 	next.events = []json.RawMessage{}
 	var err error
-	switch rec.Kind {
+	switch st.kind {
 	case store.StepAction:
-		next, err = next.applyAction(g, rec, s.clockRunning(g))
+		next, err = next.applyAction(g, st)
 	case store.StepControl:
-		next, err = next.applyControl(g, rec)
+		next, err = next.applyControl(g, st)
 	case store.StepTimeout:
-		next, err = next.applyTimeout(g, rec)
+		next, err = next.applyTimeout(g, st)
 	default:
-		err = fmt.Errorf("room: unknown step kind %q", rec.Kind)
+		err = fmt.Errorf("room: unknown step kind %q", st.kind)
 	}
 	if err != nil {
 		return roomState{}, err
@@ -145,33 +147,33 @@ func (s roomState) apply(g setup, rec store.StepRecord) (roomState, error) {
 	return next, nil
 }
 
-func (s roomState) applyAction(g setup, rec store.StepRecord, clockWasRunning bool) (roomState, error) {
+func (s roomState) applyAction(g setup, st step) (roomState, error) {
 	if s.finished() {
 		return s, errGameOver
 	}
-	state, events, err := s.game.Apply(g.seats[rec.User], rec.Payload, game.StepRNG(g.Seed, rec.Seq))
+	state, events, err := s.game.Apply(g.seats[st.user], st.action, game.StepRNG(g.Seed, st.seq))
 	if err != nil {
 		return s, err
 	}
+	if s.clockRunning(g) {
+		s.remaining[st.user] += g.clock.Increment
+	}
 	s.game, s.events = state, events
 	s.drawAgreed = nil
-	s.acted = xslices.With(s.acted, rec.User, true)
-	if clockWasRunning {
-		s.remaining[rec.User] += g.clock.Increment
-	}
+	s.acted = xslices.With(s.acted, st.user, struct{}{})
 	return s, nil
 }
 
-func (s roomState) applyTimeout(g setup, rec store.StepRecord) (roomState, error) {
+func (s roomState) applyTimeout(g setup, st step) (roomState, error) {
 	if s.finished() {
 		return s, errGameOver
 	}
-	s, err := s.eliminate(g, rec.User, game.ReasonTimeout)
+	s, err := s.eliminate(g, st.user, game.ReasonTimeout)
 	if err != nil {
 		return s, err
 	}
 	if s.remaining != nil {
-		s.remaining[rec.User] = 0
+		s.remaining[st.user] = 0
 	}
 	return s, nil
 }
@@ -277,27 +279,26 @@ func (r *Room) run() {
 }
 
 func (r *Room) Act(ctx context.Context, user game.UserID, seq game.Seq, action json.RawMessage) (game.Seq, error) {
-	return ask(ctx, r, func() (game.Seq, error) {
-		return r.submit(user, seq, store.StepAction, action)
-	}, r.rejectAfterExit)
+	return r.submit(ctx, seq, step{user: user, kind: store.StepAction, action: action})
 }
 
 func (r *Room) Control(ctx context.Context, user game.UserID, seq game.Seq, c protocol.Control) (game.Seq, error) {
-	payload, err := json.Marshal(c)
-	if err != nil {
-		return 0, err
-	}
-	return ask(ctx, r, func() (game.Seq, error) {
-		return r.submit(user, seq, store.StepControl, payload)
-	}, r.rejectAfterExit)
+	return r.submit(ctx, seq, step{user: user, kind: store.StepControl, control: c})
 }
 
-func (r *Room) Snapshot(ctx context.Context, user game.UserID) (protocol.GameUpdate, error) {
-	snapshot := func() (protocol.GameUpdate, error) {
+// Snapshot is one player's view of the game and when it last moved.
+type Snapshot struct {
+	Update     protocol.GameUpdate
+	LastStepAt time.Time
+}
+
+func (r *Room) Snapshot(ctx context.Context, user game.UserID) (Snapshot, error) {
+	snapshot := func() (Snapshot, error) {
 		if _, ok := r.setup.seats[user]; !ok {
-			return protocol.GameUpdate{}, ErrNotAPlayer
+			return Snapshot{}, ErrNotAPlayer
 		}
-		return r.cur.update(r.setup, user, r.setup.Time.Now())
+		u, err := r.cur.update(r.setup, user, r.setup.Time.Now())
+		return Snapshot{Update: u, LastStepAt: r.cur.lastStepAt}, err
 	}
 	// Once the actor has exited, its state is frozen and safe to read from here.
 	return ask(ctx, r, snapshot, snapshot)
@@ -333,22 +334,28 @@ func ask[T any](ctx context.Context, r *Room, inActor, afterExit func() (T, erro
 	}
 }
 
-func (r *Room) submit(user game.UserID, seq game.Seq, kind store.StepKind, payload json.RawMessage) (game.Seq, error) {
-	if _, ok := r.setup.seats[user]; !ok {
-		return 0, ErrNotAPlayer
-	}
-	if seq != r.cur.seq {
-		return 0, ErrStale
-	}
-	return r.commit(store.StepRecord{Seq: seq + 1, User: user, Kind: kind, Payload: payload, At: r.setup.Time.Now()})
+func (r *Room) submit(ctx context.Context, seq game.Seq, st step) (game.Seq, error) {
+	return ask(ctx, r, func() (game.Seq, error) {
+		if _, ok := r.setup.seats[st.user]; !ok {
+			return 0, ErrNotAPlayer
+		}
+		if seq != r.cur.seq {
+			return 0, ErrStale
+		}
+		st.seq, st.at = seq+1, r.setup.Time.Now()
+		return r.commit(st)
+	}, r.rejectAfterExit)
 }
 
-func (r *Room) commit(rec store.StepRecord) (game.Seq, error) {
-	next, err := r.cur.apply(r.setup, rec)
+func (r *Room) commit(st step) (game.Seq, error) {
+	next, err := r.cur.apply(r.setup, st)
 	if err != nil {
 		return 0, err
 	}
-	rec.ClockRemaining = next.remaining
+	rec, err := st.record(next.remaining)
+	if err != nil {
+		return 0, err
+	}
 	if err := r.persist(rec, next); err != nil {
 		return 0, err
 	}

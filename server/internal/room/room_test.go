@@ -169,11 +169,16 @@ func (h *harness) control(t *testing.T, user game.UserID, seq game.Seq, c protoc
 
 func (h *harness) snapshot(t *testing.T, user game.UserID) protocol.GameUpdate {
 	t.Helper()
-	u, err := h.room.Snapshot(context.Background(), user)
+	return h.fullSnapshot(t, user).Update
+}
+
+func (h *harness) fullSnapshot(t *testing.T, user game.UserID) Snapshot {
+	t.Helper()
+	s, err := h.room.Snapshot(context.Background(), user)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return u
+	return s
 }
 
 func isCode(err error, code protocol.ErrorCode) bool {
@@ -371,7 +376,7 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 		h.clock.Advance(time.Duration(i+1) * 7 * time.Second)
 		seq = h.play(t, []game.UserID{alice, bob}[i%2], seq, san)
 	}
-	want := map[game.UserID]protocol.GameUpdate{alice: h.snapshot(t, alice), bob: h.snapshot(t, bob)}
+	want := map[game.UserID]Snapshot{alice: h.fullSnapshot(t, alice), bob: h.fullSnapshot(t, bob)}
 	h.cancel()
 
 	steps, _ := h.persist.recorded()
@@ -388,7 +393,7 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 		if diff := cmp.Diff(original, got); diff != "" {
 			t.Errorf("%s snapshot after restore (-want +got):\n%s", user, diff)
 		}
-		if diff := cmp.Diff(xslices.MapValues(steps[len(steps)-1].ClockRemaining, time.Duration.Milliseconds), got.Clock.RemainingMS); diff != "" {
+		if diff := cmp.Diff(xslices.MapValues(steps[len(steps)-1].ClockRemaining, time.Duration.Milliseconds), got.Update.Clock.RemainingMS); diff != "" {
 			t.Errorf("%s remaining vs last step (-want +got):\n%s", user, diff)
 		}
 	}

@@ -1,12 +1,10 @@
 package room
 
 import (
-	"encoding/json"
 	"slices"
 
 	"games.nvim/server/game"
 	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/store"
 )
 
 func (g setup) can(c game.Capability) bool { return slices.Contains(g.info.Capabilities, c) }
@@ -31,19 +29,16 @@ func (s roomState) controls(g setup, user game.UserID) []protocol.Control {
 	return controls
 }
 
-func (s roomState) applyControl(g setup, rec store.StepRecord) (roomState, error) {
-	var c protocol.Control
-	if err := json.Unmarshal(rec.Payload, &c); err != nil {
-		return s, protocol.BadRequestf("malformed control: %v", err)
-	}
-	if !slices.Contains(s.controls(g, rec.User), c) {
+func (s roomState) applyControl(g setup, st step) (roomState, error) {
+	c := st.control
+	if !slices.Contains(s.controls(g, st.user), c) {
 		return s, protocol.Error{Code: protocol.CodeIllegalAction, Msg: "control not available: " + string(c)}
 	}
 	switch c {
 	case protocol.ControlResign:
-		return s.eliminate(g, rec.User, game.ReasonResign)
+		return s.eliminate(g, st.user, game.ReasonResign)
 	case protocol.ControlOfferDraw:
-		s.drawAgreed = append(slices.Clip(s.drawAgreed), rec.User)
+		s.drawAgreed = append(slices.Clip(s.drawAgreed), st.user)
 		if len(s.drawAgreed) == len(g.Players) {
 			s.imposed = &game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
 		}

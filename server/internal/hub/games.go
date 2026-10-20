@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"time"
 
 	"games.nvim/server/game"
 	"games.nvim/server/internal/protocol"
@@ -19,9 +18,8 @@ import (
 )
 
 type liveGame struct {
-	room     *room.Room
-	players  []game.UserID
-	lastStep time.Time
+	room    *room.Room
+	players []game.UserID
 }
 
 func (h *Hub) startChallenge(c protocol.Challenge) (game.GameID, error) {
@@ -37,11 +35,10 @@ func (h *Hub) startGame(c protocol.Challenge) (game.GameID, error) {
 	if err != nil {
 		return "", err
 	}
-	now := h.deps.Time.Now()
-	if err := h.persistNewGame(p, now); err != nil {
+	if err := h.persistNewGame(p); err != nil {
 		return "", err
 	}
-	return p.ID, h.launch(p, state, now)
+	return p.ID, h.launch(p, state)
 }
 
 func (h *Hub) prepareGame(c protocol.Challenge) (room.Params, game.ErasedState, error) {
@@ -58,25 +55,33 @@ func (h *Hub) prepareGame(c protocol.Challenge) (room.Params, game.ErasedState, 
 	if err != nil {
 		return room.Params{}, nil, err
 	}
-	return h.roomParams(game.GameID(rand.Text()), g, c.Options, seed, c.From, players), state, nil
+	return h.roomParams(room.Params{
+		ID:         game.GameID(rand.Text()),
+		Game:       g,
+		Options:    c.Options,
+		Seed:       seed,
+		Challenger: c.From,
+		Players:    players,
+		CreatedAt:  h.deps.Time.Now(),
+	}), state, nil
 }
 
-func (h *Hub) persistNewGame(p room.Params, createdAt time.Time) error {
+func (h *Hub) persistNewGame(p room.Params) error {
 	options, err := json.Marshal(p.Options)
 	if err != nil {
 		return err
 	}
 	return h.deps.Store.CreateGame(h.ctx, store.GameRecord{
-		ID: p.ID, Type: p.Game.Info().Type, Options: options, Seed: p.Seed, Players: p.Players, CreatedAt: createdAt,
+		ID: p.ID, Type: p.Game.Info().Type, Options: options, Seed: p.Seed, Players: p.Players, CreatedAt: p.CreatedAt,
 	})
 }
 
-func (h *Hub) launch(p room.Params, state game.ErasedState, createdAt time.Time) error {
+func (h *Hub) launch(p room.Params, state game.ErasedState) error {
 	r, err := room.New(h.ctx, p, state)
 	if err != nil {
 		return err
 	}
-	h.track(p.ID, r, p.Players, createdAt)
+	h.track(p.ID, r, p.Players)
 	h.sendCurrent(r, p.Players)
 	return nil
 }
@@ -97,12 +102,12 @@ func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]game.Player
 
 func (h *Hub) sendCurrent(r *room.Room, players []game.Player) {
 	for _, p := range players {
-		u, err := r.Snapshot(h.ctx, p.User)
+		s, err := r.Snapshot(h.ctx, p.User)
 		if err != nil {
 			slog.Error("hub: initial update", "user", p.User, "err", err)
 			continue
 		}
-		h.SendUpdate(p.User, u)
+		h.SendUpdate(p.User, s.Update)
 	}
 }
 
@@ -116,16 +121,9 @@ func (h *Hub) restoreOngoing(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		h.track(rec.ID, r, rec.Players, lastStepAt(rec))
+		h.track(rec.ID, r, rec.Players)
 	}
 	return nil
-}
-
-func lastStepAt(rec store.GameRecord) time.Time {
-	if len(rec.Steps) == 0 {
-		return rec.CreatedAt
-	}
-	return rec.Steps[len(rec.Steps)-1].At
 }
 
 func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, error) {
@@ -141,27 +139,26 @@ func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, er
 	if !ok {
 		return nil, fmt.Errorf("hub: restore %s: no players", rec.ID)
 	}
-	return room.Restore(ctx, h.roomParams(rec.ID, g, opts, rec.Seed, challenger, rec.Players), rec.Steps)
-}
-
-func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed game.Seed, challenger game.UserID, players []game.Player) room.Params {
-	return room.Params{
-		ID:         id,
+	return room.Restore(ctx, h.roomParams(room.Params{
+		ID:         rec.ID,
 		Game:       g,
 		Options:    opts,
-		Seed:       seed,
+		Seed:       rec.Seed,
 		Challenger: challenger,
-		Players:    players,
-		Persist:    h.deps.Store,
-		Broadcast:  h,
-		Time:       h.deps.Time,
-	}
+		Players:    rec.Players,
+		CreatedAt:  rec.CreatedAt,
+	}), rec.Steps)
 }
 
-func (h *Hub) track(id game.GameID, r *room.Room, players []game.Player, lastStep time.Time) {
+func (h *Hub) roomParams(p room.Params) room.Params {
+	p.Persist, p.Broadcast, p.Time = h.deps.Store, h, h.deps.Time
+	return p
+}
+
+func (h *Hub) track(id game.GameID, r *room.Room, players []game.Player) {
 	users := xslices.Map(players, func(p game.Player) game.UserID { return p.User })
 	h.mu.Lock()
-	h.live[id] = &liveGame{room: r, players: users, lastStep: lastStep}
+	h.live[id] = &liveGame{room: r, players: users}
 	h.mu.Unlock()
 	go h.dropWhenFinished(id, r)
 }
@@ -176,14 +173,6 @@ func (h *Hub) dropWhenFinished(id game.GameID, r *room.Room) {
 	}
 }
 
-func (h *Hub) touch(id game.GameID) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if g, ok := h.live[id]; ok {
-		g.lastStep = h.deps.Time.Now()
-	}
-}
-
 func (h *Hub) liveRoom(id game.GameID) (*room.Room, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -194,41 +183,37 @@ func (h *Hub) liveRoom(id game.GameID) (*room.Room, error) {
 	return g.room, nil
 }
 
-func (h *Hub) liveGamesOf(user game.UserID) []liveGame {
+func (h *Hub) liveRoomsOf(user game.UserID) []*room.Room {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	var out []liveGame
+	var out []*room.Room
 	for _, g := range h.live {
 		if slices.Contains(g.players, user) {
-			out = append(out, *g)
+			out = append(out, g.room)
 		}
 	}
 	return out
 }
 
 func (h *Hub) ongoingGames(ctx context.Context, user game.UserID) ([]protocol.GameUpdate, error) {
-	type listed struct {
-		update   protocol.GameUpdate
-		lastStep time.Time
-	}
-	var games []listed
-	for _, g := range h.liveGamesOf(user) {
-		u, err := g.room.Snapshot(ctx, user)
+	var games []room.Snapshot
+	for _, r := range h.liveRoomsOf(user) {
+		s, err := r.Snapshot(ctx, user)
 		if err != nil {
 			return nil, err
 		}
-		if u.Result == nil {
-			games = append(games, listed{u, g.lastStep})
+		if s.Update.Result == nil {
+			games = append(games, s)
 		}
 	}
-	slices.SortFunc(games, func(a, b listed) int {
+	slices.SortFunc(games, func(a, b room.Snapshot) int {
 		return cmp.Or(
-			cmp.Compare(turnRank(a.update, user), turnRank(b.update, user)),
-			b.lastStep.Compare(a.lastStep),
-			cmp.Compare(a.update.GameID, b.update.GameID),
+			cmp.Compare(turnRank(a.Update, user), turnRank(b.Update, user)),
+			b.LastStepAt.Compare(a.LastStepAt),
+			cmp.Compare(a.Update.GameID, b.Update.GameID),
 		)
 	})
-	return xslices.Map(games, func(g listed) protocol.GameUpdate { return g.update }), nil
+	return xslices.Map(games, func(s room.Snapshot) protocol.GameUpdate { return s.Update }), nil
 }
 
 func turnRank(u protocol.GameUpdate, user game.UserID) int {
@@ -250,7 +235,8 @@ func (h *Hub) finishedGames(ctx context.Context, user game.UserID) ([]protocol.G
 
 func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
 	if r, err := h.liveRoom(id); err == nil {
-		return r.Snapshot(ctx, user)
+		s, err := r.Snapshot(ctx, user)
+		return s.Update, err
 	}
 	return h.replayedSnapshot(ctx, id, user)
 }
@@ -268,7 +254,8 @@ func (h *Hub) replayedSnapshot(ctx context.Context, id game.GameID, user game.Us
 	if err != nil {
 		return protocol.GameUpdate{}, err
 	}
-	return r.Snapshot(ctx, user)
+	s, err := r.Snapshot(ctx, user)
+	return s.Update, err
 }
 
 func (h *Hub) gameType(t game.GameType) (game.Game, error) {

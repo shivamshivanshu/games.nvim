@@ -27,7 +27,11 @@ func Restore(ctx context.Context, p Params, steps []store.StepRecord) (*Room, er
 		if rec.Seq != game.Seq(i)+1 {
 			return nil, fmt.Errorf("room: restore %s: step %d has seq %d", p.ID, i+1, rec.Seq)
 		}
-		if s, err = s.apply(g, rec); err != nil {
+		st, err := stepOf(rec)
+		if err != nil {
+			return nil, fmt.Errorf("room: restore %s: replay seq %d: %w", p.ID, rec.Seq, err)
+		}
+		if s, err = s.apply(g, st); err != nil {
 			return nil, fmt.Errorf("room: restore %s: replay seq %d: %w", p.ID, rec.Seq, err)
 		}
 	}

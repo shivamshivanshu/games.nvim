@@ -1,8 +1,10 @@
 package room
 
 import (
+	"cmp"
 	"log/slog"
 	"maps"
+	"slices"
 	"time"
 
 	"games.nvim/server/game"
@@ -31,31 +33,15 @@ func (s roomState) charged(g setup, at time.Time) map[game.UserID]time.Duration 
 	return remaining
 }
 
-func (s roomState) untilFlag(g setup, at time.Time) (time.Duration, bool) {
-	if !s.clockRunning(g) {
-		return 0, false
+// soonestFlag is the player to act whose clock runs out first, and their time left.
+func (s roomState) soonestFlag(g setup, at time.Time) (game.UserID, time.Duration, bool) {
+	users := s.toAct(g)
+	if !s.clockRunning(g) || len(users) == 0 {
+		return "", 0, false
 	}
 	remaining := s.charged(g, at)
-	soonest, found := time.Duration(0), false
-	for _, user := range s.toAct(g) {
-		if !found || remaining[user] < soonest {
-			soonest, found = remaining[user], true
-		}
-	}
-	return soonest, found
-}
-
-func (s roomState) flagged(g setup, at time.Time) (game.UserID, bool) {
-	if !s.clockRunning(g) {
-		return "", false
-	}
-	remaining := s.charged(g, at)
-	for _, user := range s.toAct(g) {
-		if remaining[user] <= 0 {
-			return user, true
-		}
-	}
-	return "", false
+	user := slices.MinFunc(users, func(a, b game.UserID) int { return cmp.Compare(remaining[a], remaining[b]) })
+	return user, remaining[user], true
 }
 
 func (s roomState) wireClock(g setup, at time.Time) *protocol.WireClock {
@@ -71,7 +57,7 @@ func (s roomState) wireClock(g setup, at time.Time) *protocol.WireClock {
 
 func (r *Room) armTimer() {
 	r.stopTimer()
-	if d, ok := r.cur.untilFlag(r.setup, r.setup.Time.Now()); ok {
+	if _, d, ok := r.cur.soonestFlag(r.setup, r.setup.Time.Now()); ok {
 		r.armIn(d)
 	}
 }
@@ -98,12 +84,11 @@ func (r *Room) tick() {
 
 func (r *Room) expireFlagged() {
 	now := r.setup.Time.Now()
-	user, ok := r.cur.flagged(r.setup, now)
-	if !ok {
+	user, left, ok := r.cur.soonestFlag(r.setup, now)
+	if !ok || left > 0 {
 		return
 	}
-	rec := store.StepRecord{Seq: r.cur.seq + 1, User: user, Kind: store.StepTimeout, At: now}
-	if _, err := r.commit(rec); err != nil {
+	if _, err := r.commit(step{seq: r.cur.seq + 1, user: user, kind: store.StepTimeout, at: now}); err != nil {
 		slog.Error("room: persist timeout", "game", r.setup.ID, "user", user, "err", err)
 		r.armIn(timeoutRetryDelay)
 	}
