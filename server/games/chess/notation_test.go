@@ -162,6 +162,18 @@ func TestSeventyFiveAndFiftyMove(t *testing.T) {
 	}
 }
 
+func TestClaimableDrawCountsOnlyThisPositionsKey(t *testing.T) {
+	p := mustFEN(t, StartFEN)
+	for name, history := range map[string][]RepetitionKey{"empty": nil, "other position": {"A", "A", "A"}} {
+		if reason, ok := ClaimableDraw(p, history); ok {
+			t.Errorf("%s history: claim %q", name, reason)
+		}
+	}
+	if reason, ok := ClaimableDraw(p, slices.Repeat([]RepetitionKey{p.RepetitionKey()}, threefoldCount)); !ok || reason != ReasonThreefold {
+		t.Errorf("thrice repeated: got %q, %t", reason, ok)
+	}
+}
+
 func TestFivefoldAutomatic(t *testing.T) {
 	shuffle := []string{"Nf3", "Nf6", "Ng1", "Ng8"}
 	p, history := historyAfter(t, mustFEN(t, StartFEN), slices.Concat(shuffle, shuffle, shuffle)...)

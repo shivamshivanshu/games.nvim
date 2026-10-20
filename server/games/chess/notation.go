@@ -17,11 +17,8 @@ const (
 var uciPattern = regexp.MustCompile(`^[a-h][1-8][a-h][1-8][qrbn]?$`)
 
 func (p Position) SAN(m Move) string {
-	return p.san(m, p.LegalMoves())
-}
-
-func (p Position) san(m Move, legal []Move) string {
-	return p.sanWithoutCheckSuffix(m, legal) + p.checkSuffix(m)
+	next := p.Play(m)
+	return p.sanWithoutCheckSuffix(m, p.LegalMoves()) + checkSuffix(next, next.LegalMoves())
 }
 
 func (p Position) sanWithoutCheckSuffix(m Move, legal []Move) string {
@@ -75,12 +72,11 @@ func (p Position) disambiguation(m Move, legal []Move) string {
 	return from
 }
 
-func (p Position) checkSuffix(m Move) string {
-	next := p.Play(m)
+func checkSuffix(next Position, nextLegal []Move) string {
 	if !next.InCheck() {
 		return ""
 	}
-	if len(next.LegalMoves()) == 0 {
+	if len(nextLegal) == 0 {
 		return "#"
 	}
 	return "+"

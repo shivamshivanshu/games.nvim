@@ -12,7 +12,6 @@ const (
 	fivefoldCount        = 5
 	fiftyMoveHalfmoves   = 100
 	seventyFiveHalfmoves = 150
-	repetitionKeyFields  = 4
 )
 
 type RepetitionKey string
@@ -24,15 +23,23 @@ type Ending struct {
 }
 
 func (p Position) RepetitionKey() RepetitionKey {
-	return p.repetitionKey(p.LegalMoves())
+	var legal []Move
+	if p.EnPassant != NoSquare {
+		legal = p.LegalMoves()
+	}
+	return p.repetitionKey(legal)
 }
 
+// repetitionKey is the FEN without its move counters, keeping the en passant
+// square only when a legal capture lands there.
 func (p Position) repetitionKey(legal []Move) RepetitionKey {
-	key := p
+	enPassant := p.EnPassant
 	if !p.hasLegalEnPassantCapture(legal) {
-		key.EnPassant = NoSquare
+		enPassant = NoSquare
 	}
-	return RepetitionKey(strings.Join(strings.Fields(key.FEN())[:repetitionKeyFields], " "))
+	var b strings.Builder
+	p.writeKeyFields(&b, enPassant)
+	return RepetitionKey(b.String())
 }
 
 func (p Position) hasLegalEnPassantCapture(legal []Move) bool {
@@ -62,8 +69,13 @@ func DetectEnding(p Position, legal []Move, key RepetitionKey, history []Repetit
 }
 
 func ClaimableDraw(p Position, history []RepetitionKey) (game.ResultReason, bool) {
+	return p.claimableDraw(p.RepetitionKey(), history)
+}
+
+// claimableDraw takes p's own key, which a caller holding it need not recompute.
+func (p Position) claimableDraw(key RepetitionKey, history []RepetitionKey) (game.ResultReason, bool) {
 	switch {
-	case repetitions(p.RepetitionKey(), history) >= threefoldCount:
+	case repetitions(key, history) >= threefoldCount:
 		return ReasonThreefold, true
 	case p.HalfmoveClock >= fiftyMoveHalfmoves:
 		return ReasonFifty, true
@@ -82,22 +94,24 @@ func repetitions(key RepetitionKey, history []RepetitionKey) int {
 }
 
 func (p Position) hasInsufficientMaterial() bool {
-	var minors []Square
+	minors, knight, mixedColours, firstLight := 0, false, false, false
 	for sq := range Square(boardSize) {
 		switch p.Board[sq].Kind {
 		case NoPieceKind, King:
-		case Knight, Bishop:
-			minors = append(minors, sq)
+			continue
+		case Knight:
+			knight = true
+		case Bishop:
 		default:
 			return false
 		}
+		if minors == 0 {
+			firstLight = sq.isLight()
+		}
+		mixedColours = mixedColours || sq.isLight() != firstLight
+		minors++
 	}
-	if len(minors) <= 1 {
-		return true
-	}
-	onlyBishops := !slices.ContainsFunc(minors, func(sq Square) bool { return p.Board[sq].Kind == Knight })
-	sameColour := !slices.ContainsFunc(minors, func(sq Square) bool { return sq.isLight() != minors[0].isLight() })
-	return onlyBishops && sameColour
+	return minors <= 1 || !knight && !mixedColours
 }
 
 func (s Square) isLight() bool { return (s.File()+s.Rank())%2 == 1 }

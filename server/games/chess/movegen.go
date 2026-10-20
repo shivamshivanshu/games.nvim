@@ -50,8 +50,13 @@ func mustParseSquare(s string) Square {
 }
 
 func (p Position) LegalMoves() []Move {
+	king, opponent := p.kingSquare(p.SideToMove), p.SideToMove.Opponent()
 	return slices.DeleteFunc(p.pseudoLegalMoves(), func(m Move) bool {
-		return p.Play(m).kingAttacked(p.SideToMove)
+		kingAfter := king
+		if m.From == king {
+			kingAfter = m.To
+		}
+		return kingAfter != NoSquare && p.Play(m).IsAttacked(kingAfter, opponent)
 	})
 }
 

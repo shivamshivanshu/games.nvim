@@ -128,8 +128,16 @@ func parseCounter(s, name string, atLeast int) (int, error) {
 
 func (p Position) FEN() string {
 	var b strings.Builder
+	p.writeKeyFields(&b, p.EnPassant)
+	fmt.Fprintf(&b, " %d %d", p.HalfmoveClock, p.FullmoveNumber)
+	return b.String()
+}
+
+// writeKeyFields writes the FEN's placement, side, castling and, as given,
+// en passant fields.
+func (p Position) writeKeyFields(b *strings.Builder, enPassant Square) {
 	for rank := fileCount - 1; rank >= 0; rank-- {
-		writeRank(&b, p, rank)
+		writeRank(b, p, rank)
 		if rank > 0 {
 			b.WriteByte('/')
 		}
@@ -138,8 +146,7 @@ func (p Position) FEN() string {
 	if p.SideToMove == Black {
 		side = "b"
 	}
-	fmt.Fprintf(&b, " %s %s %s %d %d", side, p.castlingField(), enPassantField(p.EnPassant), p.HalfmoveClock, p.FullmoveNumber)
-	return b.String()
+	fmt.Fprintf(b, " %s %s %s", side, p.castlingField(), enPassantField(enPassant))
 }
 
 func writeRank(b *strings.Builder, p Position, rank int) {
