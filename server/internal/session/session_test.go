@@ -16,6 +16,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/room"
 	"github.com/shivamshivanshu/games.nvim/server/internal/session"
 )
@@ -97,12 +98,8 @@ type client struct {
 
 func dial(t *testing.T, addr string) *client {
 	t.Helper()
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { conn.Close() })
-	return &client{t: t, conn: conn, reader: protocol.NewReader(conn, limits.Default().MaxLineBytes)}
+	conn, reader := prototest.Dial(t, addr)
+	return &client{t: t, conn: conn, reader: reader}
 }
 
 func (c *client) sendLine(line string) {
@@ -114,13 +111,9 @@ func (c *client) sendLine(line string) {
 
 func (c *client) send(typ protocol.MessageType, body any) protocol.RequestID {
 	c.t.Helper()
-	raw, err := json.Marshal(body)
-	if err != nil {
-		c.t.Fatal(err)
-	}
 	c.nextID++
 	id := c.nextID
-	if err := protocol.WriteEnvelope(c.conn, protocol.Envelope{ID: &id, Type: typ, Body: raw}); err != nil {
+	if err := prototest.Send(c.conn, id, typ, body); err != nil {
 		c.t.Fatal(err)
 	}
 	return id

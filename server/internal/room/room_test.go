@@ -128,12 +128,14 @@ func startHarness(t *testing.T, g game.Game, options string, invitees ...game.Us
 	h := &harness{
 		persist: &fakePersister{},
 		sent:    &recordingBroadcaster{},
-		clock:   clocktest.New(time.UnixMilli(1_700_000_000_000)),
+		clock:   clocktest.New(clocktest.Epoch),
 	}
-	users := append([]game.UserID{alice}, invitees...)
+	players, err := game.PlayersOf(append([]game.UserID{alice}, invitees...), seats)
+	if err != nil {
+		t.Fatal(err)
+	}
 	h.params = Params{
-		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: alice,
-		Players: xslices.Map(users, func(u game.UserID) game.Player { return game.Player{User: u, Seat: seats[u]} }),
+		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: alice, Players: players,
 		Persist: h.persist, Broadcast: h.sent, Time: h.clock,
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -579,12 +581,11 @@ type controlStep struct {
 	control protocol.Control
 }
 
-func (h *harness) controls(t *testing.T, seq game.Seq, steps []controlStep) game.Seq {
+func (h *harness) controls(t *testing.T, seq game.Seq, steps []controlStep) {
 	t.Helper()
 	for _, st := range steps {
 		seq = h.control(t, st.user, seq, st.control)
 	}
-	return seq
 }
 
 func (h *harness) finished(t *testing.T) *store.Finish {

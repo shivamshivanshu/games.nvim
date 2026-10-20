@@ -11,7 +11,7 @@ import (
 var testIP = netip.MustParseAddr("203.0.113.7")
 
 func newTestLockout() (*Lockout, *clocktest.FakeClock) {
-	clock := clocktest.New(time.Unix(1_700_000_000, 0))
+	clock := clocktest.New(clocktest.Epoch)
 	return NewLockout(5, 5*time.Minute, 5*time.Minute, clock.Now), clock
 }
 

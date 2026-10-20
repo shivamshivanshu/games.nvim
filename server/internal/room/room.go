@@ -80,8 +80,7 @@ func NewSetup(p Params) (Setup, error) {
 }
 
 func (p Params) invitees() []game.UserID {
-	users := xslices.Map(p.Players, func(player game.Player) game.UserID { return player.User })
-	return slices.DeleteFunc(users, func(u game.UserID) bool { return u == p.Challenger })
+	return slices.DeleteFunc(game.Users(p.Players), func(u game.UserID) bool { return u == p.Challenger })
 }
 
 func (g Setup) usersAt(seats []game.Seat) []game.UserID {

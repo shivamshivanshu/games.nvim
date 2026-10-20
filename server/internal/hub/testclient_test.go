@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 )
 
 const (
@@ -26,6 +27,7 @@ func (e errorReply) Error() string { return fmt.Sprintf("%s: %s", e.Code, e.Mess
 // background reader only routes replies and pushes onto channels.
 type testClient struct {
 	conn    net.Conn
+	reader  *protocol.Reader
 	nextID  protocol.RequestID
 	replies chan protocol.Envelope
 	pushes  chan protocol.Envelope
@@ -34,24 +36,20 @@ type testClient struct {
 
 func dial(t *testing.T, addr string) *testClient {
 	t.Helper()
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, reader := prototest.Dial(t, addr)
 	c := &testClient{
 		conn:    conn,
+		reader:  reader,
 		replies: make(chan protocol.Envelope, 1),
 		pushes:  make(chan protocol.Envelope, pushBacklog),
 	}
 	go c.readLoop()
-	t.Cleanup(func() { _ = conn.Close() })
 	return c
 }
 
 func (c *testClient) readLoop() {
-	reader := protocol.NewReader(c.conn, 1<<20)
 	for {
-		env, err := reader.Next()
+		env, err := c.reader.Next()
 		if err != nil {
 			close(c.replies)
 			close(c.pushes)
@@ -66,13 +64,9 @@ func (c *testClient) readLoop() {
 }
 
 func (c *testClient) Request(typ protocol.MessageType, body any) (json.RawMessage, error) {
-	raw, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
 	c.nextID++
 	id := c.nextID
-	if err := protocol.WriteEnvelope(c.conn, protocol.Envelope{ID: &id, Type: typ, Body: raw}); err != nil {
+	if err := prototest.Send(c.conn, id, typ, body); err != nil {
 		return nil, err
 	}
 	select {

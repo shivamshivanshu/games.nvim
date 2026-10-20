@@ -1,4 +1,4 @@
-package store
+package store_test
 
 import (
 	"context"
@@ -13,6 +13,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/internal/storetest"
 )
 
 const (
@@ -20,54 +23,39 @@ const (
 	bob   game.UserID = "bob"
 )
 
-var epoch = time.UnixMilli(1_700_000_000_000)
+var passwordHash = []byte("hash")
 
-func openTemp(t *testing.T) *Store {
-	t.Helper()
-	s, err := Open(t.Context(), filepath.Join(t.TempDir(), "games.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = s.Close() })
-	for _, u := range []game.UserID{alice, bob} {
-		if err := s.CreateUser(t.Context(), u, []byte("hash")); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return s
-}
-
-func newGame(id game.GameID) GameRecord {
-	return GameRecord{
+func newGame(id game.GameID) store.GameRecord {
+	return store.GameRecord{
 		ID: id, Type: "chess", Options: json.RawMessage(`{"clock":300}`), Seed: 1<<63 + 7,
 		Players:   []game.Player{{User: alice, Seat: "white"}, {User: bob, Seat: "black"}},
-		CreatedAt: epoch,
+		CreatedAt: clocktest.Epoch,
 	}
 }
 
-func step(seq game.Seq, user game.UserID) StepRecord {
-	return StepRecord{
-		Seq: seq, User: user, Kind: StepAction, Payload: json.RawMessage(`"e4"`),
-		At:             epoch.Add(time.Duration(seq) * time.Second),
+func step(seq game.Seq, user game.UserID) store.StepRecord {
+	return store.StepRecord{
+		Seq: seq, User: user, Kind: store.StepAction, Payload: json.RawMessage(`"e4"`),
+		At:             clocktest.Epoch.Add(time.Duration(seq) * time.Second),
 		ClockRemaining: map[game.UserID]time.Duration{alice: time.Duration(seq) * time.Second, bob: 2 * time.Second},
 	}
 }
 
 var (
-	won  = Standing{Outcome: OutcomeWin, Score: 1}
-	lost = Standing{Outcome: OutcomeLoss, Score: -1}
-	drew = Standing{Outcome: OutcomeDraw, Score: 0}
+	won  = store.Standing{Outcome: store.OutcomeWin, Score: 1}
+	lost = store.Standing{Outcome: store.OutcomeLoss, Score: -1}
+	drew = store.Standing{Outcome: store.OutcomeDraw, Score: 0}
 )
 
-func finishOf(seq game.Seq, kind game.ResultKind, reason game.ResultReason, standings map[game.UserID]Standing) Finish {
-	return Finish{
-		At: epoch.Add(time.Duration(seq) * time.Second), Seq: seq,
-		Ending:  Ending{Kind: kind, Reason: reason, Standings: standings},
+func finishOf(seq game.Seq, kind game.ResultKind, reason game.ResultReason, standings map[game.UserID]store.Standing) store.Finish {
+	return store.Finish{
+		At: clocktest.Epoch.Add(time.Duration(seq) * time.Second), Seq: seq,
+		Ending:  store.Ending{Kind: kind, Reason: reason, Standings: standings},
 		Summary: []byte(`{"game_id":"x"}`), Digest: "d1",
 	}
 }
 
-func finish(t *testing.T, s *Store, id game.GameID, f Finish) {
+func finish(t *testing.T, s *store.Store, id game.GameID, f store.Finish) {
 	t.Helper()
 	if err := s.FinishGame(t.Context(), id, f); err != nil {
 		t.Fatal(err)
@@ -76,7 +64,7 @@ func finish(t *testing.T, s *Store, id game.GameID, f Finish) {
 
 func TestStepsRoundTrip(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	rec := newGame("g1")
 	if err := s.CreateGame(ctx, rec); err != nil {
 		t.Fatal(err)
@@ -89,10 +77,10 @@ func TestStepsRoundTrip(t *testing.T) {
 	}
 
 	control := step(4, bob)
-	control.Kind = StepControl
+	control.Kind = store.StepControl
 	control.Payload = json.RawMessage(`{"op":"resign"}`)
-	timeout := StepRecord{Seq: 5, Kind: StepTimeout, At: epoch.Add(time.Minute)}
-	for _, st := range []StepRecord{control, timeout} {
+	timeout := store.StepRecord{Seq: 5, Kind: store.StepTimeout, At: clocktest.Epoch.Add(time.Minute)}
+	for _, st := range []store.StepRecord{control, timeout} {
 		if err := s.AppendStep(ctx, "g1", st); err != nil {
 			t.Fatal(err)
 		}
@@ -103,21 +91,21 @@ func TestStepsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff([]GameRecord{rec}, got); diff != "" {
+	if diff := cmp.Diff([]store.GameRecord{rec}, got); diff != "" {
 		t.Fatalf("mismatch (-want +got):\n%s", diff)
 	}
 }
 
 func TestLoadOngoingGroupsPlayersAndStepsPerGame(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	first := newGame("g1")
-	first.Steps = []StepRecord{step(1, alice), step(2, bob), step(3, alice)}
+	first.Steps = []store.StepRecord{step(1, alice), step(2, bob), step(3, alice)}
 	second := newGame("g2")
 	second.Players = []game.Player{{User: bob, Seat: "white"}, {User: alice, Seat: "black"}}
-	second.Steps = []StepRecord{step(1, bob)}
+	second.Steps = []store.StepRecord{step(1, bob)}
 	empty := newGame("g3")
-	for _, rec := range []GameRecord{second, first, empty} {
+	for _, rec := range []store.GameRecord{second, first, empty} {
 		if err := s.CreateGame(ctx, rec); err != nil {
 			t.Fatal(err)
 		}
@@ -126,26 +114,26 @@ func TestLoadOngoingGroupsPlayersAndStepsPerGame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff([]GameRecord{first, second, empty}, got); diff != "" {
+	if diff := cmp.Diff([]store.GameRecord{first, second, empty}, got); diff != "" {
 		t.Fatalf("mismatch (-want +got):\n%s", diff)
 	}
 }
 
 func TestClockStoredAsMillisecondsOrNull(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
 	untimed := step(2, bob)
 	untimed.ClockRemaining = nil
-	for _, st := range []StepRecord{step(3, alice), untimed} {
+	for _, st := range []store.StepRecord{step(3, alice), untimed} {
 		if err := s.AppendStep(ctx, "g1", st); err != nil {
 			t.Fatal(err)
 		}
 	}
 	var timed, none sql.NullString
-	if err := s.reader.QueryRowContext(ctx,
+	if err := s.Reader().QueryRowContext(ctx,
 		`SELECT (SELECT clock_json FROM actions WHERE seq = 3), (SELECT clock_json FROM actions WHERE seq = 2)`).Scan(&timed, &none); err != nil {
 		t.Fatal(err)
 	}
@@ -157,17 +145,17 @@ func TestClockStoredAsMillisecondsOrNull(t *testing.T) {
 func TestReopenKeepsOngoingGames(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "games.db")
-	s, err := Open(ctx, path)
+	s, err := store.Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, u := range []game.UserID{alice, bob} {
-		if err := s.CreateUser(ctx, u, []byte("hash")); err != nil {
+		if err := s.CreateUser(ctx, u, passwordHash); err != nil {
 			t.Fatal(err)
 		}
 	}
 	rec := newGame("g1")
-	rec.Steps = []StepRecord{step(1, alice), step(2, bob)}
+	rec.Steps = []store.StepRecord{step(1, alice), step(2, bob)}
 	if err := s.CreateGame(ctx, rec); err != nil {
 		t.Fatal(err)
 	}
@@ -175,39 +163,39 @@ func TestReopenKeepsOngoingGames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reopened, err := Open(ctx, path)
+	reopened, err := store.Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer reopened.Close()
+	defer func() { _ = reopened.Close() }()
 	got, err := reopened.LoadOngoing(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff([]GameRecord{rec}, got); diff != "" {
+	if diff := cmp.Diff([]store.GameRecord{rec}, got); diff != "" {
 		t.Fatalf("mismatch (-want +got):\n%s", diff)
 	}
 }
 
 func TestCreateGameRejectsEmptyOptions(t *testing.T) {
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	rec := newGame("g1")
 	rec.Options = nil
-	if err := s.CreateGame(t.Context(), rec); !errors.Is(err, ErrMissingOptions) {
+	if err := s.CreateGame(t.Context(), rec); !errors.Is(err, store.ErrMissingOptions) {
 		t.Fatalf("err = %v", err)
 	}
 }
 
 func TestFinishGameRejectsOutcomeForNonPlayer(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.AppendStep(ctx, "g1", step(1, alice)); err != nil {
 		t.Fatal(err)
 	}
-	err := s.FinishGame(ctx, "g1", finishOf(2, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{"mallory": won}))
+	err := s.FinishGame(ctx, "g1", finishOf(2, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{"mallory": won}))
 	if err == nil {
 		t.Fatal("want error")
 	}
@@ -218,7 +206,7 @@ func TestFinishGameRejectsOutcomeForNonPlayer(t *testing.T) {
 
 func TestFinishGameStoresEndingAndDeletesSteps(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +215,7 @@ func TestFinishGameStoresEndingAndDeletesSteps(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	want := finishOf(4, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{alice: won, bob: lost})
+	want := finishOf(4, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{alice: won, bob: lost})
 	if err := s.FinishGame(ctx, "g1", want); err != nil {
 		t.Fatal(err)
 	}
@@ -250,15 +238,15 @@ func TestFinishGameStoresEndingAndDeletesSteps(t *testing.T) {
 
 func TestFinishGameRefusesSecondFinish(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
-	finish(t, s, "g1", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{alice: won, bob: lost}))
-	again := finishOf(2, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]Standing{alice: drew, bob: drew})
+	finish(t, s, "g1", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{alice: won, bob: lost}))
+	again := finishOf(2, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: drew, bob: drew})
 	again.Digest = "d2"
-	if err := s.FinishGame(ctx, "g1", again); !errors.Is(err, ErrNotOngoing) {
-		t.Fatalf("second finish: want ErrNotOngoing, got %v", err)
+	if err := s.FinishGame(ctx, "g1", again); !errors.Is(err, store.ErrNotOngoing) {
+		t.Fatalf("second finish: want store.ErrNotOngoing, got %v", err)
 	}
 	rec, err := s.LoadGame(ctx, "g1")
 	if err != nil || rec.Finish.Digest != "d1" || rec.Finish.Standings[alice] != won {
@@ -268,22 +256,22 @@ func TestFinishGameRefusesSecondFinish(t *testing.T) {
 
 func TestLoadFinishedKeepsPlayersWhenTopNShiftsMidLoad(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	for _, id := range []game.GameID{"g1", "g2", "g3"} {
 		if err := s.CreateGame(ctx, newGame(id)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	standings := map[game.UserID]Standing{alice: won, bob: lost}
+	standings := map[game.UserID]store.Standing{alice: won, bob: lost}
 	finish(t, s, "g1", finishOf(1, game.ResultDecisive, game.ReasonResign, standings))
 	finish(t, s, "g2", finishOf(2, game.ResultDecisive, game.ReasonResign, standings))
 	shifted := false
-	s.afterResolve = func() {
+	s.SetAfterResolve(func() {
 		if !shifted {
 			shifted = true
 			finish(t, s, "g3", finishOf(3, game.ResultDecisive, game.ReasonResign, standings))
 		}
-	}
+	})
 
 	recs, err := s.LoadFinished(ctx, alice, 2)
 	if err != nil || !shifted {
@@ -305,30 +293,30 @@ func TestLoadFinishedKeepsPlayersWhenTopNShiftsMidLoad(t *testing.T) {
 
 func TestStatsExcludeAborted(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	for _, id := range []game.GameID{"win", "draw", "abort"} {
 		if err := s.CreateGame(ctx, newGame(id)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	finish(t, s, "win", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]Standing{alice: won, bob: lost}))
-	finish(t, s, "draw", finishOf(1, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]Standing{alice: drew, bob: drew}))
+	finish(t, s, "win", finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{alice: won, bob: lost}))
+	finish(t, s, "draw", finishOf(1, game.ResultDraw, game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: drew, bob: drew}))
 	finish(t, s, "abort", finishOf(1, game.ResultAborted, game.ReasonAborted, nil))
 
 	stats, h2h, err := s.Stats(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantStats := []StatRecord{
-		{User: alice, Game: "chess", Tally: Tally{Wins: 1, Draws: 1}},
-		{User: bob, Game: "chess", Tally: Tally{Losses: 1, Draws: 1}},
+	wantStats := []store.StatRecord{
+		{User: alice, Game: "chess", Tally: store.Tally{Wins: 1, Draws: 1}},
+		{User: bob, Game: "chess", Tally: store.Tally{Losses: 1, Draws: 1}},
 	}
 	if diff := cmp.Diff(wantStats, stats); diff != "" {
 		t.Fatalf("stats (-want +got):\n%s", diff)
 	}
-	wantH2H := []HeadToHeadRecord{
-		{User: alice, Opponent: bob, Game: "chess", Tally: Tally{Wins: 1, Draws: 1}},
-		{User: bob, Opponent: alice, Game: "chess", Tally: Tally{Losses: 1, Draws: 1}},
+	wantH2H := []store.HeadToHeadRecord{
+		{User: alice, Opponent: bob, Game: "chess", Tally: store.Tally{Wins: 1, Draws: 1}},
+		{User: bob, Opponent: alice, Game: "chess", Tally: store.Tally{Losses: 1, Draws: 1}},
 	}
 	if diff := cmp.Diff(wantH2H, h2h); diff != "" {
 		t.Fatalf("head-to-head (-want +got):\n%s", diff)
@@ -342,11 +330,11 @@ func TestStatsExcludeAborted(t *testing.T) {
 
 func TestReadInProgressDoesNotBlockAppendStep(t *testing.T) {
 	ctx := t.Context()
-	s := openTemp(t)
+	s := storetest.Open(t, passwordHash, alice, bob)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := s.reader.QueryContext(ctx, `SELECT game_id FROM games`)
+	rows, err := s.Reader().QueryContext(ctx, `SELECT game_id FROM games`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,9 +349,19 @@ func TestReadInProgressDoesNotBlockAppendStep(t *testing.T) {
 	}
 }
 
+func TestStoreWithoutFileReadsItsOwnWrites(t *testing.T) {
+	for _, path := range []string{":memory:", ""} {
+		s := storetest.OpenAt(t, path, passwordHash, alice)
+		hash, err := s.PasswordHash(t.Context(), alice)
+		if err != nil || string(hash) != string(passwordHash) {
+			t.Errorf("path %q: hash %q, %v; want %q", path, hash, err, passwordHash)
+		}
+	}
+}
+
 func TestPasswordHashNotFound(t *testing.T) {
-	s := openTemp(t)
-	if _, err := s.PasswordHash(t.Context(), "ghost"); !errors.Is(err, ErrNotFound) {
+	s := storetest.Open(t, passwordHash, alice, bob)
+	if _, err := s.PasswordHash(t.Context(), "ghost"); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("err = %v", err)
 	}
 }

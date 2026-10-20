@@ -16,14 +16,14 @@ const (
 	bob   game.UserID = "bob"
 )
 
-func newGame(t *testing.T, color ColorChoice, seed game.Seed) (game.ErasedState, map[game.UserID]game.Seat) {
+func newGame(t *testing.T, color ColorChoice) (game.ErasedState, map[game.UserID]game.Seat) {
 	t.Helper()
 	g := game.Adapt(Rules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{"color":"` + string(color) + `"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	st, seats, err := g.New(opts, alice, []game.UserID{bob}, game.StepRNG(seed, 0))
+	st, seats, err := g.New(opts, alice, []game.UserID{bob}, game.StepRNG(1, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func viewOf(t *testing.T, st game.ErasedState) View {
 }
 
 func TestAcceptsSANAndUCI(t *testing.T) {
-	st, _ := newGame(t, ColorWhite, 1)
+	st, _ := newGame(t, ColorWhite)
 	st = playSANs(t, st, "e4 e7e5")
 	want := "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2"
 	if got := viewOf(t, st).FEN; got != want {
@@ -81,7 +81,7 @@ func TestIllegalMoveMessage(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			st, _ := newGame(t, ColorWhite, 1)
+			st, _ := newGame(t, ColorWhite)
 			st = playSANs(t, st, tc.line)
 			before := viewOf(t, st)
 			_, err := act(t, st, SeatWhite, Action{Kind: ActionMove, Move: tc.input})
@@ -97,14 +97,14 @@ func TestIllegalMoveMessage(t *testing.T) {
 }
 
 func TestNotYourTurn(t *testing.T) {
-	st, _ := newGame(t, ColorWhite, 1)
+	st, _ := newGame(t, ColorWhite)
 	if _, err := act(t, st, SeatBlack, Action{Kind: ActionMove, Move: "e5"}); !errors.Is(err, game.ErrNotYourTurn) {
 		t.Fatalf("got %v", err)
 	}
 }
 
 func TestFoolsMate(t *testing.T) {
-	st, _ := newGame(t, ColorWhite, 1)
+	st, _ := newGame(t, ColorWhite)
 	st = playSANs(t, st, "f3 e5 g4 Qh4#")
 	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatBlack}, Reason: ReasonCheckmate}
 	got, ok := st.Outcome()
@@ -117,7 +117,7 @@ func TestFoolsMate(t *testing.T) {
 }
 
 func TestStalemate(t *testing.T) {
-	st, _ := newGame(t, ColorWhite, 1)
+	st, _ := newGame(t, ColorWhite)
 	st = playSANs(t, st, "e3 a5 Qh5 Ra6 Qxa5 h5 h4 Rah6 Qxc7 f6 Qxd7+ Kf7 Qxb7 Qd3 Qxb8 Qh7 Qxc8 Kg6 Qe6")
 	got, ok := st.Outcome()
 	if !ok || got.Kind != game.ResultDraw || got.Reason != ReasonStalemate {
@@ -126,7 +126,7 @@ func TestStalemate(t *testing.T) {
 }
 
 func TestClaimThreefold(t *testing.T) {
-	st, _ := newGame(t, ColorWhite, 1)
+	st, _ := newGame(t, ColorWhite)
 	if _, err := act(t, st, SeatWhite, Action{Kind: ActionClaimDraw}); !errors.As(err, &game.IllegalActionError{}) {
 		t.Fatalf("claim at start: got %v", err)
 	}
@@ -141,14 +141,14 @@ func TestClaimThreefold(t *testing.T) {
 }
 
 func TestColorOption(t *testing.T) {
-	if _, seats := newGame(t, ColorWhite, 1); seats[alice] != SeatWhite {
+	if _, seats := newGame(t, ColorWhite); seats[alice] != SeatWhite {
 		t.Errorf("white: %v", seats)
 	}
-	if _, seats := newGame(t, ColorBlack, 1); seats[alice] != SeatBlack {
+	if _, seats := newGame(t, ColorBlack); seats[alice] != SeatBlack {
 		t.Errorf("black: %v", seats)
 	}
-	_, first := newGame(t, ColorRandom, 1)
-	_, second := newGame(t, ColorRandom, 1)
+	_, first := newGame(t, ColorRandom)
+	_, second := newGame(t, ColorRandom)
 	if first[alice] != second[alice] {
 		t.Errorf("random not deterministic: %v vs %v", first, second)
 	}

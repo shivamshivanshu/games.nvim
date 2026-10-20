@@ -12,6 +12,8 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
+const optStep game.OptionName = "step"
+
 func resolve(t *testing.T, raw string) (game.Options, error) {
 	t.Helper()
 	return game.Adapt(gametest.CounterRules{}).ResolveOptions(json.RawMessage(raw))
@@ -42,8 +44,8 @@ func TestResolveOptionsChecksTextOptions(t *testing.T) {
 		raw  string
 		want game.Options
 	}{
-		"defaults to empty":        {raw: `{}`, want: game.Options{"step": "1", "note": ""}},
-		"echoes text at the limit": {raw: `{"note":"ab cd 12"}`, want: game.Options{"step": "1", "note": "ab cd 12"}},
+		"defaults to empty":        {raw: `{}`, want: game.Options{optStep: "1", "note": ""}},
+		"echoes text at the limit": {raw: `{"note":"ab cd 12"}`, want: game.Options{optStep: "1", "note": "ab cd 12"}},
 	}
 	for name, tc := range accepted {
 		got, err := g.ResolveOptions(json.RawMessage(tc.raw))
@@ -99,7 +101,7 @@ func TestResolveOptionsFillsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (game.Options{"step": "1"}); !maps.Equal(opts, want) {
+	if want := (game.Options{optStep: "1"}); !maps.Equal(opts, want) {
 		t.Fatalf("got %v want %v", opts, want)
 	}
 	st, _, err := g.New(opts, "u", nil, game.StepRNG(1, 1))
@@ -136,7 +138,7 @@ func TestOptionsClock(t *testing.T) {
 }
 
 func TestAdaptEncodesEventsWithKind(t *testing.T) {
-	st, _, err := game.Adapt(gametest.CounterRules{}).New(game.Options{"step": "1"}, "u", nil, game.StepRNG(1, 1))
+	st, _, err := game.Adapt(gametest.CounterRules{}).New(game.Options{optStep: "1"}, "u", nil, game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +153,7 @@ func TestAdaptEncodesEventsWithKind(t *testing.T) {
 
 func TestAdaptRejectsMalformedAction(t *testing.T) {
 	g := game.Adapt(gametest.CounterRules{})
-	st, _, err := g.New(game.Options{"step": "1"}, "u", nil, game.StepRNG(1, 1))
+	st, _, err := g.New(game.Options{optStep: "1"}, "u", nil, game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}

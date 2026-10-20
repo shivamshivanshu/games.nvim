@@ -54,9 +54,10 @@ func (h *Hub) prepareGame(typ game.GameType, opts game.Options, challenger game.
 	if err != nil {
 		return room.Setup{}, nil, err
 	}
-	players, err := seated(protocol.Participants(challenger, invitees), seats)
+	// The challenger is seated first, which challengerOf relies on after a restart.
+	players, err := game.PlayersOf(protocol.Participants(challenger, invitees), seats)
 	if err != nil {
-		return room.Setup{}, nil, err
+		return room.Setup{}, nil, fmt.Errorf("hub: %w", err)
 	}
 	setup, err := h.roomSetup(room.Params{
 		ID:         game.GameID(uuid.NewV4()),
@@ -90,20 +91,6 @@ func (h *Hub) launch(g room.Setup, state game.ErasedState) map[game.UserID]proto
 		h.SendUpdate(user, u)
 	}
 	return first
-}
-
-// seated keeps the challenger first, which challengerOf relies on after a restart.
-func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]game.Player, error) {
-	if len(seats) != len(users) {
-		return nil, fmt.Errorf("hub: game assigned %d seats for %d players", len(seats), len(users))
-	}
-	return xslices.MapErr(users, func(user game.UserID) (game.Player, error) {
-		seat, ok := seats[user]
-		if !ok {
-			return game.Player{}, fmt.Errorf("hub: game assigned no seat to %s", user)
-		}
-		return game.Player{User: user, Seat: seat}, nil
-	})
 }
 
 func challengerOf(players []game.Player) game.UserID {
@@ -171,9 +158,8 @@ func (h *Hub) roomSetup(p room.Params) (room.Setup, error) {
 }
 
 func (h *Hub) track(id game.GameID, r *room.Room, players []game.Player) {
-	users := xslices.Map(players, func(p game.Player) game.UserID { return p.User })
 	h.mu.Lock()
-	h.live[id] = &liveGame{room: r, players: users}
+	h.live[id] = &liveGame{room: r, players: game.Users(players)}
 	h.mu.Unlock()
 	go h.dropWhenFinished(id, r)
 }

@@ -76,3 +76,6 @@ func (c *FakeClock) Advance(d time.Duration) int {
 	}
 	return len(due)
 }
+
+// Epoch is the fixed instant tests start their clocks at.
+var Epoch = time.UnixMilli(1_700_000_000_000)

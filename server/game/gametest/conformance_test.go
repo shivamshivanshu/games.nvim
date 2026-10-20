@@ -16,7 +16,7 @@ type failureRecorder struct {
 	failures []string
 }
 
-func (r *failureRecorder) Helper() {}
+func (*failureRecorder) Helper() {}
 
 func (r *failureRecorder) Errorf(format string, args ...any) {
 	r.failures = append(r.failures, fmt.Sprintf(format, args...))

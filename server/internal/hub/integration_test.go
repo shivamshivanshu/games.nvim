@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/session"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/internal/storetest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
@@ -49,22 +49,11 @@ type env struct {
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	ctx := t.Context()
-	st, err := store.Open(ctx, filepath.Join(t.TempDir(), "games.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = st.Close() })
 	hash, err := passwordHash()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, user := range []game.UserID{alice, bob, carol} {
-		if err := st.CreateUser(ctx, user, hash); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return &env{store: st, clock: clocktest.New(time.UnixMilli(1_700_000_000_000))}
+	return &env{store: storetest.Open(t, hash, alice, bob, carol), clock: clocktest.New(clocktest.Epoch)}
 }
 
 type server struct {
@@ -121,13 +110,13 @@ type chessOptions struct {
 	Color       chess.ColorChoice `json:"color,omitempty"`
 }
 
-func startGame(t *testing.T, challenger, opponent *testClient, to game.UserID, opts chessOptions) game.GameID {
+func startGame(t *testing.T, challenger, opponent *testClient, opts chessOptions) game.GameID {
 	t.Helper()
 	rawOpts, err := json.Marshal(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return startGameOf(t, challenger, opponent, to, chessType, rawOpts)
+	return startGameOf(t, challenger, opponent, bob, chessType, rawOpts)
 }
 
 func startGameOf(t *testing.T, challenger, opponent *testClient, to game.UserID, typ game.GameType, rawOpts json.RawMessage) game.GameID {
@@ -178,7 +167,7 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
 
-	id := startGame(t, a, b, bob, chessOptions{TimeControl: game.TimeControlNone, Color: chess.ColorWhite})
+	id := startGame(t, a, b, chessOptions{TimeControl: game.TimeControlNone, Color: chess.ColorWhite})
 	if u := waitUpdate(t, b, 0); u.GameID != id {
 		t.Fatalf("bob's first update is for %s, want %s", u.GameID, id)
 	}
@@ -233,7 +222,7 @@ func TestSameUserTwoConnections(t *testing.T) {
 	srv := newEnv(t).start(t)
 	first, second, b := srv.login(t, alice), srv.login(t, alice), srv.login(t, bob)
 
-	id := startGame(t, first, b, bob, chessOptions{Color: chess.ColorWhite})
+	id := startGame(t, first, b, chessOptions{Color: chess.ColorWhite})
 	seq := move(t, first, id, 0, "e4")
 
 	u := waitUpdate(t, second, seq)
@@ -247,7 +236,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	e := newEnv(t)
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
-	id := startGame(t, a, b, bob, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
+	id := startGame(t, a, b, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
 	if !uuidV4.MatchString(string(id)) {
 		t.Fatalf("game id %q is not a UUIDv4", id)
 	}
@@ -291,7 +280,7 @@ func TestTimeoutListsAsFinishedAfterRestart(t *testing.T) {
 	e := newEnv(t)
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
-	id := startGame(t, a, b, bob, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
+	id := startGame(t, a, b, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
 	seq := move(t, b, id, move(t, a, id, 0, "e4"), "e5")
 
 	e.clock.Advance(10 * time.Minute)
@@ -333,10 +322,10 @@ func TestOngoingListsYourTurnFirstThenMostRecent(t *testing.T) {
 	untimed := chessOptions{TimeControl: game.TimeControlNone}
 
 	untimed.Color = chess.ColorWhite
-	alicesTurn := startGame(t, a, b, bob, untimed)
+	alicesTurn := startGame(t, a, b, untimed)
 	e.clock.Advance(time.Second)
 	untimed.Color = chess.ColorBlack
-	bobsTurn := startGame(t, a, b, bob, untimed)
+	bobsTurn := startGame(t, a, b, untimed)
 
 	if got := gameIDs(ongoing(t, a)); !slices.Equal(got, []game.GameID{alicesTurn, bobsTurn}) {
 		t.Fatalf("order = %v, want alice's turn first", got)
@@ -394,7 +383,7 @@ func TestStaleSeq(t *testing.T) {
 	t.Parallel()
 	srv := newEnv(t).start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
-	id := startGame(t, a, b, bob, chessOptions{Color: chess.ColorWhite})
+	id := startGame(t, a, b, chessOptions{Color: chess.ColorWhite})
 	move(t, a, id, 0, "e4")
 
 	action, err := json.Marshal(chess.Action{Kind: chess.ActionMove, Move: "e5"})

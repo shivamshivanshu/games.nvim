@@ -38,7 +38,7 @@ type harness struct {
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	h := &harness{
-		clock:   clocktest.New(time.UnixMilli(1_700_000_000_000)),
+		clock:   clocktest.New(clocktest.Epoch),
 		startFn: func(protocol.Challenge) (game.GameID, error) { return "g1", nil },
 	}
 	h.reg = NewRegistry(ttl, h.clock, func(c protocol.Challenge) {
