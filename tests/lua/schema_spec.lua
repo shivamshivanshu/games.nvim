@@ -29,6 +29,11 @@ local GAME_CLASS = {
     PlacedEvent = "games.TicTacToePlacedEvent",
     View = "games.TicTacToeView",
   },
+  connect4 = {
+    Cell = "games.Connect4Cell",
+    DroppedEvent = "games.Connect4DroppedEvent",
+    View = "games.Connect4View",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
