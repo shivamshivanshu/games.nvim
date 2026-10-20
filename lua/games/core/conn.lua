@@ -37,7 +37,7 @@ local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_
 ---@field private attempt? games.ConnAttempt
 ---@field private pending table<integer, games.ReplyCallback>
 ---@field private next_id integer
----@field private handlers table<string, fun(payload: any)[]>
+---@field private handlers table<games.ConnEvent, fun(payload: any)[]>
 ---@field private auto_reconnect boolean
 ---@field private backoff_ms integer
 ---@field private reconnect_timer? uv.uv_timer_t
@@ -133,9 +133,12 @@ function Conn.wire_body(body)
 end
 
 ---Subscribes fn to a push type or a lifecycle event; fn runs via vim.schedule.
----"connected" gets the games.LoginResult, "disconnected" the games.Disconnect that ended the session.
 ---@param event games.ConnEvent
 ---@param fn fun(payload: any)
+---@overload fun(self: games.Conn, event: "connected", fn: fun(login: games.LoginResult))
+---@overload fun(self: games.Conn, event: "disconnected", fn: fun(disconnect: games.Disconnect))
+---@overload fun(self: games.Conn, event: "challenge.changed", fn: fun(challenge: games.Challenge))
+---@overload fun(self: games.Conn, event: "game.update", fn: fun(update: games.GameUpdate))
 function Conn:on(event, fn)
   table.insert(self.handlers[event], fn)
 end
@@ -176,8 +179,10 @@ function Conn:close()
 end
 
 ---@private
----@param event string
+---@param event games.ConnEvent
 ---@param payload any
+---@overload fun(self: games.Conn, event: "connected", payload: games.LoginResult)
+---@overload fun(self: games.Conn, event: "disconnected", payload: games.Disconnect)
 function Conn:emit(event, payload)
   for _, fn in ipairs(self.handlers[event]) do
     vim.schedule(function()
@@ -373,7 +378,7 @@ function Conn:dispatch(attempt, line)
   end
   ---@cast envelope games.Envelope
   if envelope.id == nil then
-    self:emit(envelope.type, envelope.body)
+    self:emit(envelope.type --[[@as games.ConnEvent]], envelope.body)
     return
   end
   local cb = self.pending[envelope.id]
