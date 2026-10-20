@@ -7,10 +7,12 @@ local notify = require("games.core.notify")
 local paint = require("games.ui.paint")
 local theme = require("games.ui.theme")
 local players = require("games.core.players")
+local prompt = require("games.ui.prompt")
 local registry = require("games.core.registry")
 local text_util = require("games.ui.text")
 local timer = require("games.core.timer")
 local types = require("games.types")
+local windows = require("games.ui.windows")
 
 local Control = types.Control
 
@@ -103,7 +105,6 @@ local CLOCK_TICK_MS = 1000
 local LOW_CLOCK_MS = 10000
 local LOW_CLOCK_HL = "GamesClockLow"
 local HEADER_COLUMN_GAP = 2
-local CONFIRM_YES = 1
 ---The header always has a status line, blank without a banner, so a banner never moves the board.
 local STATUS_LINES = 1
 local BODY_CHROME_LINES = 3
@@ -300,7 +301,7 @@ end
 ---@param board games.Board
 ---@param spec games.ControlKey
 local function send_control(board, spec)
-  if spec.confirm and vim.fn.confirm(spec.confirm, "&Yes\n&No", 2) ~= CONFIRM_YES then
+  if spec.confirm and not prompt.confirm(spec.confirm) then
     return
   end
   board.client:game_control(
@@ -319,14 +320,8 @@ local function prompt_input(board, input)
   end)
 end
 
----@param win integer
----@return boolean
-local function is_tiled(win)
-  return vim.api.nvim_win_get_config(win).relative == ""
-end
-
 local function close_window()
-  local tiled = vim.tbl_filter(is_tiled, vim.api.nvim_tabpage_list_wins(0))
+  local tiled = vim.tbl_filter(windows.is_tiled, vim.api.nvim_tabpage_list_wins(0))
   if #tiled > 1 then
     vim.api.nvim_win_close(0, false)
   else
@@ -800,10 +795,10 @@ end
 ---@param buf integer
 local function show_tiled(buf)
   local current = vim.api.nvim_get_current_win()
-  if not is_tiled(current) then
+  if not windows.is_tiled(current) then
     local previous = vim.fn.win_getid(vim.fn.winnr("#"))
-    local tiled = previous ~= 0 and is_tiled(previous) and previous
-      or vim.iter(vim.api.nvim_tabpage_list_wins(0)):find(is_tiled)
+    local tiled = previous ~= 0 and windows.is_tiled(previous) and previous
+      or vim.iter(vim.api.nvim_tabpage_list_wins(0)):find(windows.is_tiled)
     vim.api.nvim_set_current_win(tiled)
   end
   vim.api.nvim_set_current_buf(buf)
@@ -811,7 +806,7 @@ end
 
 ---@param buf integer
 local function focus(buf)
-  local win = vim.fn.win_findbuf(buf)[1]
+  local win = vim.iter(vim.fn.win_findbuf(buf)):find(windows.is_tiled)
   if win then
     vim.api.nvim_set_current_win(win)
   else
