@@ -449,7 +449,7 @@ func queryAll[T any](ctx context.Context, db *sql.DB, scan func(scanner) (T, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []T
 	for rows.Next() {
 		v, err := scan(rows)

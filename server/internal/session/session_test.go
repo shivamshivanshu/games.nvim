@@ -121,7 +121,7 @@ func (c *client) send(typ protocol.MessageType, body any) protocol.RequestID {
 
 func (c *client) next() protocol.Envelope {
 	c.t.Helper()
-	c.conn.SetReadDeadline(time.Now().Add(replyTimeout))
+	_ = c.conn.SetReadDeadline(time.Now().Add(replyTimeout))
 	env, err := c.reader.Next()
 	if err != nil {
 		c.t.Fatalf("read: %v", err)
@@ -149,7 +149,7 @@ func (c *client) login() {
 
 func (c *client) expectClosedWithin(d time.Duration) {
 	c.t.Helper()
-	c.conn.SetReadDeadline(time.Now().Add(d))
+	_ = c.conn.SetReadDeadline(time.Now().Add(d))
 	if env, err := c.reader.Next(); !errors.Is(err, io.EOF) {
 		c.t.Fatalf("want EOF within %v, got %+v, %v", d, env, err)
 	}
@@ -329,7 +329,7 @@ func TestHooksFireOncePerAuthenticatedSession(t *testing.T) {
 	if env := c.next(); env.Type != protocol.TypeGameUpdate || env.ID != nil {
 		t.Fatalf("push arrived as %+v", env)
 	}
-	c.conn.Close()
+	_ = c.conn.Close()
 	select {
 	case got := <-closed:
 		if got != s {

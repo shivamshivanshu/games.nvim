@@ -39,7 +39,7 @@ func serve(args []string) error {
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	h, err := hub.New(ctx, hub.Deps{
 		Store:   st,

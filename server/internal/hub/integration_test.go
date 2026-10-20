@@ -129,7 +129,7 @@ func startGameOf(t *testing.T, challenger, opponent *testClient, to game.UserID,
 			break
 		}
 	}
-	call[protocol.Empty](t, opponent, protocol.TypeChallengeAccept, protocol.ChallengeRef{ChallengeID: created.ChallengeID})
+	call[protocol.Empty](t, opponent, protocol.TypeChallengeAccept, protocol.ChallengeRef(created))
 	first := waitUpdate(t, challenger, 0)
 	return first.GameID
 }

@@ -180,7 +180,7 @@ func login(ctx context.Context, s *Session, req protocol.LoginRequest) (protocol
 }
 
 func (s *Session) writeLoop() {
-	defer s.conn.Close()
+	defer func() { _ = s.conn.Close() }()
 	for {
 		select {
 		case frame := <-s.out:

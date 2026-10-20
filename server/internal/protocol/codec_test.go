@@ -18,9 +18,9 @@ const testMaxLine = 64 * 1024
 func TestReaderSplitsPartialWrites(t *testing.T) {
 	pr, pw := io.Pipe()
 	go func() {
-		defer pw.Close()
+		defer func() { _ = pw.Close() }()
 		for _, b := range []byte("{\"id\":1,\"type\":\"ping\",\"body\":{}}\n{\"type\":\"game.update\",\"body\":{}}\n") {
-			pw.Write([]byte{b})
+			_, _ = pw.Write([]byte{b})
 		}
 	}()
 	reader := protocol.NewReader(pr, testMaxLine)

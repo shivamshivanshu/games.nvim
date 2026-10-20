@@ -39,7 +39,7 @@ func addUser(args []string, stdin io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	exists, err := st.UserExists(ctx, name)
 	if err != nil {

@@ -53,7 +53,7 @@ func serveConn(ctx context.Context, conn net.Conn, cfg *serveConfig) {
 }
 
 func rejectServerFull(conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetWriteDeadline(time.Now().Add(closeFlushTimeout))
 	_, _ = conn.Write(errorFrame(nil, protocol.ErrorBody{Code: protocol.CodeInternal, Message: serverFullMessage}))
 }

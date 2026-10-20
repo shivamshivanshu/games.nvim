@@ -4,10 +4,11 @@ import "fmt"
 
 type Square int8
 
+const NoSquare Square = -1
+
 const (
-	NoSquare  Square = -1
-	boardSize        = 64
-	fileCount        = 8
+	boardSize = 64
+	fileCount = 8
 )
 
 func NewSquare(file, rank int) Square { return Square(rank*fileCount + file) }

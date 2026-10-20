@@ -141,11 +141,11 @@ func waitPush[Body any](t *testing.T, c *testClient, typ protocol.MessageType) B
 	return body
 }
 
-func wantCode(t *testing.T, err error, code protocol.ErrorCode) errorReply {
+func wantCode(t *testing.T, err error, code protocol.ErrorCode) protocol.ErrorBody {
 	t.Helper()
 	var reply errorReply
 	if !errors.As(err, &reply) || reply.Code != code {
 		t.Fatalf("want %s error, got %v", code, err)
 	}
-	return reply
+	return protocol.ErrorBody(reply)
 }
