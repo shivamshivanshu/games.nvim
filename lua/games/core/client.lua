@@ -10,6 +10,7 @@ local FINISHED_CACHE_SIZE = 32
 ---@alias games.UpdateHandler fun(update: games.GameUpdate, is_new: boolean)
 ---@alias games.ChallengeHandler fun(challenge: games.Challenge, is_new: boolean)
 ---@alias games.CatalogHandler fun(catalog: games.CatalogResult)
+---@alias games.Unsubscribe fun() removes the handler it was returned for
 
 ---@class games.Client
 ---@field conn games.Conn
@@ -32,6 +33,7 @@ local FINISHED_CACHE_SIZE = 32
 ---@field game_snapshot fun(self: games.Client, body: games.GameSnapshotRequest, cb?: games.Reply<games.GameUpdate>)
 ---@field game_act fun(self: games.Client, body: games.GameActRequest, cb?: games.Reply<games.SeqResult>)
 ---@field game_control fun(self: games.Client, body: games.GameControlRequest, cb?: games.Reply<games.SeqResult>)
+---@field game_start fun(self: games.Client, body: games.GameStartRequest, cb?: games.Reply<games.GameUpdate>)
 ---@field stats_get fun(self: games.Client, body: games.StatsRequest|nil, cb?: games.Reply<games.StatsResult>)
 local Client = {}
 Client.__index = Client
@@ -122,6 +124,7 @@ Client.game_list = request_fn(MessageType.GAME_LIST, store_listed_games)
 Client.game_snapshot = request_fn(MessageType.GAME_SNAPSHOT, store_snapshot)
 Client.game_act = request_fn(MessageType.GAME_ACT, snapshot_if_stale)
 Client.game_control = request_fn(MessageType.GAME_CONTROL, snapshot_if_stale)
+Client.game_start = request_fn(MessageType.GAME_START, store_snapshot)
 Client.stats_get = request_fn(MessageType.STATS_GET)
 
 local request_catalog = request_fn(MessageType.CATALOG_LIST, cache_catalog)
@@ -152,6 +155,12 @@ function Client:game_infos(fn)
     end
     fn(infos)
   end)
+end
+
+---The games in the catalog, empty until this connection has fetched it.
+---@return games.GameInfo[]
+function Client:catalog_games()
+  return self.catalog and self.catalog.games or {}
 end
 
 ---The catalog entry of game, or nil until this connection has fetched the catalog.
@@ -219,19 +228,37 @@ function Client:pending_challenges()
   return vim.tbl_values(self.challenges)
 end
 
+---Adds fn to the handlers field holds; the handlers are replaced, never edited, so an emit in
+---progress calls the list it started with.
+---@param self games.Client
+---@param field "update_handlers"|"challenge_handlers"|"catalog_handlers"
+---@param fn function
+---@return games.Unsubscribe
+local function subscribe(self, field, fn)
+  self[field] = vim.list_extend(vim.list_slice(self[field]), { fn })
+  return function()
+    self[field] = vim.tbl_filter(function(handler)
+      return handler ~= fn
+    end, self[field])
+  end
+end
+
 ---@param fn games.UpdateHandler called with is_new = true the first time a game_id is seen
+---@return games.Unsubscribe
 function Client:on_update(fn)
-  table.insert(self.update_handlers, fn)
+  return subscribe(self, "update_handlers", fn)
 end
 
 ---@param fn games.ChallengeHandler called with is_new = true the first time a challenge_id is seen
+---@return games.Unsubscribe
 function Client:on_challenge(fn)
-  table.insert(self.challenge_handlers, fn)
+  return subscribe(self, "challenge_handlers", fn)
 end
 
 ---@param fn games.CatalogHandler called each time a connection fetches the catalog
+---@return games.Unsubscribe
 function Client:on_catalog(fn)
-  table.insert(self.catalog_handlers, fn)
+  return subscribe(self, "catalog_handlers", fn)
 end
 
 ---Caches update unless the cache already holds this seq or a later one; a finished one is

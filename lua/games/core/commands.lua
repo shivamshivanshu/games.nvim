@@ -5,6 +5,7 @@ local login = require("games.core.login")
 local notify = require("games.core.notify")
 local picker = require("games.ui.picker")
 local shell = require("games.ui.shell")
+local sources = require("games.core.sources")
 local stats = require("games.core.stats")
 local text = require("games.ui.text")
 local timer = require("games.core.timer")
@@ -13,6 +14,7 @@ local types = require("games.types")
 local GameStatus = types.GameStatus
 local ERROR = vim.log.levels.ERROR
 local GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
+local CONFIRM_YES = 1
 
 ---@alias games.SubcommandRun fun(client: games.Client, me: games.UserID, args: string[])
 
@@ -58,16 +60,6 @@ local DONE_PICKING = { label = "done" }
 local function opponent_choice(presence)
   local label = presence.online and (presence.user .. " (online)") or presence.user
   return { label = label, user = presence.user }
-end
-
----@param a games.UserPresence
----@param b games.UserPresence
----@return boolean
-local function online_first(a, b)
-  if a.online ~= b.online then
-    return a.online
-  end
-  return a.user < b.user
 end
 
 ---@class (private) games.OpponentRange
@@ -129,7 +121,7 @@ local function pick_opponents(client, me, range, on_done)
           say("games: no other users")
           return
         end
-        table.sort(others, online_first)
+        table.sort(others, sources.online_first)
         pick_opponents_from(vim.tbl_map(opponent_choice, others), range, on_done)
       end
     )
@@ -240,9 +232,12 @@ local function send_challenge(client, info, opponents)
   end)
 end
 
----@type games.SubcommandRun
-local function challenge(client, me, args)
-  local game_type, invitees = args[1], vim.list_slice(args, 2)
+---Challenges invitees to game_type, asking for whatever is not given: opponents, game, options.
+---@param client games.Client
+---@param me games.UserID
+---@param game_type games.GameType|nil
+---@param invitees games.UserID[]
+function M.challenge(client, me, game_type, invitees)
   ---@param catalog games.CatalogResult
   local function challenge_from_catalog(catalog)
     ---@param opponents games.UserID[]
@@ -267,6 +262,33 @@ local function challenge(client, me, args)
     pick_opponents(client, me, range, challenge_opponents)
   end
   client:catalog_list(nil, on_ok(challenge_from_catalog))
+end
+
+---@type games.SubcommandRun
+local function challenge(client, me, args)
+  M.challenge(client, me, args[1], vim.list_slice(args, 2))
+end
+
+---Starts a solo game on its own and challenges for any other, asking for its options first.
+---@param client games.Client
+---@param me games.UserID
+---@param info games.GameInfo
+function M.start(client, me, info)
+  if info.players.max > 1 then
+    M.challenge(client, me, info.id, {})
+    return
+  end
+  pick_options(info, function(options)
+    client:game_start(
+      { game = info.id, options = options },
+      on_ok(
+        ---@param update games.GameUpdate
+        function(update)
+          shell.open(client, update.game_id)
+        end
+      )
+    )
+  end)
 end
 
 ---@type games.ChallengeAction[]
@@ -311,16 +333,34 @@ local function resolve_challenge(client, me, picked)
   end)
 end
 
+---Sends the action labelled label that applies to challenge, as me sees it.
+---@param client games.Client
 ---@param me games.UserID
----@return fun(a: games.Challenge, b: games.Challenge): boolean
-local function incoming_first(me)
-  return function(a, b)
-    local a_incoming, b_incoming = a.from ~= me, b.from ~= me
-    if a_incoming ~= b_incoming then
-      return a_incoming
-    end
-    return a.expires_at < b.expires_at
+---@param challenge games.Challenge
+---@param label string
+function M.respond(client, me, challenge, label)
+  local actions = challenge.from == me and OUTGOING_ACTIONS or INCOMING_ACTIONS
+  local action = vim.iter(actions):find(function(candidate)
+    return candidate.label == label
+  end)
+  if not action then
+    say(("games: cannot %s this challenge"):format(label), ERROR)
+    return
   end
+  action.send(client, { challenge_id = challenge.challenge_id }, on_ok())
+end
+
+---Resigns update's game once confirmed.
+---@param client games.Client
+---@param update games.GameUpdate
+function M.resign(client, update)
+  if vim.fn.confirm("Resign this game?", "&Yes\n&No", 2) ~= CONFIRM_YES then
+    return
+  end
+  client:game_control(
+    { game_id = update.game_id, seq = update.seq, control = types.Control.RESIGN },
+    on_ok()
+  )
 end
 
 ---@type games.SubcommandRun
@@ -333,7 +373,7 @@ local function challenges(client, me)
         say("games: no pending challenges")
         return
       end
-      table.sort(pending, incoming_first(me))
+      table.sort(pending, sources.incoming_first(me))
       client:game_infos(function(infos)
         picker.pick(pending, {
           prompt = "Pending challenges:",
@@ -391,9 +431,10 @@ local function show_rows(title, empty_message, rows)
   float.open(title, kv({ pairs = rows }))
 end
 
----@type games.SubcommandRun
-local function show_stats(client, me, args)
-  local user = args[1] or me
+---Shows user's record in a float.
+---@param client games.Client
+---@param user games.UserID
+function M.show_stats(client, user)
   client:stats_get(
     { user = user },
     on_ok(
@@ -409,9 +450,10 @@ local function show_stats(client, me, args)
   )
 end
 
----@type games.SubcommandRun
-local function show_leaderboard(client, _, args)
-  local game = args[1]
+---Shows the server's ranking in a float, of game's records or, when nil, of every game.
+---@param client games.Client
+---@param game games.GameType|nil
+function M.show_leaderboard(client, game)
   client:stats_get(
     nil,
     on_ok(
@@ -425,6 +467,16 @@ local function show_leaderboard(client, _, args)
       end
     )
   )
+end
+
+---@type games.SubcommandRun
+local function show_stats(client, me, args)
+  M.show_stats(client, args[1] or me)
+end
+
+---@type games.SubcommandRun
+local function show_leaderboard(client, _, args)
+  M.show_leaderboard(client, args[1])
 end
 
 ---@param tally games.ArchiveTally
