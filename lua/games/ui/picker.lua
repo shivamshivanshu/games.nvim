@@ -1,4 +1,5 @@
-local shell = require("games.ui.shell")
+local describe = require("games.core.describe")
+local players = require("games.core.players")
 local text = require("games.ui.text")
 
 local TIME_CONTROL_OPTION = "time_control"
@@ -20,17 +21,6 @@ local function column(str, width)
   return text.pad_to_width(str, width - 1) .. " "
 end
 
----"your move", "waiting" or "finished", as me sees the game.
----@param update games.GameUpdate
----@param me games.UserID
----@return string
-function M.turn_text(update, me)
-  if update.result then
-    return "finished"
-  end
-  return vim.tbl_contains(update.to_act, me) and "your move" or "waiting"
-end
-
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@return string
@@ -38,7 +28,7 @@ local function clock(update, me)
   if not (update.clock and update.clock.remaining_ms[me]) then
     return ""
   end
-  return shell.clock_text(update, me, 0)
+  return describe.clock_text(update, me, 0)
 end
 
 ---One searchable picker line, e.g. `● chess  vs ravi    10+5  your move  4:51  last: Nf3  #7f3a`.
@@ -46,17 +36,16 @@ end
 ---@param me games.UserID
 ---@return string
 function M.format_game(update, me)
-  local my_turn = update.result == nil and vim.tbl_contains(update.to_act, me)
-  local last = shell.describe(update)
+  local last = describe.events(update)
   return table.concat({
-    text.pad_to_width(my_turn and YOUR_TURN_MARKER or "", MARKER_WIDTH),
+    text.pad_to_width(players.is_to_act(update, me) and YOUR_TURN_MARKER or "", MARKER_WIDTH),
     column(update.game, GAME_WIDTH),
-    "vs " .. column(table.concat(shell.opponents(update, me), ","), OPPONENTS_WIDTH),
+    "vs " .. column(describe.opponent_names(update, me, ","), OPPONENTS_WIDTH),
     column(update.options and update.options[TIME_CONTROL_OPTION] or "", TIME_CONTROL_WIDTH),
-    column(M.turn_text(update, me), TURN_WIDTH),
+    column(describe.turn_text(update, me), TURN_WIDTH),
     text.align_right(clock(update, me), CLOCK_WIDTH),
     "  last: " .. (last ~= "" and last or "-"),
-    "  #" .. shell.short_id(update.game_id),
+    "  #" .. describe.short_id(update.game_id),
   })
 end
 

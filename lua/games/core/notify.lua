@@ -1,3 +1,5 @@
+local describe = require("games.core.describe")
+local picker = require("games.ui.picker")
 local players = require("games.core.players")
 local types = require("games.types")
 
@@ -76,7 +78,6 @@ end
 ---@param challenge games.Challenge
 ---@param message games.ChallengeMessage
 local function notify_challenge(client, challenge, message)
-  local picker = require("games.ui.picker")
   picker.with_game_names(client, function(names)
     M.say(message(picker.game_summary(names[challenge.game] or challenge.game, challenge.options)))
   end)
@@ -119,15 +120,14 @@ end
 ---@param me games.UserID
 ---@return string|nil
 local function hidden_update_message(update, me)
-  local shell = require("games.ui.shell")
-  local description = shell.describe(update)
+  local description = describe.events(update)
   if description == "" and not update.result then
     return nil
   end
-  local status = update.result and shell.result_text(update.result)
-    or require("games.ui.picker").turn_text(update, me)
+  local status = update.result and describe.result_text(update.result)
+    or describe.turn_text(update, me)
   local body = description == "" and status or (description .. " — " .. status)
-  return ("%s: %s"):format(shell.title(update, me), body)
+  return ("%s: %s"):format(describe.title(update, me), body)
 end
 
 ---@param update games.GameUpdate

@@ -1,4 +1,5 @@
 local compose = require("games.ui.compose")
+local describe = require("games.core.describe")
 local theme = require("games.ui.theme")
 local players = require("games.core.players")
 local registry = require("games.core.registry")
@@ -66,7 +67,6 @@ local CLOSE_KEY = "q"
 local DEFAULT_GLYPHS = "unicode"
 local CLOCK_TICK_MS = 1000
 local CONFIRM_YES = 1
-local SHORT_ID_LENGTH = 4
 
 ---@type table<string, true> keys the shell owns whether or not they are active
 local CORE_KEYS = { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [CLOSE_KEY] = true }
@@ -87,52 +87,11 @@ local subscribed_clients = setmetatable({}, { __mode = "k" })
 local clock_timer
 
 ---@param update games.GameUpdate
----@param me games.UserID
----@return games.UserID[]
-function M.opponents(update, me)
-  local users = {}
-  for _, player in ipairs(update.players) do
-    if player.user ~= me then
-      users[#users + 1] = player.user
-    end
-  end
-  return users
-end
-
----The id prefix that buffer names and pickers show.
----@param game_id games.GameID
----@return string
-function M.short_id(game_id)
-  return game_id:sub(1, SHORT_ID_LENGTH)
-end
-
----"<game> vs <opponents>", the name notifications and errors use for a game.
----@param update games.GameUpdate
----@param me games.UserID
----@return string
-function M.title(update, me)
-  return ("%s vs %s"):format(update.game, table.concat(M.opponents(update, me), ", "))
-end
-
----@param update games.GameUpdate with a clock
----@param user games.UserID
----@param elapsed_ms integer charged to user's clock if it is the running one
----@return string
-function M.clock_text(update, user, elapsed_ms)
-  local remaining_ms = update.clock.remaining_ms[user] or 0
-  if update.clock.running == user then
-    remaining_ms = remaining_ms - elapsed_ms
-  end
-  local seconds = math.max(0, math.ceil(remaining_ms / 1000))
-  return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
-end
-
----@param update games.GameUpdate
 ---@param user games.UserID
 ---@param me games.UserID
 ---@return games.Node
 local function turn_marker(update, user, me)
-  if update.result or not vim.tbl_contains(update.to_act, user) then
+  if not players.is_to_act(update, user) then
     return compose.text("")
   end
   if user == me then
@@ -141,24 +100,11 @@ local function turn_marker(update, user, me)
   return compose.text("← to move", "GamesMuted")
 end
 
----@param result games.WireResult
----@return string
-function M.result_text(result)
-  local reason = (result.reason:gsub("_", " "))
-  if #result.winners > 0 then
-    return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
-  end
-  if result.reason == "aborted" then
-    return "Result: aborted"
-  end
-  return ("Result: draw (%s)"):format(reason)
-end
-
 ---@param update games.GameUpdate
 ---@return games.Node|nil
 local function status_banner(update)
   if update.result then
-    return compose.text(M.result_text(update.result))
+    return compose.text(describe.result_text(update.result))
   end
   if update.draw_agreed and #update.draw_agreed > 0 then
     return compose.text("Draw offered by " .. table.concat(update.draw_agreed, ", "))
@@ -175,7 +121,7 @@ local function render_header(update, me, elapsed_ms)
     names[#names + 1] = compose.text(player.user)
     seats[#seats + 1] = compose.text(player.seat, "GamesMuted")
     if update.clock then
-      clocks[#clocks + 1] = compose.text(M.clock_text(update, player.user, elapsed_ms))
+      clocks[#clocks + 1] = compose.text(describe.clock_text(update, player.user, elapsed_ms))
     end
     markers[#markers + 1] = turn_marker(update, player.user, me)
   end
@@ -223,7 +169,7 @@ local function report_error(board)
     -- The client resyncs on stale; the snapshot it fetches re-renders the board.
     if err and err.code ~= types.ErrorCode.STALE then
       vim.notify(
-        ("%s: %s"):format(M.title(board.update, board.me), err.message),
+        ("%s: %s"):format(describe.title(board.update, board.me), err.message),
         vim.log.levels.ERROR
       )
     end
@@ -364,25 +310,6 @@ function M.render(update, module, view, me, elapsed_ms)
     footer_node(bindings_for(update, module)),
   }))
   return stack(header, body), #header.lines
-end
-
----@param event games.Event
----@param update games.GameUpdate
----@return string
-local function fallback_description(event, update)
-  local actor = event.by and (players.user_of_seat(update, event.by) or event.by)
-  return actor and ("%s: %s"):format(actor, event.kind) or event.kind
-end
-
----@param update games.GameUpdate
----@return string
-function M.describe(update)
-  local module = registry.game_module(update.game)
-  local describe_event = module and module.describe_event
-  local descriptions = vim.tbl_map(function(event)
-    return describe_event and describe_event(event, update) or fallback_description(event, update)
-  end, update.events)
-  return table.concat(descriptions, "; ")
 end
 
 ---@param buf integer
@@ -610,8 +537,8 @@ function M.open(client, game_id, opts)
   local buf = vim.api.nvim_create_buf(true, true)
   local name = ("games://%s/%s/%s"):format(
     update.game,
-    table.concat(M.opponents(update, me), ","),
-    M.short_id(game_id)
+    describe.opponent_names(update, me, ","),
+    describe.short_id(game_id)
   )
   vim.api.nvim_buf_set_name(buf, name)
   vim.bo[buf].modifiable = false
@@ -645,9 +572,7 @@ function M.open_next(client, after_game_id, opts)
     return nil
   end
   local waiting = vim.tbl_filter(function(update)
-    return update.result == nil
-      and update.game_id ~= after_game_id
-      and vim.tbl_contains(update.to_act, me)
+    return update.game_id ~= after_game_id and players.is_to_act(update, me)
   end, client:games())
   if #waiting == 0 then
     vim.notify("games: no game is waiting for your move", vim.log.levels.INFO)

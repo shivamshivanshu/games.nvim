@@ -20,4 +20,12 @@ function M.seat_of_user(update, user)
   return player and player.seat
 end
 
+---Whether the game is ongoing and waiting on user.
+---@param update games.GameUpdate
+---@param user games.UserID
+---@return boolean
+function M.is_to_act(update, user)
+  return update.result == nil and vim.tbl_contains(update.to_act, user)
+end
+
 return M
