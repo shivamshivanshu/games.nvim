@@ -225,6 +225,19 @@ An action object always carries `kind`.
   - lines wrap at 79 columns.
 - Material display (a client convention): count P=1, N=3, B=3, R=5, Q=9, and show only the imbalance, the surplus of the side ahead, never both totals.
 
+### Tic-Tac-Toe
+
+- Reasons: `three_in_a_row`, `board_full`.
+- Events: `placed {by: seat, cell}`, `cell` an integer 1-9.
+- Seats: `x`, `o`; `x` moves first. Option `first` picks who plays `x`.
+- View `{cells, last, winning_lines, legal_cells}`:
+  - cells are numbered 1-9 in phone layout: 1 top-left, 3 top-right, 9 bottom-right;
+  - `cells` is always 9 strings, each `x`, `o`, or `""` when empty, in cell order;
+  - `last` is the cell placed last, or `null` before the first move;
+  - `winning_lines` lists each completed line as its cells, `[]` unless won; one move can complete two;
+  - `legal_cells` is the viewer's own: the empty cells when the viewer is to move, else `[]`.
+- Actions: `place` (`cell`: the cell's number as text, `"1"` to `"9"`).
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

@@ -9,6 +9,7 @@ Only chess exists today. The server owns all state and rules; Neovim renders wha
 | Game | Players | Rules |
 |---|---|---|
 | Chess | 2 | [docs/games/chess.md](docs/games/chess.md) |
+| Tic-Tac-Toe | 2 | [docs/games/tictactoe.md](docs/games/tictactoe.md) |
 
 ## Requirements
 
@@ -258,6 +259,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `A` | abort |
 | `C` | claim draw (chess), when a draw is claimable |
 | `F` | flip board (chess) |
+| `1`-`9` | place a mark on that free cell (tictactoe: phone layout, 1 top-left) |
 | `]g` | next game waiting on your move |
 | `q` | close |
 

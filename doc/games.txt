@@ -314,6 +314,8 @@ the current state are mapped; the footer lists them.
     A       abort
     C       claim draw (chess), when a draw is claimable
     F       flip board (chess)
+    1-9     place a mark on that free cell (tictactoe: 1 top-left, 9
+            bottom-right)
     ]g      next game waiting on your move
     q       close
 
