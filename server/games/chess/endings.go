@@ -24,32 +24,36 @@ type Ending struct {
 }
 
 func (p Position) RepetitionKey() RepetitionKey {
+	return p.repetitionKey(p.LegalMoves())
+}
+
+func (p Position) repetitionKey(legal []Move) RepetitionKey {
 	key := p
-	if !p.hasLegalEnPassantCapture() {
+	if !p.hasLegalEnPassantCapture(legal) {
 		key.EnPassant = NoSquare
 	}
 	return RepetitionKey(strings.Join(strings.Fields(key.FEN())[:repetitionKeyFields], " "))
 }
 
-func (p Position) hasLegalEnPassantCapture() bool {
+func (p Position) hasLegalEnPassantCapture(legal []Move) bool {
 	if p.EnPassant == NoSquare {
 		return false
 	}
-	return slices.ContainsFunc(p.LegalMoves(), func(m Move) bool {
+	return slices.ContainsFunc(legal, func(m Move) bool {
 		return m.To == p.EnPassant && p.Board[m.From].Kind == Pawn
 	})
 }
 
-func DetectEnding(p Position, history []RepetitionKey) (Ending, bool) {
+func DetectEnding(p Position, legal []Move, key RepetitionKey, history []RepetitionKey) (Ending, bool) {
 	switch {
-	case len(p.LegalMoves()) == 0 && p.InCheck():
+	case len(legal) == 0 && p.InCheck():
 		winner := p.SideToMove.Opponent()
 		return Ending{Reason: ReasonCheckmate, Kind: game.ResultDecisive, Winner: &winner}, true
-	case len(p.LegalMoves()) == 0:
+	case len(legal) == 0:
 		return Ending{Reason: ReasonStalemate, Kind: game.ResultDraw}, true
 	case p.hasInsufficientMaterial():
 		return Ending{Reason: ReasonInsufficientMaterial, Kind: game.ResultDraw}, true
-	case repetitions(p, history) >= fivefoldCount:
+	case repetitions(key, history) >= fivefoldCount:
 		return Ending{Reason: ReasonFivefold, Kind: game.ResultDraw}, true
 	case p.HalfmoveClock >= seventyFiveHalfmoves:
 		return Ending{Reason: ReasonSeventyFive, Kind: game.ResultDraw}, true
@@ -59,7 +63,7 @@ func DetectEnding(p Position, history []RepetitionKey) (Ending, bool) {
 
 func ClaimableDraw(p Position, history []RepetitionKey) (game.ResultReason, bool) {
 	switch {
-	case repetitions(p, history) >= threefoldCount:
+	case repetitions(p.RepetitionKey(), history) >= threefoldCount:
 		return ReasonThreefold, true
 	case p.HalfmoveClock >= fiftyMoveHalfmoves:
 		return ReasonFifty, true
@@ -67,8 +71,7 @@ func ClaimableDraw(p Position, history []RepetitionKey) (game.ResultReason, bool
 	return "", false
 }
 
-func repetitions(p Position, history []RepetitionKey) int {
-	key := p.RepetitionKey()
+func repetitions(key RepetitionKey, history []RepetitionKey) int {
 	count := 0
 	for _, k := range history {
 		if k == key {
@@ -80,7 +83,7 @@ func repetitions(p Position, history []RepetitionKey) int {
 
 func (p Position) hasInsufficientMaterial() bool {
 	var minors []Square
-	for sq := Square(0); sq < boardSize; sq++ {
+	for sq := range Square(boardSize) {
 		switch p.Board[sq].Kind {
 		case NoPieceKind, King:
 		case Knight, Bishop:

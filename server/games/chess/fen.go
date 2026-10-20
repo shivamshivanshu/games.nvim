@@ -2,6 +2,7 @@ package chess
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -12,16 +13,6 @@ const (
 	fenFieldCount = 6
 	noneField     = "-"
 )
-
-var castlingFlags = [...]struct {
-	letter byte
-	right  CastlingRights
-}{
-	{'K', WhiteKingside},
-	{'Q', WhiteQueenside},
-	{'k', BlackKingside},
-	{'q', BlackQueenside},
-}
 
 func ParseFEN(fen string) (Position, error) {
 	fields := strings.Fields(fen)
@@ -103,23 +94,14 @@ func parseCastling(s string) (CastlingRights, error) {
 		return 0, nil
 	}
 	var rights CastlingRights
-	for i := 0; i < len(s); i++ {
-		right, ok := castlingRightFromLetter(s[i])
-		if !ok || rights&right != 0 {
+	for i := range len(s) {
+		idx := slices.IndexFunc(castlings[:], func(c castling) bool { return c.letter == s[i] })
+		if idx < 0 || rights&castlings[idx].right != 0 {
 			return 0, fmt.Errorf("fen: invalid castling %q", s)
 		}
-		rights |= right
+		rights |= castlings[idx].right
 	}
 	return rights, nil
-}
-
-func castlingRightFromLetter(l byte) (CastlingRights, bool) {
-	for _, f := range castlingFlags {
-		if f.letter == l {
-			return f.right, true
-		}
-	}
-	return 0, false
 }
 
 func parseEnPassant(s string) (Square, error) {
@@ -136,9 +118,9 @@ func parseEnPassant(s string) (Square, error) {
 	return sq, nil
 }
 
-func parseCounter(s, name string, min int) (int, error) {
+func parseCounter(s, name string, atLeast int) (int, error) {
 	n, err := strconv.Atoi(s)
-	if err != nil || n < min {
+	if err != nil || n < atLeast {
 		return 0, fmt.Errorf("fen: invalid %s %q", name, s)
 	}
 	return n, nil
@@ -168,7 +150,7 @@ func writeRank(b *strings.Builder, p Position, rank int) {
 			empty = 0
 		}
 	}
-	for file := 0; file < fileCount; file++ {
+	for file := range fileCount {
 		piece := p.Board[NewSquare(file, rank)]
 		if piece.IsEmpty() {
 			empty++
@@ -182,9 +164,9 @@ func writeRank(b *strings.Builder, p Position, rank int) {
 
 func (p Position) castlingField() string {
 	var field []byte
-	for _, f := range castlingFlags {
-		if p.Castling&f.right != 0 {
-			field = append(field, f.letter)
+	for _, c := range castlings {
+		if p.Castling&c.right != 0 {
+			field = append(field, c.letter)
 		}
 	}
 	if len(field) == 0 {

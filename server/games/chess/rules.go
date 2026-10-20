@@ -7,23 +7,35 @@ import (
 	"games.nvim/server/game"
 )
 
+const TypeChess game.GameType = "chess"
+
+const optionColor = "color"
+
 type Rules struct{}
+
+func optionValues[T ~string](vs ...T) []string {
+	out := make([]string, len(vs))
+	for i, v := range vs {
+		out[i] = string(v)
+	}
+	return out
+}
 
 func (Rules) Info() game.Info {
 	return game.Info{
-		Type:         "chess",
+		Type:         TypeChess,
 		Name:         "Chess",
 		Players:      game.PlayerRange{Min: 2, Max: 2},
 		Capabilities: []game.Capability{game.CapResign, game.CapDraw, game.CapClock, game.CapAbort},
 		Options: []game.OptionSpec{
 			{
 				Name:    game.OptionTimeControl,
-				Values:  []string{string(TimeControlNone), string(TimeControl3Plus2), string(TimeControl5Plus0), string(TimeControl10Plus5), string(TimeControl15Plus10)},
+				Values:  optionValues(TimeControlNone, TimeControl3Plus2, TimeControl5Plus0, TimeControl10Plus5, TimeControl15Plus10),
 				Default: string(TimeControl10Plus5),
 			},
 			{
-				Name:    "color",
-				Values:  []string{string(ColorRandom), string(ColorWhite), string(ColorBlack)},
+				Name:    optionColor,
+				Values:  optionValues(ColorRandom, ColorWhite, ColorBlack),
 				Default: string(ColorRandom),
 			},
 		},
