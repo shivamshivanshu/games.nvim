@@ -109,7 +109,7 @@ type harness struct {
 	cancel  context.CancelFunc
 }
 
-func newHarness(t *testing.T, timeControl chess.TimeControl) *harness {
+func newHarness(t *testing.T, timeControl game.TimeControl) *harness {
 	t.Helper()
 	g := game.Adapt(chess.Rules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{"color":"white","time_control":"` + string(timeControl) + `"}`))
@@ -198,7 +198,7 @@ func waitDone(t *testing.T, r *Room) {
 }
 
 func TestNewSetupRejectsChallengerOutsidePlayers(t *testing.T) {
-	h := newHarness(t, chess.TimeControlNone)
+	h := newHarness(t, game.TimeControlNone)
 	noPlayers, outsider := h.params, h.params
 	noPlayers.Players = nil
 	outsider.Challenger = carol
@@ -210,7 +210,7 @@ func TestNewSetupRejectsChallengerOutsidePlayers(t *testing.T) {
 }
 
 func TestUpdateDoesNotShareRoomState(t *testing.T) {
-	h := newHarness(t, chess.TimeControlNone)
+	h := newHarness(t, game.TimeControlNone)
 	u := h.snapshot(t, alice)
 	u.Players[0].User = carol
 	u.Options[game.OptionTimeControl] = "1+0"
@@ -220,7 +220,7 @@ func TestUpdateDoesNotShareRoomState(t *testing.T) {
 }
 
 func TestMovedEventWireShape(t *testing.T) {
-	h := newHarness(t, chess.TimeControlNone)
+	h := newHarness(t, game.TimeControlNone)
 	h.play(t, alice, 0, "e4")
 	events := h.snapshot(t, bob).Events
 	if want := `{"by":"white","kind":"moved","san":"e4"}`; len(events) != 1 || string(events[0]) != want {
@@ -229,7 +229,7 @@ func TestMovedEventWireShape(t *testing.T) {
 }
 
 func TestStaleSeqRejected(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	if _, err := h.room.Act(t.Context(), alice, 1, move("e4")); !errors.Is(err, ErrStale) {
 		t.Fatalf("want ErrStale, got %v", err)
 	}
@@ -246,7 +246,7 @@ func TestStaleSeqRejected(t *testing.T) {
 }
 
 func TestNotYourTurn(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	if _, err := h.room.Act(t.Context(), bob, 0, move("e5")); !errors.Is(err, game.ErrNotYourTurn) {
 		t.Fatalf("want ErrNotYourTurn, got %v", err)
 	}
@@ -256,7 +256,7 @@ func TestNotYourTurn(t *testing.T) {
 }
 
 func TestNonPlayerRejected(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	if _, err := h.room.Act(t.Context(), carol, 0, move("e4")); !errors.Is(err, ErrNotAPlayer) {
 		t.Fatalf("act: want ErrNotAPlayer, got %v", err)
 	}
@@ -266,7 +266,7 @@ func TestNonPlayerRejected(t *testing.T) {
 }
 
 func TestResignEndsGame(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	seq := h.play(t, alice, 0, "e4")
 	h.control(t, bob, seq, protocol.ControlResign)
 	waitDone(t, h.room)
@@ -296,7 +296,7 @@ func TestResignEndsGame(t *testing.T) {
 
 func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 	t.Run("agree", func(t *testing.T) {
-		h := newHarness(t, chess.TimeControl10Plus5)
+		h := newHarness(t, game.TimeControl10Plus5)
 		seq := h.control(t, alice, 0, protocol.ControlOfferDraw)
 		h.control(t, bob, seq, protocol.ControlOfferDraw)
 		waitDone(t, h.room)
@@ -310,7 +310,7 @@ func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 		}
 	})
 	t.Run("decline", func(t *testing.T) {
-		h := newHarness(t, chess.TimeControl10Plus5)
+		h := newHarness(t, game.TimeControl10Plus5)
 		seq := h.control(t, alice, 0, protocol.ControlOfferDraw)
 		if got := h.snapshot(t, bob).DrawAgreed; !slices.Equal(got, []game.UserID{alice}) {
 			t.Fatalf("draw_agreed %v after offer", got)
@@ -321,7 +321,7 @@ func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 		}
 	})
 	t.Run("cleared by move", func(t *testing.T) {
-		h := newHarness(t, chess.TimeControl10Plus5)
+		h := newHarness(t, game.TimeControl10Plus5)
 		seq := h.play(t, alice, 0, "e4")
 		seq = h.control(t, alice, seq, protocol.ControlOfferDraw)
 		h.play(t, bob, seq, "e5")
@@ -332,7 +332,7 @@ func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 }
 
 func TestAbortWindow(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	seq := h.play(t, alice, 0, "e4")
 	if !slices.Contains(h.snapshot(t, bob).Controls, protocol.ControlAbort) {
 		t.Fatal("abort missing after one player's first move")
@@ -345,7 +345,7 @@ func TestAbortWindow(t *testing.T) {
 		t.Fatalf("want illegal_action, got %v", err)
 	}
 
-	early := newHarness(t, chess.TimeControl10Plus5)
+	early := newHarness(t, game.TimeControl10Plus5)
 	early.control(t, bob, early.play(t, alice, 0, "e4"), protocol.ControlAbort)
 	waitDone(t, early.room)
 	_, finished := early.persist.recorded()
@@ -357,7 +357,7 @@ func TestAbortWindow(t *testing.T) {
 }
 
 func TestTimeoutEliminates(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	h.play(t, bob, h.play(t, alice, 0, "e4"), "e5")
 	h.clock.Advance(10 * time.Minute)
 	waitDone(t, h.room)
@@ -376,7 +376,7 @@ func TestTimeoutEliminates(t *testing.T) {
 }
 
 func TestClockNotChargedBeforeFirstMoves(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	initial := map[game.UserID]int64{alice: 600_000, bob: 600_000}
 	h.clock.Advance(5 * time.Minute)
 	seq := h.play(t, alice, 0, "e4")
@@ -403,7 +403,7 @@ func TestClockNotChargedBeforeFirstMoves(t *testing.T) {
 }
 
 func TestRestoreReplaysAndResumesClock(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	seq := game.Seq(0)
 	for i, san := range []string{"e4", "e5", "Nf3", "Nc6"} {
 		h.clock.Advance(time.Duration(i+1) * 7 * time.Second)
@@ -433,7 +433,7 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 }
 
 func TestUpdateViewIsPerRecipient(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	h.control(t, alice, 0, protocol.ControlOfferDraw)
 	offerer, _ := h.sent.last(alice)
 	opponent, _ := h.sent.last(bob)
@@ -451,7 +451,7 @@ func TestUpdateViewIsPerRecipient(t *testing.T) {
 }
 
 func TestPersistFailureLeavesStateUnchanged(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	diskFull := errors.New("disk full")
 	h.persist.fail = diskFull
 	if _, err := h.room.Act(t.Context(), alice, 0, move("e4")); !errors.Is(err, diskFull) {
@@ -467,7 +467,7 @@ func TestPersistFailureLeavesStateUnchanged(t *testing.T) {
 }
 
 func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
-	h := newHarness(t, chess.TimeControl10Plus5)
+	h := newHarness(t, game.TimeControl10Plus5)
 	h.play(t, bob, h.play(t, alice, 0, "e4"), "e5")
 	h.persist.setFail(errors.New("disk full"))
 	h.clock.Advance(10 * time.Minute)
@@ -491,7 +491,7 @@ func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
 }
 
 func TestWireArraysAreNeverNull(t *testing.T) {
-	h := newHarness(t, chess.TimeControlNone)
+	h := newHarness(t, game.TimeControlNone)
 	h.control(t, bob, 0, protocol.ControlAbort)
 	waitDone(t, h.room)
 	final, _ := h.sent.last(bob)

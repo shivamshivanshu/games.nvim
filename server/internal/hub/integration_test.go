@@ -117,7 +117,7 @@ func (s server) login(t *testing.T, user game.UserID) *testClient {
 }
 
 type chessOptions struct {
-	TimeControl chess.TimeControl `json:"time_control,omitempty"`
+	TimeControl game.TimeControl  `json:"time_control,omitempty"`
 	Color       chess.ColorChoice `json:"color,omitempty"`
 }
 
@@ -178,7 +178,7 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
 
-	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControlNone, Color: chess.ColorWhite})
+	id := startGame(t, a, b, bob, chessOptions{TimeControl: game.TimeControlNone, Color: chess.ColorWhite})
 	if u := waitUpdate(t, b, 0); u.GameID != id {
 		t.Fatalf("bob's first update is for %s, want %s", u.GameID, id)
 	}
@@ -247,7 +247,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	e := newEnv(t)
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
-	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControl10Plus5, Color: chess.ColorWhite})
+	id := startGame(t, a, b, bob, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
 	if !uuidV4.MatchString(string(id)) {
 		t.Fatalf("game id %q is not a UUIDv4", id)
 	}
@@ -291,7 +291,7 @@ func TestTimeoutListsAsFinishedAfterRestart(t *testing.T) {
 	e := newEnv(t)
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
-	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControl10Plus5, Color: chess.ColorWhite})
+	id := startGame(t, a, b, bob, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
 	seq := move(t, b, id, move(t, a, id, 0, "e4"), "e5")
 
 	e.clock.Advance(10 * time.Minute)
@@ -330,7 +330,7 @@ func TestOngoingListsYourTurnFirstThenMostRecent(t *testing.T) {
 	e := newEnv(t)
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
-	untimed := chessOptions{TimeControl: chess.TimeControlNone}
+	untimed := chessOptions{TimeControl: game.TimeControlNone}
 
 	untimed.Color = chess.ColorWhite
 	alicesTurn := startGame(t, a, b, bob, untimed)

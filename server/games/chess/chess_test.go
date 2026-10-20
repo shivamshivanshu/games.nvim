@@ -157,7 +157,7 @@ func moves(sans string) []gametest.Step[Action] {
 
 func TestConformance(t *testing.T) {
 	base := gametest.Script[Opts, Action]{
-		Opts:       Opts{TimeControl: TimeControlNone, Color: ColorWhite},
+		Opts:       Opts{TimeControl: game.TimeControlNone, Color: ColorWhite},
 		Challenger: alice,
 		Invitees:   []game.UserID{bob},
 		Seed:       1,
