@@ -194,6 +194,25 @@ function T.header_names_take_seat_colours_and_footer_keys_their_own()
   assert_eq("GamesLabel", hl_of(rendered, "resign"))
 end
 
+function T.player_extra_follows_the_clock_on_its_seats_line_only()
+  local update = chess_update({
+    clock = { remaining_ms = { alice = 300000, bob = 300000 }, running = "alice" },
+  })
+  local with_extra = vim.tbl_extend("force", chess, {
+    player_extra = function(_, seat)
+      return seat == "black" and { { kind = "text", str = "x", hl = "GamesMuted" } } or nil
+    end,
+  })
+  local rendered, header_height = shell.render(update, with_extra, ASCII, "alice")
+
+  assert_eq({
+    "alice  white  5:00     ←  your move ",
+    "bob    black  5:00  x               ",
+  }, vim.list_slice(rendered.lines, 1, 2))
+  assert_eq(3, header_height)
+  assert_eq("GamesMuted", hl_of(rendered, "x "))
+end
+
 function T.unicode_board_shows_hollow_white_and_solid_black()
   local rows = board_lines(shell.render(chess_update({}), chess, UNICODE, "alice").lines)
   assert(vim.startswith(rows[1], "8 ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜"), rows[1])

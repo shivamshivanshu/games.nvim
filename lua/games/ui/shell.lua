@@ -48,6 +48,7 @@ local Control = types.Control
 ---@field describe_event? fun(event: games.Event, update: games.GameUpdate): string|nil
 ---@field asset_keys? string[] keys every asset pack of the game must draw
 ---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
+---@field player_extra? fun(update: games.GameUpdate, seat: games.Seat, ctx: games.LayoutCtx): games.TextNode[]|nil what the header shows after the clock on seat's line
 
 ---@class games.OpenOptions
 ---@field glyphs games.Glyphs
@@ -181,12 +182,36 @@ local function status_banner(update, me)
   end
 end
 
+---Each player's extra segments, one line per player; nil when the game has none for any player.
+---@param update games.GameUpdate
+---@param module games.GameModule
+---@param ctx games.LayoutCtx
+---@return games.Node|nil
+local function extras_column(update, module, ctx)
+  local player_extra = module.player_extra
+  if not player_extra then
+    return nil
+  end
+  local by_player = vim.tbl_map(function(player)
+    return player_extra(update, player.seat, ctx) or false
+  end, update.players)
+  if not vim.iter(by_player):any(function(segments)
+    return segments ~= false
+  end) then
+    return nil
+  end
+  return compose.col(vim.tbl_map(function(segments)
+    return compose.row(segments or { compose.text("") })
+  end, by_player))
+end
+
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@param elapsed_ms integer
+---@param extras? games.Node drawn after the clocks, a line per player
 ---@return games.Rendered
 ---@return games.ClockColumn|nil
-local function render_header(update, me, elapsed_ms)
+local function render_header(update, me, elapsed_ms, extras)
   ---@param cell fun(player: games.PlayerSeat, i: integer): games.Node
   ---@return games.Node
   local function column(cell)
@@ -223,6 +248,9 @@ local function render_header(update, me, elapsed_ms)
         return compose.text(cells[i].text, cells[i].hl)
       end)
     )
+  end
+  if extras then
+    columns[#columns + 1] = compose.pad(HEADER_COLUMN_GAP, extras)
   end
   columns[#columns + 1] = compose.pad(
     HEADER_COLUMN_GAP,
@@ -437,12 +465,13 @@ end
 ---@return games.ClockColumn|nil clocks where the header draws the clocks
 function M.render(update, module, view, me, elapsed_ms, display, catalogued)
   local measured = display or {}
-  local header, clocks = render_header(update, me, elapsed_ms or 0)
   local ctx = vim.tbl_extend("force", view, {
     me = me,
     space = layout_space(measured.seats or #update.players, measured.text_area),
     ambiwidth = measured.ambiwidth or DEFAULT_AMBIWIDTH,
   }) --[[@as games.LayoutCtx]]
+  local header, clocks =
+    render_header(update, me, elapsed_ms or 0, extras_column(update, module, ctx))
   local bindings = bindings_for(update, module, catalogued)
   local body = compose.render(compose.col({
     compose.text(""),
