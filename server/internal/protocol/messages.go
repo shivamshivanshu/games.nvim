@@ -36,7 +36,21 @@ const (
 
 type OptionType string
 
-const OptionEnum OptionType = "enum"
+const (
+	OptionEnum OptionType = "enum"
+	OptionText OptionType = "text"
+)
+
+// optionTypeOf panics on an unknown kind, which game.Info.CheckOptions rejects at registration.
+func optionTypeOf(k game.OptionKind) OptionType {
+	switch k {
+	case game.OptionKindEnum:
+		return OptionEnum
+	case game.OptionKindText:
+		return OptionText
+	}
+	panic(fmt.Sprintf("protocol: unknown option kind %d", k))
+}
 
 type ChallengeID string
 
@@ -58,10 +72,20 @@ type PlayersWire struct {
 	Max int `json:"max"`
 }
 
+// OptionWire.MaxLen is sent only for OptionText.
 type OptionWire struct {
 	Type    OptionType         `json:"type"`
 	Values  []game.OptionValue `json:"values"`
 	Default game.OptionValue   `json:"default"`
+	MaxLen  int                `json:"max_len,omitempty"`
+}
+
+func optionToWire(spec game.OptionSpec) OptionWire {
+	wire := OptionWire{Type: optionTypeOf(spec.Kind), Values: append([]game.OptionValue{}, spec.Values...), Default: spec.Default}
+	if wire.Type == OptionText {
+		wire.MaxLen = spec.MaxLen
+	}
+	return wire
 }
 
 type GameInfoWire struct {
@@ -75,7 +99,7 @@ type GameInfoWire struct {
 func InfoToWire(info game.Info) GameInfoWire {
 	options := make(map[game.OptionName]OptionWire, len(info.Options))
 	for _, spec := range info.Options {
-		options[spec.Name] = OptionWire{Type: OptionEnum, Values: append([]game.OptionValue{}, spec.Values...), Default: spec.Default}
+		options[spec.Name] = optionToWire(spec)
 	}
 	return GameInfoWire{
 		ID:           info.Type,

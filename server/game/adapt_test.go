@@ -26,6 +26,73 @@ func TestResolveOptionsRejectsUnknownValue(t *testing.T) {
 	}
 }
 
+type notedCounterRules struct{ gametest.CounterRules }
+
+const noteMaxLen = 8
+
+func (notedCounterRules) Info() game.Info {
+	info := gametest.CounterRules{}.Info()
+	info.Options = append(slices.Clone(info.Options), game.TextOption("note", noteMaxLen))
+	return info
+}
+
+func TestResolveOptionsChecksTextOptions(t *testing.T) {
+	g := game.Adapt(notedCounterRules{})
+	accepted := map[string]struct {
+		raw  string
+		want game.Options
+	}{
+		"defaults to empty":        {raw: `{}`, want: game.Options{"step": "1", "note": ""}},
+		"echoes text at the limit": {raw: `{"note":"ab cd 12"}`, want: game.Options{"step": "1", "note": "ab cd 12"}},
+	}
+	for name, tc := range accepted {
+		got, err := g.ResolveOptions(json.RawMessage(tc.raw))
+		if err != nil || !maps.Equal(got, tc.want) {
+			t.Errorf("%s: got %v, %v; want %v", name, got, err, tc.want)
+		}
+	}
+	rejected := map[string]string{
+		"text over the limit":    `{"note":"ab cd 123"}`,
+		"newline":                `{"note":"a\nb"}`,
+		"tab":                    `{"note":"a\tb"}`,
+		"NUL":                    `{"note":"a\u0000b"}`,
+		"DEL":                    `{"note":"a\u007fb"}`,
+		"C1 next line":           `{"note":"a\u0085b"}`,
+		"right-to-left override": `{"note":"a\u202eb"}`,
+		"text for an enum":       `{"step":"ab"}`,
+		"null":                   `{"note":null}`,
+		"number":                 `{"note":1}`,
+		"nested object":          `{"note":{"a":"b"}}`,
+	}
+	for name, raw := range rejected {
+		got, err := g.ResolveOptions(json.RawMessage(raw))
+		if !errors.As(err, &game.BadRequestError{}) {
+			t.Errorf("%s: want game.BadRequestError, got %v, %v", name, got, err)
+		}
+	}
+}
+
+func TestCheckOptionsRejectsInvalidSpecs(t *testing.T) {
+	enum := game.OptionSpec{Name: "e", Values: game.OptionValues("x", "y"), Default: "x"}
+	if err := (game.Info{Options: []game.OptionSpec{enum, game.TextOption("t", 4)}}).CheckOptions(); err != nil {
+		t.Fatalf("valid specs: %v", err)
+	}
+	longDefault := game.TextOption("t", 4)
+	longDefault.Default = "12345"
+	withValues := game.TextOption("t", 4)
+	withValues.Values = game.OptionValues("x")
+	for name, spec := range map[string]game.OptionSpec{
+		"enum default not a value": {Name: "e", Values: game.OptionValues("x"), Default: "z"},
+		"text default too long":    longDefault,
+		"text with values":         withValues,
+		"unknown kind":             {Name: "k", Kind: game.OptionKind(9)},
+	} {
+		if err := (game.Info{Options: []game.OptionSpec{spec}}).CheckOptions(); err == nil {
+			t.Errorf("%s: want error", name)
+		}
+	}
+}
+
 func TestResolveOptionsFillsDefaults(t *testing.T) {
 	g := game.Adapt(gametest.CounterRules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{}`))

@@ -18,11 +18,9 @@ func Adapt[Opts, Action, View any](rules Rules[Opts, Action, View]) Game {
 func (g adapted[Opts, Action, View]) Info() Info { return g.rules.Info() }
 
 func (g adapted[Opts, Action, View]) ResolveOptions(raw json.RawMessage) (Options, error) {
-	given := Options{}
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &given); err != nil {
-			return nil, BadRequestError{Msg: fmt.Sprintf("options must be an object of strings: %v", err)}
-		}
+	given, err := decodeGivenOptions(raw)
+	if err != nil {
+		return nil, err
 	}
 	specs := g.rules.Info().Options
 	for name, value := range given {
@@ -30,8 +28,8 @@ func (g adapted[Opts, Action, View]) ResolveOptions(raw json.RawMessage) (Option
 		if i < 0 {
 			return nil, BadRequestError{Msg: fmt.Sprintf("unknown option %q", name)}
 		}
-		if !slices.Contains(specs[i].Values, value) {
-			return nil, BadRequestError{Msg: fmt.Sprintf("option %q: invalid value %q, want one of %v", name, value, specs[i].Values)}
+		if err := specs[i].check(value); err != nil {
+			return nil, err
 		}
 	}
 	resolved := make(Options, len(specs))
@@ -46,6 +44,25 @@ func (g adapted[Opts, Action, View]) ResolveOptions(raw json.RawMessage) (Option
 		return nil, BadRequestError{Msg: err.Error()}
 	}
 	return resolved, nil
+}
+
+// decodeGivenOptions decodes into pointers so that a JSON null is told apart
+// from "" and rejected like any other non-string.
+func decodeGivenOptions(raw json.RawMessage) (Options, error) {
+	var given map[OptionName]*OptionValue
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &given); err != nil {
+			return nil, BadRequestError{Msg: fmt.Sprintf("options must be an object of strings: %v", err)}
+		}
+	}
+	out := make(Options, len(given))
+	for name, value := range given {
+		if value == nil {
+			return nil, BadRequestError{Msg: fmt.Sprintf("option %q must be a string, got null", name)}
+		}
+		out[name] = *value
+	}
+	return out, nil
 }
 
 func (g adapted[Opts, Action, View]) New(opts Options, challenger UserID, invitees []UserID, rng *rand.Rand) (ErasedState, map[UserID]Seat, error) {

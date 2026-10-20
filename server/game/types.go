@@ -61,10 +61,24 @@ type (
 	OptionValue string
 )
 
+// OptionKind is how a value is chosen: one of the spec's Values, or free text.
+type OptionKind int
+
+const (
+	// OptionKindEnum takes exactly one of the spec's Values.
+	OptionKindEnum OptionKind = iota
+	// OptionKindText takes any text up to the spec's MaxLen.
+	OptionKindText
+)
+
+// OptionSpec of OptionKindText has no Values and defaults to ""; MaxLen caps
+// its value in bytes.
 type OptionSpec struct {
 	Name    OptionName
+	Kind    OptionKind
 	Values  []OptionValue
 	Default OptionValue
+	MaxLen  int
 }
 
 type PlayerRange struct{ Min, Max int }

@@ -91,3 +91,19 @@ func TestInfoToWireEncodesMissingListsAsEmptyArrays(t *testing.T) {
 		t.Fatalf("got %s, want %s", raw, want)
 	}
 }
+
+func TestInfoToWireCarriesTextOptionKind(t *testing.T) {
+	raw, err := json.Marshal(protocol.InfoToWire(game.Info{Type: "stub", Options: []game.OptionSpec{
+		game.TextOption("fen", 90),
+		{Name: "mode", Values: []game.OptionValue{"puzzle"}, Default: "puzzle", MaxLen: 5},
+	}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"id":"stub","name":"","players":{"min":0,"max":0},"capabilities":[],"options":{` +
+		`"fen":{"type":"text","values":[],"default":"","max_len":90},` +
+		`"mode":{"type":"enum","values":["puzzle"],"default":"puzzle"}}}`
+	if string(raw) != want {
+		t.Fatalf("got %s, want %s", raw, want)
+	}
+}

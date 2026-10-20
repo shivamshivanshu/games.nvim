@@ -1,6 +1,64 @@
 package game
 
-import "math/rand/v2"
+import (
+	"fmt"
+	"math/rand/v2"
+	"slices"
+	"strings"
+	"unicode"
+)
+
+// TextOption is a free-text option of at most maxLen bytes, empty by default.
+func TextOption(name OptionName, maxLen int) OptionSpec {
+	return OptionSpec{Name: name, Kind: OptionKindText, Values: []OptionValue{}, MaxLen: maxLen}
+}
+
+// CheckOptions reports a spec whose kind is unknown, whose default its own
+// check rejects, or that gives a text option Values.
+func (i Info) CheckOptions() error {
+	for _, spec := range i.Options {
+		if spec.Kind == OptionKindText && len(spec.Values) > 0 {
+			return fmt.Errorf("game %s: text option %q has values", i.Type, spec.Name)
+		}
+		if err := spec.check(spec.Default); err != nil {
+			return fmt.Errorf("game %s: default: %w", i.Type, err)
+		}
+	}
+	return nil
+}
+
+func (s OptionSpec) check(value OptionValue) error {
+	switch s.Kind {
+	case OptionKindEnum:
+		return s.checkEnum(value)
+	case OptionKindText:
+		return s.checkText(value)
+	}
+	return fmt.Errorf("option %q: unknown kind %d", s.Name, s.Kind)
+}
+
+func (s OptionSpec) checkEnum(value OptionValue) error {
+	if !slices.Contains(s.Values, value) {
+		return BadRequestError{Msg: fmt.Sprintf("option %q: invalid value %q, want one of %v", s.Name, value, s.Values)}
+	}
+	return nil
+}
+
+func (s OptionSpec) checkText(value OptionValue) error {
+	if len(value) > s.MaxLen {
+		return BadRequestError{Msg: fmt.Sprintf("option %q: %d bytes, want at most %d", s.Name, len(value), s.MaxLen)}
+	}
+	if strings.ContainsFunc(string(value), isHiddenRune) {
+		return BadRequestError{Msg: fmt.Sprintf("option %q: control and format characters are not allowed", s.Name)}
+	}
+	return nil
+}
+
+// isHiddenRune covers controls and format characters such as bidi overrides
+// and zero-width joiners, which would make text display differently than it reads.
+func isHiddenRune(r rune) bool {
+	return unicode.IsControl(r) || unicode.Is(unicode.Cf, r)
+}
 
 func OptionValues[T ~string](vs ...T) []OptionValue {
 	out := make([]OptionValue, len(vs))
