@@ -1,26 +1,7 @@
 local Client = require("games.core.client")
+local helpers = require("helpers")
 
----@class games.test.StubConn
----@field handlers table<string, fun(body: table)[]>
----@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil)}[]
-
----@return games.test.StubConn
-local function stub_conn()
-  local conn = { handlers = {}, requests = {} }
-  function conn:on(event, fn)
-    self.handlers[event] = self.handlers[event] or {}
-    table.insert(self.handlers[event], fn)
-  end
-  function conn:request(message_type, body, cb)
-    table.insert(self.requests, { type = message_type, body = body, cb = cb })
-  end
-  function conn:push(event, body)
-    for _, fn in ipairs(self.handlers[event] or {}) do
-      fn(body)
-    end
-  end
-  return conn
-end
+local stub_conn = helpers.stub_conn
 
 ---@param seq integer
 ---@return games.GameUpdate

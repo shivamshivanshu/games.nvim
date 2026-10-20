@@ -155,4 +155,27 @@ function M.wait_for(predicate, what)
   assert(vim.wait(M.WAIT_MS, predicate), "timed out waiting for " .. what)
 end
 
+---@class games.test.StubConn
+---@field handlers table<string, fun(body: table)[]>
+---@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil)}[]
+
+---Records requests instead of sending them; push() delivers an event synchronously.
+---@return games.test.StubConn
+function M.stub_conn()
+  local conn = { handlers = {}, requests = {} }
+  function conn:on(event, fn)
+    self.handlers[event] = self.handlers[event] or {}
+    table.insert(self.handlers[event], fn)
+  end
+  function conn:request(message_type, body, cb)
+    table.insert(self.requests, { type = message_type, body = body, cb = cb })
+  end
+  function conn:push(event, body)
+    for _, fn in ipairs(self.handlers[event] or {}) do
+      fn(body)
+    end
+  end
+  return conn
+end
+
 return M

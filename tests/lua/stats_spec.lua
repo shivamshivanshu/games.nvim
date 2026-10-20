@@ -1,4 +1,4 @@
-local commands = require("games.core.commands")
+local stats = require("games.core.stats")
 
 local function assert_eq(expected, actual)
   assert(vim.deep_equal(expected, actual), vim.inspect({ expected = expected, actual = actual }))
@@ -22,8 +22,8 @@ function T.leaderboard_ranks_wins_then_fewest_losses()
     { "1. bob", "W 2  L 1  D 0" },
     { "2. alice", "W 2  L 3  D 0" },
     { "3. carol", "W 1  L 0  D 4" },
-  }, commands.leaderboard_pairs(records, "chess"))
-  assert_eq({ "1. carol", "W 4  L 0  D 4" }, commands.leaderboard_pairs(records, nil)[1])
+  }, stats.leaderboard_pairs(records, "chess"))
+  assert_eq({ "1. carol", "W 4  L 0  D 4" }, stats.leaderboard_pairs(records, nil)[1])
 end
 
 return T

@@ -3,16 +3,13 @@ local kv = require("games.ui.widgets.kv")
 local notify = require("games.core.notify")
 local picker = require("games.ui.picker")
 local shell = require("games.ui.shell")
+local stats = require("games.core.stats")
 local types = require("games.types")
 
 local GameStatus = types.GameStatus
-local INFO = vim.log.levels.INFO
 local ERROR = vim.log.levels.ERROR
-local NOTIFY_OPTS = { title = "games" }
 local CHALLENGE_PLAYERS = 2
 local GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
----@type games.Tally
-local EMPTY_TALLY = { wins = 0, losses = 0, draws = 0 }
 
 ---@alias games.SubcommandRun fun(client: games.Client, me: games.UserID, args: string[])
 
@@ -28,11 +25,7 @@ local EMPTY_TALLY = { wins = 0, losses = 0, draws = 0 }
 
 local M = {}
 
----@param message string
----@param level? integer
-local function say(message, level)
-  vim.notify(message, level or INFO, NOTIFY_OPTS)
-end
+local say = notify.say
 
 ---Reply callback that reports request errors and hands successful results on.
 ---@param on_result fun(result: any)
@@ -49,22 +42,6 @@ end
 
 local function ignore() end
 
----@param tally games.Tally
----@return string
-local function tally_text(tally)
-  return ("W %d  L %d  D %d"):format(tally.wins, tally.losses, tally.draws)
-end
-
----@param catalog games.CatalogResult|nil
----@return table<games.GameType, string>
-local function game_names(catalog)
-  local names = {}
-  for _, info in ipairs(catalog and catalog.games or {}) do
-    names[info.id] = info.name
-  end
-  return names
-end
-
 ---@param client games.Client
 ---@param me games.UserID
 ---@param on_user fun(user: games.UserID)
@@ -76,6 +53,10 @@ local function pick_opponent(client, me, on_user)
       local others = vim.tbl_filter(function(presence)
         return presence.user ~= me
       end, result.users)
+      if #others == 0 then
+        say("games: no other users")
+        return
+      end
       table.sort(others, function(a, b)
         if a.online ~= b.online then
           return a.online
@@ -101,6 +82,10 @@ local function pick_game(games, game_type, on_game)
   local playable = vim.tbl_filter(function(info)
     return info.players.min <= CHALLENGE_PLAYERS and CHALLENGE_PLAYERS <= info.players.max
   end, games)
+  if #playable == 0 then
+    say("games: no games available")
+    return
+  end
   if not game_type then
     picker.pick(playable, {
       prompt = "Game:",
@@ -251,8 +236,7 @@ local function challenges(client, me)
         return
       end
       table.sort(pending, incoming_first(me))
-      client:catalog_list(nil, function(_, catalog)
-        local names = game_names(catalog)
+      picker.with_game_names(client, function(names)
         picker.pick(pending, {
           prompt = "Pending challenges:",
           format_item = function(item)
@@ -293,80 +277,13 @@ local function list(client, me, args)
   )
 end
 
----Per-game record, then head-to-head, for one user.
----@param stats games.StatsResult
----@param user games.UserID
----@return {[1]: string, [2]: string}[]
-function M.stats_pairs(stats, user)
-  local records = vim.tbl_filter(function(record)
-    return record.user == user
-  end, stats.records)
-  table.sort(records, function(a, b)
-    return a.game < b.game
-  end)
-  local rivals = vim.tbl_filter(function(record)
-    return record.user == user
-  end, stats.head_to_head)
-  table.sort(rivals, function(a, b)
-    return a.opponent < b.opponent or (a.opponent == b.opponent and a.game < b.game)
-  end)
-  return vim.list_extend(
-    vim.tbl_map(function(record)
-      return { record.game, tally_text(record) }
-    end, records),
-    vim.tbl_map(function(record)
-      return { ("vs %s (%s)"):format(record.opponent, record.game), tally_text(record) }
-    end, rivals)
-  )
-end
-
----@param a games.Tally
----@param b games.Tally
----@return games.Tally
-local function add_tallies(a, b)
-  return { wins = a.wins + b.wins, losses = a.losses + b.losses, draws = a.draws + b.draws }
-end
-
----Users ranked by wins, then fewest losses, then most draws; totals span every game when game is nil.
----@param records games.StatsRecord[]
----@param game games.GameType|nil
----@return {[1]: string, [2]: string}[]
-function M.leaderboard_pairs(records, game)
-  ---@type table<games.UserID, games.Tally>
-  local totals = {}
-  for _, record in ipairs(records) do
-    if game == nil or record.game == game then
-      totals[record.user] = add_tallies(totals[record.user] or EMPTY_TALLY, record)
-    end
-  end
-  local ranked = vim.tbl_keys(totals)
-  table.sort(ranked, function(a, b)
-    local ta, tb = totals[a], totals[b]
-    if ta.wins ~= tb.wins then
-      return ta.wins > tb.wins
-    end
-    if ta.losses ~= tb.losses then
-      return ta.losses < tb.losses
-    end
-    if ta.draws ~= tb.draws then
-      return ta.draws > tb.draws
-    end
-    return a < b
-  end)
-  local rows = {}
-  for rank, user in ipairs(ranked) do
-    rows[rank] = { ("%d. %s"):format(rank, user), tally_text(totals[user]) }
-  end
-  return rows
-end
-
 ---@type games.SubcommandRun
-local function stats(client, me, args)
+local function show_stats(client, me, args)
   local user = args[1] or me
   client:stats_get(
     nil,
     on_ok(function(result)
-      local rows = M.stats_pairs(result, user)
+      local rows = stats.stats_pairs(result, user)
       if #rows == 0 then
         say(("games: %s has no finished games"):format(user))
         return
@@ -377,13 +294,13 @@ local function stats(client, me, args)
 end
 
 ---@type games.SubcommandRun
-local function leaderboard(client, _, args)
+local function show_leaderboard(client, _, args)
   local game = args[1]
   client:stats_get(
     nil,
     on_ok(function(result)
       ---@cast result games.StatsResult
-      local rows = M.leaderboard_pairs(result.records, game)
+      local rows = stats.leaderboard_pairs(result.records, game)
       if #rows == 0 then
         say(("games: no finished %sgames"):format(game and (game .. " ") or ""))
         return
@@ -403,8 +320,8 @@ local SUBCOMMANDS = {
   { name = "challenge", usage = "challenge [user] [game]", run = challenge },
   { name = "challenges", usage = "challenges", run = challenges },
   { name = "list", usage = "list [ongoing|finished]", run = list, arg_choices = GAME_STATUSES },
-  { name = "stats", usage = "stats [user]", run = stats },
-  { name = "leaderboard", usage = "leaderboard [game]", run = leaderboard },
+  { name = "stats", usage = "stats [user]", run = show_stats },
+  { name = "leaderboard", usage = "leaderboard [game]", run = show_leaderboard },
   { name = "next", usage = "next", run = next_game },
 }
 

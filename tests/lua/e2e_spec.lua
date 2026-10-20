@@ -27,17 +27,20 @@ local function with_plugin(fn)
     vim.notify = function(message)
       table.insert(stubs.notified, message)
     end
-    games.setup({
-      server = { host = "127.0.0.1", port = env.server.port },
-      username = "alice",
-      password = helpers.PASSWORD,
-      autoconnect = false,
-      glyphs = "ascii",
-    })
-    local alice = assert(games.client)
-    local ok, err = xpcall(fn, debug.traceback, env, alice, stubs)
+    local ok, err = xpcall(function()
+      games.setup({
+        server = { host = "127.0.0.1", port = env.server.port },
+        username = "alice",
+        password = helpers.PASSWORD,
+        autoconnect = false,
+        glyphs = "ascii",
+      })
+      fn(env, assert(games.client), stubs)
+    end, debug.traceback)
     vim.ui.select, vim.ui.input, vim.notify = original.select, original.input, original.notify
-    alice.conn:close()
+    if games.client then
+      games.client.conn:close()
+    end
     vim.cmd("silent! %bwipeout!")
     if not ok then
       error(err, 0)

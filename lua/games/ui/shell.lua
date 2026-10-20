@@ -65,6 +65,7 @@ local CLOSE_KEY = "q"
 local DEFAULT_GLYPHS = "unicode"
 local CLOCK_TICK_MS = 1000
 local CONFIRM_YES = 1
+local SHORT_ID_LENGTH = 4
 
 ---@type table<string, true> keys the shell owns whether or not they are active
 local CORE_KEYS = { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [CLOSE_KEY] = true }
@@ -102,6 +103,13 @@ function M.opponents(update, me)
     end
   end
   return users
+end
+
+---The id prefix that buffer names and pickers show.
+---@param game_id games.GameID
+---@return string
+function M.short_id(game_id)
+  return game_id:sub(1, SHORT_ID_LENGTH)
 end
 
 ---"<game> vs <opponents>", the name notifications and errors use for a game.
@@ -609,7 +617,7 @@ function M.open(client, game_id, opts)
   local name = ("games://%s/%s/%s"):format(
     update.game,
     table.concat(M.opponents(update, me), ","),
-    game_id:sub(1, 4)
+    M.short_id(game_id)
   )
   vim.api.nvim_buf_set_name(buf, name)
   vim.bo[buf].modifiable = false

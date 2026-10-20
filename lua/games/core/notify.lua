@@ -1,3 +1,4 @@
+local players = require("games.core.players")
 local types = require("games.types")
 
 local ChallengeState = types.ChallengeState
@@ -19,9 +20,10 @@ local M = {}
 ---@type table<games.Client, games.NotifyState>
 local states = setmetatable({}, { __mode = "k" })
 
+---vim.notify under the plugin's title; level defaults to INFO.
 ---@param message string
 ---@param level? integer
-local function notify(message, level)
+function M.say(message, level)
   vim.notify(message, level or vim.log.levels.INFO, NOTIFY_OPTS)
 end
 
@@ -42,34 +44,30 @@ local function open_when_cached(client, state, game_id)
   end
 end
 
----@param client games.Client
----@param game_type games.GameType
----@param fn fun(name: string)
-local function with_game_name(client, game_type, fn)
-  client:catalog_list(nil, function(_, result)
-    local info = result
-      and vim.iter(result.games):find(function(game)
-        return game.id == game_type
-      end)
-    fn(info and info.name or game_type)
-  end)
-end
-
 ---@alias games.ChallengeMessage fun(summary: string): string
 
+---How a resolved challenge is reported to me, or nil when I resolved it myself.
 ---@param challenge games.Challenge resolved
 ---@param me games.UserID
 ---@return games.ChallengeMessage|nil
-local function resolution_message(challenge, me)
-  local owner = challenge.from == me and "your" or (challenge.from .. "'s")
-  if challenge.state == ChallengeState.DECLINED and challenge.by ~= me then
+function M.resolution_message(challenge, me)
+  local mine = challenge.from == me
+  local owner = mine and "your" or (challenge.from .. "'s")
+  local by_other = challenge.by ~= nil and challenge.by ~= me
+  if challenge.state == ChallengeState.DECLINED and by_other then
     return function(summary)
       return ("%s declined %s %s challenge"):format(challenge.by, owner, summary)
     end
   end
-  if challenge.state == ChallengeState.EXPIRED then
+  if challenge.state == ChallengeState.CANCELLED and by_other then
     return function(summary)
-      return ("%s %s challenge expired"):format(owner, summary)
+      return ("%s cancelled the %s challenge"):format(challenge.by, summary)
+    end
+  end
+  if challenge.state == ChallengeState.EXPIRED then
+    local invitees = mine and (" to " .. table.concat(challenge.to, ", ")) or ""
+    return function(summary)
+      return ("%s %s challenge%s expired"):format(owner, summary, invitees)
     end
   end
 end
@@ -78,8 +76,9 @@ end
 ---@param challenge games.Challenge
 ---@param message games.ChallengeMessage
 local function notify_challenge(client, challenge, message)
-  with_game_name(client, challenge.game, function(name)
-    notify(message(require("games.ui.picker").game_summary(name, challenge.options)))
+  local picker = require("games.ui.picker")
+  picker.with_game_names(client, function(names)
+    M.say(message(picker.game_summary(names[challenge.game] or challenge.game, challenge.options)))
   end)
 end
 
@@ -109,7 +108,7 @@ local function on_challenge(client, state, challenge, is_new)
     end
     return
   end
-  local message = resolution_message(challenge, me)
+  local message = M.resolution_message(challenge, me)
   if message then
     notify_challenge(client, challenge, message)
   end
@@ -126,9 +125,19 @@ local function hidden_update_message(update, me)
     return nil
   end
   local status = update.result and shell.result_text(update.result)
-    or (vim.tbl_contains(update.to_act, me) and "your move" or "waiting")
+    or require("games.ui.picker").turn_text(update, me)
   local body = description == "" and status or (description .. " — " .. status)
   return ("%s: %s"):format(shell.title(update, me), body)
+end
+
+---@param update games.GameUpdate
+---@param me games.UserID
+---@return boolean
+local function only_my_actions(update, me)
+  return #update.events > 0
+    and vim.iter(update.events):all(function(event)
+      return event.by ~= nil and players.user_of_seat(update, event.by) == me
+    end)
 end
 
 ---A new game_id is either a game this nvim opens anyway or the initial sync at login, which is not news.
@@ -146,9 +155,12 @@ local function on_update(client, state, update, is_new)
   if is_new or not me or require("games.ui.shell").is_visible(update.game_id) then
     return
   end
+  if not update.result and only_my_actions(update, me) then
+    return
+  end
   local message = hidden_update_message(update, me)
   if message then
-    notify(message)
+    M.say(message)
   end
 end
 
@@ -156,7 +168,7 @@ end
 local function on_disconnected(err)
   local template = FATAL_DISCONNECTS[err.code]
   if template then
-    notify(template:format(err.message), vim.log.levels.ERROR)
+    M.say(template:format(err.message), vim.log.levels.ERROR)
   end
 end
 

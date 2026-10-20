@@ -7,11 +7,17 @@ local NAMESPACE = vim.api.nvim_create_namespace("games.float")
 
 local M = {}
 
----Shows node in a centred, read-only float that q or <Esc> closes.
+---@type integer|nil
+local open_win
+
+---Shows node in a centred, read-only float that q or <Esc> closes, replacing any previous one.
 ---@param title string
 ---@param node games.Node
 ---@return integer win
 function M.open(title, node)
+  if open_win and vim.api.nvim_win_is_valid(open_win) then
+    vim.api.nvim_win_close(open_win, true)
+  end
   theme.setup()
   local rendered = compose.render(node)
   local buf = vim.api.nvim_create_buf(false, true)
@@ -38,6 +44,7 @@ function M.open(title, node)
     title = title,
     title_pos = "center",
   })
+  open_win = win
   for _, key in ipairs(CLOSE_KEYS) do
     vim.keymap.set("n", key, function()
       vim.api.nvim_win_close(win, true)

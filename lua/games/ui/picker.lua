@@ -3,11 +3,12 @@ local text = require("games.ui.text")
 
 local TIME_CONTROL_OPTION = "time_control"
 local YOUR_TURN_MARKER = "●"
+local MARKER_WIDTH = 2
 local GAME_WIDTH = 7
 local OPPONENTS_WIDTH = 8
 local TIME_CONTROL_WIDTH = 6
-local TURN_WIDTH = 11
-local SHORT_ID_LENGTH = 4
+local TURN_WIDTH = 10
+local CLOCK_WIDTH = 5
 
 local M = {}
 
@@ -19,10 +20,11 @@ local function column(str, width)
   return text.pad_to_width(str, width - 1) .. " "
 end
 
+---"your move", "waiting" or "finished", as me sees the game.
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@return string
-local function turn_text(update, me)
+function M.turn_text(update, me)
   if update.result then
     return "finished"
   end
@@ -47,14 +49,14 @@ function M.format_game(update, me)
   local my_turn = update.result == nil and vim.tbl_contains(update.to_act, me)
   local last = shell.describe(update)
   return table.concat({
-    (my_turn and YOUR_TURN_MARKER or " ") .. " ",
+    text.pad_to_width(my_turn and YOUR_TURN_MARKER or "", MARKER_WIDTH),
     column(update.game, GAME_WIDTH),
     "vs " .. column(table.concat(shell.opponents(update, me), ","), OPPONENTS_WIDTH),
     column(update.options and update.options[TIME_CONTROL_OPTION] or "", TIME_CONTROL_WIDTH),
-    column(turn_text(update, me), TURN_WIDTH),
-    clock(update, me),
+    column(M.turn_text(update, me), TURN_WIDTH),
+    text.align_right(clock(update, me), CLOCK_WIDTH),
     "  last: " .. (last ~= "" and last or "-"),
-    "  #" .. update.game_id:sub(1, SHORT_ID_LENGTH),
+    "  #" .. shell.short_id(update.game_id),
   })
 end
 
@@ -65,6 +67,19 @@ end
 function M.game_summary(game_name, options)
   local time_control = options and options[TIME_CONTROL_OPTION]
   return time_control and ("%s %s"):format(game_name, time_control) or game_name
+end
+
+---Calls fn with each catalog game's display name; on a failed request the map is empty.
+---@param client games.Client
+---@param fn fun(names: table<games.GameType, string>)
+function M.with_game_names(client, fn)
+  client:catalog_list(nil, function(_, catalog)
+    local names = {}
+    for _, info in ipairs(catalog and catalog.games or {}) do
+      names[info.id] = info.name
+    end
+    fn(names)
+  end)
 end
 
 ---@param challenge games.Challenge
