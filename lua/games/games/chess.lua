@@ -32,6 +32,7 @@ local RANKS = "87654321"
 ---@type games.ChessSeat
 local BLACK = "black"
 local KING_TO_MOVE = { w = "K", b = "k" }
+local EMPTY_KEY = "empty"
 
 ---@type table<games.ChessPiece, string>
 local UNICODE_PIECES = {
@@ -176,6 +177,9 @@ local function black_at_bottom(update, ctx)
 end
 
 local M = {}
+
+---@type string[] keys every chess asset pack draws
+M.asset_keys = { "K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p", EMPTY_KEY }
 
 ---@param update games.ChessUpdate
 ---@param ctx games.LayoutCtx

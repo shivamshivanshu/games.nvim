@@ -11,6 +11,9 @@ local M = {}
 ---@class games.ArchiveConfig
 ---@field dir? string absolute; archiving is off when nil
 
+---@class games.BoardConfig
+---@field max_cell_height? integer lines per board cell at most; 1 draws glyphs only, nil no cap
+
 ---@class games.Config
 ---@field server games.ServerAddress
 ---@field username? string asked for on the first :Games when nil
@@ -20,6 +23,8 @@ local M = {}
 ---@field palette games.Palette
 ---@field highlights games.HlDefinitions Games* group -> nvim_set_hl attributes, over the palette
 ---@field archive games.ArchiveConfig
+---@field board games.BoardConfig
+---@field assets table<games.GameType, string> asset pack per game: a shipped name or a module name
 
 ---@class games.SetupOpts
 ---@field server? {host?: string, port?: integer}
@@ -30,6 +35,8 @@ local M = {}
 ---@field palette? games.Palette
 ---@field highlights? games.HlDefinitions
 ---@field archive? {dir?: string}
+---@field board? games.BoardConfig
+---@field assets? table<games.GameType, string>
 
 local GLYPHS = { unicode = true, ascii = true }
 local PALETTES = { theme = true, vivid = true }
@@ -44,6 +51,8 @@ local DEFAULTS = {
   palette = "theme",
   highlights = {},
   archive = {},
+  board = {},
+  assets = {},
 }
 
 ---@param port any
@@ -76,6 +85,23 @@ local function is_nonempty_string(value)
   return type(value) == "string" and value ~= ""
 end
 
+---@param board any
+---@return boolean
+local function valid_board(board)
+  local height = type(board) == "table" and board.max_cell_height
+  return height == nil
+    or (type(height) == "number" and height >= 1 and height == math.floor(height))
+end
+
+---@param assets any
+---@return boolean
+local function valid_assets(assets)
+  return type(assets) == "table"
+    and vim.iter(assets):all(function(game, pack)
+      return type(game) == "string" and type(pack) == "string"
+    end)
+end
+
 ---Merges opts over the defaults and validates the result.
 ---@param opts games.SetupOpts
 ---@return games.Config
@@ -98,6 +124,8 @@ function M.resolve(opts)
   vim.validate("archive.dir", config.archive.dir, is_nonempty_string, true, "non-empty path")
   local archive_dir = config.archive.dir
   config.archive = { dir = archive_dir and vim.fs.abspath(vim.fs.normalize(archive_dir)) }
+  vim.validate("board", config.board, valid_board, "{ max_cell_height = positive integer }")
+  vim.validate("assets", config.assets, valid_assets, "game -> asset pack name")
   return config
 end
 
