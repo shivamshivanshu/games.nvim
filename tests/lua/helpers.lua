@@ -170,6 +170,16 @@ function M.with_overrides(overrides, fn)
   end
 end
 
+---A chess board's view options, drawing from the default asset pack.
+---@param glyphs games.Glyphs
+---@param flipped? boolean
+---@return games.ViewOptions
+function M.chess_view(glyphs, flipped)
+  local assets = require("games.ui.assets")
+  local pack = assets.load("chess", assets.DEFAULT_PACK, require("games.games.chess").asset_keys)
+  return { glyphs = glyphs, flipped = flipped == true, art = assets.art_set(pack, glyphs) }
+end
+
 ---@param expected any
 ---@param actual any
 function M.assert_eq(expected, actual)

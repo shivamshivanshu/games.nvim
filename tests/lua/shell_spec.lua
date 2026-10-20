@@ -1,4 +1,5 @@
 local Client = require("games.core.client")
+local board_widget = require("games.ui.widgets.board")
 local shell = require("games.ui.shell")
 local chess = require("games.games.chess")
 local helpers = require("helpers")
@@ -8,8 +9,8 @@ local assert_eq = helpers.assert_eq
 local START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 local AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 local FOOLS_MATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
-local ASCII = { glyphs = "ascii", flipped = false }
-local UNICODE = { glyphs = "unicode", flipped = false }
+local ASCII = helpers.chess_view("ascii")
+local UNICODE = helpers.chess_view("unicode")
 
 local function chess_update(overrides)
   return vim.tbl_extend("force", {
@@ -357,9 +358,93 @@ function T.hidden_buffer_marked_dirty()
   assert(not table.concat(stale, "\n"):find("1. e4", 1, true))
 
   vim.api.nvim_set_current_buf(buf)
-  assert_eq(false, vim.b[buf].games_dirty)
+  helpers.wait_for(function()
+    return vim.b[buf].games_dirty == false
+  end, "the shown board to refit")
   local fresh = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   assert(table.concat(fresh, "\n"):find("1. e4", 1, true), vim.inspect(fresh))
+end
+
+---A 2 x 2 game on board(), so a headless 80 x 24 editor has room to scale it.
+local SQUARE_GAME = {
+  layout = function(_, ctx)
+    return board_widget({
+      grid = {
+        rows = 2,
+        cols = 2,
+        shade = "checker",
+        cell = function()
+          return { "x" }
+        end,
+      },
+    }, ctx)
+  end,
+}
+
+---Cell height of the shown square game, from the buffer: its lines less header and chrome.
+---@param buf integer
+---@return number
+local function square_cell_height(buf)
+  return (vim.api.nvim_buf_line_count(buf) - 2 - 3) / 2
+end
+
+function T.refit_renders_once_per_resize_to_the_smallest_window()
+  package.preload["games.games.square"] = function()
+    return SQUARE_GAME
+  end
+  local client = client_with("alice", { chess_update({ game_id = "fit01", game = "square" }) })
+  local buf = assert(shell.open(client, "fit01"))
+  local full_height = square_cell_height(buf)
+  local renders = 0
+  vim.api.nvim_buf_attach(buf, false, {
+    on_lines = function(_, _, _, first)
+      renders = renders + (first == 0 and 1 or 0)
+    end,
+  })
+
+  vim.cmd.split()
+  helpers.wait_for(function()
+    return renders > 0
+  end, "the split to refit")
+  vim.wait(50)
+  assert_eq(1, renders)
+  local split_height = square_cell_height(buf)
+  assert(split_height < full_height, vim.inspect({ full_height, split_height }))
+  assert_eq(false, vim.wo.wrap)
+  assert_eq("no", vim.wo.signcolumn)
+
+  vim.cmd.resize(vim.api.nvim_win_get_height(0) + 4)
+  -- Without an attached UI nothing redraws, so Neovim never checks for WinResized itself.
+  vim.api.nvim_exec_autocmds("WinResized", {})
+  helpers.wait_for(function()
+    return renders > 1
+  end, "the resize to refit")
+  assert(square_cell_height(buf) < split_height, "fits the window that shrank")
+  vim.cmd.only()
+  vim.api.nvim_buf_delete(buf, { force = true })
+  package.preload["games.games.square"] = nil
+end
+
+function T.clock_repaint_renders_fully_when_the_header_changed_height()
+  local client = client_with("alice", {
+    chess_update({
+      game_id = "tick01",
+      clock = { remaining_ms = { alice = 300000, bob = 300000 }, running = "alice" },
+    }),
+  })
+  local buf = assert(shell.open(client, "tick01"))
+  client:game("tick01").draw_agreed = { "bob" }
+  local function banners()
+    return #vim.tbl_filter(function(line)
+      return line == "Draw offered by bob"
+    end, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+  end
+  helpers.wait_for(function()
+    return banners() > 0
+  end, "a clock tick to show the grown header")
+  vim.wait(1200)
+  assert_eq(1, banners())
+  vim.api.nvim_buf_delete(buf, { force = true })
 end
 
 return T

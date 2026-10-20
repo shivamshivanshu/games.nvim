@@ -1,3 +1,4 @@
+local assets = require("games.ui.assets")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local games = require("games")
@@ -13,9 +14,12 @@ local Control = types.Control
 ---@class games.ViewOptions per-buffer presentation choices
 ---@field glyphs games.Glyphs
 ---@field flipped boolean perspective toggled away from the player's default
+---@field max_cell_height? integer
+---@field art? games.ArtSet the game's asset pack in this glyph mode
 
 ---@class games.LayoutCtx: games.ViewOptions
 ---@field me games.UserID
+---@field space? games.Size what the board and its panels may fill; nil draws the smallest board
 
 ---@class games.GameInput
 ---@field prompt string
@@ -34,9 +38,12 @@ local Control = types.Control
 ---@field describe_event? fun(event: games.Event, update: games.GameUpdate): string|nil
 ---Files to archive beside the summary when a game finishes, by name; events are all this client saw.
 ---@field export? fun(update: games.GameUpdate, events: games.Event[]): table<string, string>
+---@field asset_keys? string[] keys every asset pack of the game must draw
 
 ---@class games.OpenOptions
 ---@field glyphs games.Glyphs
+---@field max_cell_height? integer
+---@field assets? table<games.GameType, string> asset pack per game, default "default"
 
 ---@class games.Board
 ---@field buf integer
@@ -45,8 +52,11 @@ local Control = types.Control
 ---@field me games.UserID
 ---@field view games.ViewOptions
 ---@field update games.GameUpdate
+---@field options games.OpenOptions it was opened with
 ---@field header_height integer
 ---@field bindings table<string, games.KeyBinding> by key; each is mapped in the buffer
+---@field text_area? games.Size the window space it was last fitted to, nil until shown
+---@field refit_pending boolean
 
 ---@class games.KeyBinding
 ---@field key string
@@ -72,6 +82,9 @@ local CLOSE_KEY = "q"
 local CLOCK_TICK_MS = 1000
 local LOW_CLOCK_MS = 10000
 local CONFIRM_YES = 1
+---The header keeps a line for the status banner even without one, so a banner never resizes the board.
+local STATUS_LINES = 1
+local BODY_CHROME_LINES = 3
 
 ---@type table<string, true> keys the shell owns whether or not they are active
 local CORE_KEYS = vim.iter(CONTROL_KEYS):fold(
@@ -341,11 +354,23 @@ local function bindings_for(update, module)
     key = NEXT_GAME_KEY,
     label = "next game",
     run = function(board)
-      M.open_next(board.client, board.update.game_id, { glyphs = board.view.glyphs })
+      M.open_next(board.client, board.update.game_id, board.options)
     end,
   }
   bindings[#bindings + 1] = { key = CLOSE_KEY, label = "close", run = close_window }
   return bindings
+end
+
+---What the game layout may fill of a text area, after the header, blank lines and footer.
+---@param update games.GameUpdate
+---@param text_area games.Size|nil
+---@return games.Size|nil
+local function layout_space(update, text_area)
+  if not text_area then
+    return nil
+  end
+  local chrome = #update.players + STATUS_LINES + BODY_CHROME_LINES
+  return { w = text_area.w, h = text_area.h - chrome }
 end
 
 ---@param update games.GameUpdate
@@ -353,12 +378,13 @@ end
 ---@param view games.ViewOptions
 ---@param me games.UserID
 ---@param elapsed_ms? integer time since `update` arrived, charged to the running clock
+---@param text_area? games.Size the window space to fill; nil draws the smallest board
 ---@return games.Rendered
 ---@return integer header_height lines owned by the header, which the clock rewrites
 ---@return games.KeyBinding[] bindings the footer lists
-function M.render(update, module, view, me, elapsed_ms)
+function M.render(update, module, view, me, elapsed_ms, text_area)
   local header = render_header(update, me, elapsed_ms or 0)
-  local ctx = vim.tbl_extend("force", view, { me = me }) --[[@as games.LayoutCtx]]
+  local ctx = vim.tbl_extend("force", view, { me = me, space = layout_space(update, text_area) }) --[[@as games.LayoutCtx]]
   local bindings = bindings_for(update, module)
   local body = compose.render(compose.col({
     compose.text(""),
@@ -406,7 +432,7 @@ end
 
 render_board = function(board)
   local rendered, header_height, bindings =
-    M.render(board.update, board.module, board.view, board.me, elapsed_ms(board))
+    M.render(board.update, board.module, board.view, board.me, elapsed_ms(board), board.text_area)
   paint(board.buf, NAMESPACE, 0, -1, rendered)
   board.header_height = header_height
   vim.b[board.buf].games_dirty = false
@@ -415,14 +441,92 @@ end
 
 ---@param board games.Board
 local function repaint_header(board)
-  paint(
-    board.buf,
-    NAMESPACE,
-    0,
-    board.header_height,
-    render_header(board.update, board.me, elapsed_ms(board))
-  )
+  local header = render_header(board.update, board.me, elapsed_ms(board))
+  if #header.lines ~= board.header_height then
+    render_board(board)
+    return
+  end
+  paint(board.buf, NAMESPACE, 0, board.header_height, header)
 end
+
+---@param buf integer
+---@return integer[]
+local function windows_in_tab(buf)
+  local tab = vim.api.nvim_get_current_tabpage()
+  return vim.tbl_filter(function(win)
+    return vim.api.nvim_win_get_tabpage(win) == tab
+  end, vim.fn.win_findbuf(buf))
+end
+
+---@param win integer
+local function prepare_window(win)
+  local options = vim.wo[win][0]
+  options.wrap = false
+  options.number = false
+  options.relativenumber = false
+  options.signcolumn = "no"
+  options.foldcolumn = "0"
+end
+
+---The text area every one of wins shows in full.
+---@param wins integer[]
+---@return games.Size
+local function shared_text_area(wins)
+  local infos = vim.tbl_map(function(win)
+    return vim.fn.getwininfo(win)[1]
+  end, wins)
+  return {
+    w = math.min(unpack(vim.tbl_map(function(info)
+      return info.width - info.textoff
+    end, infos))),
+    h = math.min(unpack(vim.tbl_map(function(info)
+      return info.height
+    end, infos))),
+  }
+end
+
+---Fits the board to the windows of the current tabpage that show it, re-rendering only when
+---their space changed or the board is dirty.
+---@param board games.Board
+local function refit(board)
+  local wins = windows_in_tab(board.buf)
+  if #wins == 0 then
+    return
+  end
+  vim.iter(wins):each(prepare_window)
+  local text_area = shared_text_area(wins)
+  if vim.b[board.buf].games_dirty or not vim.deep_equal(text_area, board.text_area) then
+    board.text_area = text_area
+    render_board(board)
+  end
+  for _, win in ipairs(wins) do
+    vim.api.nvim_win_call(win, function()
+      vim.fn.winrestview({ topline = 1 })
+    end)
+  end
+end
+
+---Coalesces a burst of window events into one refit on the next tick.
+---@param board games.Board
+local function request_refit(board)
+  if board.refit_pending then
+    return
+  end
+  board.refit_pending = true
+  vim.schedule(function()
+    board.refit_pending = false
+    if boards[board.buf] then
+      refit(board)
+    end
+  end)
+end
+
+vim.api.nvim_create_autocmd({ "WinResized", "VimResized", "WinEnter", "TabEnter" }, {
+  group = AUGROUP,
+  callback = function()
+    vim.iter(vim.tbl_values(boards)):each(request_refit)
+  end,
+})
 
 ---@return games.Board[]
 local function ticking_boards()
@@ -511,9 +615,7 @@ local function watch_buffer(board)
     group = AUGROUP,
     buffer = buf,
     callback = function()
-      if vim.b[buf].games_dirty then
-        render_board(board)
-      end
+      request_refit(board)
       sync_clock_timer()
     end,
   })
@@ -542,6 +644,19 @@ local function focus(buf)
   else
     vim.api.nvim_set_current_buf(buf)
   end
+end
+
+---@param game games.GameType
+---@param module games.GameModule
+---@param opts games.OpenOptions
+---@return games.ViewOptions
+local function view_for(game, module, opts)
+  local art
+  if module.asset_keys then
+    local pack_name = (opts.assets or {})[game] or assets.DEFAULT_PACK
+    art = assets.art_set(assets.load(game, pack_name, module.asset_keys), opts.glyphs)
+  end
+  return { glyphs = opts.glyphs, flipped = false, max_cell_height = opts.max_cell_height, art = art }
 end
 
 ---@param client games.Client
@@ -580,21 +695,24 @@ function M.open(client, game_id, opts)
   vim.bo[buf].modifiable = false
   vim.bo[buf].undolevels = -1
 
+  local options = opts or games.open_options()
   ---@type games.Board
   local board = {
     buf = buf,
     client = client,
     module = module,
     me = me,
-    view = { glyphs = (opts or games.open_options()).glyphs, flipped = false },
+    options = options,
+    view = view_for(update.game, module, options),
     update = update,
     header_height = 0,
     bindings = {},
+    refit_pending = false,
   }
   boards[buf] = board
   watch_buffer(board)
   vim.api.nvim_set_current_buf(buf)
-  render_board(board)
+  refit(board)
   sync_clock_timer()
   return buf
 end

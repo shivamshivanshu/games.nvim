@@ -14,6 +14,7 @@ local LATEST_HL = highlights.with_ink("GamesLastMove")
 ---@field columns integer items per line
 ---@field numbered? boolean prefix each line with its 1-based line number
 ---@field annotation? games.MoveAnnotation highlighted wherever it ends an item
+---@field max_lines? integer show only the last this many lines
 
 ---@param item string
 ---@param annotation games.MoveAnnotation|nil
@@ -42,8 +43,9 @@ return function(props)
 
   local line_count = math.ceil(#props.items / columns)
   local number_width = #tostring(line_count)
+  local first_line = math.max(1, line_count - (props.max_lines or line_count) + 1)
   local rows = {}
-  for line = 1, line_count do
+  for line = first_line, line_count do
     local parts = {}
     if props.numbered then
       parts[1] = compose.text(("%" .. number_width .. "d."):format(line), NUMBER_HL)
@@ -64,7 +66,7 @@ return function(props)
         parts[#parts + 1] = compose.text((" "):rep(column_width - vim.fn.strdisplaywidth(item)))
       end
     end
-    rows[line] = compose.row(parts)
+    rows[#rows + 1] = compose.row(parts)
   end
   return compose.col(rows)
 end

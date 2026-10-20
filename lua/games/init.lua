@@ -74,7 +74,14 @@ end
 ---Options for every board this plugin opens, taken from the user's config.
 ---@return games.OpenOptions
 function M.open_options()
-  return { glyphs = M.config and M.config.glyphs or config.DEFAULT_GLYPHS }
+  if not M.config then
+    return { glyphs = config.DEFAULT_GLYPHS }
+  end
+  return {
+    glyphs = M.config.glyphs,
+    max_cell_height = M.config.board.max_cell_height,
+    assets = M.config.assets,
+  }
 end
 
 return M
