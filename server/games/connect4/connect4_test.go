@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -37,7 +38,7 @@ func drops(columns string) []gametest.Step[Action] {
 	steps := make([]gametest.Step[Action], len(columns))
 	seat := SeatRed
 	for i, digit := range columns {
-		steps[i] = gametest.Step[Action]{Seat: seat, Action: Action{Kind: ActionDrop, Column: int(digit - '0')}}
+		steps[i] = gametest.Step[Action]{Seat: seat, Action: drop(string(digit))}
 		seat = opponent(seat)
 	}
 	return steps
@@ -49,7 +50,7 @@ func playColumns(t *testing.T, columns string) game.State[Action, View] {
 	for i, step := range drops(columns) {
 		next, _, err := st.Apply(step.Seat, step.Action, nil)
 		if err != nil {
-			t.Fatalf("drop %d (column %d): %v", i, step.Action.Column, err)
+			t.Fatalf("drop %d (column %s): %v", i, step.Action.Column, err)
 		}
 		st = next
 	}
@@ -159,6 +160,8 @@ func TestDropOutcomes(t *testing.T) {
 	}
 }
 
+func drop(column string) Action { return Action{Kind: ActionDrop, Column: column} }
+
 func TestRejectedActions(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -167,12 +170,14 @@ func TestRejectedActions(t *testing.T) {
 		action  Action
 		wantErr error
 	}{
-		{"full column", columnOneFilled, SeatRed, Action{Kind: ActionDrop, Column: 1}, game.IllegalActionError{Msg: "column 1 is full"}},
-		{"column below range", "", SeatRed, Action{Kind: ActionDrop, Column: 0}, game.IllegalActionError{Msg: "column must be 1 to 7, got 0"}},
-		{"column above range", "", SeatRed, Action{Kind: ActionDrop, Column: 8}, game.IllegalActionError{Msg: "column must be 1 to 7, got 8"}},
-		{"unknown kind", "", SeatRed, Action{Kind: "place", Column: 1}, game.IllegalActionError{Msg: "unknown action: place"}},
-		{"out of turn", "4", SeatRed, Action{Kind: ActionDrop, Column: 4}, game.ErrNotYourTurn},
-		{"after the game ends", "1122334", SeatYellow, Action{Kind: ActionDrop, Column: 5}, game.ErrNotYourTurn},
+		{"full column", columnOneFilled, SeatRed, drop("1"), game.IllegalActionError{Msg: "column 1 is full"}},
+		{"column below range", "", SeatRed, drop("0"), game.IllegalActionError{Msg: `column must be 1 to 7, got "0"`}},
+		{"column above range", "", SeatRed, drop("8"), game.IllegalActionError{Msg: `column must be 1 to 7, got "8"`}},
+		{"column missing", "", SeatRed, drop(""), game.IllegalActionError{Msg: `column must be 1 to 7, got ""`}},
+		{"column not a number", "", SeatRed, drop("a"), game.IllegalActionError{Msg: `column must be 1 to 7, got "a"`}},
+		{"unknown kind", "", SeatRed, Action{Kind: "place", Column: "1"}, game.IllegalActionError{Msg: "unknown action: place"}},
+		{"out of turn", "4", SeatRed, drop("4"), game.ErrNotYourTurn},
+		{"after the game ends", "1122334", SeatYellow, drop("5"), game.ErrNotYourTurn},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -185,17 +190,68 @@ func TestRejectedActions(t *testing.T) {
 	}
 }
 
-func TestFirstMoverIsRed(t *testing.T) {
+func TestColumnTextIsTrimmed(t *testing.T) {
+	next, _, err := newState(t).Apply(SeatRed, drop(" 3 "), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := next.View(SeatRed).Last; got == nil || *got != (Cell{Row: 6, Column: 3}) {
+		t.Errorf("last %+v, want row 6 column 3", got)
+	}
+}
+
+func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
+	before := playColumns(t, "44")
+	want := before.View(SeatRed)
+	if _, _, err := before.Apply(SeatRed, drop("4"), nil); err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(want, before.View(SeatRed)); diff != "" {
+		t.Errorf("earlier state changed (-before +after):\n%s", diff)
+	}
+}
+
+func TestLegalColumns(t *testing.T) {
+	concluded := playColumns(t, "4").(game.Concluder[Action, View]).Conclude(game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
 	cases := []struct {
-		first game.FirstMover
-		want  game.Seat
+		name   string
+		state  game.State[Action, View]
+		viewer game.Seat
+		want   []int
 	}{
-		{game.FirstMoverMe, SeatRed},
-		{game.FirstMoverOpponent, SeatYellow},
+		{"all open for the mover", newState(t), SeatRed, []int{1, 2, 3, 4, 5, 6, 7}},
+		{"none for the waiting seat", newState(t), SeatYellow, []int{}},
+		{"a full column is left out", playColumns(t, columnOneFilled), SeatRed, []int{2, 3, 4, 5, 6, 7}},
+		{"none once won", playColumns(t, "1122334"), SeatYellow, []int{}},
+		{"none after an imposed result", concluded, SeatYellow, []int{}},
 	}
 	for _, tc := range cases {
-		t.Run(string(tc.first), func(t *testing.T) {
-			st, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
+		t.Run(tc.name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, tc.state.View(tc.viewer).LegalColumns); diff != "" {
+				t.Errorf("legal columns (-want +got):\n%s", diff)
+			}
+		})
+	}
+	if result, finished := concluded.Outcome(); !finished || result.Reason != game.ReasonDrawAgreed || len(concluded.ToAct()) != 0 {
+		t.Errorf("concluded: %+v finished=%t to act %v", result, finished, concluded.ToAct())
+	}
+}
+
+func TestFirstMoverIsRed(t *testing.T) {
+	cases := []struct {
+		name  string
+		first game.FirstMover
+		seed  game.Seed
+		want  game.Seat
+	}{
+		{"me", game.FirstMoverMe, 1, SeatRed},
+		{"opponent", game.FirstMoverOpponent, 1, SeatYellow},
+		{"random, seed 1", game.FirstMoverRandom, 1, SeatYellow},
+		{"random, seed 6", game.FirstMoverRandom, 6, SeatRed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			st, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -227,10 +283,10 @@ func TestWireShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	emptyRow := `["","","","","","",""]`
-	start := `{"cells":[` + emptyRow + `,` + emptyRow + `,` + emptyRow + `,` + emptyRow + `,` + emptyRow + `,` + emptyRow + `],"last":null,"winning_lines":[]}`
+	start := `{"cells":[` + strings.Repeat(emptyRow+`,`, 5) + emptyRow + `],"last":null,"winning_lines":[],"legal_columns":[1,2,3,4,5,6,7]}`
 	assertJSON(t, "start view", start, viewJSON(t, st, SeatRed))
 
-	st, events, err := st.Apply(SeatRed, json.RawMessage(`{"kind":"drop","column":3}`), nil)
+	st, events, err := st.Apply(SeatRed, json.RawMessage(`{"kind":"drop","column":"3"}`), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +335,7 @@ func TestConformance(t *testing.T) {
 			WantResult: &want,
 		}
 	}
-	intoFullColumn := gametest.Step[Action]{Seat: SeatRed, Action: Action{Kind: ActionDrop, Column: 1}, WantErr: true}
+	intoFullColumn := gametest.Step[Action]{Seat: SeatRed, Action: drop("1"), WantErr: true}
 	redVerticalInColumnTwo := drops("2324252")
 	redWins := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow}
 	gametest.Run(t, Rules{}, []gametest.Script[Opts, Action]{

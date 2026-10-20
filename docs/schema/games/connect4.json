@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "column": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "column"
+      ],
+      "description": "Action is a drop into Column, the column's number as text: \"1\" to \"7\" from the left."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "drop"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Cell": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "column"
+      ],
+      "description": "Cell is a 1-based board position; row 1 is the top."
+    },
+    "DroppedEvent": {
+      "properties": {
+        "kind": {
+          "const": "dropped"
+        },
+        "by": {
+          "type": "string"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "row",
+        "column"
+      ],
+      "description": "DroppedEvent says which cell a seat's disc came to rest in."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "four_in_a_row",
+        "board_full"
+      ],
+      "description": "The result reasons Connect4 adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "cells": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "last": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Cell"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "winning_lines": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Cell"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "legal_columns": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "cells",
+        "last",
+        "winning_lines",
+        "legal_columns"
+      ],
+      "description": "View holds Cells[row][column], each the seat whose disc fills it or \"\" when empty.\nLegalColumns is the viewer's own: the columns it may drop into, empty unless it is to move."
+    }
+  },
+  "title": "Connect4",
+  "description": "The game-specific bodies inside a connect4 game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "dropped": {
+      "$ref": "#/$defs/DroppedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

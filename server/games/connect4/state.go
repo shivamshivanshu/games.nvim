@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
@@ -18,8 +20,6 @@ type state struct {
 	finished     bool
 }
 
-var allSeats = []game.Seat{SeatRed, SeatYellow}
-
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if !slices.Contains(s.ToAct(), seat) {
 		return nil, nil, game.ErrNotYourTurn
@@ -31,9 +31,10 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
 }
 
-func (s state) drop(seat game.Seat, column int) (game.State[Action, View], []game.Event, error) {
-	if column < 1 || column > boardColumns {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("column must be 1 to %d, got %d", boardColumns, column)}
+func (s state) drop(seat game.Seat, input string) (game.State[Action, View], []game.Event, error) {
+	column, err := strconv.Atoi(strings.TrimSpace(input))
+	if err != nil || column < 1 || column > boardColumns {
+		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("column must be 1 to %d, got %q", boardColumns, input)}
 	}
 	row, ok := s.board.landingRow(column - 1)
 	if !ok {
@@ -78,11 +79,16 @@ func opponent(seat game.Seat) game.Seat {
 	return SeatRed
 }
 
-func (s state) View(game.Seat) View {
+func (s state) View(viewer game.Seat) View {
+	legal := []int{}
+	if slices.Contains(s.ToAct(), viewer) {
+		legal = s.board.openColumns()
+	}
 	return View{
 		Cells:        s.board.cells(),
 		Last:         s.last,
 		WinningLines: append([][]Cell{}, s.winningLines...),
+		LegalColumns: legal,
 	}
 }
 
@@ -99,6 +105,14 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 	if s.finished {
 		return s, nil
 	}
-	s.result, s.finished = game.ForfeitToRemaining(allSeats, seat, reason), true
+	s.result, s.finished = game.ForfeitToRemaining([]game.Seat{SeatRed, SeatYellow}, seat, reason), true
 	return s, nil
+}
+
+// Conclude takes a result the core imposed, so no seat is offered a drop.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
+	if !s.finished {
+		s.result, s.finished = result, true
+	}
+	return s
 }

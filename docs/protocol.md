@@ -238,6 +238,17 @@ An action object always carries `kind`.
   - `legal_cells` is the viewer's own: the empty cells when the viewer is to move, else `[]`.
 - Actions: `place` (`cell`: the cell's number as text, `"1"` to `"9"`).
 
+### Connect4
+
+- Reasons: `four_in_a_row`, `board_full`.
+- Events: `dropped {by: seat, row, column}`, the cell the disc came to rest in.
+- Seats: `red`, which moves first, and `yellow`.
+- View `{cells, last: {row, column} | null, winning_lines, legal_columns}`:
+  - `cells` is 6 rows of 7, row 1 at the top; each is the seat whose disc fills it, or `""`.
+  - `winning_lines` is `[]` until a win, then every run of 4 or more through the last disc, whole.
+  - `legal_columns` holds the viewer's own: the open columns, empty unless the viewer is to move.
+- Actions: `drop` (`column`: `"1"` to `"7"`).
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

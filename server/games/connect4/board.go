@@ -24,6 +24,17 @@ func (b board) landingRow(column int) (int, bool) {
 	return 0, false
 }
 
+// openColumns are the 1-based columns with room for a disc.
+func (b board) openColumns() []int {
+	open := []int{}
+	for column, top := range b[0] {
+		if top == noDisc {
+			open = append(open, column+1)
+		}
+	}
+	return open
+}
+
 func (b board) full() bool {
 	return !slices.Contains(b[0][:], noDisc)
 }
