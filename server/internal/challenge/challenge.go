@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"sync"
@@ -23,7 +22,7 @@ type Challenge struct {
 	To        []game.UserID
 	Accepted  []game.UserID
 	Game      game.GameType
-	Options   json.RawMessage
+	Options   game.Options
 	State     protocol.ChallengeState
 	By        *game.UserID
 	GameID    *game.GameID
@@ -59,7 +58,7 @@ func NewRegistry(ttl time.Duration, clock clock.Clock, onChange func(Challenge),
 	}
 }
 
-func (r *Registry) Create(from game.UserID, to []game.UserID, info game.Info, opts json.RawMessage) (Challenge, error) {
+func (r *Registry) Create(from game.UserID, to []game.UserID, info game.Info, opts game.Options) (Challenge, error) {
 	if err := validateInvitees(from, to, info.Players); err != nil {
 		return Challenge{}, err
 	}

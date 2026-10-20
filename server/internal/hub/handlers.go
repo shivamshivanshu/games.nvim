@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -87,11 +86,7 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 	if err != nil {
 		return protocol.ChallengeCreateResult{}, err
 	}
-	encodedOpts, err := json.Marshal(opts)
-	if err != nil {
-		return protocol.ChallengeCreateResult{}, err
-	}
-	c, err := h.challenges.Create(s.User(), req.To, g.Info(), encodedOpts)
+	c, err := h.challenges.Create(s.User(), req.To, g.Info(), opts)
 	if err != nil {
 		return protocol.ChallengeCreateResult{}, err
 	}

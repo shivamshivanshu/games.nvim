@@ -34,42 +34,52 @@ func (h *Hub) startChallenge(c challenge.Challenge) (game.GameID, error) {
 }
 
 func (h *Hub) startGame(c challenge.Challenge) (game.GameID, error) {
+	p, state, err := h.prepareGame(c)
+	if err != nil {
+		return "", err
+	}
+	now := h.deps.Time.Now()
+	if err := h.persistNewGame(p, now); err != nil {
+		return "", err
+	}
+	return p.ID, h.launch(p, state, now)
+}
+
+func (h *Hub) prepareGame(c challenge.Challenge) (room.Params, game.ErasedState, error) {
 	g, err := h.gameType(c.Game)
 	if err != nil {
-		return "", err
-	}
-	opts, err := g.ResolveOptions(c.Options)
-	if err != nil {
-		return "", err
-	}
-	clock, err := opts.Clock()
-	if err != nil {
-		return "", err
-	}
-	encodedOpts, err := json.Marshal(opts)
-	if err != nil {
-		return "", err
+		return room.Params{}, nil, err
 	}
 	seed := newSeed()
-	state, seats, err := g.New(opts, c.From, c.To, game.StepRNG(seed, 0))
+	state, seats, err := g.New(c.Options, c.From, c.To, game.StepRNG(seed, 0))
 	if err != nil {
-		return "", err
+		return room.Params{}, nil, err
 	}
 	players, err := seated(append([]game.UserID{c.From}, c.To...), seats)
 	if err != nil {
-		return "", err
+		return room.Params{}, nil, err
 	}
-	id := game.GameID(rand.Text())
-	now := h.deps.Time.Now()
-	if err := h.deps.Store.CreateGame(h.ctx, store.GameRecord{
-		ID: id, Type: c.Game, Options: encodedOpts, Seed: seed, Players: players, CreatedAt: now,
-	}); err != nil {
-		return "", err
+	return h.roomParams(game.GameID(rand.Text()), g, c.Options, seed, c.From, players), state, nil
+}
+
+func (h *Hub) persistNewGame(p room.Params, createdAt time.Time) error {
+	options, err := json.Marshal(p.Options)
+	if err != nil {
+		return err
 	}
-	r := room.New(h.ctx, h.roomParams(id, g, opts, seed, c.From, players, clock), state)
-	h.track(id, r, players, now)
-	h.sendCurrent(r, players)
-	return id, nil
+	return h.deps.Store.CreateGame(h.ctx, store.GameRecord{
+		ID: p.ID, Type: p.Game.Info().Type, Options: options, Seed: p.Seed, Players: p.Players, CreatedAt: createdAt,
+	})
+}
+
+func (h *Hub) launch(p room.Params, state game.ErasedState, createdAt time.Time) error {
+	r, err := room.New(h.ctx, p, state)
+	if err != nil {
+		return err
+	}
+	h.track(p.ID, r, p.Players, createdAt)
+	h.sendCurrent(r, p.Players)
+	return nil
 }
 
 // seated lists players in challenger-first order, which room.Restore relies on.
@@ -128,18 +138,14 @@ func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, er
 	if err != nil {
 		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
 	}
-	clock, err := opts.Clock()
-	if err != nil {
-		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
-	}
 	challenger, ok := rec.Challenger()
 	if !ok {
 		return nil, fmt.Errorf("hub: restore %s: no players", rec.ID)
 	}
-	return room.Restore(ctx, h.roomParams(rec.ID, g, opts, rec.Seed, challenger, rec.Players, clock), rec.Steps)
+	return room.Restore(ctx, h.roomParams(rec.ID, g, opts, rec.Seed, challenger, rec.Players), rec.Steps)
 }
 
-func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed game.Seed, challenger game.UserID, players []game.Player, clock game.ClockConfig) room.Params {
+func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed game.Seed, challenger game.UserID, players []game.Player) room.Params {
 	return room.Params{
 		ID:         id,
 		Game:       g,
@@ -147,7 +153,6 @@ func (h *Hub) roomParams(id game.GameID, g game.Game, opts game.Options, seed ga
 		Seed:       seed,
 		Challenger: challenger,
 		Players:    players,
-		Clock:      clock,
 		Persist:    h.deps.Store,
 		Broadcast:  h,
 		Time:       h.deps.Time,

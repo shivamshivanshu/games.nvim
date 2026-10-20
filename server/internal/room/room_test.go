@@ -120,10 +120,6 @@ func newHarness(t *testing.T, timeControl chess.TimeControl) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	clockCfg, err := opts.Clock()
-	if err != nil {
-		t.Fatal(err)
-	}
 	const seed = 42
 	state, seats, err := g.New(opts, alice, []game.UserID{bob}, game.StepRNG(seed, 0))
 	if err != nil {
@@ -135,14 +131,16 @@ func newHarness(t *testing.T, timeControl chess.TimeControl) *harness {
 		clock:   clocktest.New(time.UnixMilli(1_700_000_000_000)),
 	}
 	h.params = Params{
-		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: alice, Clock: clockCfg,
+		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: alice,
 		Players: []game.Player{{User: alice, Seat: seats[alice]}, {User: bob, Seat: seats[bob]}},
 		Persist: h.persist, Broadcast: h.sent, Time: h.clock,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
 	t.Cleanup(cancel)
-	h.room = New(ctx, h.params, state)
+	if h.room, err = New(ctx, h.params, state); err != nil {
+		t.Fatal(err)
+	}
 	return h
 }
 

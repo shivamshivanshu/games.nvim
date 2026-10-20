@@ -39,7 +39,6 @@ type Params struct {
 	Seed       game.Seed
 	Challenger game.UserID
 	Players    []game.Player
-	Clock      game.ClockConfig
 	Persist    Persister
 	Broadcast  Broadcaster
 	Time       clock.Clock
@@ -48,26 +47,29 @@ type Params struct {
 // setup is everything about a game that is fixed when it starts.
 type setup struct {
 	Params
-	gameType game.GameType
-	caps     []game.Capability
-	seats    map[game.UserID]game.Seat
-	users    map[game.Seat]game.UserID
+	info  game.Info
+	clock game.ClockConfig
+	seats map[game.UserID]game.Seat
+	users map[game.Seat]game.UserID
 }
 
-func newSetup(p Params) setup {
-	info := p.Game.Info()
+func newSetup(p Params) (setup, error) {
+	clock, err := p.Options.Clock()
+	if err != nil {
+		return setup{}, fmt.Errorf("room: %s: %w", p.ID, err)
+	}
 	g := setup{
-		Params:   p,
-		gameType: info.Type,
-		caps:     info.Capabilities,
-		seats:    make(map[game.UserID]game.Seat, len(p.Players)),
-		users:    make(map[game.Seat]game.UserID, len(p.Players)),
+		Params: p,
+		info:   p.Game.Info(),
+		clock:  clock,
+		seats:  make(map[game.UserID]game.Seat, len(p.Players)),
+		users:  make(map[game.Seat]game.UserID, len(p.Players)),
 	}
 	for _, player := range p.Players {
 		g.seats[player.User] = player.Seat
 		g.users[player.Seat] = player.User
 	}
-	return g
+	return g, nil
 }
 
 func (p Params) invitees() []game.UserID {
@@ -94,10 +96,10 @@ type roomState struct {
 
 func initialState(g setup, state game.ErasedState, now time.Time) roomState {
 	s := roomState{game: state, events: []json.RawMessage{}, since: now}
-	if g.Clock.Enabled {
+	if g.clock.Enabled {
 		s.remaining = make(map[game.UserID]time.Duration, len(g.Players))
 		for _, player := range g.Players {
-			s.remaining[player.User] = g.Clock.Initial
+			s.remaining[player.User] = g.clock.Initial
 		}
 	}
 	return s
@@ -157,7 +159,7 @@ func (s roomState) applyAction(g setup, rec store.StepRecord, clockWasRunning bo
 	s.drawAgreed = nil
 	s.acted = xslices.With(s.acted, rec.User, true)
 	if clockWasRunning {
-		s.remaining[rec.User] += g.Clock.Increment
+		s.remaining[rec.User] += g.clock.Increment
 	}
 	return s, nil
 }
@@ -207,18 +209,14 @@ func (s roomState) update(g setup, user game.UserID, at time.Time) (protocol.Gam
 	if err != nil {
 		return protocol.GameUpdate{}, fmt.Errorf("room: view for %s: %w", user, err)
 	}
-	options, err := json.Marshal(g.Options)
-	if err != nil {
-		return protocol.GameUpdate{}, fmt.Errorf("room: encode options: %w", err)
-	}
 	var wireResult *protocol.WireResult
 	if result, done := s.result(); done {
 		wireResult = &protocol.WireResult{Winners: g.usersAt(result.Winners), Reason: result.Reason}
 	}
 	return protocol.GameUpdate{
 		GameID:     g.ID,
-		Game:       g.gameType,
-		Options:    options,
+		Game:       g.info.Type,
+		Options:    g.Options,
 		Seq:        s.seq,
 		Players:    g.Players,
 		ToAct:      s.toAct(g),
@@ -241,9 +239,12 @@ type Room struct {
 	exited chan struct{}
 }
 
-func New(ctx context.Context, p Params, state game.ErasedState) *Room {
-	g := newSetup(p)
-	return start(ctx, g, initialState(g, state, p.Time.Now()))
+func New(ctx context.Context, p Params, state game.ErasedState) (*Room, error) {
+	g, err := newSetup(p)
+	if err != nil {
+		return nil, err
+	}
+	return start(ctx, g, initialState(g, state, p.Time.Now())), nil
 }
 
 func start(ctx context.Context, g setup, s roomState) *Room {

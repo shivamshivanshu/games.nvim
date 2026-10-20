@@ -10,7 +10,7 @@ import (
 	"games.nvim/server/internal/store"
 )
 
-func (g setup) can(c game.Capability) bool { return slices.Contains(g.caps, c) }
+func (g setup) can(c game.Capability) bool { return slices.Contains(g.info.Capabilities, c) }
 
 func (s roomState) controls(g setup, user game.UserID) []protocol.Control {
 	controls := []protocol.Control{}

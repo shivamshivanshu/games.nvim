@@ -72,7 +72,7 @@ func TestWriteEnvelopeRoundTrips(t *testing.T) {
 func TestInfoToWireKeysOptionsByName(t *testing.T) {
 	wire := protocol.InfoToWire(game.Info{
 		Type:    "chess",
-		Options: []game.OptionSpec{{Name: "color", Values: []string{"white", "black"}, Default: "white"}},
+		Options: []game.OptionSpec{{Name: "color", Values: []game.OptionValue{"white", "black"}, Default: "white"}},
 	})
 	opt := wire.Options["color"]
 	if opt.Type != protocol.OptionEnum || opt.Default != "white" || len(opt.Values) != 2 {

@@ -59,21 +59,21 @@ type PlayersWire struct {
 }
 
 type OptionWire struct {
-	Type    OptionType `json:"type"`
-	Values  []string   `json:"values"`
-	Default string     `json:"default"`
+	Type    OptionType         `json:"type"`
+	Values  []game.OptionValue `json:"values"`
+	Default game.OptionValue   `json:"default"`
 }
 
 type GameInfoWire struct {
-	ID           game.GameType         `json:"id"`
-	Name         string                `json:"name"`
-	Players      PlayersWire           `json:"players"`
-	Capabilities []game.Capability     `json:"capabilities"`
-	Options      map[string]OptionWire `json:"options"`
+	ID           game.GameType                  `json:"id"`
+	Name         string                         `json:"name"`
+	Players      PlayersWire                    `json:"players"`
+	Capabilities []game.Capability              `json:"capabilities"`
+	Options      map[game.OptionName]OptionWire `json:"options"`
 }
 
 func InfoToWire(info game.Info) GameInfoWire {
-	options := make(map[string]OptionWire, len(info.Options))
+	options := make(map[game.OptionName]OptionWire, len(info.Options))
 	for _, spec := range info.Options {
 		options[spec.Name] = OptionWire{Type: OptionEnum, Values: spec.Values, Default: spec.Default}
 	}
@@ -114,16 +114,16 @@ type ChallengeRef struct {
 }
 
 type Challenge struct {
-	ChallengeID ChallengeID     `json:"challenge_id"`
-	From        game.UserID     `json:"from"`
-	To          []game.UserID   `json:"to"`
-	Accepted    []game.UserID   `json:"accepted"`
-	Game        game.GameType   `json:"game"`
-	Options     json.RawMessage `json:"options"`
-	State       ChallengeState  `json:"state"`
-	By          *game.UserID    `json:"by"`
-	GameID      *game.GameID    `json:"game_id"`
-	ExpiresAt   time.Time       `json:"expires_at"`
+	ChallengeID ChallengeID    `json:"challenge_id"`
+	From        game.UserID    `json:"from"`
+	To          []game.UserID  `json:"to"`
+	Accepted    []game.UserID  `json:"accepted"`
+	Game        game.GameType  `json:"game"`
+	Options     game.Options   `json:"options"`
+	State       ChallengeState `json:"state"`
+	By          *game.UserID   `json:"by"`
+	GameID      *game.GameID   `json:"game_id"`
+	ExpiresAt   time.Time      `json:"expires_at"`
 }
 
 type ChallengeListResult struct {
@@ -171,7 +171,7 @@ type WireClock struct {
 type GameUpdate struct {
 	GameID     game.GameID       `json:"game_id"`
 	Game       game.GameType     `json:"game"`
-	Options    json.RawMessage   `json:"options"`
+	Options    game.Options      `json:"options"`
 	Seq        game.Seq          `json:"seq"`
 	Players    []game.Player     `json:"players"`
 	ToAct      []game.UserID     `json:"to_act"`

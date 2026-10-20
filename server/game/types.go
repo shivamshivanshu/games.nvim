@@ -53,10 +53,15 @@ type Result struct {
 	Reason  ResultReason
 }
 
+type (
+	OptionName  string
+	OptionValue string
+)
+
 type OptionSpec struct {
-	Name    string
-	Values  []string
-	Default string
+	Name    OptionName
+	Values  []OptionValue
+	Default OptionValue
 }
 
 type PlayerRange struct{ Min, Max int }
@@ -72,11 +77,11 @@ type Info struct {
 type Event interface{ EventKind() EventKind }
 
 // Options is the validated, default-filled option set stored with a game.
-type Options map[string]string
+type Options map[OptionName]OptionValue
 
-const OptionTimeControl = "time_control"
+const OptionTimeControl OptionName = "time_control"
 
-const timeControlNone = "none"
+const timeControlNone OptionValue = "none"
 
 type ClockConfig struct {
 	Initial, Increment time.Duration
@@ -89,7 +94,7 @@ func (o Options) Clock() (ClockConfig, error) {
 	if !ok || spec == timeControlNone {
 		return ClockConfig{}, nil
 	}
-	minutes, seconds, found := strings.Cut(spec, "+")
+	minutes, seconds, found := strings.Cut(string(spec), "+")
 	m, errM := strconv.Atoi(minutes)
 	s, errS := strconv.Atoi(seconds)
 	if !found || errM != nil || errS != nil || m < 0 || s < 0 {

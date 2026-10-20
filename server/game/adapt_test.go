@@ -43,7 +43,7 @@ type counterRules struct{}
 func (counterRules) Info() Info {
 	return Info{
 		Type:    "counter",
-		Options: []OptionSpec{{Name: "step", Values: []string{"1", "2"}, Default: "1"}},
+		Options: []OptionSpec{{Name: "step", Values: []OptionValue{"1", "2"}, Default: "1"}},
 	}
 }
 

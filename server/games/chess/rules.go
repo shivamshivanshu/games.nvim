@@ -9,14 +9,14 @@ import (
 
 const TypeChess game.GameType = "chess"
 
-const optionColor = "color"
+const optionColor game.OptionName = "color"
 
 type Rules struct{}
 
-func optionValues[T ~string](vs ...T) []string {
-	out := make([]string, len(vs))
+func optionValues[T ~string](vs ...T) []game.OptionValue {
+	out := make([]game.OptionValue, len(vs))
 	for i, v := range vs {
-		out[i] = string(v)
+		out[i] = game.OptionValue(v)
 	}
 	return out
 }
@@ -31,12 +31,12 @@ func (Rules) Info() game.Info {
 			{
 				Name:    game.OptionTimeControl,
 				Values:  optionValues(TimeControlNone, TimeControl3Plus2, TimeControl5Plus0, TimeControl10Plus5, TimeControl15Plus10),
-				Default: string(TimeControl10Plus5),
+				Default: game.OptionValue(TimeControl10Plus5),
 			},
 			{
 				Name:    optionColor,
 				Values:  optionValues(ColorRandom, ColorWhite, ColorBlack),
-				Default: string(ColorRandom),
+				Default: game.OptionValue(ColorRandom),
 			},
 		},
 	}

@@ -16,7 +16,7 @@ import (
 const timeoutRetryDelay = time.Second
 
 func (s roomState) clockRunning(g setup) bool {
-	return g.Clock.Enabled && len(s.acted) == len(g.Players) && !s.finished()
+	return g.clock.Enabled && len(s.acted) == len(g.Players) && !s.finished()
 }
 
 func (s roomState) charged(g setup, at time.Time) map[game.UserID]time.Duration {
@@ -59,7 +59,7 @@ func (s roomState) flagged(g setup, at time.Time) (game.UserID, bool) {
 }
 
 func (s roomState) wireClock(g setup, at time.Time) *protocol.WireClock {
-	if !g.Clock.Enabled {
+	if !g.clock.Enabled {
 		return nil
 	}
 	wire := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(g, at), time.Duration.Milliseconds)}

@@ -45,6 +45,9 @@ func (g adapted[Opts, Action, View]) ResolveOptions(raw json.RawMessage) (Option
 		}
 		resolved[spec.Name] = value
 	}
+	if _, err := resolved.Clock(); err != nil {
+		return nil, BadRequestError{Msg: err.Error()}
+	}
 	return resolved, nil
 }
 

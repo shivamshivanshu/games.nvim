@@ -36,7 +36,7 @@ type counterRules struct{}
 func (counterRules) Info() game.Info {
 	return game.Info{
 		Type:    "counter",
-		Options: []game.OptionSpec{{Name: "step", Values: []string{"1", "2"}, Default: "1"}},
+		Options: []game.OptionSpec{{Name: "step", Values: []game.OptionValue{"1", "2"}, Default: "1"}},
 	}
 }
 
