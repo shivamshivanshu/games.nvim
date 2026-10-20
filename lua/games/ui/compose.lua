@@ -28,7 +28,18 @@
 ---@field n integer blank columns added on the left
 ---@field child games.Node
 
----@alias games.Node games.TextNode|games.RowNode|games.ColNode|games.PadNode
+---@class games.BoxNode
+---@field kind "box"
+---@field w integer display columns
+---@field h integer lines
+---@field hl? games.Hl over every whole line of the box, under the child's own highlights
+---@field child games.Node centred; odd padding goes right and bottom
+
+---@alias games.Node games.TextNode|games.RowNode|games.ColNode|games.PadNode|games.BoxNode
+
+---@class games.Size
+---@field w integer display columns
+---@field h integer lines
 
 ---@class games.Block: games.Rendered
 ---@field widths integer[] display width of each line
@@ -81,6 +92,19 @@ function M.pad(n, node)
   return { kind = "pad", n = n, child = node }
 end
 
+---@class games.BoxProps
+---@field w integer display columns
+---@field h integer lines
+---@field hl? games.Hl over every whole line of the box
+---@field child games.Node centred; odd padding goes right and bottom
+
+---A w x h block filled with hl on every line, with child centred in it.
+---@param props games.BoxProps
+---@return games.BoxNode
+function M.box(props)
+  return { kind = "box", w = props.w, h = props.h, hl = props.hl, child = props.child }
+end
+
 ---@param extmarks games.Extmark[]
 ---@param row_offset integer
 ---@param col_offset integer
@@ -94,6 +118,31 @@ local function shifted(extmarks, row_offset, col_offset)
       hl = mark.hl,
     }
   end, extmarks)
+end
+
+---@param node games.BoxNode
+---@param child games.Block
+---@return games.Block
+local function layout_box(node, child)
+  local top = math.max(0, math.floor((node.h - #child.lines) / 2))
+  local left = math.max(0, math.floor((node.w - child.width) / 2))
+  local indent = (" "):rep(left)
+  local lines, extmarks, widths = {}, {}, {}
+  for i = 1, node.h do
+    local child_row = i - top
+    local child_line = child.lines[child_row]
+    if child_line then
+      lines[i] = indent .. child_line .. (" "):rep(node.w - left - child.widths[child_row])
+    else
+      lines[i] = (" "):rep(node.w)
+    end
+    widths[i] = node.w
+    if node.hl then
+      extmarks[#extmarks + 1] = { row = i - 1, col = 0, end_col = #lines[i], hl = node.hl }
+    end
+  end
+  vim.list_extend(extmarks, shifted(child.extmarks, top, left))
+  return { lines = lines, extmarks = extmarks, widths = widths, width = node.w }
 end
 
 ---@param node games.Node
@@ -122,6 +171,10 @@ local function layout(node)
       end, child.widths),
       width = child.width + node.n,
     }
+  end
+
+  if node.kind == "box" then
+    return layout_box(node, layout(node.child))
   end
 
   local blocks = vim.tbl_map(layout, node.children)
@@ -167,6 +220,43 @@ end
 function M.render(node)
   local block = layout(node)
   return { lines = block.lines, extmarks = block.extmarks }
+end
+
+---@param node games.Node
+---@return games.Size
+function M.measure(node)
+  local block = layout(node)
+  return { w = block.width, h = #block.lines }
+end
+
+---@param size games.Size
+---@param space games.Size
+---@return boolean
+local function fits(size, space)
+  return size.w <= space.w and size.h <= space.h
+end
+
+---The first candidate that fits space, building only the candidates a binary search probes.
+---Candidates must be monotone: once one fits, every later one fits too.
+---@param space games.Size
+---@param candidates (fun(): games.Node)[] largest first
+---@return games.Node|nil
+function M.first_fit(space, candidates)
+  local built = {}
+  local function fitting(i)
+    built[i] = built[i] or candidates[i]()
+    return fits(M.measure(built[i]), space)
+  end
+  local low, high = 1, #candidates + 1
+  while low < high do
+    local mid = math.floor((low + high) / 2)
+    if fitting(mid) then
+      high = mid
+    else
+      low = mid + 1
+    end
+  end
+  return built[low]
 end
 
 return M
