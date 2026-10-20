@@ -81,6 +81,8 @@ installed of snacks.picker, telescope and fzf-lua is used, else
 and `find` runs |:Games-find|. >lua
     keys = { dashboard = "<leader>gg", find = "<leader>gf" }
 <
+The two keys must differ. A later setup() unmaps only the keys it mapped and
+still owns, so a key you have remapped since keeps your mapping.
 
                                                               *games-credentials*
 When `username` or `password` is missing, the first |:Games| prompts for the
@@ -275,8 +277,12 @@ Keys are buffer-local and act on the line under the cursor:
     ?       list every key
     q <Esc> close
 
-The dashboard closes when you leave its window. A board opened from it takes
-the window the dashboard was opened over.
+The dashboard closes when focus moves to an ordinary window, such as a
+board's; a floating picker it opens leaves it open to return to. A board
+opened from it takes the window the dashboard was opened over. While the
+connection is down it stays open, shows "reconnecting…" and stops its clocks,
+then refreshes once logged in again. A setup() that replaces the client closes
+it.
 
                                                                 *games-finder*
 |:Games-find| lists one source, with a preview of the item under the cursor:

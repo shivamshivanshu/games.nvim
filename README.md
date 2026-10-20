@@ -119,7 +119,7 @@ Details and flags are under Server below.
 | `board.max_cell_height` | integer | unset | lines per board square at most; `1` keeps one-line glyphs; see Board size below |
 | `assets` | table | `{}` | asset pack per game, e.g. `{ chess = "my.chess_art" }`; every game defaults to `"default"` |
 | `picker` | `"snacks"`, `"telescope"`, `"fzf"` or `"select"` | unset | the finder's picker; unset takes the first installed of snacks.picker, telescope, fzf-lua, else `vim.ui.select`; a forced one that is not installed falls back to `vim.ui.select` with a warning |
-| `keys` | `{ dashboard?, find? }` | `{}` | global normal-mode keys for `:Games` and `:Games find`, e.g. `{ dashboard = "<leader>gg", find = "<leader>gf" }`; none are mapped by default |
+| `keys` | `{ dashboard?, find? }` | `{}` | global normal-mode keys for `:Games` and `:Games find`, e.g. `{ dashboard = "<leader>gg", find = "<leader>gf" }`; none are mapped by default; the two must differ, and a later `setup()` unmaps only the keys it still owns, never your remap |
 
 A bad login or protocol mismatch stops auto-reconnect and notifies; fix the config and restart Neovim (or call `setup()` again).
 
@@ -208,7 +208,7 @@ Keys are buffer-local and act on the line under the cursor:
 | `?` | list every key |
 | `q`, `<Esc>` | close |
 
-The dashboard closes when you leave its window; a board it opens takes the window the dashboard was opened over.
+The dashboard closes when focus moves to an ordinary window, such as a board's; a floating picker it opens leaves it open to return to. A board it opens takes the window the dashboard was opened over. While the connection is down it stays open, shows `reconnecting…` and stops its clocks, then refreshes once logged in again; `setup()` replacing the client closes it.
 
 ## Finder
 
@@ -290,4 +290,4 @@ The wire protocol, for writing another client: [docs/protocol.md](docs/protocol.
 | `make test-lua` | headless Neovim tests (`tests/lua/run.lua`); builds the server first |
 | `make lint` | gofmt, `go vet`, `stylua --check`, lua-language-server |
 | `make fmt` | gofmt and stylua |
-| `make smoke-finders` | opens the finder in snacks.picker, telescope, fzf-lua and `vim.ui.select`, headless, and confirms an item in each; fetches the pickers at pinned commits into `PICKERS_PACK` (default `.pickers/`) with `tests/smoke/fetch-pickers.sh`, and needs `fzf` on `PATH`; CI runs it after `make check` |
+| `make smoke-finders` | opens the finder in snacks.picker, telescope, fzf-lua and `vim.ui.select`, headless, and in each confirms the first item and sends the choose key on the second, whose preview is empty; prints the `fzf --version` it uses, fetches the pickers at pinned commits into `PICKERS_PACK` (default `.pickers/`) with `tests/smoke/fetch-pickers.sh`, and needs `fzf` on `PATH`; CI runs it after `make check`, with fzf from a release tarball checked against a pinned sha256 |
