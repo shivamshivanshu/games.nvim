@@ -1,8 +1,10 @@
 local compose = require("games.ui.compose")
 local text_util = require("games.ui.text")
 
+---@alias games.KvPair {[1]: string, [2]: string} {key, value}
+
 ---@class games.KvProps
----@field pairs {[1]: string, [2]: string}[] ordered {key, value} entries
+---@field pairs games.KvPair[] in display order
 
 ---@param props games.KvProps
 ---@return games.Node

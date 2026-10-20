@@ -13,10 +13,13 @@ local players = require("games.core.players")
 ---@field last_move? games.ChessSquares
 ---@field in_check boolean
 
+---@alias games.ChessSeat "white"|"black"
+
 ---@alias games.ChessPiece "K"|"Q"|"R"|"B"|"N"|"P"|"k"|"q"|"r"|"b"|"n"|"p"
 
 local FILES = "abcdefgh"
 local RANKS = "87654321"
+---@type games.ChessSeat
 local BLACK = "black"
 local KING_TO_MOVE = { w = "K", b = "k" }
 

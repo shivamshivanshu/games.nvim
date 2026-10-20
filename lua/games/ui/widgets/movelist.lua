@@ -4,7 +4,7 @@ local text_util = require("games.ui.text")
 ---@class games.MovelistProps
 ---@field items string[]
 ---@field columns integer items per line
----@field numbered boolean prefix each line with its 1-based line number
+---@field numbered? boolean prefix each line with its 1-based line number
 
 ---@param props games.MovelistProps
 ---@return games.Node

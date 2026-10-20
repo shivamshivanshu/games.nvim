@@ -289,7 +289,7 @@ end
 
 ---@param title string
 ---@param empty_message string
----@param rows {[1]: string, [2]: string}[]
+---@param rows games.KvPair[]
 local function show_rows(title, empty_message, rows)
   if #rows == 0 then
     say(empty_message)

@@ -9,12 +9,10 @@ local function tally_text(tally)
   return ("W %d  L %d  D %d"):format(tally.wins, tally.losses, tally.draws)
 end
 
----@alias games.StatsRow {[1]: string, [2]: string}
-
 ---@generic T: games.Tally
 ---@param tallies T[]
 ---@param label fun(tally: T, index: integer): string
----@return games.StatsRow[]
+---@return games.KvPair[]
 local function rows_of(tallies, label)
   local rows = {}
   for i, tally in ipairs(tallies) do
@@ -36,7 +34,7 @@ end
 ---Per-game record, then head-to-head, for one user.
 ---@param stats games.StatsResult
 ---@param user games.UserID
----@return games.StatsRow[]
+---@return games.KvPair[]
 function M.stats_pairs(stats, user)
   local records = of_user(stats.records, user)
   table.sort(records, function(a, b)
@@ -59,7 +57,7 @@ end
 ---Users ranked by wins, then fewest losses, then most draws; totals span every game when game is nil.
 ---@param records games.StatsRecord[]
 ---@param game games.GameType|nil
----@return games.StatsRow[]
+---@return games.KvPair[]
 function M.leaderboard_pairs(records, game)
   ---@type table<games.UserID, games.UserTally>
   local totals = {}

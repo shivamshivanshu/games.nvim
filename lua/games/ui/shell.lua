@@ -71,10 +71,12 @@ local CLOCK_TICK_MS = 1000
 local CONFIRM_YES = 1
 
 ---@type table<string, true> keys the shell owns whether or not they are active
-local CORE_KEYS = { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [CLOSE_KEY] = true }
-for _, spec in ipairs(CONTROL_KEYS) do
-  CORE_KEYS[spec.key] = true
-end
+local CORE_KEYS = vim.iter(CONTROL_KEYS):fold(
+  { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [CLOSE_KEY] = true },
+  function(keys, spec)
+    return vim.tbl_extend("error", keys, { [spec.key] = true })
+  end
+)
 
 ---@type table<games.GameModule, true>
 local checked_modules = setmetatable({}, { __mode = "k" })

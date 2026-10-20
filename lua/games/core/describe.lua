@@ -1,6 +1,7 @@
 local players = require("games.core.players")
 local registry = require("games.core.registry")
 local text = require("games.ui.text")
+local types = require("games.types")
 
 local SHORT_ID_LENGTH = 4
 
@@ -58,7 +59,7 @@ function M.result_text(result)
   if #result.winners > 0 then
     return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
   end
-  if result.reason == "aborted" then
+  if result.reason == types.ResultReason.ABORTED then
     return "Result: aborted"
   end
   return ("Result: draw (%s)"):format(reason)
