@@ -54,7 +54,12 @@ func playSANs(t *testing.T, st game.ErasedState, line string) game.ErasedState {
 
 func viewOf(t *testing.T, st game.ErasedState) View {
 	t.Helper()
-	raw, err := st.View(SeatWhite)
+	return viewAs(t, st, SeatWhite)
+}
+
+func viewAs(t *testing.T, st game.ErasedState, seat game.Seat) View {
+	t.Helper()
+	raw, err := st.View(seat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,9 +116,55 @@ func TestFoolsMate(t *testing.T) {
 	if !ok || got.Kind != want.Kind || !slices.Equal(got.Winners, want.Winners) || got.Reason != want.Reason {
 		t.Errorf("got %+v, %t", got, ok)
 	}
-	if v := viewOf(t, st); !v.InCheck || v.HistorySAN[len(v.HistorySAN)-1] != "Qh4#" {
+	if v := viewOf(t, st); v.CheckSquare == nil || *v.CheckSquare != "e1" || v.HistorySAN[len(v.HistorySAN)-1] != "Qh4#" {
 		t.Errorf("view %+v", v)
 	}
+}
+
+func TestViewDerivesWhatTheViewerMayDo(t *testing.T) {
+	tests := []struct {
+		name          string
+		line          string
+		seat          game.Seat
+		wantLegal     int
+		wantClaimable bool
+		wantCheck     string
+	}{
+		{"start, to move", "", SeatWhite, 20, false, ""},
+		{"start, waiting", "", SeatBlack, 0, false, ""},
+		{"in check, to move", "e4 f5 Qh5+", SeatBlack, 1, false, "e8"},
+		{"in check, waiting", "e4 f5 Qh5+", SeatWhite, 0, false, "e8"},
+		{"threefold, to move", "Nf3 Nf6 Ng1 Ng8 Nf3 Nf6 Ng1 Ng8", SeatWhite, 20, true, ""},
+		{"threefold, waiting", "Nf3 Nf6 Ng1 Ng8 Nf3 Nf6 Ng1 Ng8", SeatBlack, 0, false, ""},
+		{"mated", "f3 e5 g4 Qh4#", SeatWhite, 0, false, "e1"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			st, _ := newGame(t, ColorWhite)
+			v := viewAs(t, playSANs(t, st, tc.line), tc.seat)
+			if len(v.LegalMoves) != tc.wantLegal || v.ClaimableDraw != tc.wantClaimable {
+				t.Errorf("legal %v, claimable %t", v.LegalMoves, v.ClaimableDraw)
+			}
+			if got := derefOr(v.CheckSquare, ""); got != tc.wantCheck {
+				t.Errorf("check square %q, want %q", got, tc.wantCheck)
+			}
+		})
+	}
+}
+
+func TestLegalMovesAreUCI(t *testing.T) {
+	st, _ := newGame(t, ColorWhite)
+	v := viewAs(t, playSANs(t, st, "e4 f5 Qh5+"), SeatBlack)
+	if !slices.Equal(v.LegalMoves, []string{"g7g6"}) {
+		t.Errorf("legal %v", v.LegalMoves)
+	}
+}
+
+func derefOr[T any](p *T, fallback T) T {
+	if p == nil {
+		return fallback
+	}
+	return *p
 }
 
 func TestStalemate(t *testing.T) {

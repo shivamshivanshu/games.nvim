@@ -42,11 +42,16 @@ type MoveSquares struct {
 	To   string `json:"to"`
 }
 
+// View.LegalMoves and View.ClaimableDraw are the viewer's own: empty and
+// false for a seat that is not to move. CheckSquare holds the king of the
+// side to move while it is in check.
 type View struct {
-	FEN        string       `json:"fen"`
-	HistorySAN []string     `json:"history_san"`
-	LastMove   *MoveSquares `json:"last_move"`
-	InCheck    bool         `json:"in_check"`
+	FEN           string       `json:"fen"`
+	HistorySAN    []string     `json:"history_san"`
+	LastMove      *MoveSquares `json:"last_move"`
+	LegalMoves    []string     `json:"legal_moves"`
+	ClaimableDraw bool         `json:"claimable_draw"`
+	CheckSquare   *string      `json:"check_square"`
 }
 
 type MovedEvent struct {

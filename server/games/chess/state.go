@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 type state struct {
@@ -75,13 +76,19 @@ func (e Ending) result() game.Result {
 	return result
 }
 
-func (s state) View(game.Seat) View {
-	return View{
-		FEN:        s.position.FEN(),
-		HistorySAN: append([]string{}, s.san...),
-		LastMove:   s.last,
-		InCheck:    s.position.InCheck(),
+func (s state) View(seat game.Seat) View {
+	view := View{
+		FEN:         s.position.FEN(),
+		HistorySAN:  append([]string{}, s.san...),
+		LastMove:    s.last,
+		LegalMoves:  []string{},
+		CheckSquare: s.position.checkSquare(),
 	}
+	if slices.Contains(s.ToAct(), seat) {
+		view.LegalMoves = xslices.Map(s.legal, Move.UCI)
+		_, view.ClaimableDraw = s.position.claimableDraw(s.history[len(s.history)-1], s.history)
+	}
+	return view
 }
 
 func (s state) ToAct() []game.Seat {
