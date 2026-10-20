@@ -104,8 +104,13 @@ func TestStepRNGDeterministic(t *testing.T) {
 }
 
 func TestForfeitToRemaining(t *testing.T) {
-	got := game.ForfeitToRemaining([]game.Seat{"w", "b"}, "w", game.ReasonResign)
-	if got.Kind != game.ResultDecisive || !slices.Equal(got.Winners, []game.Seat{"b"}) || got.Reason != game.ReasonResign {
-		t.Fatalf("got %+v", got)
+	for name, tc := range map[string]struct{ all, want []game.Seat }{
+		"two players: the other wins": {all: []game.Seat{"w", "b"}, want: []game.Seat{"b"}},
+		"solo: lost with no winner":   {all: []game.Seat{"w"}, want: []game.Seat{}},
+	} {
+		got := game.ForfeitToRemaining(tc.all, "w", game.ReasonResign)
+		if got.Kind != game.ResultDecisive || got.Winners == nil || !slices.Equal(got.Winners, tc.want) || got.Reason != game.ReasonResign {
+			t.Errorf("%s: got %+v", name, got)
+		}
 	}
 }

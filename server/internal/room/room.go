@@ -218,7 +218,11 @@ func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.Gam
 	}
 	var wireResult *protocol.WireResult
 	if result, done := s.result(); done {
-		wireResult = &protocol.WireResult{Winners: g.usersAt(result.Winners), Reason: result.Reason}
+		kind, err := protocol.ResultKindOf(result.Kind)
+		if err != nil {
+			return protocol.GameUpdate{}, err
+		}
+		wireResult = &protocol.WireResult{Kind: kind, Winners: g.usersAt(result.Winners), Reason: result.Reason}
 	}
 	return protocol.GameUpdate{
 		GameID:     g.ID,
