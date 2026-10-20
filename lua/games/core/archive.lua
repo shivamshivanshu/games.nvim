@@ -1,12 +1,12 @@
 local describe = require("games.core.describe")
 local fs = require("games.core.fs")
-local json = require("games.core.json")
 local notify = require("games.core.notify")
 local registry = require("games.core.registry")
 
 local ERROR = vim.log.levels.ERROR
 local UUID_PATTERN = "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$"
 local LAST_MS_OF_YEAR_9999 = 253402300799999
+local EXPORT_NAME_PATTERN = "^[%w_][%w._-]*$"
 
 local File = {
   SUMMARY = "summary.json",
@@ -16,11 +16,16 @@ local File = {
   EVENTS_SEQ = "events.seq",
 }
 
+---@type table<string, true>
+local RESERVED_NAMES = vim.iter(vim.tbl_values(File)):fold({}, function(names, name)
+  names[name] = true
+  return names
+end)
+
 ---@enum games.ArchiveOutcome
 local Outcome = {
   ONGOING = "ongoing",
   WRITTEN = "written",
-  SUMMARY_ONLY = "summary_only",
   ALREADY_PRESENT = "already_present",
   REFUSED = "refused",
   FAILED = "failed",
@@ -33,7 +38,6 @@ local Outcome = {
 ---@field dir string
 ---@field label string names the game in notifications
 ---@field events_seq? integer seq of the last step whose events are in events.jsonl; nil until read
----@field last_full? games.GameUpdate the newest update seen with a view
 ---@field finishing? games.ArchiveDone[] waiting on the finish write in flight
 
 ---@class (private) games.ArchiveJob
@@ -97,6 +101,18 @@ local function is_sealed(update)
   return update.summary ~= nil and update.digest ~= nil
 end
 
+---An export name other than a plain file name of its own could write outside the game's folder or
+---over the archive's own files.
+---@param exports? table<string, string>
+---@return string|nil
+local function unsafe_export(exports)
+  for name in pairs(exports or {}) do
+    if type(name) ~= "string" or not name:match(EXPORT_NAME_PATTERN) or RESERVED_NAMES[name] then
+      return ("export %q is not a plain file name of its own"):format(tostring(name))
+    end
+  end
+end
+
 ---Why update cannot be given a folder under the archive root, or nil when it can.
 ---@param update games.GameUpdate
 ---@return string|nil
@@ -112,6 +128,7 @@ local function unsafe_reason(update)
   if not (is_ms and started_at > 0 and started_at <= LAST_MS_OF_YEAR_9999) then
     return "started_at is not a valid time"
   end
+  return unsafe_export(update.exports)
 end
 
 ---The game's state, or nil when its folder would not be inside the archive root.
@@ -202,44 +219,25 @@ local function append_events(game, update)
   game.events_seq = update.seq
 end
 
+---summary.json goes last, so a matching one means an earlier run wrote everything else. The
+---server's exports are written verbatim.
 ---@param game games.ArchivedGame
----@return games.Event[]
-local function read_events(game)
-  local text = fs.read(file_path(game, File.EVENTS)) or ""
-  return vim.tbl_map(json.decode, vim.split(text, "\n", { trimempty = true }))
-end
-
----@param game games.ArchivedGame
----@param update games.GameUpdate sealed
-local function write_exports(game, update)
-  local module = registry.game_module(update.game)
-  if not (module and module.export) then
-    return
-  end
-  for name, content in pairs(module.export(update, read_events(game))) do
-    fs.write_atomic(file_path(game, name), content)
-  end
-end
-
----summary.json goes last, so a matching one means an earlier run wrote everything else.
----@param game games.ArchivedGame
----@param update games.GameUpdate sealed
+---@param update games.GameUpdate sealed, with no unsafe export
 ---@return games.ArchiveOutcome
 local function write_sealed(game, update)
   if fs.read(file_path(game, File.SUMMARY)) == update.summary then
     return Outcome.ALREADY_PRESENT
   end
-  if game.last_full then
-    fs.write_atomic(file_path(game, File.FINAL), vim.json.encode(game.last_full))
+  fs.write_atomic(file_path(game, File.FINAL), vim.json.encode(update))
+  for name, content in pairs(update.exports or {}) do
+    fs.write_atomic(file_path(game, name), content)
   end
-  write_exports(game, update)
   fs.write_atomic(file_path(game, File.DIGEST), ("%s  %s\n"):format(update.digest, File.SUMMARY))
   fs.write_atomic(file_path(game, File.SUMMARY), update.summary)
-  return game.last_full and Outcome.WRITTEN or Outcome.SUMMARY_ONLY
+  return Outcome.WRITTEN
 end
 
----Once its files are on disk they are all a later record of the game needs, so its state is
----released; after a failed write it is kept, so a retry still has the last full update.
+---Once its files are on disk its state is released; after a failed write it is kept for a retry.
 ---@private
 ---@param game games.ArchivedGame
 ---@param update games.GameUpdate sealed
@@ -290,9 +288,6 @@ function Archive:record(update, on_done)
   if sealed and vim.fn.sha256(update.summary) ~= update.digest then
     self:refuse(update.game_id, "summary does not match its digest", on_done)
     return
-  end
-  if update.view then
-    game.last_full = update
   end
   if sealed then
     self:seal(game, update, on_done)

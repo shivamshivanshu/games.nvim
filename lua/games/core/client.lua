@@ -4,20 +4,24 @@ local types = require("games.types")
 local MessageType = types.MessageType
 local ErrorCode = types.ErrorCode
 local ChallengeState = types.ChallengeState
+---Finished games the cache keeps; the server holds every one, so an evicted one is a snapshot away.
+local FINISHED_CACHE_SIZE = 32
 
 ---@alias games.UpdateHandler fun(update: games.GameUpdate, is_new: boolean)
 ---@alias games.ChallengeHandler fun(challenge: games.Challenge, is_new: boolean)
+---@alias games.CatalogHandler fun(catalog: games.CatalogResult)
 
 ---@class games.Client
 ---@field conn games.Conn
 ---@field package user? games.UserID
 ---@field private updates table<games.GameID, games.GameUpdate>
----@field private received_ms table<games.GameID, integer>
+---@field private finished_ids games.GameID[] the cached finished games, oldest stored first
 ---@field private challenges table<games.ChallengeID, games.Challenge> pending only
 ---@field package resolved_challenges table<games.ChallengeID, true> this connection's, which only its own lists can race
 ---@field package catalog? games.CatalogResult static per server process, so refetched per connection
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
+---@field package catalog_handlers games.CatalogHandler[]
 ---@field user_list fun(self: games.Client, body: nil, cb?: games.Reply<games.UserListResult>)
 ---@field challenge_create fun(self: games.Client, body: games.ChallengeCreateRequest, cb?: games.Reply<games.ChallengeCreateResult>)
 ---@field challenge_accept fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
@@ -28,7 +32,7 @@ local ChallengeState = types.ChallengeState
 ---@field game_snapshot fun(self: games.Client, body: games.GameSnapshotRequest, cb?: games.Reply<games.GameUpdate>)
 ---@field game_act fun(self: games.Client, body: games.GameActRequest, cb?: games.Reply<games.SeqResult>)
 ---@field game_control fun(self: games.Client, body: games.GameControlRequest, cb?: games.Reply<games.SeqResult>)
----@field stats_get fun(self: games.Client, body: nil, cb?: games.Reply<games.StatsResult>)
+---@field stats_get fun(self: games.Client, body: games.StatsRequest|nil, cb?: games.Reply<games.StatsResult>)
 local Client = {}
 Client.__index = Client
 
@@ -97,6 +101,7 @@ end
 local function cache_catalog(self, _, _, result)
   if result then
     self.catalog = result --[[@as games.CatalogResult]]
+    emit(self.catalog_handlers, self.catalog, true, "the game catalog")
   end
 end
 
@@ -137,15 +142,25 @@ function Client:catalog_list(body, cb)
   end
 end
 
----Calls fn with each catalog game's display name; on a failed request the map is empty.
----@param fn fun(names: table<games.GameType, string>)
-function Client:game_names(fn)
+---Calls fn with each catalog game by type; on a failed request the map is empty.
+---@param fn fun(infos: table<games.GameType, games.GameInfo>)
+function Client:game_infos(fn)
   self:catalog_list(nil, function(_, catalog)
-    local names = {}
+    local infos = {}
     for _, info in ipairs(catalog and catalog.games or {}) do
-      names[info.id] = info.name
+      infos[info.id] = info
     end
-    fn(names)
+    fn(infos)
+  end)
+end
+
+---The catalog entry of game, or nil until this connection has fetched the catalog.
+---@param game games.GameType
+---@return games.GameInfo|nil
+function Client:game_info(game)
+  local catalog = self.catalog
+  return catalog and vim.iter(catalog.games):find(function(info)
+    return info.id == game
   end)
 end
 
@@ -155,11 +170,12 @@ function Client.new(conn)
   local self = setmetatable({
     conn = conn,
     updates = {},
-    received_ms = {},
+    finished_ids = {},
     challenges = {},
     resolved_challenges = {},
     update_handlers = {},
     challenge_handlers = {},
+    catalog_handlers = {},
   }, Client)
   conn:on(MessageType.GAME_UPDATE, function(update)
     self:receive_update(update)
@@ -192,13 +208,6 @@ function Client:game(game_id)
   return self.updates[game_id]
 end
 
----Loop time (`vim.uv.now()`, ms) when the cached update for game_id was stored.
----@param game_id games.GameID
----@return integer|nil
-function Client:received_at(game_id)
-  return self.received_ms[game_id]
-end
-
 ---@return games.GameUpdate[]
 function Client:games()
   return vim.tbl_values(self.updates)
@@ -220,7 +229,13 @@ function Client:on_challenge(fn)
   table.insert(self.challenge_handlers, fn)
 end
 
----Caches update unless the cache already holds this seq or a later one.
+---@param fn games.CatalogHandler called each time a connection fetches the catalog
+function Client:on_catalog(fn)
+  table.insert(self.catalog_handlers, fn)
+end
+
+---Caches update unless the cache already holds this seq or a later one; a finished one is
+---handled first and then counted against the finished games the cache keeps.
 ---@package
 ---@param update games.GameUpdate
 function Client:store(update)
@@ -229,8 +244,24 @@ function Client:store(update)
     return
   end
   self.updates[update.game_id] = update
-  self.received_ms[update.game_id] = vim.uv.now()
   emit(self.update_handlers, update, cached == nil, "update for game " .. update.game_id)
+  if update.result then
+    self:keep_finished(update.game_id)
+  end
+end
+
+---Evicts the oldest stored finished games beyond FINISHED_CACHE_SIZE.
+---@private
+---@param game_id games.GameID just stored finished
+function Client:keep_finished(game_id)
+  local kept = vim.tbl_filter(function(id)
+    return id ~= game_id
+  end, self.finished_ids)
+  kept[#kept + 1] = game_id
+  while #kept > FINISHED_CACHE_SIZE do
+    self.updates[table.remove(kept, 1)] = nil
+  end
+  self.finished_ids = kept
 end
 
 ---A push that skips a seq means we missed steps, so the snapshot (not the push) becomes the truth.
@@ -302,6 +333,7 @@ function Client:resync()
     end
   end)
   self:challenge_list(nil)
+  self:catalog_list(nil)
 end
 
 return Client

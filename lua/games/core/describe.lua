@@ -41,6 +41,17 @@ function M.title(update, me)
   return ("%s vs %s"):format(update.game, M.opponent_names(update, me, ", "))
 end
 
+---Time since the clock's reading, never negative so a client clock behind the server's charges none.
+---@param update games.GameUpdate
+---@param now_ms integer unix ms
+---@return integer 0 without a clock
+function M.clock_elapsed_ms(update, now_ms)
+  if not update.clock then
+    return 0
+  end
+  return math.max(0, now_ms - update.clock.as_of_ms)
+end
+
 ---@param update games.GameUpdate with a clock
 ---@param user games.UserID
 ---@param elapsed_ms integer charged to user's clock if it is the running one

@@ -50,23 +50,36 @@ function T.stale_error_snapshots_and_supersedes_the_reply()
   assert(conn.requests[3].type == "game.snapshot" and conn.requests[3].body.game_id == "g1")
 end
 
-function T.received_at_stamps_each_cached_update()
+function T.finished_games_beyond_the_cache_size_are_evicted_after_their_handlers_ran()
   local conn = stub_conn()
   local client = Client.new(conn --[[@as games.Conn]])
-  assert(client:received_at("g1") == nil)
-
-  conn:push("game.update", update(1))
-  local first = client:received_at("g1")
-  vim.wait(20, function()
-    return vim.uv.now() > first
+  local handled = {}
+  client:on_update(function(stored)
+    handled[#handled + 1] = client:game(stored.game_id) ~= nil
   end)
-  conn:push("game.update", update(1))
-  assert(client:received_at("g1") == first, "a duplicate seq must not restamp")
-  conn:push("game.update", update(2))
-  assert(client:received_at("g1") > first)
+  conn:push("game.update", helpers.chess_update({ game_id = "ongoing" }))
+  for i = 1, 33 do
+    conn:push(
+      "game.update",
+      helpers.chess_update({
+        game_id = ("done%02d"):format(i),
+        seq = 1,
+        result = { kind = "draw", winners = {}, reason = "draw_agreed" },
+      })
+    )
+  end
+
+  assert(
+    vim.iter(handled):all(function(cached)
+      return cached
+    end),
+    "a handler ran after its update was evicted"
+  )
+  assert(client:game("done01") == nil, "the oldest finished game is still cached")
+  assert(client:game("done02") and client:game("done33") and client:game("ongoing"))
 end
 
-function T.connected_resyncs_games_and_challenges()
+function T.connected_resyncs_games_challenges_and_the_catalog()
   local conn = stub_conn()
   Client.new(conn --[[@as games.Conn]])
   conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
@@ -74,7 +87,10 @@ function T.connected_resyncs_games_and_challenges()
   local types = vim.tbl_map(function(request)
     return request.type
   end, conn.requests)
-  assert(vim.deep_equal(types, { "game.list", "challenge.list" }), vim.inspect(types))
+  assert(
+    vim.deep_equal(types, { "game.list", "challenge.list", "catalog.list" }),
+    vim.inspect(types)
+  )
 end
 
 function T.catalog_is_requested_once_per_connection()
@@ -91,23 +107,24 @@ function T.catalog_is_requested_once_per_connection()
   client:catalog_list(nil)
   assert(#catalog_requests() == 2, "a failed catalog request must not be cached")
   catalog_requests()[2].cb(nil, catalog)
-  local names
-  client:game_names(function(result)
-    names = result
+  local infos
+  client:game_infos(function(result)
+    infos = result
   end)
   vim.wait(100, function()
-    return names ~= nil
+    return infos ~= nil
   end)
 
-  assert(vim.deep_equal(names, { chess = "Chess" }), vim.inspect(names))
+  assert(vim.deep_equal(infos, { chess = catalog.games[1] }), vim.inspect(infos))
+  assert(client:game_info("chess") == catalog.games[1])
   assert(#catalog_requests() == 2)
   conn:push("disconnected", { code = "disconnected", message = "lost", retrying = true })
   client:catalog_list(nil)
   assert(#catalog_requests() == 3)
   catalog_requests()[3].cb(nil, catalog)
   conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
-  client:catalog_list(nil)
-  assert(#catalog_requests() == 4)
+  assert(#catalog_requests() == 4, "a new connection refetches the catalog")
+  assert(client:game_info("chess") == nil)
 end
 
 function T.resolved_challenge_ignores_late_pending()
@@ -125,7 +142,7 @@ function T.resolved_challenge_ignores_late_pending()
     game = "chess",
     options = {},
     state = "pending",
-    expires_at = "2026-10-20T10:05:00Z",
+    expires_at = 1792584300000,
   }
   local declined = vim.tbl_extend("force", pending, { state = "declined", by = "bob" })
 
@@ -149,7 +166,7 @@ function T.resolved_challenges_are_forgotten_at_the_next_login()
     game = "chess",
     options = {},
     state = "pending",
-    expires_at = "2026-10-20T10:05:00Z",
+    expires_at = 1792584300000,
   }
 
   conn:push(

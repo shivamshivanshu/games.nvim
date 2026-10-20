@@ -1,8 +1,8 @@
 local describe = require("games.core.describe")
 local players = require("games.core.players")
 local text = require("games.ui.text")
+local types = require("games.types")
 
-local TIME_CONTROL_OPTION = "time_control"
 local YOUR_TURN_MARKER = "●"
 local MARKER_WIDTH = 2
 local GAME_WIDTH = 7
@@ -23,47 +23,68 @@ end
 
 ---@param update games.GameUpdate
 ---@param me games.UserID
+---@param now_ms integer unix ms
 ---@return string
-local function clock(update, me)
+local function clock(update, me, now_ms)
   if not (update.clock and update.clock.remaining_ms[me]) then
     return ""
   end
-  return describe.clock_text(describe.clock_remaining_ms(update, me, 0))
+  local elapsed_ms = describe.clock_elapsed_ms(update, now_ms)
+  return describe.clock_text(describe.clock_remaining_ms(update, me, elapsed_ms))
+end
+
+---The time control in options, found by the role the catalog gives its option.
+---@param info? games.GameInfo nil when the catalog does not list the game
+---@param options? games.Options
+---@return string|nil
+local function time_control(info, options)
+  if not (info and options) then
+    return nil
+  end
+  for name, option in pairs(info.options) do
+    if option.role == types.OptionRole.CLOCK then
+      return options[name]
+    end
+  end
 end
 
 ---One searchable picker line, e.g. `● chess  vs ravi    10+5  your move  4:51  last: Nf3  #7f3a`.
 ---@param update games.GameUpdate
 ---@param me games.UserID
+---@param info? games.GameInfo the game's catalog entry
+---@param now_ms integer unix ms the clock is shown at
 ---@return string
-function M.format_game(update, me)
+function M.format_game(update, me, info, now_ms)
   local last = describe.events(update)
   return table.concat({
     text.pad_to_width(players.is_to_act(update, me) and YOUR_TURN_MARKER or "", MARKER_WIDTH),
     column(update.game, GAME_WIDTH),
     "vs " .. column(describe.opponent_names(update, me, ","), OPPONENTS_WIDTH),
-    column(update.options and update.options[TIME_CONTROL_OPTION] or "", TIME_CONTROL_WIDTH),
+    column(time_control(info, update.options) or "", TIME_CONTROL_WIDTH),
     column(describe.turn_text(update, me), TURN_WIDTH),
-    text.align_right(clock(update, me), CLOCK_WIDTH),
+    text.align_right(clock(update, me, now_ms), CLOCK_WIDTH),
     "  last: " .. (last ~= "" and last or "-"),
     "  #" .. describe.short_id(update.game_id),
   })
 end
 
----"<Game name> <time control>", e.g. "Chess 10+5".
----@param game_name string
+---"<Game name> <time control>", e.g. "Chess 10+5"; the game type stands in for an unlisted game.
+---@param game games.GameType
+---@param info? games.GameInfo the game's catalog entry
 ---@param options? games.Options
 ---@return string
-function M.game_summary(game_name, options)
-  local time_control = options and options[TIME_CONTROL_OPTION]
-  return time_control and ("%s %s"):format(game_name, time_control) or game_name
+function M.game_summary(game, info, options)
+  local name = info and info.name or game
+  local chosen = time_control(info, options)
+  return chosen and ("%s %s"):format(name, chosen) or name
 end
 
 ---@param challenge games.Challenge
 ---@param me games.UserID
----@param game_name string
+---@param info? games.GameInfo the game's catalog entry
 ---@return string
-function M.format_challenge(challenge, me, game_name)
-  local summary = M.game_summary(game_name, challenge.options)
+function M.format_challenge(challenge, me, info)
+  local summary = M.game_summary(challenge.game, info, challenge.options)
   if challenge.from == me then
     return ("you → %s: %s"):format(table.concat(challenge.to, ", "), summary)
   end

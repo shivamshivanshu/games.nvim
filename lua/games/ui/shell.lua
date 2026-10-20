@@ -8,6 +8,7 @@ local theme = require("games.ui.theme")
 local players = require("games.core.players")
 local registry = require("games.core.registry")
 local text_util = require("games.ui.text")
+local timer = require("games.core.timer")
 local types = require("games.types")
 
 local Control = types.Control
@@ -29,6 +30,7 @@ local Control = types.Control
 ---@field seats? integer player lines the header reserves, held from the board's first update
 
 ---@class games.GameInput
+---@field kind games.ActionKind of the action parse builds
 ---@field prompt string
 ---@field parse fun(text: string): games.Action
 
@@ -36,6 +38,7 @@ local Control = types.Control
 ---@field key string
 ---@field label string
 ---@field action? games.Action
+---@field available? fun(update: games.GameUpdate): boolean whether action applies now; default always
 ---@field local_fn? fun(view: games.ViewOptions): games.ViewOptions
 
 ---@class games.GameModule
@@ -43,8 +46,6 @@ local Control = types.Control
 ---@field input? games.GameInput
 ---@field actions? games.GameAction[]
 ---@field describe_event? fun(event: games.Event, update: games.GameUpdate): string|nil
----Files to archive beside the summary when a game finishes, by name; events are all this client saw.
----@field export? fun(update: games.GameUpdate, events: games.Event[]): table<string, string>
 ---@field asset_keys? string[] keys every asset pack of the game must draw
 ---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
 
@@ -235,17 +236,6 @@ local function render_header(update, me, elapsed_ms)
   return header, clocks
 end
 
----@param update games.GameUpdate
----@param module games.GameModule
----@param ctx games.LayoutCtx
----@return games.Node
-local function board_node(update, module, ctx)
-  if not update.view then
-    return compose.text("board not available (finished game)", "GamesMuted")
-  end
-  return module.layout(update, ctx)
-end
-
 ---@param bindings games.KeyBinding[]
 ---@return games.Node
 local function footer_node(bindings)
@@ -348,10 +338,19 @@ local function check_action_keys(module)
   checked_modules[module] = true
 end
 
+---Whether the catalogue lists kind; nothing is, until the catalogue is known.
+---@param catalogued? table<games.ActionKind, true>
+---@param kind games.ActionKind
+---@return boolean
+local function is_catalogued(catalogued, kind)
+  return catalogued ~= nil and catalogued[kind] == true
+end
+
 ---@param update games.GameUpdate
 ---@param module games.GameModule
+---@param catalogued? table<games.ActionKind, true> the action kinds the server lists for the game
 ---@return games.KeyBinding[]
-local function bindings_for(update, module)
+local function bindings_for(update, module, catalogued)
   check_action_keys(module)
   local ongoing = update.result == nil
   local bindings = {}
@@ -367,7 +366,7 @@ local function bindings_for(update, module)
     end
   end
   local input = module.input
-  if ongoing and input then
+  if ongoing and input and is_catalogued(catalogued, input.kind) then
     bindings[#bindings + 1] = {
       key = INPUT_KEY,
       label = (input.prompt:gsub(":%s*$", ""):lower()),
@@ -387,7 +386,12 @@ local function bindings_for(update, module)
           render_board(board)
         end,
       }
-    elseif ongoing and game_action then
+    elseif
+      ongoing
+      and game_action
+      and is_catalogued(catalogued, game_action.kind)
+      and (not entry.available or entry.available(update))
+    then
       bindings[#bindings + 1] = {
         key = entry.key,
         label = entry.label,
@@ -424,13 +428,14 @@ end
 ---@param module games.GameModule
 ---@param view games.ViewOptions
 ---@param me games.UserID
----@param elapsed_ms? integer time since `update` arrived, charged to the running clock
+---@param elapsed_ms? integer time since the clock's as_of_ms, charged to the running clock
 ---@param display? games.Display nil draws the smallest board
+---@param catalogued? table<games.ActionKind, true> action kinds the server lists; nil, until it is known, binds none
 ---@return games.Rendered
 ---@return integer header_height lines owned by the header
 ---@return games.KeyBinding[] bindings the footer lists
 ---@return games.ClockColumn|nil clocks where the header draws the clocks
-function M.render(update, module, view, me, elapsed_ms, display)
+function M.render(update, module, view, me, elapsed_ms, display, catalogued)
   local measured = display or {}
   local header, clocks = render_header(update, me, elapsed_ms or 0)
   local ctx = vim.tbl_extend("force", view, {
@@ -438,10 +443,10 @@ function M.render(update, module, view, me, elapsed_ms, display)
     space = layout_space(measured.seats or #update.players, measured.text_area),
     ambiwidth = measured.ambiwidth or DEFAULT_AMBIWIDTH,
   }) --[[@as games.LayoutCtx]]
-  local bindings = bindings_for(update, module)
+  local bindings = bindings_for(update, module, catalogued)
   local body = compose.render(compose.col({
     compose.text(""),
-    board_node(update, module, ctx),
+    module.layout(update, ctx),
     compose.text(""),
     footer_node(bindings),
   }))
@@ -457,8 +462,20 @@ end
 ---@param board games.Board
 ---@return integer
 local function elapsed_ms(board)
-  local now = vim.uv.now()
-  return now - (board.client:received_at(board.update.game_id) or now)
+  return describe.clock_elapsed_ms(board.update, timer.unix_ms())
+end
+
+---@param board games.Board
+---@return table<games.ActionKind, true>|nil
+local function catalogued_kinds(board)
+  local info = board.client:game_info(board.update.game)
+  if not info then
+    return nil
+  end
+  return vim.iter(info.actions):fold({}, function(kinds, spec)
+    kinds[spec.kind] = true
+    return kinds
+  end)
 end
 
 ---@param board games.Board
@@ -489,7 +506,7 @@ render_board = function(board)
       text_area = board.text_area,
       ambiwidth = vim.o.ambiwidth,
       seats = board.seats,
-    })
+    }, catalogued_kinds(board))
   paint(board.buf, NAMESPACE, 0, -1, rendered)
   board.clocks = clocks
   vim.b[board.buf].games_dirty = false
@@ -708,6 +725,13 @@ local function subscribe(client)
       apply_update(board, update)
     end
   end)
+  client:on_catalog(function()
+    for _, board in pairs(boards) do
+      if board.client == client then
+        render_board(board)
+      end
+    end
+  end)
 end
 
 ---@param buf integer
@@ -778,10 +802,15 @@ local function view_for(game, module, opts)
   return { glyphs = opts.glyphs, flipped = false, max_cell_height = opts.max_cell_height, art = art }
 end
 
+---@type fun(client: games.Client, update: games.GameUpdate, me: games.UserID, opts?: games.OpenOptions): integer|nil
+local open_update
+
+---Opens the board of game_id, fetching its snapshot first when the client holds none, as for a
+---finished game it no longer caches; then the board opens once the snapshot arrives.
 ---@param client games.Client
 ---@param game_id games.GameID
 ---@param opts? games.OpenOptions defaults to the user's config
----@return integer|nil buf
+---@return integer|nil buf nil when it cannot open now
 function M.open(client, game_id, opts)
   local me = notify.require_me(client)
   if not me then
@@ -793,10 +822,21 @@ function M.open(client, game_id, opts)
     return existing.buf
   end
   local update = client:game(game_id)
-  if not update then
-    notify.say(("games: unknown game %s"):format(game_id), vim.log.levels.ERROR)
-    return nil
+  if update then
+    return open_update(client, update, me, opts)
   end
+  client:game_snapshot({ game_id = game_id }, function(err, snapshot)
+    if err then
+      notify.say(("games: game %s: %s"):format(game_id, err.message), vim.log.levels.ERROR)
+    elseif snapshot and not board_for(client, game_id) then
+      open_update(client, snapshot, me, opts)
+    end
+  end)
+  return nil
+end
+
+open_update = function(client, update, me, opts)
+  local game_id = update.game_id
   local module = registry.game_module(update.game)
   if not module then
     notify.say(("games: no board for game type %s"):format(update.game), vim.log.levels.ERROR)

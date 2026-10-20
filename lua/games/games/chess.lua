@@ -3,7 +3,6 @@ local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
-local pgn = require("games.games.chess.pgn")
 local players = require("games.core.players")
 
 ---@class games.ChessSquares
@@ -14,7 +13,9 @@ local players = require("games.core.players")
 ---@field fen string
 ---@field history_san string[]
 ---@field last_move? games.ChessSquares
----@field in_check boolean
+---@field legal_moves string[] UCI, the viewer's own: empty unless it is to move
+---@field claimable_draw boolean whether the viewer may claim a draw now
+---@field check_square? string the king of the side to move, while it is in check
 
 ---@alias games.ChessSeat "white"|"black"
 
@@ -32,10 +33,6 @@ local FILES = "abcdefgh"
 local RANKS = "87654321"
 ---@type games.ChessSeat
 local BLACK = "black"
----@alias games.ChessSide "w"|"b" a FEN side to move
-
----@type table<games.ChessPiece, games.ChessSide>
-local KING_SIDE = { K = "w", k = "b" }
 local EMPTY_KEY = "empty"
 
 local WHITE_PIECE_HL = "GamesPieceWhite"
@@ -76,21 +73,13 @@ local function san_legend(set, ambiwidth)
   end, SAN_LEGEND)
 end
 
----@class (private) games.ChessCell
----@field row integer
----@field col integer
-
----@class (private) games.ChessPosition
----@field pieces (games.ChessPiece|false)[][] rows from rank 8 down, false for an empty square
----@field side_to_move games.ChessSide
----@field kings table<games.ChessSide, games.ChessCell> the first king of each side
+---@alias games.ChessPieces (games.ChessPiece|false)[][] rows from rank 8 down, false for an empty square
 
 ---@param fen string
----@return games.ChessPosition
-local function parse_fen(fen)
-  local fields = vim.split(fen, " ", { plain = true })
-  local pieces, kings = {}, {}
-  for row, rank in ipairs(vim.split(fields[1], "/", { plain = true })) do
+---@return games.ChessPieces
+local function parse_placement(fen)
+  local placement = vim.split(fen, " ", { plain = true })[1]
+  return vim.tbl_map(function(rank)
     local squares = {}
     for char in rank:gmatch(".") do
       local empty_run = tonumber(char)
@@ -100,15 +89,10 @@ local function parse_fen(fen)
         end
       else
         squares[#squares + 1] = char
-        local side = KING_SIDE[char]
-        if side and not kings[side] then
-          kings[side] = { row = row, col = #squares }
-        end
       end
     end
-    pieces[row] = squares
-  end
-  return { pieces = pieces, side_to_move = fields[2], kings = kings }
+    return squares
+  end, vim.split(placement, "/", { plain = true }))
 end
 
 ---@param square string e.g. "e4"
@@ -139,17 +123,16 @@ local function last_move_mark(square)
 end
 
 ---@param view games.ChessView
----@param position games.ChessPosition
 ---@return games.GridMark[]
-local function marks_for(view, position)
+local function marks_for(view)
   local marks = {}
   if view.last_move then
     marks[1] = last_move_mark(view.last_move.from)
     marks[2] = last_move_mark(view.last_move.to)
   end
-  local king = view.in_check and position.kings[position.side_to_move]
-  if king then
-    marks[#marks + 1] = { row = king.row, col = king.col, hl = CHECK_HL }
+  if view.check_square then
+    local row, col = square_cell(view.check_square)
+    marks[#marks + 1] = { row = row, col = col, hl = CHECK_HL }
   end
   return marks
 end
@@ -171,7 +154,7 @@ M.asset_keys = { "K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p", EMP
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local position = parse_fen(view.fen)
+  local pieces = parse_placement(view.fen)
   local set = assert(ctx.art, "chess draws from an asset pack")
   return board({
     grid = {
@@ -181,9 +164,9 @@ function M.layout(update, ctx)
       flip = black_at_bottom(update, ctx),
       labels = { cols = FILES, rows = RANKS },
       cell = function(r, c)
-        return cell_for(position.pieces[r][c])
+        return cell_for(pieces[r][c])
       end,
-      marks = marks_for(view, position),
+      marks = marks_for(view),
     },
     art = set,
     panels = {
@@ -212,7 +195,9 @@ function M.layout(update, ctx)
   }, ctx)
 end
 
+---@type games.GameInput
 M.input = {
+  kind = "move",
   prompt = "Move: ",
   parse = function(text)
     return { kind = "move", move = text }
@@ -221,7 +206,14 @@ M.input = {
 
 ---@type games.GameAction[]
 M.actions = {
-  { key = "C", label = "claim draw", action = { kind = "claim_draw" } },
+  {
+    key = "C",
+    label = "claim draw",
+    action = { kind = "claim_draw" },
+    available = function(update)
+      return update.view.claimable_draw
+    end,
+  },
   {
     key = "F",
     label = "flip",
@@ -240,15 +232,6 @@ function M.describe_event(event, update)
   end
   ---@cast event games.ChessMovedEvent
   return ("%s played %s"):format(players.user_of_seat(update, event.by) or event.by, event.san)
-end
-
----@param update games.ChessUpdate
----@return table<string, string>
-function M.export(update)
-  if not update.view then
-    return {}
-  end
-  return { ["game.pgn"] = pgn.build(update) }
 end
 
 return M

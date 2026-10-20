@@ -32,7 +32,7 @@ return {
       local case = cases[expected.name]
       local view = helpers.chess_view(case.glyphs, case.flipped)
       local rendered, header_height =
-        shell.render(case.update, chess, view, case.me, case.elapsed_ms)
+        shell.render(case.update, chess, view, case.me, case.elapsed_ms, nil, helpers.CHESS_ACTIONS)
       helpers.assert_eq({ expected.name, expected.lines }, { expected.name, rendered.lines })
       helpers.assert_eq(
         { expected.name, sorted(expected.extmarks) },

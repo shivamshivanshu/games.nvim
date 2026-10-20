@@ -33,7 +33,7 @@ local function chess_update(seq, moved_by, to_act)
     to_act = to_act,
     controls = {},
     events = moved_by and { { kind = "moved", by = moved_by, san = "e4" } } or {},
-    view = { fen = AFTER_E4_FEN, history_san = { "e4" }, in_check = false },
+    view = { fen = AFTER_E4_FEN, history_san = { "e4" }, legal_moves = {}, claimable_draw = false },
   })
 end
 
@@ -86,7 +86,7 @@ function T.resolution_messages_name_game_and_opponent()
     accepted = {},
     game = "chess",
     options = {},
-    expires_at = "2026-10-20T10:05:00Z",
+    expires_at = 1792584300000,
   }
   local function text(state, by, me)
     local resolved = vim.tbl_extend("force", challenge, { state = state, by = by })

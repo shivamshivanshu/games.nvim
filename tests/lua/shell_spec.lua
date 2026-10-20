@@ -4,6 +4,7 @@ local text_util = require("games.ui.text")
 local shell = require("games.ui.shell")
 local chess = require("games.games.chess")
 local helpers = require("helpers")
+local timer = require("games.core.timer")
 
 local assert_eq = helpers.assert_eq
 
@@ -138,7 +139,9 @@ function T.last_move_and_check_marks()
       fen = FOOLS_MATE_FEN,
       history_san = { "f3", "e5", "g4", "Qh4#" },
       last_move = { from = "d8", to = "h4" },
-      in_check = true,
+      legal_moves = {},
+      claimable_draw = false,
+      check_square = "e1",
     },
   })
   local rendered = shell.render(update, chess, ASCII, "alice")
@@ -163,7 +166,8 @@ function T.last_move_on_a_light_square_layers_square_tint_then_piece()
       fen = AFTER_E4_FEN,
       history_san = { "e4" },
       last_move = { from = "e2", to = "e4" },
-      in_check = false,
+      legal_moves = {},
+      claimable_draw = false,
     },
   })
   local rendered = shell.render(update, chess, ASCII, "alice")
@@ -196,33 +200,73 @@ function T.unicode_board_shows_hollow_white_and_solid_black()
   assert(vim.startswith(rows[8], "1 ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖"), rows[8])
 end
 
-local function finished_without_view()
-  local update = chess_update({
-    game_id = "fin001",
+function T.open_fetches_the_snapshot_of_a_game_the_client_does_not_hold()
+  local client, conn = client_with("alice", {})
+  assert_eq(nil, shell.open(client, "fetch01"))
+  assert_eq({ { game_id = "fetch01" } }, sent(conn, "game.snapshot"))
+
+  local finished = chess_update({
+    game_id = "fetch01",
     seq = 4,
     to_act = {},
     controls = {},
     result = { kind = "decisive", winners = { "bob" }, reason = "checkmate" },
   })
-  update.view = nil
-  return update
-end
-
-function T.finished_game_without_view_renders_placeholder()
-  local rendered = shell.render(finished_without_view(), chess, ASCII, "alice")
-  local text = table.concat(rendered.lines, "\n")
-
-  assert(text:find("Result: bob won (checkmate)", 1, true), text)
-  assert(text:find("board not available", 1, true), text)
-end
-
-function T.open_finished_game_without_view()
-  local client = client_with("alice", { finished_without_view() })
-  local buf = shell.open(client, "fin001")
-
+  conn.requests[#conn.requests].cb(nil, finished)
+  local buf = vim.api.nvim_get_current_buf()
+  local name = vim.api.nvim_buf_get_name(buf)
   local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
-  assert(text:find("board not available", 1, true), text)
-  assert(mapping(buf, "q"))
+  vim.api.nvim_buf_delete(buf, { force = true })
+
+  assert_eq("games://chess/bob/fetc", name)
+  assert(text:find("Result: bob won (checkmate)", 1, true), text)
+  assert(text:find("\n8 ", 1, true), text)
+end
+
+---@param update games.GameUpdate
+---@param catalogued? table<games.ActionKind, true> chess's whole catalogue when nil
+---@return string
+local function footer_of(update, catalogued)
+  local rendered =
+    shell.render(update, chess, ASCII, "alice", 0, nil, catalogued or helpers.CHESS_ACTIONS)
+  return rendered.lines[#rendered.lines]
+end
+
+function T.claim_draw_is_offered_only_when_the_view_says_it_is_claimable()
+  local claimable = chess_update({})
+  claimable.view = vim.tbl_extend("force", claimable.view, { claimable_draw = true })
+
+  assert(not footer_of(chess_update({})):find("C claim draw", 1, true))
+  assert(footer_of(claimable):find("C claim draw", 1, true), footer_of(claimable))
+end
+
+function T.game_actions_the_catalog_does_not_list_are_not_bound()
+  local claimable = chess_update({})
+  claimable.view = vim.tbl_extend("force", claimable.view, { claimable_draw = true })
+  local footer = footer_of(claimable, { claim_draw = true })
+
+  assert(footer:find("C claim draw", 1, true) and not footer:find("m move", 1, true), footer)
+  assert(footer:find("F flip", 1, true), footer)
+end
+
+function T.game_actions_stay_unbound_until_the_catalog_arrives_then_every_board_rebinds()
+  local client, conn = client_with("alice", { chess_update({ game_id = "cat001" }) })
+  local buf = shell.open(client, "cat001")
+  assert(not mapping(buf, "m"), "move is bound before the catalog is known")
+  assert(mapping(buf, "R"), "controls do not wait for the catalog")
+
+  local catalog_request = vim.iter(conn.requests):find(function(request)
+    return request.type == "catalog.list"
+  end)
+  catalog_request.cb(nil, {
+    games = {
+      { id = "chess", name = "Chess", actions = { { kind = "move" }, { kind = "claim_draw" } } },
+    },
+  })
+
+  assert(mapping(buf, "m"), "move is not bound once the catalog arrives")
+  assert(vim.api.nvim_buf_get_lines(buf, -2, -1, false)[1]:find("m move", 1, true))
+  vim.api.nvim_buf_delete(buf, { force = true })
 end
 
 function T.running_clock_counts_down_from_arrival()
@@ -278,21 +322,25 @@ function T.flip_toggles_black_default_perspective()
   assert(vim.startswith(first_board_line(buf), "8 "), first_board_line(buf))
 end
 
-function T.open_charges_clock_from_cache_arrival()
+function T.open_charges_clock_from_its_as_of_time()
+  local as_of_ms = 1792584000000
   local update = chess_update({
     game_id = "clock01",
-    clock = { remaining_ms = { alice = 300000, bob = 300000 }, running = "alice" },
+    clock = {
+      remaining_ms = { alice = 300000, bob = 300000 },
+      running = "alice",
+      as_of_ms = as_of_ms,
+    },
   })
-  local arrived_ms = vim.uv.now() - 61000
-  local client
-  with_stub(vim.uv, "now", function()
-    return arrived_ms
+  local client = client_with("alice", { update })
+  local header
+  with_stub(timer, "unix_ms", function()
+    return as_of_ms + 61000
   end, function()
-    client = client_with("alice", { update })
+    local buf = shell.open(client, "clock01")
+    header = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+    vim.api.nvim_buf_delete(buf, { force = true })
   end)
-  local buf = shell.open(client, "clock01")
-  local header = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
-  vim.api.nvim_buf_delete(buf, { force = true })
 
   assert(header:find("3:59", 1, true), header)
 end
@@ -338,7 +386,12 @@ function T.hidden_buffer_marked_dirty()
       game_id = "hide01",
       seq = 1,
       to_act = { "bob" },
-      view = { fen = AFTER_E4_FEN, history_san = { "e4" }, in_check = false },
+      view = {
+        fen = AFTER_E4_FEN,
+        history_san = { "e4" },
+        legal_moves = {},
+        claimable_draw = false,
+      },
     })
   )
   assert_eq(true, vim.b[buf].games_dirty)
@@ -645,7 +698,11 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
     local update = chess_update({
       game_id = "tick0" .. i,
       players = players,
-      clock = { remaining_ms = case.remaining_ms, running = players[1].user },
+      clock = {
+        remaining_ms = case.remaining_ms,
+        running = players[1].user,
+        as_of_ms = timer.unix_ms(),
+      },
     })
     local client = client_with("alice", { update })
     local buf = assert(shell.open(client, update.game_id))
@@ -676,9 +733,8 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
         table.insert(lines_changed, old_last - first)
       end,
     })
-    local ticked_ms = assert(client:received_at(update.game_id)) + elapsed_ms
-    with_stub(vim.uv, "now", function()
-      return ticked_ms
+    with_stub(timer, "unix_ms", function()
+      return update.clock.as_of_ms + elapsed_ms
     end, function()
       helpers.wait_for(function()
         return vim.deep_equal(expected_lines, (painted_header(buf, height)))

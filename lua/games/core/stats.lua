@@ -1,6 +1,3 @@
----@class (private) games.UserTally: games.Tally
----@field user games.UserID
-
 local M = {}
 
 ---@param tally games.Tally
@@ -21,72 +18,33 @@ local function rows_of(tallies, label)
   return rows
 end
 
----@generic T: {user: games.UserID}
----@param records T[]
----@param user games.UserID
----@return T[]
-local function of_user(records, user)
-  return vim.tbl_filter(function(record)
-    return record.user == user
-  end, records)
-end
-
----Per-game record, then head-to-head, for one user.
----@param stats games.StatsResult
----@param user games.UserID
+---Per-game record, then head-to-head, of the user stats were requested for, in the server's order.
+---@param stats games.StatsResult of one user
 ---@return games.KvPair[]
-function M.stats_pairs(stats, user)
-  local records = of_user(stats.records, user)
-  table.sort(records, function(a, b)
-    return a.game < b.game
-  end)
-  local rivals = of_user(stats.head_to_head, user)
-  table.sort(rivals, function(a, b)
-    return a.opponent < b.opponent or (a.opponent == b.opponent and a.game < b.game)
-  end)
+function M.stats_pairs(stats)
   return vim.list_extend(
-    rows_of(records, function(record)
+    rows_of(stats.records, function(record)
       return record.game
     end),
-    rows_of(rivals, function(record)
+    rows_of(stats.head_to_head, function(record)
       return ("vs %s (%s)"):format(record.opponent, record.game)
     end)
   )
 end
 
----Users ranked by wins, then fewest losses, then most draws; totals span every game when game is nil.
----@param records games.StatsRecord[]
+---The server's ranking: of game's records when game is given, else of the totals over every game.
+---@param stats games.StatsResult
 ---@param game games.GameType|nil
 ---@return games.KvPair[]
-function M.leaderboard_pairs(records, game)
-  ---@type table<games.UserID, games.UserTally>
-  local totals = {}
-  for _, record in ipairs(records) do
-    if game == nil or record.game == game then
-      local total = totals[record.user] or { user = record.user, wins = 0, losses = 0, draws = 0 }
-      totals[record.user] = {
-        user = record.user,
-        wins = total.wins + record.wins,
-        losses = total.losses + record.losses,
-        draws = total.draws + record.draws,
-      }
-    end
-  end
-  local ranked = vim.tbl_values(totals)
-  table.sort(ranked, function(a, b)
-    if a.wins ~= b.wins then
-      return a.wins > b.wins
-    end
-    if a.losses ~= b.losses then
-      return a.losses < b.losses
-    end
-    if a.draws ~= b.draws then
-      return a.draws > b.draws
-    end
-    return a.user < b.user
-  end)
-  return rows_of(ranked, function(total, rank)
-    return ("%d. %s"):format(rank, total.user)
+function M.leaderboard_pairs(stats, game)
+  ---@type games.LeaderboardEntry[]
+  local ranked = game
+      and vim.tbl_filter(function(record)
+        return record.game == game
+      end, stats.records)
+    or stats.leaderboard
+  return rows_of(ranked, function(entry, rank)
+    return ("%d. %s"):format(rank, entry.user)
   end)
 end
 

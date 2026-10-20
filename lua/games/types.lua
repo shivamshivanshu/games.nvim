@@ -4,6 +4,7 @@
 ---@alias games.Seat string
 ---@alias games.ChallengeID string
 ---@alias games.Capability "resign"|"draw"|"abort"|"clock"
+---@alias games.ActionKind string a game's own, listed in its catalog entry
 ---@alias games.Options table<string, string>
 ---Both nil means the request was superseded and the client fetches a fresh snapshot instead.
 ---@alias games.Reply<R> fun(err: games.ErrorBody|nil, result: R|nil)
@@ -32,9 +33,23 @@
 ---@field max integer
 
 ---@class games.GameOption
----@field type "enum"
----@field values string[]
+---@field type games.OptionType
+---@field values string[] empty for a text option
 ---@field default string
+---@field max_len? integer bytes a text option takes, sent for text options only
+---@field role? games.OptionRole set only on an option whose meaning the core knows
+
+---The one text field an action takes from its player.
+---@class games.ActionInput
+---@field field string the action's field the text goes in
+---@field description string
+---@field pattern? string an RE2 expression the text matches, when values is empty
+---@field values string[] the text is one of these, when not empty
+
+---@class games.ActionSpec
+---@field kind games.ActionKind
+---@field description string
+---@field input? games.ActionInput nil for an action that is its kind alone
 
 ---@class games.GameInfo
 ---@field id games.GameType
@@ -42,6 +57,7 @@
 ---@field players games.PlayerRange
 ---@field capabilities games.Capability[]
 ---@field options table<string, games.GameOption>
+---@field actions games.ActionSpec[] the game's action catalog
 
 ---@class games.CatalogResult
 ---@field games games.GameInfo[]
@@ -74,10 +90,18 @@
 ---@field state games.ChallengeState
 ---@field by? games.UserID
 ---@field game_id? games.GameID
----@field expires_at string
+---@field expires_at integer unix ms
 
 ---@class games.ChallengeListResult
 ---@field challenges games.Challenge[]
+
+---Starts a solo game; the reply is its first games.GameUpdate.
+---@class games.GameStartRequest
+---@field game games.GameType
+---@field options games.Options
+
+---@class games.GameVerifyRequest
+---@field summary string a finished game's summary bytes, as the server sent them
 
 ---@class games.GameListRequest
 ---@field status? games.GameStatus
@@ -89,7 +113,7 @@
 ---@field game_id games.GameID
 
 ---@class games.Action
----@field kind string
+---@field kind games.ActionKind
 ---@field [string] any
 
 ---@class games.GameActRequest
@@ -114,9 +138,11 @@
 ---@field winners games.UserID[]
 ---@field reason string a games.ResultReason, or the game's own such as chess "checkmate"
 
+---The clock as of as_of_ms: the step's time on a push, the read's on a snapshot.
 ---@class games.WireClock
 ---@field remaining_ms table<games.UserID, integer>
----@field running? games.UserID
+---@field running? games.UserID whose remaining time keeps falling from as_of_ms
+---@field as_of_ms integer unix ms
 
 ---@class games.Event
 ---@field kind string
@@ -134,11 +160,12 @@
 ---@field draw_agreed? games.UserID[]
 ---@field controls games.Control[]
 ---@field events games.Event[]
----@field view? table nil in a read of a finished game after the live finish
+---@field view table the game's own view, as this player sees it; a finished game's final one
 ---@field started_at integer unix ms
 ---@field finished_at? integer unix ms
 ---@field summary? string the server's canonical summary bytes, once finished
 ---@field digest? string lowercase hex sha256 of summary
+---@field exports? table<string, string> files the game records itself in, by name, once finished
 
 ---@class games.Tally
 ---@field wins integer
@@ -154,9 +181,18 @@
 ---@field opponent games.UserID
 ---@field game games.GameType
 
+---@class games.LeaderboardEntry: games.Tally
+---@field user games.UserID
+
+---@class games.StatsRequest
+---@field user? games.UserID limits records and head_to_head to this user
+
+---Ranked by the server: records by game, then rank; leaderboard by rank over every game and user.
+---A rank orders most wins, then fewest losses, then most draws, then user.
 ---@class games.StatsResult
 ---@field records games.StatsRecord[]
 ---@field head_to_head games.HeadToHeadRecord[]
+---@field leaderboard games.LeaderboardEntry[]
 
 local M = {}
 
@@ -179,7 +215,9 @@ M.MessageType = {
   GAME_SNAPSHOT = "game.snapshot",
   GAME_ACT = "game.act",
   GAME_CONTROL = "game.control",
+  GAME_START = "game.start",
   STATS_GET = "stats.get",
+  GAME_VERIFY = "game.verify",
   CHALLENGE_CHANGED = "challenge.changed",
   GAME_UPDATE = "game.update",
 }
@@ -195,6 +233,7 @@ M.ErrorCode = {
   ILLEGAL_ACTION = "illegal_action",
   STALE = "stale",
   INTERNAL = "internal",
+  SUMMARY_MISMATCH = "summary_mismatch",
   -- Client-side only: the server never sends it; the conn reports lost connections with it.
   DISCONNECTED = "disconnected",
 }
@@ -227,6 +266,17 @@ M.ResultKind = {
 M.GameStatus = {
   ONGOING = "ongoing",
   FINISHED = "finished",
+}
+
+---@enum games.OptionType
+M.OptionType = {
+  ENUM = "enum",
+  TEXT = "text",
+}
+
+---@enum games.OptionRole
+M.OptionRole = {
+  CLOCK = "clock",
 }
 
 ---@enum games.Control

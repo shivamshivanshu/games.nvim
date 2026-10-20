@@ -185,12 +185,12 @@ With `archive = { dir = "~/games" }`, every game this client sees is written to
 |---|---|
 | `summary.json` | the server's summary bytes, verbatim: game id, game, start and finish times, reason, each player's score |
 | `summary.sha256` | the summary's sha256 as the server sent it, in `sha256sum` format, so `sha256sum -c summary.sha256` checks it |
-| `final.json` | the finishing update if this client saw it, otherwise the last update with a board it saw; absent when it saw none |
+| `final.json` | the finished game's update: the finishing broadcast if this client saw it, else a later read of the game, which carries the final board too |
 | `events.jsonl` | every event this client saw, one JSON object per line, in order |
 | `events.seq` | the seq of the last step whose events are in `events.jsonl`, so a restart does not repeat them |
-| `game.pgn` | chess only, when the finishing update was seen: the game as PGN |
+| `<export>` | each file the server exports for the game, verbatim, e.g. chess's `game.pgn` |
 
-The client checks the summary against its digest before writing and refuses a game whose digest does not match. Writes are atomic (temp file, then rename) and asynchronous; a game already archived is left as it is. Games that finished while Neovim was closed are archived by `:Games list finished` or `:Games export`, without `final.json` or `game.pgn`, since the server keeps no moves of a finished game. Only the outcome is tamper-evident: send `summary.json` back with `game.verify {summary}` and the server confirms it matches the stored digest; the move files are this client's own record. A game id, game type or start time that would place files outside `archive.dir` is refused and notified.
+The client checks the summary against its digest before writing and refuses a game whose digest does not match. Writes are atomic (temp file, then rename) and asynchronous; a game already archived is left as it is. Games that finished while Neovim was closed are archived by `:Games list finished` or `:Games export`; the server keeps each finished game's final board and exports, so only `events.jsonl` misses what this client did not see. Only the outcome is tamper-evident: send `summary.json` back with `game.verify {summary}` and the server confirms it matches the stored digest. A game id, game type, start time or export name that would place files outside the game's folder is refused and notified.
 
 Known limitation: two Neovims logged in as the same user and archiving to the same `dir` can both append the same events to `events.jsonl`.
 
@@ -205,7 +205,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `D` | offer draw (the opponent's `D` agrees) |
 | `X` | decline draw |
 | `A` | abort |
-| `C` | claim draw (chess) |
+| `C` | claim draw (chess), when a draw is claimable |
 | `F` | flip board (chess) |
 | `]g` | next game waiting on your move |
 | `q` | close |

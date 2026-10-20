@@ -7,6 +7,7 @@ local picker = require("games.ui.picker")
 local shell = require("games.ui.shell")
 local stats = require("games.core.stats")
 local text = require("games.ui.text")
+local timer = require("games.core.timer")
 local types = require("games.types")
 
 local GameStatus = types.GameStatus
@@ -231,7 +232,7 @@ local function send_challenge(client, info, opponents)
         say(
           ("challenged %s: %s"):format(
             table.concat(opponents, ", "),
-            picker.game_summary(info.name, options)
+            picker.game_summary(info.id, info, options)
           )
         )
       end)
@@ -333,11 +334,11 @@ local function challenges(client, me)
         return
       end
       table.sort(pending, incoming_first(me))
-      client:game_names(function(names)
+      client:game_infos(function(infos)
         picker.pick(pending, {
           prompt = "Pending challenges:",
           format_item = function(item)
-            return picker.format_challenge(item, me, names[item.game] or item.game)
+            return picker.format_challenge(item, me, infos[item.game])
           end,
         }, function(item)
           resolve_challenge(client, me, item)
@@ -363,13 +364,16 @@ local function list(client, me, args)
           say(("games: no %s games"):format(status))
           return
         end
-        picker.pick(result.games, {
-          prompt = ("%s games:"):format(status),
-          format_item = function(update)
-            return picker.format_game(update, me)
-          end,
-        }, function(update)
-          shell.open(client, update.game_id)
+        client:game_infos(function(infos)
+          local now_ms = timer.unix_ms()
+          picker.pick(result.games, {
+            prompt = ("%s games:"):format(status),
+            format_item = function(update)
+              return picker.format_game(update, me, infos[update.game], now_ms)
+            end,
+          }, function(update)
+            shell.open(client, update.game_id)
+          end)
         end)
       end
     )
@@ -391,14 +395,14 @@ end
 local function show_stats(client, me, args)
   local user = args[1] or me
   client:stats_get(
-    nil,
+    { user = user },
     on_ok(
       ---@param result games.StatsResult
       function(result)
         show_rows(
           " stats: " .. user .. " ",
           ("games: %s has no finished games"):format(user),
-          stats.stats_pairs(result, user)
+          stats.stats_pairs(result)
         )
       end
     )
@@ -416,7 +420,7 @@ local function show_leaderboard(client, _, args)
         show_rows(
           (" leaderboard: %s "):format(game or "all games"),
           ("games: no finished %sgames"):format(game and (game .. " ") or ""),
-          stats.leaderboard_pairs(result.records, game)
+          stats.leaderboard_pairs(result, game)
         )
       end
     )
@@ -430,7 +434,6 @@ local function export_summary(tally)
   local parts = {
     ("%d written"):format(tally[Outcome.WRITTEN] or 0),
     ("%d already present"):format(tally[Outcome.ALREADY_PRESENT] or 0),
-    ("%d without a view (summary only)"):format(tally[Outcome.SUMMARY_ONLY] or 0),
   }
   local failed = (tally[Outcome.REFUSED] or 0) + (tally[Outcome.FAILED] or 0)
   if failed > 0 then

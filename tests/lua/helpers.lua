@@ -6,6 +6,8 @@ local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:
 local SERVER_BIN = REPO_ROOT .. "/bin/games-server"
 local USERS = { "alice", "bob" }
 M.PASSWORD = "pw"
+---The action kinds the server catalogues for chess.
+M.CHESS_ACTIONS = { move = true, claim_draw = true }
 M.WAIT_MS = 2000
 
 ---@class games.test.Server
@@ -196,7 +198,7 @@ function M.chess_update(overrides)
     to_act = { "alice" },
     controls = { "resign", "offer_draw", "abort" },
     events = {},
-    view = { fen = CHESS_START_FEN, history_san = {}, in_check = false },
+    view = { fen = CHESS_START_FEN, history_san = {}, legal_moves = {}, claimable_draw = false },
   }, overrides)
 end
 

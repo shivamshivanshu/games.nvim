@@ -378,15 +378,13 @@ local function archived(archive, update)
   end, "the archive write")
 end
 
-function T.export_reports_written_present_and_viewless_games()
+function T.export_reports_written_and_present_games()
   with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
     helpers.with_temp_dir(function(root)
       local archive = Archive.attach(games.client, root)
       helpers.with_overrides({ { games, "archive", archive } }, function()
         conn:push("connected", LOGIN)
-        local seen_live = chess_game(SEEN_LIVE, 1)
-        seen_live.view = { fen = "unused", history_san = { "e4" }, in_check = false }
-        archived(archive, seen_live)
+        archived(archive, chess_game(SEEN_LIVE, 1))
         archived(archive, listed_finished(ARCHIVED_BEFORE))
 
         commands.run({ "export" })
@@ -400,10 +398,7 @@ function T.export_reports_written_present_and_viewless_games()
         helpers.wait_for(function()
           return #prompts.notified > 0
         end, "the export report")
-        assert_eq(
-          { "games: export: 1 written, 1 already present, 1 without a view (summary only)" },
-          prompts.notified
-        )
+        assert_eq({ "games: export: 2 written, 1 already present" }, prompts.notified)
       end)
     end)
   end)

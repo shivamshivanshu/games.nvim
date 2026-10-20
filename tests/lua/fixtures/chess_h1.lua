@@ -1,6 +1,7 @@
 ---Chess renders pinned byte for byte at cell height 1. chess_h1.json holds mvp's output from
 ---before scalable boards, changed only by rulings R1 (a blank status line without a banner) and
----R2 (the move list shows its tail within the board's height).
+---R2 (the move list shows its tail within the board's height), and by C14: the claim-draw key
+---shows only when the view says a draw is claimable, and a finished game always has its view.
 
 local update = require("helpers").chess_update
 
@@ -16,7 +17,9 @@ local fools_mate = update({
     fen = FOOLS_MATE_FEN,
     history_san = { "f3", "e5", "g4", "Qh4#" },
     last_move = { from = "d8", to = "h4" },
-    in_check = true,
+    legal_moves = {},
+    claimable_draw = false,
+    check_square = "e1",
   },
 })
 
@@ -29,7 +32,8 @@ local italian = update({
     fen = ITALIAN_FEN,
     history_san = { "e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5" },
     last_move = { from = "f8", to = "c5" },
-    in_check = false,
+    legal_moves = {},
+    claimable_draw = false,
   },
 })
 
@@ -43,12 +47,10 @@ local long_game = update({
       " "
     ),
     last_move = { from = "e4", to = "d6" },
-    in_check = false,
+    legal_moves = {},
+    claimable_draw = false,
   },
 })
-
-local finished = update({ seq = 4, to_act = {}, controls = {}, result = fools_mate.result })
-finished.view = nil
 
 ---@class games.test.GoldenCase
 ---@field update games.GameUpdate
@@ -110,13 +112,6 @@ return {
   },
   long_game_unicode = {
     update = long_game,
-    glyphs = "unicode",
-    flipped = false,
-    me = "alice",
-    elapsed_ms = 0,
-  },
-  finished_without_view = {
-    update = finished,
     glyphs = "unicode",
     flipped = false,
     me = "alice",

@@ -17,6 +17,7 @@ local SUMMARY = (
   .. '"reason":"checkmate","outcomes":[{"user":"alice","score":-1},{"user":"bob","score":1}]}'
 ):format(GAME_ID, STARTED_AT, STARTED_AT + 60000)
 local DIGEST_LINE = vim.fn.sha256(SUMMARY) .. "  summary.json\n"
+local PGN = '[Event "games.nvim"]\n\n1. f3 e5 2. g4 Qh4# 0-1\n'
 
 ---Fool's mate after seq plies, with the last ply's event.
 ---@param seq integer
@@ -30,7 +31,12 @@ local function ongoing(seq)
     to_act = {},
     controls = {},
     events = { { kind = "moved", by = SEATS[(seq - 1) % 2 + 1], san = FOOLS_MATE[seq] } },
-    view = { fen = "unused", history_san = vim.list_slice(FOOLS_MATE, 1, seq), in_check = false },
+    view = {
+      fen = "unused",
+      history_san = vim.list_slice(FOOLS_MATE, 1, seq),
+      legal_moves = {},
+      claimable_draw = false,
+    },
     started_at = STARTED_AT,
   }
 end
@@ -40,13 +46,14 @@ local function finishing_broadcast()
   local update = ongoing(#FOOLS_MATE)
   update.result = { kind = "decisive", winners = { "bob" }, reason = "checkmate" }
   update.finished_at = STARTED_AT + 60000
+  update.exports = { ["game.pgn"] = PGN }
   return helpers.seal(update, SUMMARY)
 end
 
+---The finished game as any read after its finishing broadcast shows it.
 ---@return games.GameUpdate
-local function metadata_only()
+local function later_read()
   local update = finishing_broadcast()
-  update.view = nil
   update.events = {}
   return update
 end
@@ -116,7 +123,7 @@ function T.finishing_broadcast_archives_the_whole_game()
     assert_eq(DIGEST_LINE, read_file(game_file(root, "summary.sha256")))
     assert_eq(finishing_broadcast(), json.decode(read_file(game_file(root, "final.json")) or ""))
     assert_eq(FOOLS_MATE, archived_moves(root))
-    assert(read_file(game_file(root, "game.pgn")), "no game.pgn")
+    assert_eq(PGN, read_file(game_file(root, "game.pgn")))
   end)
 end
 
@@ -158,21 +165,21 @@ function T.a_restarted_archive_continues_after_the_last_written_event()
   end)
 end
 
-function T.metadata_only_finish_of_an_unseen_game_writes_only_the_summary()
+function T.a_later_read_of_an_unseen_game_writes_its_final_view_and_exports()
   helpers.with_temp_dir(function(root)
     local archive = Archive.new(root)
-    assert_eq(Outcome.SUMMARY_ONLY, record(archive, metadata_only()))
+    assert_eq(Outcome.WRITTEN, record(archive, later_read()))
     assert_eq(SUMMARY, read_file(game_file(root, "summary.json")))
     assert_eq(DIGEST_LINE, read_file(game_file(root, "summary.sha256")))
-    assert(read_file(game_file(root, "final.json")) == nil, "wrote final.json")
-    assert(read_file(game_file(root, "game.pgn")) == nil, "wrote game.pgn")
+    assert_eq(later_read(), json.decode(read_file(game_file(root, "final.json")) or ""))
+    assert_eq(PGN, read_file(game_file(root, "game.pgn")))
   end)
 end
 
 function T.a_finished_game_is_written_once()
   helpers.with_temp_dir(function(root)
     assert_eq(Outcome.WRITTEN, record(Archive.new(root), finishing_broadcast()))
-    assert_eq(Outcome.ALREADY_PRESENT, record(Archive.new(root), metadata_only()))
+    assert_eq(Outcome.ALREADY_PRESENT, record(Archive.new(root), later_read()))
     assert(read_file(game_file(root, "final.json")), "final.json was lost")
   end)
 end
@@ -191,7 +198,7 @@ function T.a_sealed_game_is_released_and_a_later_record_of_it_reads_the_disk()
   end)
 end
 
-function T.a_failed_seal_keeps_the_game_so_a_retry_still_writes_final_json()
+function T.a_failed_seal_is_written_by_the_next_finished_update()
   helpers.with_temp_dir(function(root)
     local archive = Archive.new(root)
     for seq = 1, #FOOLS_MATE - 1 do
@@ -204,8 +211,9 @@ function T.a_failed_seal_keeps_the_game_so_a_retry_still_writes_final_json()
     end)
     vim.fn.delete(summary_path, "d")
 
-    assert_eq(Outcome.WRITTEN, record(archive, metadata_only()))
-    assert_eq(finishing_broadcast(), json.decode(read_file(game_file(root, "final.json")) or ""))
+    assert_eq(Outcome.WRITTEN, record(archive, later_read()))
+    assert_eq(later_read(), json.decode(read_file(game_file(root, "final.json")) or ""))
+    assert_eq(FOOLS_MATE, archived_moves(root))
   end)
 end
 
@@ -222,6 +230,10 @@ function T.updates_that_would_leave_the_root_are_refused()
     { field = "started_at", value = 1e300 },
     { field = "started_at", value = -1 },
     { field = "started_at", value = 1.5 },
+    { field = "exports", value = { ["../escaped"] = "x" } },
+    { field = "exports", value = { ["sub/game.pgn"] = "x" } },
+    { field = "exports", value = { [".hidden"] = "x" } },
+    { field = "exports", value = { ["summary.json"] = "{}" } },
   }
   for _, case in ipairs(cases) do
     helpers.with_temp_dir(function(root)
