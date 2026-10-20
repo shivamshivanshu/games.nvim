@@ -15,11 +15,25 @@ local text_util = require("games.ui.text")
 ---@field cell fun(row: integer, col: integer): games.GridCell
 ---@field shade "checker"|"plain"
 ---@field labels? games.GridLabels
----@field marks? table<string, string> logical "row,col" -> highlight group
+---@field marks? table<string, string> mark_key(row, col) -> highlight group
 ---@field flip? boolean
 ---@field cell_width? integer display columns per cell, default 1
 
 local SHADE_BY_PARITY = { [0] = "GamesSquareLight", [1] = "GamesSquareDark" }
+
+---@class games.GridWidget
+---@field mark_key fun(row: integer, col: integer): string
+---@overload fun(props: games.GridProps): games.Node
+
+local M = {}
+
+---Key of the cell at logical row and col in GridProps.marks.
+---@param row integer
+---@param col integer
+---@return string
+function M.mark_key(row, col)
+  return row .. "," .. col
+end
 
 ---@param n integer
 ---@param flip boolean
@@ -44,7 +58,7 @@ end
 
 ---@param props games.GridProps
 ---@return games.Node
-return function(props)
+local function render(props)
   local cell_width = props.cell_width or 1
   local marks = props.marks or {}
   local row_order = display_order(props.rows, props.flip == true)
@@ -55,7 +69,7 @@ return function(props)
   local function cell_node(r, c)
     local glyph, own_hl = unpack(props.cell(r, c))
     local shade = props.shade == "checker" and SHADE_BY_PARITY[(r + c) % 2] or nil
-    local hl = marks[r .. "," .. c] or own_hl or shade
+    local hl = marks[M.mark_key(r, c)] or own_hl or shade
     return compose.text(text_util.pad_to_width(glyph, cell_width), hl)
   end
 
@@ -82,3 +96,11 @@ return function(props)
   end
   return compose.col(lines)
 end
+
+---@type games.GridWidget
+local widget = setmetatable(M, {
+  __call = function(_, props)
+    return render(props)
+  end,
+})
+return widget

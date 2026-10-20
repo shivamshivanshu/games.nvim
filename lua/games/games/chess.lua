@@ -96,19 +96,12 @@ local function fen_to_pieces(fen)
   end, vim.split(placement, "/", { plain = true }))
 end
 
----@param row integer
----@param col integer
----@return string
-local function mark_key(row, col)
-  return row .. "," .. col
-end
-
 ---@param square string e.g. "e4"
 ---@return string grid mark key
 local function square_key(square)
   local file = FILES:find(square:sub(1, 1), 1, true)
   local rank = RANKS:find(square:sub(2, 2), 1, true)
-  return mark_key(assert(rank), assert(file))
+  return grid.mark_key(assert(rank), assert(file))
 end
 
 ---@param pieces (games.ChessPiece|false)[][]
@@ -118,7 +111,7 @@ local function find_piece(pieces, piece)
   for r, squares in ipairs(pieces) do
     for c, occupant in ipairs(squares) do
       if occupant == piece then
-        return mark_key(r, c)
+        return grid.mark_key(r, c)
       end
     end
   end
