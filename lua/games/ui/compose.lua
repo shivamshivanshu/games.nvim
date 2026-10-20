@@ -8,17 +8,27 @@
 ---@field lines string[]
 ---@field extmarks games.Extmark[]
 
----@class games.Node
----@field kind "text"|"row"|"col"|"pad"
----@field str? string
+---@class games.TextNode
+---@field kind "text"
+---@field str string
 ---@field hl? string
----@field children? games.Node[]
----@field n? integer
----@field child? games.Node
 
----@class games.Block
----@field lines string[]
----@field extmarks games.Extmark[]
+---@class games.RowNode
+---@field kind "row"
+---@field children games.Node[]
+
+---@class games.ColNode
+---@field kind "col"
+---@field children games.Node[]
+
+---@class games.PadNode
+---@field kind "pad"
+---@field n integer blank columns added on the left
+---@field child games.Node
+
+---@alias games.Node games.TextNode|games.RowNode|games.ColNode|games.PadNode
+
+---@class games.Block: games.Rendered
 ---@field widths integer[] display width of each line
 ---@field width integer display width of the widest line
 
@@ -26,26 +36,26 @@ local M = {}
 
 ---@param str string
 ---@param hl? string
----@return games.Node
+---@return games.TextNode
 function M.text(str, hl)
   return { kind = "text", str = str, hl = hl }
 end
 
 ---@param children games.Node[]
----@return games.Node
+---@return games.RowNode
 function M.row(children)
   return { kind = "row", children = children }
 end
 
 ---@param children games.Node[]
----@return games.Node
+---@return games.ColNode
 function M.col(children)
   return { kind = "col", children = children }
 end
 
 ---@param n integer blank columns added on the left
 ---@param node games.Node
----@return games.Node
+---@return games.PadNode
 function M.pad(n, node)
   return { kind = "pad", n = n, child = node }
 end
