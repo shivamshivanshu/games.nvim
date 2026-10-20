@@ -1,6 +1,7 @@
 local compose = require("games.ui.compose")
 local theme = require("games.ui.theme")
 local players = require("games.core.players")
+local registry = require("games.core.registry")
 local types = require("games.types")
 
 local Control = types.Control
@@ -84,13 +85,6 @@ local boards = {}
 local subscribed_clients = setmetatable({}, { __mode = "k" })
 ---@type uv.uv_timer_t|nil
 local clock_timer
-
----@param game games.GameType
----@return games.GameModule|nil
-local function game_module(game)
-  local ok, module = pcall(require, "games.games." .. game)
-  return ok and module or nil
-end
 
 ---@param update games.GameUpdate
 ---@param me games.UserID
@@ -383,7 +377,7 @@ end
 ---@param update games.GameUpdate
 ---@return string
 function M.describe(update)
-  local module = game_module(update.game)
+  local module = registry.game_module(update.game)
   local describe_event = module and module.describe_event
   local descriptions = vim.tbl_map(function(event)
     return describe_event and describe_event(event, update) or fallback_description(event, update)
@@ -605,7 +599,7 @@ function M.open(client, game_id, opts)
     vim.notify(("games: unknown game %s"):format(game_id), vim.log.levels.ERROR)
     return nil
   end
-  local module = game_module(update.game)
+  local module = registry.game_module(update.game)
   if not module then
     vim.notify(("games: no board for game type %s"):format(update.game), vim.log.levels.ERROR)
     return nil
