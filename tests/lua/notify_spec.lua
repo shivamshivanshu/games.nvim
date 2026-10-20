@@ -62,11 +62,18 @@ function T.own_moves_do_not_notify()
   end)
 end
 
-function T.fatal_disconnects_notify_errors()
+function T.giving_up_notifies_errors()
   with_alice(function(conn, notified)
-    conn:push("disconnected", { code = "disconnected", message = "connection lost" })
-    conn:push("disconnected", { code = "auth_failed", message = "invalid credentials" })
-    conn:push("disconnected", { code = "version_mismatch", message = "want v2" })
+    conn:push(
+      "disconnected",
+      { code = "disconnected", message = "connection lost", retrying = true }
+    )
+    conn:push("disconnected", { code = "disconnected", message = "closed", retrying = false })
+    conn:push(
+      "disconnected",
+      { code = "auth_failed", message = "invalid credentials", retrying = false }
+    )
+    conn:push("disconnected", { code = "version_mismatch", message = "want v2", retrying = false })
 
     assert_eq(2, #notified)
     assert(notified[1][1]:find("login failed (invalid credentials)", 1, true), notified[1][1])

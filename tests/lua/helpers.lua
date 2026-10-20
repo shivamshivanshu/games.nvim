@@ -134,7 +134,7 @@ end
 
 ---@class games.test.EventLog
 ---@field connected games.LoginResult[]
----@field disconnected games.ErrorBody[]
+---@field disconnected games.Disconnect[]
 
 ---@param conn games.Conn
 ---@return games.test.EventLog

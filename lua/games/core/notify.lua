@@ -7,8 +7,8 @@ local ChallengeState = types.ChallengeState
 local ErrorCode = types.ErrorCode
 
 local NOTIFY_OPTS = { title = "games" }
----@type table<games.ErrorCode, string> disconnect reasons that stop auto-reconnect
-local FATAL_DISCONNECTS = {
+---@type table<games.ErrorCode, string> what to say when the conn gives up after this error
+local GIVE_UP_MESSAGES = {
   [ErrorCode.AUTH_FAILED] = "games: login failed (%s); not reconnecting, check username and password",
   [ErrorCode.VERSION_MISMATCH] = "games: server speaks another protocol version (%s); update the plugin",
 }
@@ -164,11 +164,11 @@ local function on_update(client, state, update, is_new)
   end
 end
 
----@param err games.ErrorBody
-local function on_disconnected(err)
-  local template = FATAL_DISCONNECTS[err.code]
+---@param disconnect games.Disconnect
+local function on_disconnected(disconnect)
+  local template = not disconnect.retrying and GIVE_UP_MESSAGES[disconnect.code]
   if template then
-    M.say(template:format(err.message), vim.log.levels.ERROR)
+    M.say(template:format(disconnect.message), vim.log.levels.ERROR)
   end
 end
 

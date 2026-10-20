@@ -13,6 +13,9 @@ local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_
 
 ---@alias games.ConnEvent "connected"|"disconnected"|"challenge.changed"|"game.update"
 
+---@class games.Disconnect: games.ErrorBody
+---@field retrying boolean false once the conn has stopped reconnecting
+
 ---@class games.ConnOpts
 ---@field host string
 ---@field port integer
@@ -122,7 +125,7 @@ function Conn.as_json_object(value)
 end
 
 ---Subscribes fn to a push type or a lifecycle event; fn runs via vim.schedule.
----"connected" gets the games.LoginResult, "disconnected" the games.ErrorBody that ended the session.
+---"connected" gets the games.LoginResult, "disconnected" the games.Disconnect that ended the session.
 ---@param event games.ConnEvent
 ---@param fn fun(payload: any)
 function Conn:on(event, fn)
@@ -181,7 +184,10 @@ function Conn:open()
   local password, problem = resolve_password(self.opts.password)
   if not password then
     self.auto_reconnect = false
-    self:emit("disconnected", { code = ErrorCode.AUTH_FAILED, message = problem })
+    ---@cast problem string
+    ---@type games.Disconnect
+    local disconnect = { code = ErrorCode.AUTH_FAILED, message = problem, retrying = false }
+    self:emit("disconnected", disconnect)
     return
   end
   ---@type games.ConnAttempt
@@ -395,7 +401,7 @@ function Conn:teardown(attempt, reason)
     deliver(cb, disconnected("connection lost"), nil)
   end
   if attempt.opened then
-    self:emit("disconnected", reason)
+    self:emit("disconnected", vim.tbl_extend("force", reason, { retrying = self.auto_reconnect }))
   end
   if self.auto_reconnect then
     self:schedule_reconnect()

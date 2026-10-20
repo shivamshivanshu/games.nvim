@@ -51,7 +51,8 @@ function T.auth_failed_stops_reconnect()
     helpers.wait_for(function()
       return #log.disconnected == 1
     end, "disconnect after bad password")
-    assert(log.disconnected[1].code == "auth_failed", vim.inspect(log.disconnected[1]))
+    local disconnect = log.disconnected[1]
+    assert(disconnect.code == "auth_failed" and not disconnect.retrying, vim.inspect(disconnect))
 
     local reattempted = vim.wait(helpers.WAIT_MS, function()
       return #log.disconnected > 1
@@ -73,8 +74,9 @@ function T.missing_password_fails_without_retrying()
     helpers.wait_for(function()
       return #log.disconnected == 1
     end, "disconnect without a password")
-    assert(log.disconnected[1].code == "auth_failed", vim.inspect(log.disconnected[1]))
-    assert(log.disconnected[1].message:find("no password"), log.disconnected[1].message)
+    local disconnect = log.disconnected[1]
+    assert(disconnect.code == "auth_failed" and not disconnect.retrying, vim.inspect(disconnect))
+    assert(disconnect.message:find("no password"), disconnect.message)
 
     vim.wait(RECONNECT_MIN_MS + 200, function()
       return password_calls > 1
@@ -97,7 +99,7 @@ function T.reconnects_after_server_restart()
     helpers.wait_for(function()
       return #log.connected == 2
     end, "login after restart")
-    assert(#log.disconnected == 1, vim.inspect(log.disconnected))
+    assert(#log.disconnected == 1 and log.disconnected[1].retrying, vim.inspect(log.disconnected))
     assert(client:me() == "alice")
 
     local catalog
