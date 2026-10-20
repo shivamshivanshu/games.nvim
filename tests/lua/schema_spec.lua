@@ -55,6 +55,14 @@ local GAME_CLASS = {
     CellSetEvent = "games.SudokuCellSetEvent",
     View = "games.SudokuView",
   },
+  poker = {
+    Award = "games.PokerAward",
+    HandSummary = "games.PokerHandSummary",
+    PotView = "games.PokerPot",
+    SeatView = "games.PokerSeatView",
+    ShownHand = "games.PokerShownHand",
+    View = "games.PokerView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.

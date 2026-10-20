@@ -15,6 +15,7 @@ Only chess exists today. The server owns all state and rules; Neovim renders wha
 | Ludo | 2–4 | [docs/games/ludo.md](docs/games/ludo.md) |
 | Wordle | 1 (solo) | [docs/games/wordle.md](docs/games/wordle.md) |
 | Sudoku | 1 (solo) | [docs/games/sudoku.md](docs/games/sudoku.md) |
+| Poker | 2–6 | [docs/games/poker.md](docs/games/poker.md) |
 
 ## Requirements
 
