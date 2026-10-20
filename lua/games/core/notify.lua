@@ -89,7 +89,7 @@ end
 ---@param challenge games.Challenge
 ---@param message games.ChallengeMessage
 local function notify_challenge(client, challenge, message)
-  picker.with_game_names(client, function(names)
+  client:game_names(function(names)
     M.say(message(picker.game_summary(names[challenge.game] or challenge.game, challenge.options)))
   end)
 end

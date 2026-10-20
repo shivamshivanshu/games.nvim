@@ -58,19 +58,6 @@ function M.game_summary(game_name, options)
   return time_control and ("%s %s"):format(game_name, time_control) or game_name
 end
 
----Calls fn with each catalog game's display name; on a failed request the map is empty.
----@param client games.Client
----@param fn fun(names: table<games.GameType, string>)
-function M.with_game_names(client, fn)
-  client:catalog_list(nil, function(_, catalog)
-    local names = {}
-    for _, info in ipairs(catalog and catalog.games or {}) do
-      names[info.id] = info.name
-    end
-    fn(names)
-  end)
-end
-
 ---@param challenge games.Challenge
 ---@param me games.UserID
 ---@param game_name string

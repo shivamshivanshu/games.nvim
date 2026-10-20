@@ -14,9 +14,9 @@ local ChallengeState = types.ChallengeState
 ---@field private received_ms table<games.GameID, integer>
 ---@field private challenges table<games.ChallengeID, games.Challenge> pending only
 ---@field private resolved_challenges table<games.ChallengeID, true>
+---@field package catalog? games.CatalogResult static per server process, so refetched per connection
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
----@field catalog_list fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.CatalogResult|nil))
 ---@field user_list fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.UserListResult|nil))
 ---@field challenge_create fun(self: games.Client, body: games.ChallengeCreateRequest, cb?: fun(err: games.ErrorBody|nil, result: games.ChallengeCreateResult|nil))
 ---@field challenge_accept fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
@@ -73,13 +73,19 @@ local function snapshot_if_stale(self, body, err)
 end
 
 ---@type games.ReplyHook
+local function cache_catalog(self, _, _, result)
+  if result then
+    self.catalog = result --[[@as games.CatalogResult]]
+  end
+end
+
+---@type games.ReplyHook
 local function cache_challenges(self, _, _, result)
   if result then
     self:replace_challenges(result.challenges)
   end
 end
 
-Client.catalog_list = request_fn(MessageType.CATALOG_LIST)
 Client.user_list = request_fn(MessageType.USER_LIST)
 Client.challenge_create = request_fn(MessageType.CHALLENGE_CREATE)
 Client.challenge_accept = request_fn(MessageType.CHALLENGE_ACCEPT)
@@ -91,6 +97,36 @@ Client.game_snapshot = request_fn(MessageType.GAME_SNAPSHOT, store_snapshot)
 Client.game_act = request_fn(MessageType.GAME_ACT, snapshot_if_stale)
 Client.game_control = request_fn(MessageType.GAME_CONTROL, snapshot_if_stale)
 Client.stats_get = request_fn(MessageType.STATS_GET)
+
+local request_catalog = request_fn(MessageType.CATALOG_LIST, cache_catalog)
+
+---The server's game catalog, requested once per connection.
+---@param body nil
+---@param cb? fun(err: games.ErrorBody|nil, result: games.CatalogResult|nil)
+function Client:catalog_list(body, cb)
+  local catalog = self.catalog
+  if not catalog then
+    request_catalog(self, body, cb)
+    return
+  end
+  if cb then
+    vim.schedule(function()
+      cb(nil, catalog)
+    end)
+  end
+end
+
+---Calls fn with each catalog game's display name; on a failed request the map is empty.
+---@param fn fun(names: table<games.GameType, string>)
+function Client:game_names(fn)
+  self:catalog_list(nil, function(_, catalog)
+    local names = {}
+    for _, info in ipairs(catalog and catalog.games or {}) do
+      names[info.id] = info.name
+    end
+    fn(names)
+  end)
+end
 
 ---@param conn games.Conn
 ---@return games.Client
@@ -112,6 +148,7 @@ function Client.new(conn)
   end)
   conn:on("connected", function(result)
     self.user = result.user
+    self.catalog = nil
     self:resync()
   end)
   conn:on("disconnected", function()

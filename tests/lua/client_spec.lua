@@ -79,6 +79,31 @@ function T.connected_resyncs_games_and_challenges()
   assert(vim.deep_equal(types, { "game.list", "challenge.list" }), vim.inspect(types))
 end
 
+function T.catalog_is_requested_once_per_connection()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  local function catalog_requests()
+    return vim.tbl_filter(function(request)
+      return request.type == "catalog.list"
+    end, conn.requests)
+  end
+  client:catalog_list(nil)
+  catalog_requests()[1].cb(nil, { games = { { id = "chess", name = "Chess" } } })
+  local names
+  client:game_names(function(result)
+    names = result
+  end)
+  vim.wait(100, function()
+    return names ~= nil
+  end)
+
+  assert(vim.deep_equal(names, { chess = "Chess" }), vim.inspect(names))
+  assert(#catalog_requests() == 1)
+  conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
+  client:catalog_list(nil)
+  assert(#catalog_requests() == 2)
+end
+
 function T.resolved_challenge_ignores_late_pending()
   local conn = stub_conn()
   local client = Client.new(conn --[[@as games.Conn]])

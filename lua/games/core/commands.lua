@@ -236,7 +236,7 @@ local function challenges(client, me)
         return
       end
       table.sort(pending, incoming_first(me))
-      picker.with_game_names(client, function(names)
+      client:game_names(function(names)
         picker.pick(pending, {
           prompt = "Pending challenges:",
           format_item = function(item)
