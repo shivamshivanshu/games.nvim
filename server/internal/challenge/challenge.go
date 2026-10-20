@@ -58,11 +58,12 @@ func (r *Registry) Create(from game.UserID, to []game.UserID, info game.Info, op
 		State:       protocol.ChallengePending,
 		ExpiresAt:   r.clock.Now().Add(r.ttl),
 	}}
-	snapshot, _ := locked(&r.mu, func() (protocol.Challenge, error) {
-		r.pending[c.ChallengeID] = c
-		c.expiry = r.clock.AfterFunc(r.ttl, func() { r.expire(c.ChallengeID) })
-		return c.snapshot(), nil
-	})
+	r.mu.Lock()
+	r.pending[c.ChallengeID] = c
+	c.expiry = r.clock.AfterFunc(r.ttl, func() { r.expire(c.ChallengeID) })
+	snapshot := c.snapshot()
+	r.mu.Unlock()
+
 	r.onChange(snapshot)
 	return snapshot, nil
 }
@@ -99,15 +100,15 @@ func (r *Registry) Cancel(id protocol.ChallengeID, by game.UserID) error {
 }
 
 func (r *Registry) Pending(user game.UserID) []protocol.Challenge {
-	out, _ := locked(&r.mu, func() ([]protocol.Challenge, error) {
-		out := []protocol.Challenge{}
-		for _, c := range r.pending {
-			if c.From == user || slices.Contains(c.To, user) {
-				out = append(out, c.snapshot())
-			}
+	r.mu.Lock()
+	out := []protocol.Challenge{}
+	for _, c := range r.pending {
+		if c.From == user || slices.Contains(c.To, user) {
+			out = append(out, c.snapshot())
 		}
-		return out, nil
-	})
+	}
+	r.mu.Unlock()
+
 	slices.SortFunc(out, func(a, b protocol.Challenge) int {
 		return cmp.Or(a.ExpiresAt.Compare(b.ExpiresAt), cmp.Compare(a.ChallengeID, b.ChallengeID))
 	})
