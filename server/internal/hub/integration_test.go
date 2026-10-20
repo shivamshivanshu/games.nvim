@@ -6,6 +6,7 @@ import (
 	"net"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -24,11 +25,13 @@ import (
 )
 
 const (
-	alice        game.UserID   = "alice"
-	bob          game.UserID   = "bob"
-	testPassword               = "correct horse"
-	chessType    game.GameType = "chess"
-	shutdownWait               = 5 * time.Second
+	alice         game.UserID   = "alice"
+	bob           game.UserID   = "bob"
+	testPassword                = "correct horse"
+	chessType     game.GameType = "chess"
+	shutdownWait                = 5 * time.Second
+	moveThinkTime               = 7 * time.Second
+	lockedOutText               = "locked out, retry later"
 )
 
 var passwordHash = sync.OnceValues(func() ([]byte, error) { return auth.HashPassword(testPassword) })
@@ -192,6 +195,13 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 	if diff := cmp.Diff(want, stats.Records); diff != "" {
 		t.Fatalf("stats records (-want +got):\n%s", diff)
 	}
+	wantHeadToHead := []protocol.HeadToHeadRecord{
+		{User: alice, Opponent: bob, Game: chessType, Tally: protocol.Tally{Losses: 1}},
+		{User: bob, Opponent: alice, Game: chessType, Tally: protocol.Tally{Wins: 1}},
+	}
+	if diff := cmp.Diff(wantHeadToHead, stats.HeadToHead); diff != "" {
+		t.Fatalf("head to head (-want +got):\n%s", diff)
+	}
 
 	finished := call[protocol.GameListResult](t, a, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
 	if len(finished) != 1 || finished[0].GameID != id || finished[0].Seq != seq || finished[0].Result == nil {
@@ -222,11 +232,25 @@ func TestRestartRestoresGame(t *testing.T) {
 	srv := e.start(t)
 	a, b := srv.login(t, alice), srv.login(t, bob)
 	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControl10Plus5, Color: chess.ColorWhite})
-	seq := move(t, b, id, move(t, a, id, 0, "e4"), "e5")
+	var seq uint64
+	for i, san := range []string{"e4", "e5", "Nf3", "Nc6"} {
+		player := a
+		if i%2 == 1 {
+			player = b
+		}
+		if i > 0 {
+			e.clock.Advance(moveThinkTime)
+		}
+		seq = move(t, player, id, seq, san)
+	}
 
 	before := ongoing(t, a)
 	if len(before) != 1 || before[0].Clock == nil || before[0].Clock.Running == nil {
 		t.Fatalf("before restart = %+v, want one game with a running clock", before)
+	}
+	charged := map[game.UserID]int64{alice: 598_000, bob: 598_000}
+	if diff := cmp.Diff(charged, before[0].Clock.RemainingMS); diff != "" {
+		t.Fatalf("clocks before restart (-want +got):\n%s", diff)
 	}
 	srv.stop()
 	waitDisarmed(t, e.clock)
@@ -238,8 +262,37 @@ func TestRestartRestoresGame(t *testing.T) {
 	if diff := cmp.Diff(before, after); diff != "" {
 		t.Fatalf("game.list across restart (-before +after):\n%s", diff)
 	}
-	if next := move(t, a, id, seq, "Nf3"); next != seq+1 {
+	if next := move(t, a, id, seq, "Bc4"); next != seq+1 {
 		t.Fatalf("move after restart returned seq %d, want %d", next, seq+1)
+	}
+}
+
+func TestTimeoutReplaysAsFinishedAfterRestart(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	srv := e.start(t)
+	a, b := srv.login(t, alice), srv.login(t, bob)
+	id := startGame(t, a, b, bob, chessOptions{TimeControl: chess.TimeControl10Plus5, Color: chess.ColorWhite})
+	seq := move(t, b, id, move(t, a, id, 0, "e4"), "e5")
+
+	e.clock.Advance(10 * time.Minute)
+	final := waitUpdate(t, a, seq+1)
+	if final.Result == nil || final.Result.Reason != game.ReasonTimeout || !slices.Equal(final.Result.Winners, []game.UserID{bob}) {
+		t.Fatalf("final result = %+v, want timeout won by bob", final.Result)
+	}
+	srv.stop()
+	waitDisarmed(t, e.clock)
+
+	a = e.start(t).login(t, alice)
+	if games := ongoing(t, a); len(games) != 0 {
+		t.Fatalf("ongoing after restart = %+v, want none", games)
+	}
+	finished := call[protocol.GameListResult](t, a, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
+	if len(finished) != 1 || finished[0].GameID != id || finished[0].Seq != final.Seq || finished[0].Result == nil {
+		t.Fatalf("finished after restart = %+v, want the timed-out game at seq %d", finished, final.Seq)
+	}
+	if diff := cmp.Diff(final.Result, finished[0].Result); diff != "" {
+		t.Fatalf("replayed result (-live +replayed):\n%s", diff)
 	}
 }
 
@@ -310,7 +363,10 @@ func TestWrongPasswordAndLockout(t *testing.T) {
 	for range limits.LockoutFailures - 2 {
 		wantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
 	}
-	wantCode(t, attempt(alice, testPassword), protocol.CodeAuthFailed)
+	locked := wantCode(t, attempt(alice, testPassword), protocol.CodeAuthFailed)
+	if !strings.Contains(locked.Message, lockedOutText) {
+		t.Fatalf("correct password while locked says %q, want %q", locked.Message, lockedOutText)
+	}
 }
 
 func TestStaleSeq(t *testing.T) {
