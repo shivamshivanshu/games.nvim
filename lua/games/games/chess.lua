@@ -1,5 +1,6 @@
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
 local players = require("games.core.players")
 
@@ -49,6 +50,31 @@ local UNICODE_PIECES = {
 
 ---@type table<games.Glyphs, string>
 local EMPTY_SQUARE = { unicode = "·", ascii = "." }
+
+local SAN_PIECE_NAMES = {
+  { piece = "K", name = "king" },
+  { piece = "Q", name = "queen" },
+  { piece = "R", name = "rook" },
+  { piece = "B", name = "bishop" },
+  { piece = "N", name = "knight" },
+}
+
+---@param glyphs games.Glyphs
+---@return games.KvPair[]
+local function san_legend(glyphs)
+  local function key(glyph, letter)
+    return glyphs == "unicode" and ("%s %s"):format(glyph, letter) or letter
+  end
+  local legend = vim.tbl_map(function(entry)
+    return { key(UNICODE_PIECES[entry.piece], entry.piece), entry.name }
+  end, SAN_PIECE_NAMES)
+  table.insert(legend, { key(UNICODE_PIECES.P, " "), "pawn: e4" })
+  table.insert(legend, { key(" ", " "), "castle: O-O" })
+  return legend
+end
+
+---@type table<games.Glyphs, games.KvPair[]>
+local SAN_LEGEND = { unicode = san_legend("unicode"), ascii = san_legend("ascii") }
 
 ---@param fen string
 ---@return (games.ChessPiece|false)[][] rows from rank 8 down, false for an empty square
@@ -154,6 +180,7 @@ function M.layout(update, ctx)
       end,
       marks = marks_for(view, pieces),
     }),
+    compose.pad(3, kv({ pairs = SAN_LEGEND[ctx.glyphs] })),
     compose.pad(3, movelist({ items = view.history_san, columns = 2, numbered = true })),
   })
 end

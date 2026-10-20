@@ -107,7 +107,7 @@ function T.render_start_position()
 
   local header = rendered.lines[1]
   assert(header:find("alice", 1, true) and header:find("← your move", 1, true), header)
-  assert_eq("8 r n b q k b n r", without_trailing_space(board_lines(rendered.lines)[1]))
+  assert_eq("8 r n b q k b n r   K king", without_trailing_space(board_lines(rendered.lines)[1]))
   local footer = rendered.lines[#rendered.lines]
   assert(footer:find("R resign", 1, true) and footer:find("A abort", 1, true), footer)
   assert(not footer:find("X ", 1, true), footer)
@@ -258,7 +258,7 @@ function T.hidden_buffer_marked_dirty()
   )
   assert_eq(true, vim.b[buf].games_dirty)
   local stale = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  assert(not table.concat(stale, "\n"):find("e4", 1, true))
+  assert(not table.concat(stale, "\n"):find("1. e4", 1, true))
 
   vim.api.nvim_set_current_buf(buf)
   assert_eq(false, vim.b[buf].games_dirty)
