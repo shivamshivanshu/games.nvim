@@ -55,7 +55,7 @@ func serveConn(ctx context.Context, conn net.Conn, cfg *serveConfig) {
 func rejectServerFull(conn net.Conn) {
 	defer conn.Close()
 	_ = conn.SetWriteDeadline(time.Now().Add(closeFlushTimeout))
-	_ = protocol.WriteEnvelope(conn, errorEnvelope(nil, protocol.ErrorBody{Code: protocol.CodeInternal, Message: serverFullMessage}))
+	_, _ = conn.Write(errorFrame(nil, protocol.ErrorBody{Code: protocol.CodeInternal, Message: serverFullMessage}))
 }
 
 func remoteAddr(conn net.Conn) netip.Addr {

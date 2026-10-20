@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"strings"
 	"testing"
 
@@ -57,16 +58,37 @@ func TestReaderAcceptsLineAtLimit(t *testing.T) {
 	}
 }
 
-func TestWriteEnvelopeRoundTrips(t *testing.T) {
-	id := protocol.RequestID(7)
-	var buf bytes.Buffer
-	in := protocol.Envelope{ID: &id, Type: protocol.TypeOK, Body: []byte(`{"seq":3}`)}
-	if err := protocol.WriteEnvelope(&buf, in); err != nil {
-		t.Fatal(err)
+func TestEncodeFrameMatchesEnvelopeEncoding(t *testing.T) {
+	id := protocol.RequestID(math.MaxUint64)
+	tests := map[string]struct {
+		id   *protocol.RequestID
+		body any
+	}{
+		"reply":           {&id, protocol.SeqResult{Seq: 3}},
+		"push":            {nil, protocol.Empty{}},
+		"null body":       {nil, nil},
+		"escaped text":    {&id, protocol.ErrorBody{Message: "<a & b>\u2028\"q\"\n"}},
+		"raw nested JSON": {&id, protocol.GameUpdate{View: json.RawMessage(`{ "fen" : "<x>" }`), Events: []json.RawMessage{json.RawMessage(` [1, 2] `)}}},
 	}
-	out, err := protocol.NewReader(&buf, testMaxLine).Next()
-	if err != nil || *out.ID != id || out.Type != in.Type || string(out.Body) != `{"seq":3}` {
-		t.Fatalf("out = %+v, %v", out, err)
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			body, err := json.Marshal(tt.body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := json.Marshal(protocol.Envelope{ID: tt.id, Type: protocol.TypeGameUpdate, Body: body})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := protocol.EncodeFrame(tt.id, protocol.TypeGameUpdate, tt.body)
+			if err != nil || string(got) != string(want)+"\n" {
+				t.Fatalf("frame %q, %v; want %q", got, err, string(want)+"\n")
+			}
+			env, err := protocol.NewReader(bytes.NewReader(got), testMaxLine).Next()
+			if err != nil || env.Type != protocol.TypeGameUpdate || (env.ID == nil) != (tt.id == nil) {
+				t.Fatalf("frame reads back as %+v, %v", env, err)
+			}
+		})
 	}
 }
 

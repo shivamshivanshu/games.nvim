@@ -35,7 +35,7 @@ type Session struct {
 	remote netip.Addr
 	cfg    *serveConfig
 	cancel context.CancelFunc
-	out    chan protocol.Envelope
+	out    chan protocol.Frame
 	done   chan struct{}
 	user   game.UserID
 
@@ -49,7 +49,7 @@ func newSession(conn net.Conn, cfg *serveConfig, cancel context.CancelFunc) *Ses
 		remote: remoteAddr(conn),
 		cfg:    cfg,
 		cancel: cancel,
-		out:    make(chan protocol.Envelope, cfg.lim.WriteQueueFrames),
+		out:    make(chan protocol.Frame, cfg.lim.WriteQueueFrames),
 		done:   make(chan struct{}),
 	}
 }
@@ -58,14 +58,14 @@ func (s *Session) User() game.UserID { return s.user }
 
 func (s *Session) RemoteAddr() netip.Addr { return s.remote }
 
-func (s *Session) Push(env protocol.Envelope) bool {
+func (s *Session) Push(frame protocol.Frame) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return false
 	}
 	select {
-	case s.out <- env:
+	case s.out <- frame:
 		return true
 	default:
 		s.closeLocked()
@@ -122,15 +122,15 @@ func (s *Session) readLoop(ctx context.Context) {
 		env, err := reader.Next()
 		switch {
 		case errors.Is(err, protocol.ErrLineTooLong):
-			s.Push(errorEnvelope(nil, protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: err.Error()}))
+			s.Push(errorFrame(nil, protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: err.Error()}))
 			return
 		case errors.Is(err, protocol.ErrMalformedEnvelope):
-			s.Push(errorEnvelope(nil, protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: err.Error()}))
+			s.Push(errorFrame(nil, protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: err.Error()}))
 		case err != nil:
 			return
 		default:
 			result, err := s.dispatch(ctx, env)
-			s.Push(replyEnvelope(env.ID, result, err))
+			s.Push(replyFrame(env.ID, result, err))
 		}
 		if s.authenticated() {
 			s.extendReadDeadline(s.cfg.lim.IdleTimeout)
@@ -183,8 +183,8 @@ func (s *Session) writeLoop() {
 	defer s.conn.Close()
 	for {
 		select {
-		case env := <-s.out:
-			if err := protocol.WriteEnvelope(s.conn, env); err != nil {
+		case frame := <-s.out:
+			if _, err := s.conn.Write(frame); err != nil {
 				s.close()
 				return
 			}
@@ -198,8 +198,8 @@ func (s *Session) writeLoop() {
 func (s *Session) flushQueued() {
 	for {
 		select {
-		case env := <-s.out:
-			if protocol.WriteEnvelope(s.conn, env) != nil {
+		case frame := <-s.out:
+			if _, err := s.conn.Write(frame); err != nil {
 				return
 			}
 		default:

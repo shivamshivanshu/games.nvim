@@ -2,7 +2,6 @@
 package prototest
 
 import (
-	"encoding/json"
 	"io"
 	"net"
 	"testing"
@@ -25,9 +24,10 @@ func Dial(t testing.TB, addr string) (net.Conn, *protocol.Reader) {
 
 // Send writes the request id of type typ carrying body as JSON.
 func Send(w io.Writer, id protocol.RequestID, typ protocol.MessageType, body any) error {
-	raw, err := json.Marshal(body)
+	frame, err := protocol.EncodeFrame(&id, typ, body)
 	if err != nil {
 		return err
 	}
-	return protocol.WriteEnvelope(w, protocol.Envelope{ID: &id, Type: typ, Body: raw})
+	_, err = w.Write(frame)
+	return err
 }

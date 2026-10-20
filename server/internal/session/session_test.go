@@ -319,7 +319,10 @@ func TestHooksFireOncePerAuthenticatedSession(t *testing.T) {
 	if s.User() != alice || !s.RemoteAddr().IsLoopback() {
 		t.Fatalf("session user %q addr %v", s.User(), s.RemoteAddr())
 	}
-	push := protocol.Envelope{Type: protocol.TypeGameUpdate, Body: json.RawMessage(`{}`)}
+	push, err := protocol.EncodeFrame(nil, protocol.TypeGameUpdate, protocol.Empty{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !s.Push(push) {
 		t.Fatal("push to live session failed")
 	}

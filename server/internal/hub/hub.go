@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -105,14 +104,17 @@ func (h *Hub) challengeChanged(c protocol.Challenge) {
 }
 
 func (h *Hub) push(typ protocol.MessageType, body any, to ...game.UserID) {
-	raw, err := json.Marshal(body)
+	sessions := h.sessionsOf(to)
+	if len(sessions) == 0 {
+		return
+	}
+	frame, err := protocol.EncodeFrame(nil, typ, body)
 	if err != nil {
 		slog.Error("hub: encode push", "type", typ, "err", err)
 		return
 	}
-	env := protocol.Envelope{Type: typ, Body: raw}
-	for _, s := range h.sessionsOf(to) {
-		s.Push(env)
+	for _, s := range sessions {
+		s.Push(frame)
 	}
 }
 

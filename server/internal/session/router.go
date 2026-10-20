@@ -57,18 +57,18 @@ func errorBody(err error) protocol.ErrorBody {
 	return protocol.ErrorBody{Code: protocol.CodeInternal, Message: internalErrorMessage}
 }
 
-func errorEnvelope(id *protocol.RequestID, body protocol.ErrorBody) protocol.Envelope {
-	raw, _ := json.Marshal(body)
-	return protocol.Envelope{ID: id, Type: protocol.TypeError, Body: raw}
+func errorFrame(id *protocol.RequestID, body protocol.ErrorBody) protocol.Frame {
+	frame, _ := protocol.EncodeFrame(id, protocol.TypeError, body)
+	return frame
 }
 
-func replyEnvelope(id *protocol.RequestID, result any, err error) protocol.Envelope {
+func replyFrame(id *protocol.RequestID, result any, err error) protocol.Frame {
 	if err != nil {
-		return errorEnvelope(id, errorBody(err))
+		return errorFrame(id, errorBody(err))
 	}
-	raw, err := json.Marshal(result)
+	frame, err := protocol.EncodeFrame(id, protocol.TypeOK, result)
 	if err != nil {
-		return errorEnvelope(id, errorBody(fmt.Errorf("session: encode result: %w", err)))
+		return errorFrame(id, errorBody(fmt.Errorf("session: encode result: %w", err)))
 	}
-	return protocol.Envelope{ID: id, Type: protocol.TypeOK, Body: raw}
+	return frame
 }
