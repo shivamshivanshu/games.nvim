@@ -59,6 +59,8 @@ Passed to `require("games").setup({opts})`.
     `password`        string or `fun(): string`    prompted
     `autoconnect`     boolean                    `true`
     `glyphs`          `"unicode"` or `"ascii"`       `"unicode"`
+    `palette`         `"theme"` or `"vivid"`         `"theme"`
+    `highlights`      table of group -> attributes `{}`
 
 `password` as a function is called at each connect, never during setup(), so
 the secret need not live in your dotfiles.
@@ -72,6 +74,54 @@ Autoconnect is skipped when no username is configured.
 `autoconnect` connects after |VimEnter| (or on the next tick if Neovim has
 already started). A bad login or protocol mismatch stops auto-reconnect and
 notifies; fix the config and restart Neovim (or call setup() again).
+
+                                                 *games-palette* *games-highlights*
+`palette = "theme"` derives every group from your colourscheme, taking only
+one attribute from each source (e.g. `GamesLastMove` takes the background of
+|hl-Search|, not its foreground), and derives them again on |ColorScheme|.
+Of the two square shades it derives, the lighter becomes `GamesSquareLight`.
+`palette = "vivid"` is a fixed lichess-style board: light `#f0d9b5`, dark
+`#b58863`, last move `#cdd26a` and `#aaa23a`, check `#e05050`, and both sides
+in near-black `#1b1b1b` ink, like a printed diagram. It needs 'termguicolors';
+without it the plugin notifies once and uses "theme". Under every palette white
+pieces are the hollow glyphs and black the solid ones; `glyphs` changes no
+colour.
+
+Board cells stack groups (|nvim_buf_set_extmark()| `hl_group` list): a cell
+is {square, piece, mark}, so a mark tints the square and the piece keeps its
+colour. Each group sets only the attribute of its role:
+
+    Role            Groups ~
+    background      `GamesSquareLight` `GamesSquareDark` `GamesLastMove`
+                    `GamesLastMoveDark` (over `GamesLastMove` on dark squares)
+                    `GamesCheck` `GamesWin` `GamesHit` `GamesPresent` `GamesMiss`
+    foreground      `GamesPieceWhite` `GamesPieceBlack` `GamesSeat1`-`GamesSeat4`
+                    `GamesKey` `GamesLabel` `GamesMuted` `GamesWon` `GamesLost`
+                    `GamesDrawn` `GamesClockLow` `GamesCheckSign`
+    ink (fg)        `<background group>Ink`, e.g. `GamesLastMoveInk`
+    badge (both)    `GamesYourTurn`
+
+Each ink is dark or light text, whichever contrasts more with its background
+group. It is stacked over that background where text has no colour of its
+own: empty squares, and the latest move in the move list. Inks are recomputed
+whenever the palette is applied, at setup() and after every |:colorscheme|,
+not on a live `:hi` of a background group.
+
+`highlights = { GamesX = {...} }` always replaces the palette's definition of
+GamesX and is passed to |nvim_set_hl()|, cut to the group's role: a background
+group keeps only `bg` and `ctermbg`; a foreground group keeps `fg`, `ctermfg`,
+`bold`, `italic` and `underline`. `{ link = "Group" }` is resolved to that
+group's attributes and cut the same way. Anything cut is reported once.
+
+The palette's own definitions never replace a group someone else has set since
+the plugin last defined it: a plain `:hi GamesX`, or a colourscheme that
+defines Games* groups. A colourscheme's Games* groups are its author's choice
+and are kept as they are, roles unchecked. >lua
+    require("games").setup({
+      palette = "vivid",
+      highlights = { GamesLastMove = { bg = "#9bc700" } },
+    })
+<
 
 ==============================================================================
 4. COMMANDS                                                      *games-commands*
@@ -128,8 +178,9 @@ the current state are mapped; the footer lists them.
     :checkhealth games
 <
 Reports: Neovim version (0.11+), whether setup() was called, the effective
-configuration (password masked), connection state and last error, and whether
-glyph rendering works (if not, try `glyphs = "ascii"`).
+configuration (password masked), connection state and last error, whether
+glyph rendering works (if not, try `glyphs = "ascii"`), and the palette with
+'termguicolors'.
 
 ==============================================================================
 7. RUNNING AND JOINING A SERVER                                    *games-server*

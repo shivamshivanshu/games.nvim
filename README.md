@@ -106,9 +106,35 @@ Details and flags are under Server below.
 | `username` | string | prompted | optional; prompted on first `:Games` if missing |
 | `password` | string or `fun(): string` | prompted | optional; resolved at each connect |
 | `autoconnect` | boolean | `true` | connect after `VimEnter` (or next tick if already started); skipped without a `username` |
-| `glyphs` | `"unicode"` or `"ascii"` | `"unicode"` | piece glyphs |
+| `glyphs` | `"unicode"` or `"ascii"` | `"unicode"` | piece glyphs; colours are the same either way |
+| `palette` | `"theme"` or `"vivid"` | `"theme"` | colours derived from your colourscheme, or a fixed lichess-style board with near-black ink pieces; `vivid` needs `termguicolors` and falls back to `theme` without it |
+| `highlights` | table | `{}` | `{ GamesX = {...} }`, each passed to `nvim_set_hl` in place of the palette's definition |
 
 A bad login or protocol mismatch stops auto-reconnect and notifies; fix the config and restart Neovim (or call `setup()` again).
+
+### Colours
+
+Board cells stack highlight groups, so a background layer and a foreground layer combine: a cell is `{square, piece, mark}`, and a last-move or check mark tints the square while the piece keeps its colour. Each group therefore sets only its role's attribute.
+
+| Role | Groups |
+|---|---|
+| background | `GamesSquareLight`, `GamesSquareDark`, `GamesLastMove`, `GamesLastMoveDark` (layered over `GamesLastMove` on dark squares), `GamesCheck`, `GamesWin`, `GamesHit`, `GamesPresent`, `GamesMiss` |
+| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign` |
+| ink (foreground) | `<background group>Ink` for each background group above, e.g. `GamesLastMoveInk`: dark or light text, whichever contrasts more with that background; stacked over it where text has no colour of its own (empty squares, the latest move in the move list) |
+| badge (both) | `GamesYourTurn` |
+
+White pieces are the hollow glyphs and black the solid ones under every palette.
+
+Under `theme` each group copies one attribute from a colourscheme group (e.g. `GamesLastMove` takes `Search`'s background only) and is re-derived on every `:colorscheme`; of the two square shades, the lighter becomes `GamesSquareLight`. Inks are chosen after overrides and recomputed whenever the palette is applied (setup and every `:colorscheme`), not on a live `:hi` of a background group.
+
+`highlights` in `setup()` always applies, cut to the group's role: background groups keep `bg`/`ctermbg`, foreground groups keep `fg`/`ctermfg`/`bold`/`italic`/`underline`, and a `{ link = ... }` is resolved to its target's attributes first; anything cut is reported once. A plain `:hi GamesX ...`, or a colourscheme's own `Games*` groups, are kept as they are: the palette's defaults never replace a group someone else has set since the plugin last defined it.
+
+```lua
+require("games").setup({
+  palette = "vivid",
+  highlights = { GamesLastMove = { bg = "#9bc700" } },
+})
+```
 
 ## Commands
 
