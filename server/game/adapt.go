@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
-
-	"games.nvim/server/internal/xslices"
 )
 
 type adapted[Opts, Action, View any] struct {
@@ -95,9 +93,13 @@ func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedS
 }
 
 func erasedWithEvents[Action, View any](next State[Action, View], events []Event) (ErasedState, []json.RawMessage, error) {
-	encoded, err := xslices.MapErr(events, encodeEvent)
-	if err != nil {
-		return nil, nil, err
+	encoded := make([]json.RawMessage, 0, len(events))
+	for _, e := range events {
+		raw, err := encodeEvent(e)
+		if err != nil {
+			return nil, nil, err
+		}
+		encoded = append(encoded, raw)
 	}
 	return erased[Action, View]{state: next}, encoded, nil
 }
@@ -117,5 +119,9 @@ func encodeEvent(e Event) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(xslices.With(fields, eventKindField, kind))
+	if fields == nil {
+		fields = map[string]json.RawMessage{}
+	}
+	fields[eventKindField] = kind
+	return json.Marshal(fields)
 }
