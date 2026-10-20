@@ -1,5 +1,6 @@
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
+local notify = require("games.core.notify")
 local paint = require("games.ui.paint")
 local theme = require("games.ui.theme")
 local players = require("games.core.players")
@@ -169,7 +170,7 @@ local function report_error(board)
   return function(err)
     -- The client resyncs on stale; the snapshot it fetches re-renders the board.
     if err and err.code ~= types.ErrorCode.STALE then
-      vim.notify(
+      notify.say(
         ("%s: %s"):format(describe.title(board.update, board.me), err.message),
         vim.log.levels.ERROR
       )
@@ -485,21 +486,11 @@ local function focus(buf)
 end
 
 ---@param client games.Client
----@return games.UserID|nil
-local function connected_user(client)
-  local me = client:me()
-  if not me then
-    vim.notify("games: not connected", vim.log.levels.WARN)
-  end
-  return me
-end
-
----@param client games.Client
 ---@param game_id games.GameID
 ---@param opts? games.OpenOptions
 ---@return integer|nil buf
 function M.open(client, game_id, opts)
-  local me = connected_user(client)
+  local me = notify.require_me(client)
   if not me then
     return nil
   end
@@ -510,12 +501,12 @@ function M.open(client, game_id, opts)
   end
   local update = client:game(game_id)
   if not update then
-    vim.notify(("games: unknown game %s"):format(game_id), vim.log.levels.ERROR)
+    notify.say(("games: unknown game %s"):format(game_id), vim.log.levels.ERROR)
     return nil
   end
   local module = registry.game_module(update.game)
   if not module then
-    vim.notify(("games: no board for game type %s"):format(update.game), vim.log.levels.ERROR)
+    notify.say(("games: no board for game type %s"):format(update.game), vim.log.levels.ERROR)
     return nil
   end
 
@@ -554,7 +545,7 @@ end
 ---@param opts? games.OpenOptions
 ---@return integer|nil buf
 function M.open_next(client, after_game_id, opts)
-  local me = connected_user(client)
+  local me = notify.require_me(client)
   if not me then
     return nil
   end
@@ -562,7 +553,7 @@ function M.open_next(client, after_game_id, opts)
     return update.game_id ~= after_game_id and players.is_to_act(update, me)
   end, client:games())
   if #waiting == 0 then
-    vim.notify("games: no game is waiting for your move", vim.log.levels.INFO)
+    notify.say("games: no game is waiting for your move")
     return nil
   end
   table.sort(waiting, function(a, b)

@@ -29,6 +29,17 @@ function M.say(message, level)
   vim.notify(message, level or vim.log.levels.INFO, NOTIFY_OPTS)
 end
 
+---The logged-in user; while disconnected it warns and returns nil.
+---@param client games.Client
+---@return games.UserID|nil
+function M.require_me(client)
+  local me = client:me()
+  if not me then
+    M.say("games: not connected", vim.log.levels.WARN)
+  end
+  return me
+end
+
 ---@param client games.Client
 ---@param game_id games.GameID
 local function open_board(client, game_id)

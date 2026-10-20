@@ -337,9 +337,8 @@ end
 ---@param subcommand games.Subcommand
 ---@param args string[]
 local function run_subcommand(client, subcommand, args)
-  local me = client:me()
+  local me = notify.require_me(client)
   if not me then
-    say("games: not connected", vim.log.levels.WARN)
     return
   end
   subcommand.run(client, me, args)
