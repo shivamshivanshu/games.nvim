@@ -90,6 +90,7 @@ func TestRunRejectsNonconformingGames(t *testing.T) {
 		{"finishes with two seats left", 3, 4, finishOnFirstElimination, "play must continue while 2 or more remain"},
 		{"solo game survives eliminating its only seat", 1, 1, ignoreElimination, "only seat must finish a solo game"},
 		{"two-player game survives an elimination", 2, 2, ignoreElimination, "left one seat but did not finish"},
+		{"eliminated seat stays to act", 3, 4, ignoreElimination, "eliminated s1 is still in ToAct"},
 		{"eliminating rewrites a result reached by elimination", 2, 2, eliminateRewritesFinished, "after eliminating s1: Eliminate(s2) on a finished game must be a no-op"},
 		{"eliminating rewrites a result reached by play", 2, 2, eliminateRewritesPlayedResult, "after the script: Eliminate(s1) on a finished game must be a no-op"},
 	}

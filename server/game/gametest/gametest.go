@@ -165,12 +165,14 @@ func checkEliminate[Opts, Action, View any](t testing.TB, rules game.Rules[Opts,
 		_, after := eliminate(t, script.PrivateOf, state, seat, allSeats)
 		checkSecrecy(t, script, after, "eliminating only "+string(seat))
 		checkEliminationOutcome(t, solo, len(allSeats)-1, after, seat)
+		checkEliminatedNotToAct(t, after, []game.Seat{seat})
 	}
 	for i, seat := range allSeats {
 		var after observation[View]
 		state, after = eliminate(t, script.PrivateOf, state, seat, allSeats)
 		checkSecrecy(t, script, after, "eliminating "+string(seat))
 		checkEliminationOutcome(t, solo, len(allSeats)-1-i, after, seat)
+		checkEliminatedNotToAct(t, after, allSeats[:i+1])
 		if after.Finished {
 			checkEliminateFinishedIsNoOp(t, script.PrivateOf, state, allSeats, "after eliminating "+string(seat))
 			return
@@ -197,6 +199,15 @@ func checkEliminationOutcome[View any](t testing.TB, solo bool, remaining int, a
 		t.Errorf("Eliminate(%s) left one seat but did not finish the game", seat)
 	case remaining == 0 && solo && !after.Finished:
 		t.Errorf("Eliminate(%s) of the only seat must finish a solo game", seat)
+	}
+}
+
+func checkEliminatedNotToAct[View any](t testing.TB, after observation[View], eliminated []game.Seat) {
+	t.Helper()
+	for _, seat := range eliminated {
+		if slices.Contains(after.ToAct, seat) {
+			t.Errorf("eliminated %s is still in ToAct %v; an eliminated seat must not act", seat, after.ToAct)
+		}
 	}
 }
 

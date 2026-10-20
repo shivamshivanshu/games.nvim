@@ -18,7 +18,7 @@ import (
 const timeoutRetryDelay = time.Second
 
 func (s roomState) clockRunning(g Setup) bool {
-	return g.clock.Enabled && len(s.acted) == len(g.Players) && !s.finished()
+	return g.clock.Enabled && s.allActiveActed(g) && !s.finished()
 }
 
 func (s roomState) charged(g Setup, at time.Time) map[game.UserID]time.Duration {

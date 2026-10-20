@@ -111,13 +111,17 @@ type harness struct {
 
 func newHarness(t *testing.T, timeControl game.TimeControl) *harness {
 	t.Helper()
-	g := game.Adapt(chess.Rules{})
-	opts, err := g.ResolveOptions(json.RawMessage(`{"color":"white","time_control":"` + string(timeControl) + `"}`))
+	return startHarness(t, game.Adapt(chess.Rules{}), `{"color":"white","time_control":"`+string(timeControl)+`"}`, bob)
+}
+
+func startHarness(t *testing.T, g game.Game, options string, invitees ...game.UserID) *harness {
+	t.Helper()
+	opts, err := g.ResolveOptions(json.RawMessage(options))
 	if err != nil {
 		t.Fatal(err)
 	}
 	const seed = 42
-	state, seats, err := g.New(opts, alice, []game.UserID{bob}, game.StepRNG(seed, 0))
+	state, seats, err := g.New(opts, alice, invitees, game.StepRNG(seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,9 +130,10 @@ func newHarness(t *testing.T, timeControl game.TimeControl) *harness {
 		sent:    &recordingBroadcaster{},
 		clock:   clocktest.New(time.UnixMilli(1_700_000_000_000)),
 	}
+	users := append([]game.UserID{alice}, invitees...)
 	h.params = Params{
 		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: alice,
-		Players: []game.Player{{User: alice, Seat: seats[alice]}, {User: bob, Seat: seats[bob]}},
+		Players: xslices.Map(users, func(u game.UserID) game.Player { return game.Player{User: u, Seat: seats[u]} }),
 		Persist: h.persist, Broadcast: h.sent, Time: h.clock,
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -520,5 +525,227 @@ func TestWireArraysAreNeverNull(t *testing.T) {
 				t.Errorf("%s encodes as %q in %s", name, v, raw)
 			}
 		}
+	}
+}
+
+func TestResignedPlayerSpectatesWhileOthersPlayOn(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControlNone, bob, carol)
+	seq := h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlResign)
+	if u, _ := h.sent.last(bob); len(u.Controls) != 0 || u.Result != nil {
+		t.Fatalf("resigned player: controls %v, result %+v; want no controls in a running game", u.Controls, u.Result)
+	}
+	for _, c := range []protocol.Control{protocol.ControlResign, protocol.ControlAbort} {
+		if _, err := h.room.Control(t.Context(), bob, seq, c); !isCode(err, protocol.CodeIllegalAction) {
+			t.Errorf("resigned player's %s: want illegal_action, got %v", c, err)
+		}
+	}
+	_, before := h.sent.last(bob)
+	h.relay(t, alice, h.relay(t, carol, seq, relayPass), relayPass)
+	if u, after := h.sent.last(bob); after != before+2 || !slices.Equal(u.ToAct, []game.UserID{carol}) {
+		t.Fatalf("spectator got %d more updates, to_act %v; want 2 more and carol to act", after-before, u.ToAct)
+	}
+}
+
+func TestClockStartsOnceRemainingPlayersActed(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
+	seq := h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlResign)
+	h.relay(t, carol, seq, relayPass)
+	h.clock.Advance(time.Minute)
+	u := h.snapshot(t, alice)
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice)}
+	if diff := cmp.Diff(want, u.Clock); diff != "" {
+		t.Fatalf("clock after the remaining players acted (-want +got):\n%s", diff)
+	}
+	if slices.Contains(u.Controls, protocol.ControlAbort) {
+		t.Fatalf("abort still offered after every remaining player acted: %v", u.Controls)
+	}
+}
+
+func TestIncrementOncePerTurnHandover(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControl10Plus5, bob)
+	seq := h.relay(t, bob, h.relay(t, alice, 0, relayPass), relayPass)
+	for _, m := range []relayMove{relayKeep, relayPass} {
+		h.clock.Advance(10 * time.Second)
+		seq = h.relay(t, alice, seq, m)
+	}
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 585_000, bob: 600_000}, Running: new(bob)}
+	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
+		t.Fatalf("clock after a two-action turn (-want +got):\n%s", diff)
+	}
+}
+
+type controlStep struct {
+	user    game.UserID
+	control protocol.Control
+}
+
+func (h *harness) controls(t *testing.T, seq game.Seq, steps []controlStep) game.Seq {
+	t.Helper()
+	for _, st := range steps {
+		seq = h.control(t, st.user, seq, st.control)
+	}
+	return seq
+}
+
+func (h *harness) finished(t *testing.T) *store.Finish {
+	t.Helper()
+	waitDone(t, h.room)
+	_, finished := h.persist.recorded()
+	if finished == nil {
+		t.Fatal("finished room recorded no finish")
+	}
+	return finished
+}
+
+func TestImposedEndingKeepsEliminatedPlayersLoss(t *testing.T) {
+	loss := store.Standing{Outcome: store.OutcomeLoss, Score: -1}
+	draw, none := store.Standing{Outcome: store.OutcomeDraw}, store.Standing{Outcome: store.OutcomeNone}
+	tests := []struct {
+		name   string
+		steps  []controlStep
+		reason game.ResultReason
+		want   map[game.UserID]store.Standing
+	}{
+		{
+			"draw offered after a resign",
+			[]controlStep{{bob, protocol.ControlResign}, {alice, protocol.ControlOfferDraw}, {carol, protocol.ControlOfferDraw}},
+			game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: draw, bob: loss, carol: draw},
+		},
+		{
+			"holdout resigns after the others offered",
+			[]controlStep{{alice, protocol.ControlOfferDraw}, {carol, protocol.ControlOfferDraw}, {bob, protocol.ControlResign}},
+			game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: draw, bob: loss, carol: draw},
+		},
+		{
+			"abort after a resign",
+			[]controlStep{{bob, protocol.ControlResign}, {alice, protocol.ControlAbort}},
+			game.ReasonAborted, map[game.UserID]store.Standing{alice: none, bob: loss, carol: none},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newRelayHarness(t, game.TimeControlNone, bob, carol)
+			h.controls(t, 0, tt.steps)
+			finished := h.finished(t)
+			if finished.Reason != tt.reason {
+				t.Fatalf("finish reason %s, want %s", finished.Reason, tt.reason)
+			}
+			if diff := cmp.Diff(tt.want, finished.Standings); diff != "" {
+				t.Fatalf("standings (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResignWithdrawsOwnDrawOffer(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControlNone, bob, carol)
+	h.controls(t, 0, []controlStep{{bob, protocol.ControlOfferDraw}, {bob, protocol.ControlResign}})
+	for _, user := range []game.UserID{alice, carol} {
+		u := h.snapshot(t, user)
+		if len(u.DrawAgreed) != 0 || slices.Contains(u.Controls, protocol.ControlDeclineDraw) {
+			t.Errorf("%s: draw_agreed %v, controls %v; want no pending offer", user, u.DrawAgreed, u.Controls)
+		}
+	}
+}
+
+func TestEliminationEndingGameKeepsItsResultOverOpenOffers(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControlNone, bob)
+	h.controls(t, 0, []controlStep{{alice, protocol.ControlOfferDraw}, {bob, protocol.ControlResign}})
+	finished := h.finished(t)
+	want := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeWin, Score: 1}, bob: {Outcome: store.OutcomeLoss, Score: -1}}
+	if finished.Reason != game.ReasonResign || !maps.Equal(finished.Standings, want) {
+		t.Fatalf("finish %+v, want alice winning by resign", finished)
+	}
+}
+
+func TestClockStartsWhenEliminationMeetsBarrier(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
+	seq := h.relay(t, bob, h.relay(t, alice, 0, relayPass), relayPass)
+	h.clock.Advance(time.Minute)
+	h.control(t, carol, seq, protocol.ControlResign)
+	h.clock.Advance(time.Minute)
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice)}
+	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
+		t.Fatalf("clock a minute after the resign that met the barrier (-want +got):\n%s", diff)
+	}
+}
+
+// timedOutOnOwnTurn plays a 3-player relay to the point where bob flags on
+// his own turn, after alice has earned an increment.
+func timedOutOnOwnTurn(t *testing.T) *harness {
+	t.Helper()
+	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
+	seq := h.relay(t, carol, h.relay(t, bob, h.relay(t, alice, 0, relayPass), relayPass), relayPass)
+	h.clock.Advance(10 * time.Second)
+	h.relay(t, alice, seq, relayPass)
+	h.clock.Advance(10 * time.Minute)
+	return h
+}
+
+func TestTimeoutOnOwnTurnPassesClockToNextPlayer(t *testing.T) {
+	h := timedOutOnOwnTurn(t)
+	if controls := h.snapshot(t, bob).Controls; len(controls) != 0 {
+		t.Fatalf("timed-out player keeps controls %v", controls)
+	}
+	h.clock.Advance(time.Minute)
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 595_000, bob: 0, carol: 540_000}, Running: new(carol)}
+	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
+		t.Fatalf("clock a minute after bob flagged (-want +got):\n%s", diff)
+	}
+}
+
+func TestRestoreAfterTimeoutRearmsTimer(t *testing.T) {
+	h := timedOutOnOwnTurn(t)
+	want := h.fullSnapshot(t, bob)
+	h.cancel()
+
+	steps, _ := h.persist.recorded()
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := restored.Snapshot(t.Context(), bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("bob's snapshot after restore (-want +got):\n%s", diff)
+	}
+	h.clock.Advance(10 * time.Minute)
+	waitDone(t, restored)
+	_, finished := h.persist.recorded()
+	wantStandings := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeWin, Score: 1}, bob: {Outcome: store.OutcomeLoss, Score: -1}, carol: {Outcome: store.OutcomeLoss, Score: -1}}
+	if finished == nil || finished.Reason != game.ReasonTimeout || !maps.Equal(finished.Standings, wantStandings) {
+		t.Fatalf("finish %+v, want carol flagging after restore to leave alice the winner", finished)
+	}
+}
+
+func TestRestoreKeepsEliminatedPlayer(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
+	seq := h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlResign)
+	seq = h.relay(t, carol, seq, relayPass)
+	users := []game.UserID{alice, bob, carol}
+	want := make(map[game.UserID]Snapshot, len(users))
+	for _, user := range users {
+		want[user] = h.fullSnapshot(t, user)
+	}
+	h.cancel()
+
+	steps, _ := h.persist.recorded()
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, user := range users {
+		got, err := restored.Snapshot(t.Context(), user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diff := cmp.Diff(want[user], got); diff != "" {
+			t.Errorf("%s snapshot after restore (-want +got):\n%s", user, diff)
+		}
+	}
+	if _, err := restored.Control(t.Context(), bob, seq, protocol.ControlResign); !isCode(err, protocol.CodeIllegalAction) {
+		t.Fatalf("resigned player's resign after restore: want illegal_action, got %v", err)
 	}
 }

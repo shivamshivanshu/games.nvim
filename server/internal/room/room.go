@@ -105,6 +105,7 @@ type roomState struct {
 	game       game.ErasedState
 	seq        game.Seq
 	acted      map[game.UserID]struct{}
+	eliminated map[game.UserID]struct{}
 	drawAgreed []game.UserID
 	imposed    *game.Result
 	events     []json.RawMessage
@@ -144,6 +145,10 @@ func (s roomState) toAct(g Setup) []game.UserID {
 	return g.usersAt(s.game.ToAct())
 }
 
+func (s roomState) hasTurn(g Setup, user game.UserID) bool {
+	return slices.Contains(s.toAct(g), user)
+}
+
 func (s roomState) apply(g Setup, st step) (roomState, error) {
 	next := s
 	next.seq = st.seq
@@ -175,13 +180,14 @@ func (s roomState) applyAction(g Setup, st step) (roomState, error) {
 	if err != nil {
 		return s, err
 	}
-	if s.clockRunning(g) {
-		s.remaining[st.user] += g.clock.Increment
+	next := s
+	next.game, next.events = state, events
+	next.drawAgreed = nil
+	next.acted = xslices.With(s.acted, st.user, struct{}{})
+	if s.clockRunning(g) && s.hasTurn(g, st.user) && !next.hasTurn(g, st.user) {
+		next.remaining[st.user] += g.clock.Increment
 	}
-	s.game, s.events = state, events
-	s.drawAgreed = nil
-	s.acted = xslices.With(s.acted, st.user, struct{}{})
-	return s, nil
+	return next, nil
 }
 
 func (s roomState) applyTimeout(g Setup, st step) (roomState, error) {
@@ -204,7 +210,25 @@ func (s roomState) eliminate(g Setup, user game.UserID, reason game.ResultReason
 		return s, err
 	}
 	s.game, s.events = state, events
-	return s, nil
+	s.eliminated = xslices.With(s.eliminated, user, struct{}{})
+	s.drawAgreed = slices.DeleteFunc(slices.Clone(s.drawAgreed), func(u game.UserID) bool { return u == user })
+	return s.imposeAgreedDraw(g), nil
+}
+
+func (s roomState) isEliminated(user game.UserID) bool {
+	_, out := s.eliminated[user]
+	return out
+}
+
+func (s roomState) everyActive(g Setup, holds func(game.UserID) bool) bool {
+	return !slices.ContainsFunc(g.Players, func(p game.Player) bool { return !s.isEliminated(p.User) && !holds(p.User) })
+}
+
+func (s roomState) allActiveActed(g Setup) bool {
+	return s.everyActive(g, func(u game.UserID) bool {
+		_, acted := s.acted[u]
+		return acted
+	})
 }
 
 func (s roomState) ending(g Setup) (store.Ending, error) {
@@ -212,7 +236,7 @@ func (s roomState) ending(g Setup) (store.Ending, error) {
 	scores, scored := s.gameScores()
 	standings := make(map[game.UserID]store.Standing, len(g.Players))
 	for _, player := range g.Players {
-		standing, err := standingOf(result, player.Seat)
+		standing, err := s.standing(result, player)
 		if err != nil {
 			return store.Ending{}, err
 		}
@@ -222,6 +246,15 @@ func (s roomState) ending(g Setup) (store.Ending, error) {
 		standings[player.User] = standing
 	}
 	return store.Ending{Kind: result.Kind, Reason: result.Reason, Standings: standings}, nil
+}
+
+// standing keeps an eliminated player's loss when the core imposes the ending
+// (draw agreed, abort), since that result is decided only by those remaining.
+func (s roomState) standing(result game.Result, player game.Player) (store.Standing, error) {
+	if s.imposed != nil && s.isEliminated(player.User) {
+		return store.Standing{Outcome: store.OutcomeLoss, Score: -1}, nil
+	}
+	return standingOf(result, player.Seat)
 }
 
 // standingOf scores winners +1 and losers -1, and a draw or an abort 0.

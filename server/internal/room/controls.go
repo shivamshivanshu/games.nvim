@@ -11,7 +11,7 @@ func (g Setup) can(c game.Capability) bool { return slices.Contains(g.info.Capab
 
 func (s roomState) controls(g Setup, user game.UserID) []protocol.Control {
 	controls := []protocol.Control{}
-	if s.finished() {
+	if s.finished() || s.isEliminated(user) {
 		return controls
 	}
 	if g.can(game.CapResign) {
@@ -23,7 +23,7 @@ func (s roomState) controls(g Setup, user game.UserID) []protocol.Control {
 	if len(s.drawAgreed) > 0 {
 		controls = append(controls, protocol.ControlDeclineDraw)
 	}
-	if g.can(game.CapAbort) && len(s.acted) < len(g.Players) {
+	if g.can(game.CapAbort) && !s.allActiveActed(g) {
 		controls = append(controls, protocol.ControlAbort)
 	}
 	return controls
@@ -39,13 +39,18 @@ func (s roomState) applyControl(g Setup, st step) (roomState, error) {
 		return s.eliminate(g, st.user, game.ReasonResign)
 	case protocol.ControlOfferDraw:
 		s.drawAgreed = append(slices.Clip(s.drawAgreed), st.user)
-		if len(s.drawAgreed) == len(g.Players) {
-			s.imposed = &game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
-		}
+		return s.imposeAgreedDraw(g), nil
 	case protocol.ControlDeclineDraw:
 		s.drawAgreed = nil
 	case protocol.ControlAbort:
 		s.imposed = &game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
 	}
 	return s, nil
+}
+
+func (s roomState) imposeAgreedDraw(g Setup) roomState {
+	if !s.finished() && s.everyActive(g, func(u game.UserID) bool { return slices.Contains(s.drawAgreed, u) }) {
+		s.imposed = &game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
+	}
+	return s
 }
