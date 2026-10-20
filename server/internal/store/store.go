@@ -87,42 +87,62 @@ type GameRecord struct {
 	Finish    *Finish
 }
 
+// Store writes through one connection and reads through a pool: under WAL,
+// readers see the last commit without waiting on the writer. A database with
+// no file of its own exists only inside its connection, so it reads through
+// the writer.
 type Store struct {
-	db *sql.DB
+	writer *sql.DB
+	reader *sql.DB
 	// afterResolve runs between resolving loadGames' ids and reading them; tests use it.
 	afterResolve func()
 }
 
+var (
+	writerPragmas = []string{"journal_mode(WAL)", "synchronous(NORMAL)", "busy_timeout(5000)", "foreign_keys(ON)"}
+	readerPragmas = []string{"busy_timeout(5000)", "query_only(ON)"}
+)
+
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := sql.Open("sqlite", dsn(path))
+	writer, err := sql.Open("sqlite", dsn(path, writerPragmas))
 	if err != nil {
 		return nil, fmt.Errorf("store: open %s: %w", path, err)
 	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.ExecContext(ctx, schema); err != nil {
-		_ = db.Close()
+	writer.SetMaxOpenConns(1)
+	if _, err := writer.ExecContext(ctx, schema); err != nil {
+		_ = writer.Close()
 		return nil, fmt.Errorf("store: apply schema: %w", err)
 	}
-	return &Store{db: db}, nil
+	if !hasFile(path) {
+		return &Store{writer: writer, reader: writer}, nil
+	}
+	reader, err := sql.Open("sqlite", dsn(path, readerPragmas))
+	if err != nil {
+		_ = writer.Close()
+		return nil, fmt.Errorf("store: open %s for reading: %w", path, err)
+	}
+	return &Store{writer: writer, reader: reader}, nil
 }
 
-func dsn(path string) string {
+func hasFile(path string) bool { return path != "" && path != ":memory:" }
+
+func dsn(path string, pragmas []string) string {
 	q := url.Values{}
-	for _, pragma := range []string{
-		"journal_mode(WAL)",
-		"synchronous(NORMAL)",
-		"busy_timeout(5000)",
-		"foreign_keys(ON)",
-	} {
+	for _, pragma := range pragmas {
 		q.Add("_pragma", pragma)
 	}
 	return "file:" + path + "?" + q.Encode()
 }
 
-func (s *Store) Close() error { return s.db.Close() }
+func (s *Store) Close() error {
+	if s.reader == s.writer {
+		return s.writer.Close()
+	}
+	return errors.Join(s.reader.Close(), s.writer.Close())
+}
 
 func (s *Store) CreateUser(ctx context.Context, user game.UserID, passwordHash []byte) error {
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.writer.ExecContext(ctx,
 		`INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)`,
 		user, passwordHash, time.Now().UnixMilli())
 	return err
@@ -130,7 +150,7 @@ func (s *Store) CreateUser(ctx context.Context, user game.UserID, passwordHash [
 
 func (s *Store) PasswordHash(ctx context.Context, user game.UserID) ([]byte, error) {
 	var hash []byte
-	err := s.db.QueryRowContext(ctx,
+	err := s.reader.QueryRowContext(ctx,
 		`SELECT password_hash FROM users WHERE username = ?`, user).Scan(&hash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -140,13 +160,13 @@ func (s *Store) PasswordHash(ctx context.Context, user game.UserID) ([]byte, err
 
 func (s *Store) UserExists(ctx context.Context, user game.UserID) (bool, error) {
 	var exists bool
-	err := s.db.QueryRowContext(ctx,
+	err := s.reader.QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM users WHERE username = ?)`, user).Scan(&exists)
 	return exists, err
 }
 
 func (s *Store) ListUsers(ctx context.Context) ([]game.UserID, error) {
-	return queryAll(ctx, s.db, scanOne[game.UserID], `SELECT username FROM users ORDER BY username`)
+	return queryAll(ctx, s.reader, scanOne[game.UserID], `SELECT username FROM users ORDER BY username`)
 }
 
 func (s *Store) CreateGame(ctx context.Context, rec GameRecord) error {
@@ -177,7 +197,7 @@ func (s *Store) CreateGame(ctx context.Context, rec GameRecord) error {
 }
 
 func (s *Store) AppendStep(ctx context.Context, id game.GameID, step StepRecord) error {
-	return insertStep(ctx, s.db, id, step)
+	return insertStep(ctx, s.writer, id, step)
 }
 
 // FinishGame stores a game's ending and summary and deletes its steps.
@@ -207,7 +227,7 @@ func (s *Store) FinishGame(ctx context.Context, id game.GameID, f Finish) error 
 }
 
 func (s *Store) Digest(ctx context.Context, id game.GameID) (game.Digest, error) {
-	digest, err := scanOne[sql.Null[game.Digest]](s.db.QueryRowContext(ctx,
+	digest, err := scanOne[sql.Null[game.Digest]](s.reader.QueryRowContext(ctx,
 		`SELECT digest FROM games WHERE game_id = ?`, id))
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -247,14 +267,14 @@ func (s *Store) LoadFinished(ctx context.Context, user game.UserID, limit int) (
 // loadGames resolves the ids matching filter once, then reads exactly those
 // games with their players, and the steps of the ones still ongoing.
 func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any) ([]GameRecord, error) {
-	ids, err := queryAll(ctx, s.db, scanOne[game.GameID], `SELECT game_id FROM games WHERE `+filter+` `+order, args...)
+	ids, err := queryAll(ctx, s.reader, scanOne[game.GameID], `SELECT game_id FROM games WHERE `+filter+` `+order, args...)
 	if err != nil || len(ids) == 0 {
 		return nil, err
 	}
 	if s.afterResolve != nil {
 		s.afterResolve()
 	}
-	recs, err := queryAll(ctx, s.db, scanGame,
+	recs, err := queryAll(ctx, s.reader, scanGame,
 		`SELECT game_id, game_type, options_json, rng_seed, created_at,
 		        finished_at, final_seq, result_kind, result_reason, summary, digest
 		 FROM games WHERE `+inSet(len(ids)), anySlice(ids)...)
@@ -266,7 +286,7 @@ func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any
 		position[id] = i
 	}
 	slices.SortFunc(recs, func(a, b GameRecord) int { return cmp.Compare(position[a.ID], position[b.ID]) })
-	players, err := queryAll(ctx, s.db, scanPlayer,
+	players, err := queryAll(ctx, s.reader, scanPlayer,
 		`SELECT game_id, username, seat, outcome, score FROM game_players WHERE `+inSet(len(ids))+` ORDER BY rowid`, anySlice(ids)...)
 	if err != nil {
 		return nil, err
@@ -298,7 +318,7 @@ func (s *Store) ongoingSteps(ctx context.Context, recs []GameRecord) ([]ofGame[S
 	if len(ongoing) == 0 {
 		return nil, nil
 	}
-	return queryAll(ctx, s.db, scanStep,
+	return queryAll(ctx, s.reader, scanStep,
 		`SELECT game_id, seq, username, kind, action_json, server_ts, clock_json
 		 FROM actions WHERE `+inSet(len(ongoing))+` ORDER BY game_id, seq`, anySlice(ongoing)...)
 }
@@ -437,7 +457,7 @@ func insertStep(ctx context.Context, db execer, id game.GameID, step StepRecord)
 }
 
 func (s *Store) inTx(ctx context.Context, fn func(*sql.Tx) error) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.writer.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}

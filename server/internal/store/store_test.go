@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -144,7 +145,7 @@ func TestClockStoredAsMillisecondsOrNull(t *testing.T) {
 		}
 	}
 	var timed, none sql.NullString
-	if err := s.db.QueryRowContext(ctx,
+	if err := s.reader.QueryRowContext(ctx,
 		`SELECT (SELECT clock_json FROM actions WHERE seq = 3), (SELECT clock_json FROM actions WHERE seq = 2)`).Scan(&timed, &none); err != nil {
 		t.Fatal(err)
 	}
@@ -336,6 +337,27 @@ func TestStatsExcludeAborted(t *testing.T) {
 	finished, err := s.LoadFinished(ctx, alice, 10)
 	if err != nil || len(finished) != 3 {
 		t.Fatalf("finished = %v, err = %v", finished, err)
+	}
+}
+
+func TestReadInProgressDoesNotBlockAppendStep(t *testing.T) {
+	ctx := t.Context()
+	s := openTemp(t)
+	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := s.reader.QueryContext(ctx, `SELECT game_id FROM games`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		t.Fatalf("read returned no row: %v", rows.Err())
+	}
+	writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := s.AppendStep(writeCtx, "g1", step(1, alice)); err != nil {
+		t.Fatalf("append while a read is open: %v", err)
 	}
 }
 

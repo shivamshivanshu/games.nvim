@@ -28,7 +28,7 @@ const outcomeTallies = `
 	COALESCE(SUM(a.outcome = 'draw'), 0)`
 
 func (s *Store) Stats(ctx context.Context) ([]StatRecord, []HeadToHeadRecord, error) {
-	stats, err := queryAll(ctx, s.db, func(row scanner) (StatRecord, error) {
+	stats, err := queryAll(ctx, s.reader, func(row scanner) (StatRecord, error) {
 		var r StatRecord
 		return r, row.Scan(&r.User, &r.Game, &r.Wins, &r.Losses, &r.Draws)
 	}, `
@@ -40,7 +40,7 @@ func (s *Store) Stats(ctx context.Context) ([]StatRecord, []HeadToHeadRecord, er
 	if err != nil {
 		return nil, nil, err
 	}
-	headToHead, err := queryAll(ctx, s.db, func(row scanner) (HeadToHeadRecord, error) {
+	headToHead, err := queryAll(ctx, s.reader, func(row scanner) (HeadToHeadRecord, error) {
 		var r HeadToHeadRecord
 		return r, row.Scan(&r.User, &r.Opponent, &r.Game, &r.Wins, &r.Losses, &r.Draws)
 	}, `
