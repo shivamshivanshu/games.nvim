@@ -17,10 +17,14 @@ const (
 var uciPattern = regexp.MustCompile(`^[a-h][1-8][a-h][1-8][qrbn]?$`)
 
 func (p Position) SAN(m Move) string {
-	return p.sanWithoutCheckSuffix(m) + p.checkSuffix(m)
+	return p.san(m, p.LegalMoves())
 }
 
-func (p Position) sanWithoutCheckSuffix(m Move) string {
+func (p Position) san(m Move, legal []Move) string {
+	return p.sanWithoutCheckSuffix(m, legal) + p.checkSuffix(m)
+}
+
+func (p Position) sanWithoutCheckSuffix(m Move, legal []Move) string {
 	moving := p.Board[m.From]
 	if c, ok := castlingByKingMove(moving, m); ok {
 		if c.kingTo.File() > c.kingFrom.File() {
@@ -36,7 +40,7 @@ func (p Position) sanWithoutCheckSuffix(m Move) string {
 		}
 	} else {
 		b.WriteByte(pieceLetters[moving.Kind])
-		b.WriteString(p.disambiguation(m))
+		b.WriteString(p.disambiguation(m, legal))
 	}
 	if isCapture {
 		b.WriteByte('x')
@@ -49,9 +53,9 @@ func (p Position) sanWithoutCheckSuffix(m Move) string {
 	return b.String()
 }
 
-func (p Position) disambiguation(m Move) string {
+func (p Position) disambiguation(m Move, legal []Move) string {
 	var sameFile, sameRank, ambiguous bool
-	for _, other := range p.LegalMoves() {
+	for _, other := range legal {
 		if other.To != m.To || other.From == m.From || p.Board[other.From] != p.Board[m.From] {
 			continue
 		}
@@ -83,15 +87,18 @@ func (p Position) checkSuffix(m Move) string {
 }
 
 func (p Position) ParseMove(input string) (Move, error) {
+	return p.parseMove(input, p.LegalMoves())
+}
+
+func (p Position) parseMove(input string, legal []Move) (Move, error) {
 	text := normalizeMoveText(input)
-	legal := p.LegalMoves()
 	if lowered := strings.ToLower(text); uciPattern.MatchString(lowered) {
 		if i := slices.IndexFunc(legal, func(m Move) bool { return m.UCI() == lowered }); i >= 0 {
 			return legal[i], nil
 		}
 	}
 	for _, m := range legal {
-		san := p.sanWithoutCheckSuffix(m)
+		san := p.sanWithoutCheckSuffix(m, legal)
 		if text == san || text == strings.Replace(san, "=", "", 1) {
 			return m, nil
 		}

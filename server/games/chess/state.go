@@ -36,18 +36,21 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 }
 
 func (s state) applyMove(seat game.Seat, input string) (game.State[Action, View], []game.Event, error) {
-	move, err := s.position.ParseMove(input)
+	legal := s.position.LegalMoves()
+	move, err := s.position.parseMove(input, legal)
 	if err != nil {
 		return nil, nil, game.IllegalActionError{Msg: "illegal move: " + input}
 	}
-	san := s.position.SAN(move)
+	san := s.position.san(move, legal)
 	next := state{
 		position: s.position.Play(move),
 		san:      append(slices.Clip(s.san), san),
 		last:     &MoveSquares{From: move.From.String(), To: move.To.String()},
 	}
-	next.history = append(slices.Clip(s.history), next.position.RepetitionKey())
-	if ending, ok := DetectEnding(next.position, next.history); ok {
+	nextLegal := next.position.LegalMoves()
+	key := next.position.repetitionKey(nextLegal)
+	next.history = append(slices.Clip(s.history), key)
+	if ending, ok := DetectEnding(next.position, nextLegal, key, next.history); ok {
 		next.result, next.finished = ending.result(), true
 	}
 	return next, []game.Event{MovedEvent{By: seat, SAN: san}}, nil

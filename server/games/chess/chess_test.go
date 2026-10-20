@@ -42,7 +42,7 @@ func act(t *testing.T, st game.ErasedState, seat game.Seat, a Action) (game.Eras
 
 func playSANs(t *testing.T, st game.ErasedState, line string) game.ErasedState {
 	t.Helper()
-	for _, san := range strings.Fields(line) {
+	for san := range strings.FieldsSeq(line) {
 		seat := st.ToAct()[0]
 		var err error
 		if st, err = act(t, st, seat, Action{Kind: ActionMove, Move: san}); err != nil {
@@ -148,7 +148,7 @@ func TestColorOption(t *testing.T) {
 func moves(sans string) []gametest.Step[Action] {
 	var steps []gametest.Step[Action]
 	seat := SeatWhite
-	for _, san := range strings.Fields(sans) {
+	for san := range strings.FieldsSeq(sans) {
 		steps = append(steps, gametest.Step[Action]{Seat: seat, Action: Action{Kind: ActionMove, Move: san}})
 		seat = map[game.Seat]game.Seat{SeatWhite: SeatBlack, SeatBlack: SeatWhite}[seat]
 	}

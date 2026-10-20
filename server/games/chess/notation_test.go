@@ -84,6 +84,10 @@ func historyAfter(t *testing.T, p Position, sans ...string) (Position, []Repetit
 	return p, history
 }
 
+func detectEnding(p Position, history []RepetitionKey) (Ending, bool) {
+	return DetectEnding(p, p.LegalMoves(), p.RepetitionKey(), history)
+}
+
 func TestInsufficientMaterial(t *testing.T) {
 	tests := []struct {
 		name, fen string
@@ -99,7 +103,7 @@ func TestInsufficientMaterial(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			p := mustFEN(t, tc.fen)
-			ending, got := DetectEnding(p, []RepetitionKey{p.RepetitionKey()})
+			ending, got := detectEnding(p, []RepetitionKey{p.RepetitionKey()})
 			if got != tc.want || (got && ending.Reason != ReasonInsufficientMaterial) {
 				t.Errorf("got %+v, %t want %t", ending, got, tc.want)
 			}
@@ -109,11 +113,11 @@ func TestInsufficientMaterial(t *testing.T) {
 
 func TestSeventyFiveAndFiftyMove(t *testing.T) {
 	p, history := historyAfter(t, mustFEN(t, "4k3/8/8/8/8/8/8/R3K3 w - - 149 80"), "Ra2")
-	if ending, ok := DetectEnding(p, history); !ok || ending.Reason != ReasonSeventyFive || ending.Kind != game.ResultDraw {
+	if ending, ok := detectEnding(p, history); !ok || ending.Reason != ReasonSeventyFive || ending.Kind != game.ResultDraw {
 		t.Errorf("75-move: got %+v, %t", ending, ok)
 	}
 	p, history = historyAfter(t, mustFEN(t, "4k3/8/8/8/8/8/8/R3K3 w - - 99 80"), "Ra2")
-	if _, ok := DetectEnding(p, history); ok {
+	if _, ok := detectEnding(p, history); ok {
 		t.Error("100 halfmoves must not end the game automatically")
 	}
 	if reason, ok := ClaimableDraw(p, history); !ok || reason != ReasonFifty {
@@ -124,11 +128,11 @@ func TestSeventyFiveAndFiftyMove(t *testing.T) {
 func TestFivefoldAutomatic(t *testing.T) {
 	shuffle := []string{"Nf3", "Nf6", "Ng1", "Ng8"}
 	p, history := historyAfter(t, mustFEN(t, StartFEN), slices.Concat(shuffle, shuffle, shuffle)...)
-	if _, ok := DetectEnding(p, history); ok {
+	if _, ok := detectEnding(p, history); ok {
 		t.Fatal("threefold must not end the game automatically")
 	}
 	p, history = historyAfter(t, mustFEN(t, StartFEN), slices.Concat(shuffle, shuffle, shuffle, shuffle)...)
-	if ending, ok := DetectEnding(p, history); !ok || ending.Reason != ReasonFivefold {
+	if ending, ok := detectEnding(p, history); !ok || ending.Reason != ReasonFivefold {
 		t.Errorf("got %+v, %t", ending, ok)
 	}
 }

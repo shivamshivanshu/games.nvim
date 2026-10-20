@@ -44,7 +44,7 @@ func (p Position) kingAttacked(c Color) bool {
 
 func (p Position) kingSquare(c Color) Square {
 	king := Piece{Kind: King, Color: c}
-	for sq := Square(0); sq < boardSize; sq++ {
+	for sq := range Square(boardSize) {
 		if p.Board[sq] == king {
 			return sq
 		}

@@ -7,6 +7,21 @@ import (
 
 const shortModeNodeLimit = 1_000_000
 
+func perft(p Position, depth int) uint64 {
+	if depth == 0 {
+		return 1
+	}
+	moves := p.LegalMoves()
+	if depth == 1 {
+		return uint64(len(moves))
+	}
+	var nodes uint64
+	for _, m := range moves {
+		nodes += perft(p.Play(m), depth-1)
+	}
+	return nodes
+}
+
 func TestPerft(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -30,8 +45,8 @@ func TestPerft(t *testing.T) {
 				if testing.Short() && want > shortModeNodeLimit {
 					t.Skipf("%d nodes", want)
 				}
-				if got := Perft(p, depth); got != want {
-					t.Errorf("Perft = %d, want %d", got, want)
+				if got := perft(p, depth); got != want {
+					t.Errorf("perft = %d, want %d", got, want)
 				}
 			})
 		}

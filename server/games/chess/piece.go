@@ -1,5 +1,7 @@
 package chess
 
+import "strings"
+
 type Color uint8
 
 const (
@@ -44,10 +46,9 @@ func pieceFromLetter(l byte) (Piece, bool) {
 		color = Black
 		l -= 'a' - 'A'
 	}
-	for kind := Pawn; kind <= King; kind++ {
-		if pieceLetters[kind] == l {
-			return Piece{Kind: kind, Color: color}, true
-		}
+	kind := strings.IndexByte(pieceLetters, l)
+	if kind < int(Pawn) {
+		return Piece{}, false
 	}
-	return Piece{}, false
+	return Piece{Kind: PieceKind(kind), Color: color}, true
 }
