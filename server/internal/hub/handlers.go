@@ -121,7 +121,7 @@ func (h *Hub) listGames(ctx context.Context, s *session.Session, req protocol.Ga
 	var err error
 	switch req.Status {
 	case "", protocol.StatusOngoing:
-		games, err = h.ongoingGames(s.User())
+		games, err = h.ongoingGames(ctx, s.User())
 	case protocol.StatusFinished:
 		games, err = h.finishedGames(ctx, s.User())
 	default:

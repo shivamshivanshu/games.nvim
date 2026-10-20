@@ -314,7 +314,7 @@ func (r *Room) Control(ctx context.Context, user game.UserID, seq uint64, c prot
 	}, r.rejectAfterExit)
 }
 
-func (r *Room) Snapshot(user game.UserID) (protocol.GameUpdate, error) {
+func (r *Room) Snapshot(ctx context.Context, user game.UserID) (protocol.GameUpdate, error) {
 	snapshot := func() (protocol.GameUpdate, error) {
 		if _, ok := r.setup.seats[user]; !ok {
 			return protocol.GameUpdate{}, ErrNotAPlayer
@@ -322,7 +322,7 @@ func (r *Room) Snapshot(user game.UserID) (protocol.GameUpdate, error) {
 		return r.cur.update(r.setup, user, r.setup.Time.Now())
 	}
 	// Once the actor has exited, its state is frozen and safe to read from here.
-	return ask(context.Background(), r, snapshot, snapshot)
+	return ask(ctx, r, snapshot, snapshot)
 }
 
 func (r *Room) rejectAfterExit() (uint64, error) {

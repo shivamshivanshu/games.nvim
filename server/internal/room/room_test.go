@@ -170,7 +170,7 @@ func (h *harness) control(t *testing.T, user game.UserID, seq uint64, c protocol
 
 func (h *harness) snapshot(t *testing.T, user game.UserID) protocol.GameUpdate {
 	t.Helper()
-	u, err := h.room.Snapshot(user)
+	u, err := h.room.Snapshot(context.Background(), user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestNonPlayerRejected(t *testing.T) {
 	if _, err := h.room.Act(context.Background(), carol, 0, move("e4")); !errors.Is(err, ErrNotAPlayer) {
 		t.Fatalf("act: want ErrNotAPlayer, got %v", err)
 	}
-	if _, err := h.room.Snapshot(carol); !errors.Is(err, ErrNotAPlayer) {
+	if _, err := h.room.Snapshot(context.Background(), carol); !errors.Is(err, ErrNotAPlayer) {
 		t.Fatalf("snapshot: want ErrNotAPlayer, got %v", err)
 	}
 }
@@ -378,7 +378,7 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 		t.Fatal(err)
 	}
 	for user, original := range want {
-		got, err := restored.Snapshot(user)
+		got, err := restored.Snapshot(context.Background(), user)
 		if err != nil {
 			t.Fatal(err)
 		}

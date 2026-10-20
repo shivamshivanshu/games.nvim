@@ -89,7 +89,7 @@ func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]store.Playe
 
 func (h *Hub) sendCurrent(r *room.Room, players []store.PlayerRecord) {
 	for _, p := range players {
-		u, err := r.Snapshot(p.User)
+		u, err := r.Snapshot(h.ctx, p.User)
 		if err != nil {
 			slog.Error("hub: initial update", "user", p.User, "err", err)
 			continue
@@ -201,14 +201,14 @@ func (h *Hub) liveGamesOf(user game.UserID) []liveGame {
 	return out
 }
 
-func (h *Hub) ongoingGames(user game.UserID) ([]protocol.GameUpdate, error) {
+func (h *Hub) ongoingGames(ctx context.Context, user game.UserID) ([]protocol.GameUpdate, error) {
 	type listed struct {
 		update   protocol.GameUpdate
 		lastStep time.Time
 	}
 	var games []listed
 	for _, g := range h.liveGamesOf(user) {
-		u, err := g.room.Snapshot(user)
+		u, err := g.room.Snapshot(ctx, user)
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +255,7 @@ func (h *Hub) finishedGames(ctx context.Context, user game.UserID) ([]protocol.G
 
 func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (protocol.GameUpdate, error) {
 	if r, err := h.liveRoom(id); err == nil {
-		return r.Snapshot(user)
+		return r.Snapshot(ctx, user)
 	}
 	return h.replayedSnapshot(ctx, id, user)
 }
@@ -273,7 +273,7 @@ func (h *Hub) replayedSnapshot(ctx context.Context, id game.GameID, user game.Us
 	if err != nil {
 		return protocol.GameUpdate{}, err
 	}
-	return r.Snapshot(user)
+	return r.Snapshot(ctx, user)
 }
 
 func (h *Hub) gameType(t game.GameType) (game.Game, error) {
