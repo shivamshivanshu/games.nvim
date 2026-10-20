@@ -1,0 +1,199 @@
+package protocol
+
+import (
+	"encoding/json"
+	"time"
+
+	"games.nvim/server/game"
+)
+
+type Control string
+
+const (
+	ControlResign      Control = "resign"
+	ControlOfferDraw   Control = "offer_draw"
+	ControlDeclineDraw Control = "decline_draw"
+	ControlAbort       Control = "abort"
+)
+
+type ChallengeState string
+
+const (
+	ChallengePending   ChallengeState = "pending"
+	ChallengeAccepted  ChallengeState = "accepted"
+	ChallengeDeclined  ChallengeState = "declined"
+	ChallengeCancelled ChallengeState = "cancelled"
+	ChallengeExpired   ChallengeState = "expired"
+)
+
+type GameStatus string
+
+const (
+	StatusOngoing  GameStatus = "ongoing"
+	StatusFinished GameStatus = "finished"
+)
+
+type OptionType string
+
+const OptionEnum OptionType = "enum"
+
+type ChallengeID string
+
+// Empty is the body of requests and results that carry no fields.
+type Empty struct{}
+
+type LoginRequest struct {
+	V        int         `json:"v"`
+	Username game.UserID `json:"username"`
+	Password string      `json:"password"`
+}
+
+type LoginResult struct {
+	User        game.UserID `json:"user"`
+	HeartbeatMS int64       `json:"heartbeat_ms"`
+}
+
+type PlayersWire struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+
+type OptionWire struct {
+	Type    OptionType `json:"type"`
+	Values  []string   `json:"values"`
+	Default string     `json:"default"`
+}
+
+type GameInfoWire struct {
+	ID           game.GameType         `json:"id"`
+	Name         string                `json:"name"`
+	Players      PlayersWire           `json:"players"`
+	Capabilities []game.Capability     `json:"capabilities"`
+	Options      map[string]OptionWire `json:"options"`
+}
+
+type CatalogResult struct {
+	Games []GameInfoWire `json:"games"`
+}
+
+type UserPresence struct {
+	User   game.UserID `json:"user"`
+	Online bool        `json:"online"`
+}
+
+type UserListResult struct {
+	Users []UserPresence `json:"users"`
+}
+
+type ChallengeCreateRequest struct {
+	To      []game.UserID   `json:"to"`
+	Game    game.GameType   `json:"game"`
+	Options json.RawMessage `json:"options"`
+}
+
+type ChallengeCreateResult struct {
+	ChallengeID ChallengeID `json:"challenge_id"`
+}
+
+type ChallengeRef struct {
+	ChallengeID ChallengeID `json:"challenge_id"`
+}
+
+type Challenge struct {
+	ChallengeID ChallengeID     `json:"challenge_id"`
+	From        game.UserID     `json:"from"`
+	To          []game.UserID   `json:"to"`
+	Accepted    []game.UserID   `json:"accepted"`
+	Game        game.GameType   `json:"game"`
+	Options     json.RawMessage `json:"options"`
+	State       ChallengeState  `json:"state"`
+	By          *game.UserID    `json:"by"`
+	GameID      *game.GameID    `json:"game_id"`
+	ExpiresAt   time.Time       `json:"expires_at"`
+}
+
+type ChallengeListResult struct {
+	Challenges []Challenge `json:"challenges"`
+}
+
+type GameListRequest struct {
+	Status GameStatus `json:"status,omitempty"`
+}
+
+type GameListResult struct {
+	Games []GameUpdate `json:"games"`
+}
+
+type GameSnapshotRequest struct {
+	GameID game.GameID `json:"game_id"`
+}
+
+type GameActRequest struct {
+	GameID game.GameID     `json:"game_id"`
+	Seq    uint64          `json:"seq"`
+	Action json.RawMessage `json:"action"`
+}
+
+type GameControlRequest struct {
+	GameID  game.GameID `json:"game_id"`
+	Seq     uint64      `json:"seq"`
+	Control Control     `json:"control"`
+}
+
+type SeqResult struct {
+	Seq uint64 `json:"seq"`
+}
+
+type PlayerSeat struct {
+	User game.UserID `json:"user"`
+	Seat game.Seat   `json:"seat"`
+}
+
+type WireResult struct {
+	Winners []game.UserID     `json:"winners"`
+	Reason  game.ResultReason `json:"reason"`
+}
+
+type WireClock struct {
+	RemainingMS map[game.UserID]int64 `json:"remaining_ms"`
+	Running     *game.UserID          `json:"running"`
+}
+
+type GameUpdate struct {
+	GameID     game.GameID       `json:"game_id"`
+	Game       game.GameType     `json:"game"`
+	Options    json.RawMessage   `json:"options"`
+	Seq        uint64            `json:"seq"`
+	Players    []PlayerSeat      `json:"players"`
+	ToAct      []game.UserID     `json:"to_act"`
+	Result     *WireResult       `json:"result"`
+	Clock      *WireClock        `json:"clock"`
+	DrawAgreed []game.UserID     `json:"draw_agreed"`
+	Controls   []Control         `json:"controls"`
+	Events     []json.RawMessage `json:"events"`
+	View       json.RawMessage   `json:"view"`
+}
+
+type Tally struct {
+	Wins   int `json:"wins"`
+	Losses int `json:"losses"`
+	Draws  int `json:"draws"`
+}
+
+type StatsRecord struct {
+	User game.UserID   `json:"user"`
+	Game game.GameType `json:"game"`
+	Tally
+}
+
+type HeadToHeadRecord struct {
+	User     game.UserID   `json:"user"`
+	Opponent game.UserID   `json:"opponent"`
+	Game     game.GameType `json:"game"`
+	Tally
+}
+
+type StatsResult struct {
+	Records    []StatsRecord      `json:"records"`
+	HeadToHead []HeadToHeadRecord `json:"head_to_head"`
+}
