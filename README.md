@@ -36,26 +36,66 @@ There is no self-registration: every account is created with `adduser`.
 
 Failed logins are locked out per IP: 5 failures in 5 min locks that IP out for 5 min.
 
-## Install (lazy.nvim)
+## Install
+
+lazy.nvim:
 
 ```lua
 {
-  dir = "/home/data/dev/games.nvim",
-  config = function()
-    require("games").setup({
-      server = { host = "127.0.0.1", port = 7777 },
-      username = "alice",
-      password = function()
-        return os.getenv("NVIM_GAMES_PASSWORD")
-      end,
-      autoconnect = true,
-      glyphs = "unicode",
-    })
-  end,
+  "shivamshivanshu/games.nvim",
+  cmd = "Games",
+  opts = {
+    server = { host = "games.example.net", port = 7777 },
+    username = "alice",
+    password = function()
+      return os.getenv("NVIM_GAMES_PASSWORD")
+    end,
+  },
 }
 ```
 
-`password` may be a plain string or a function. The function is called on each connect, never during `setup()`, so the secret need not live in your dotfiles.
+`username` and `password` are optional: if missing, the first `:Games` prompts for them (username via `vim.ui.input`, password hidden via `inputsecret`) and keeps them for the session. `password` may be a string or a function; the function is called on each connect, never during `setup()`, so the secret need not live in your dotfiles.
+
+Other managers all end in `require("games").setup({ ... })`:
+
+```lua
+-- packer.nvim
+use({ "shivamshivanshu/games.nvim", config = function() require("games").setup({ ... }) end })
+
+-- mini.deps
+MiniDeps.add("shivamshivanshu/games.nvim")
+require("games").setup({ ... })
+```
+
+```vim
+" vim-plug
+Plug 'shivamshivanshu/games.nvim'
+```
+
+Native packages (then `:helptags ALL`, and call `setup()` from your config):
+
+```sh
+git clone https://github.com/shivamshivanshu/games.nvim \
+  ~/.local/share/nvim/site/pack/games/start/games.nvim
+```
+
+Help: `:help games`. Diagnostics: `:checkhealth games`.
+
+## Join a server
+
+1. Ask the host for an account and the server address.
+2. Set `server.host` / `server.port` (see Config).
+3. Run `:Games`.
+
+## Host a server
+
+```sh
+go install github.com/shivamshivanshu/games.nvim/server/cmd/games-server@latest  # or: make build
+games-server adduser alice                        # prompts for a password
+games-server serve --addr 100.64.0.1:7777         # e.g. your Tailscale address
+```
+
+Details and flags are under Server below.
 
 ## Config
 
@@ -63,9 +103,9 @@ Failed logins are locked out per IP: 5 failures in 5 min locks that IP out for 5
 |---|---|---|---|
 | `server.host` | string | `"127.0.0.1"` | |
 | `server.port` | integer | `7777` | 1-65535 |
-| `username` | string | required | |
-| `password` | string or `fun(): string` | required | resolved at each connect |
-| `autoconnect` | boolean | `true` | connect after `VimEnter` (or next tick if already started) |
+| `username` | string | prompted | optional; prompted on first `:Games` if missing |
+| `password` | string or `fun(): string` | prompted | optional; resolved at each connect |
+| `autoconnect` | boolean | `true` | connect after `VimEnter` (or next tick if already started); skipped without a `username` |
 | `glyphs` | `"unicode"` or `"ascii"` | `"unicode"` | piece glyphs |
 
 A bad login or protocol mismatch stops auto-reconnect and notifies; fix the config and restart Neovim (or call `setup()` again).
@@ -111,7 +151,7 @@ No core edits.
 
 ## Security
 
-Transport is plain TCP, with no TLS. The username and password cross the wire in cleartext, and the NDJSON stream is readable by anyone on the path. The server binds to `127.0.0.1` by default. Before exposing it, put it behind a VPN or SSH tunnel (`ssh -L 7777:127.0.0.1:7777 host`) and use a password you use nowhere else. Passwords are stored as bcrypt hashes.
+Transport is plain TCP, with no TLS. The username and password cross the wire in cleartext, and the NDJSON stream is readable by anyone on the path. The server binds to `127.0.0.1` by default. For private rooms, bind `--addr` to a Tailscale or WireGuard address, or keep the default and use an SSH tunnel (`ssh -L 7777:127.0.0.1:7777 host`), and use a password you use nowhere else. Failed logins are locked out per IP (5 failures in 5 min locks that IP out for 5 min). Passwords are stored as bcrypt hashes.
 
 ## Development
 
