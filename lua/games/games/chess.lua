@@ -15,6 +15,14 @@ local players = require("games.core.players")
 
 ---@alias games.ChessSeat "white"|"black"
 
+---@class games.ChessUpdate: games.GameUpdate
+---@field view games.ChessView
+
+---@class games.ChessMovedEvent: games.Event
+---@field kind "moved"
+---@field by games.ChessSeat
+---@field san string
+
 ---@alias games.ChessPiece "K"|"Q"|"R"|"B"|"N"|"P"|"k"|"q"|"r"|"b"|"n"|"p"
 
 local FILES = "abcdefgh"
@@ -119,7 +127,7 @@ local function marks_for(view, pieces)
   return marks
 end
 
----@param update games.GameUpdate
+---@param update games.ChessUpdate
 ---@param ctx games.LayoutCtx
 ---@return boolean
 local function black_at_bottom(update, ctx)
@@ -128,11 +136,11 @@ end
 
 local M = {}
 
----@param update games.GameUpdate
+---@param update games.ChessUpdate
 ---@param ctx games.LayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
-  local view = update.view --[[@as games.ChessView]]
+  local view = update.view
   local pieces = fen_to_pieces(view.fen)
   return compose.row({
     grid({
@@ -170,12 +178,13 @@ M.actions = {
 }
 
 ---@param event games.Event
----@param update games.GameUpdate
+---@param update games.ChessUpdate
 ---@return string|nil
 function M.describe_event(event, update)
   if event.kind ~= "moved" then
     return nil
   end
+  ---@cast event games.ChessMovedEvent
   return ("%s played %s"):format(players.user_of_seat(update, event.by) or event.by, event.san)
 end
 
