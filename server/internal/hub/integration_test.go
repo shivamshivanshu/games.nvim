@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
@@ -267,7 +268,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	restarted := e.start(t)
 	a = restarted.login(t, alice)
 	after := ongoing(t, a)
-	if diff := cmp.Diff(before, after); diff != "" {
+	if diff := cmp.Diff(before, after, cmpopts.IgnoreFields(protocol.WireClock{}, "AsOfMS")); diff != "" {
 		t.Fatalf("game.list across restart (-before +after):\n%s", diff)
 	}
 	if next := move(t, a, id, seq, "Bc4"); next != seq+1 {

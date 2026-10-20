@@ -175,7 +175,7 @@ type Challenge struct {
 	State       ChallengeState `json:"state"`
 	By          *game.UserID   `json:"by"`
 	GameID      *game.GameID   `json:"game_id"`
-	ExpiresAt   time.Time      `json:"expires_at"`
+	ExpiresAt   UnixMS         `json:"expires_at"`
 }
 
 func (c Challenge) Participants() []game.UserID {
@@ -231,9 +231,12 @@ type WireResult struct {
 	Reason  game.ResultReason `json:"reason"`
 }
 
+// WireClock is the clock as of AsOfMS: the step's time on a push, the read's
+// on a snapshot. Running's remaining time keeps falling from then on.
 type WireClock struct {
 	RemainingMS map[game.UserID]int64 `json:"remaining_ms"`
 	Running     *game.UserID          `json:"running"`
+	AsOfMS      UnixMS                `json:"as_of_ms"`
 }
 
 // UnixMS is a wall-clock instant as milliseconds since the Unix epoch.

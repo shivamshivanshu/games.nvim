@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/games/chess"
@@ -389,21 +390,21 @@ func TestClockNotChargedBeforeFirstMoves(t *testing.T) {
 	seq := h.play(t, alice, 0, "e4")
 	h.clock.Advance(5 * time.Minute)
 	clock := h.snapshot(t, alice).Clock
-	if diff := cmp.Diff(&protocol.WireClock{RemainingMS: initial}, clock); diff != "" {
+	if diff := cmp.Diff(&protocol.WireClock{RemainingMS: initial, AsOfMS: protocol.UnixMSOf(h.clock.Now())}, clock); diff != "" {
 		t.Fatalf("clock before both first moves (-want +got):\n%s", diff)
 	}
 
 	seq = h.play(t, bob, seq, "e5")
 	h.clock.Advance(time.Minute)
 	clock = h.snapshot(t, bob).Clock
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000}, Running: new(alice)}
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000}, Running: new(alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, clock); diff != "" {
 		t.Fatalf("clock once running (-want +got):\n%s", diff)
 	}
 
 	h.play(t, alice, seq, "Nf3")
 	clock = h.snapshot(t, bob).Clock
-	want = &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 545_000, bob: 600_000}, Running: new(bob)}
+	want = &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 545_000, bob: 600_000}, Running: new(bob), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, clock); diff != "" {
 		t.Fatalf("clock after an incremented move (-want +got):\n%s", diff)
 	}
@@ -430,8 +431,11 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if diff := cmp.Diff(original, got); diff != "" {
+		if diff := cmp.Diff(original, got, cmpopts.IgnoreFields(protocol.WireClock{}, "AsOfMS")); diff != "" {
 			t.Errorf("%s snapshot after restore (-want +got):\n%s", user, diff)
+		}
+		if got.Update.Clock.AsOfMS != protocol.UnixMSOf(h.clock.Now()) {
+			t.Errorf("%s restored clock as of %d, want now", user, got.Update.Clock.AsOfMS)
 		}
 		if diff := cmp.Diff(xslices.MapValues(steps[len(steps)-1].ClockRemaining, time.Duration.Milliseconds), got.Update.Clock.RemainingMS); diff != "" {
 			t.Errorf("%s remaining vs last step (-want +got):\n%s", user, diff)
@@ -481,7 +485,7 @@ func TestFinishingBroadcastAddsStepToSealedUpdate(t *testing.T) {
 	h.clock.Advance(time.Minute)
 	h.play(t, bob, seq, "Qh4#")
 	waitDone(t, h.room)
-	wantClock := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 605_000, bob: 545_000}}
+	wantClock := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 605_000, bob: 545_000}, AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	for _, user := range []game.UserID{alice, bob} {
 		sent, _ := h.sent.last(user)
 		sealed := h.snapshot(t, user)
@@ -598,7 +602,7 @@ func TestClockStartsOnceRemainingPlayersActed(t *testing.T) {
 	h.relay(t, carol, seq, relayPass)
 	h.clock.Advance(time.Minute)
 	u := h.snapshot(t, alice)
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice)}
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, u.Clock); diff != "" {
 		t.Fatalf("clock after the remaining players acted (-want +got):\n%s", diff)
 	}
@@ -614,7 +618,7 @@ func TestIncrementOncePerTurnHandover(t *testing.T) {
 		h.clock.Advance(10 * time.Second)
 		seq = h.relay(t, alice, seq, m)
 	}
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 585_000, bob: 600_000}, Running: new(bob)}
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 585_000, bob: 600_000}, Running: new(bob), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
 		t.Fatalf("clock after a two-action turn (-want +got):\n%s", diff)
 	}
@@ -709,7 +713,7 @@ func TestClockStartsWhenEliminationMeetsBarrier(t *testing.T) {
 	h.clock.Advance(time.Minute)
 	h.control(t, carol, seq, protocol.ControlResign)
 	h.clock.Advance(time.Minute)
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice)}
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
 		t.Fatalf("clock a minute after the resign that met the barrier (-want +got):\n%s", diff)
 	}
@@ -733,7 +737,7 @@ func TestTimeoutOnOwnTurnPassesClockToNextPlayer(t *testing.T) {
 		t.Fatalf("timed-out player keeps controls %v", controls)
 	}
 	h.clock.Advance(time.Minute)
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 595_000, bob: 0, carol: 540_000}, Running: new(carol)}
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 595_000, bob: 0, carol: 540_000}, Running: new(carol), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
 		t.Fatalf("clock a minute after bob flagged (-want +got):\n%s", diff)
 	}

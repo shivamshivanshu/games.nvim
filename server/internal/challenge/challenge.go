@@ -56,7 +56,7 @@ func (r *Registry) Create(from game.UserID, to []game.UserID, info game.Info, op
 		Game:        info.Type,
 		Options:     opts,
 		State:       protocol.ChallengePending,
-		ExpiresAt:   r.clock.Now().Add(r.ttl),
+		ExpiresAt:   protocol.UnixMSOf(r.clock.Now().Add(r.ttl)),
 	}}
 	r.mu.Lock()
 	r.pending[c.ChallengeID] = c
@@ -110,7 +110,7 @@ func (r *Registry) Pending(user game.UserID) []protocol.Challenge {
 	r.mu.Unlock()
 
 	slices.SortFunc(out, func(a, b protocol.Challenge) int {
-		return cmp.Or(a.ExpiresAt.Compare(b.ExpiresAt), cmp.Compare(a.ChallengeID, b.ChallengeID))
+		return cmp.Or(cmp.Compare(a.ExpiresAt, b.ExpiresAt), cmp.Compare(a.ChallengeID, b.ChallengeID))
 	})
 	return out
 }

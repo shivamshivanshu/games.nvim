@@ -57,7 +57,7 @@ func (s roomState) wireClock(g Setup, at time.Time) *protocol.WireClock {
 	if !g.clock.Enabled {
 		return nil
 	}
-	wire := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(at), time.Duration.Milliseconds)}
+	wire := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(at), time.Duration.Milliseconds), AsOfMS: protocol.UnixMSOf(at)}
 	if s.clockRunning && len(s.toAct) > 0 {
 		running := s.toAct[0]
 		wire.Running = &running

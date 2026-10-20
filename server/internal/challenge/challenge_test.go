@@ -1,8 +1,11 @@
 package challenge
 
 import (
+	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -251,5 +254,17 @@ func TestConcurrentAcceptsStartOnce(t *testing.T) {
 	wg.Wait()
 	if h.starts.Load() != 1 {
 		t.Fatalf("start ran %d times", h.starts.Load())
+	}
+}
+
+func TestExpiresAtIsUnixMillisecondsOfNowPlusTheTTL(t *testing.T) {
+	h := newHarness(t)
+	raw, err := json.Marshal(h.create(t, bob))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `"expires_at":` + strconv.FormatInt(clocktest.Epoch.Add(ttl).UnixMilli(), 10)
+	if !strings.Contains(string(raw), want) {
+		t.Errorf("challenge %s, want %s", raw, want)
 	}
 }
