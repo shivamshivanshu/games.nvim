@@ -277,18 +277,28 @@ local function list(client, me, args)
   )
 end
 
+---@param title string
+---@param empty_message string
+---@param rows {[1]: string, [2]: string}[]
+local function show_rows(title, empty_message, rows)
+  if #rows == 0 then
+    say(empty_message)
+    return
+  end
+  float.open(title, kv({ pairs = rows }))
+end
+
 ---@type games.SubcommandRun
 local function show_stats(client, me, args)
   local user = args[1] or me
   client:stats_get(
     nil,
     on_ok(function(result)
-      local rows = stats.stats_pairs(result, user)
-      if #rows == 0 then
-        say(("games: %s has no finished games"):format(user))
-        return
-      end
-      float.open(" stats: " .. user .. " ", kv({ pairs = rows }))
+      show_rows(
+        " stats: " .. user .. " ",
+        ("games: %s has no finished games"):format(user),
+        stats.stats_pairs(result, user)
+      )
     end)
   )
 end
@@ -300,12 +310,11 @@ local function show_leaderboard(client, _, args)
     nil,
     on_ok(function(result)
       ---@cast result games.StatsResult
-      local rows = stats.leaderboard_pairs(result.records, game)
-      if #rows == 0 then
-        say(("games: no finished %sgames"):format(game and (game .. " ") or ""))
-        return
-      end
-      float.open((" leaderboard: %s "):format(game or "all games"), kv({ pairs = rows }))
+      show_rows(
+        (" leaderboard: %s "):format(game or "all games"),
+        ("games: no finished %sgames"):format(game and (game .. " ") or ""),
+        stats.leaderboard_pairs(result.records, game)
+      )
     end)
   )
 end
