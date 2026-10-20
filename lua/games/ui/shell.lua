@@ -44,7 +44,7 @@ local Control = types.Control
 ---@field view games.ViewOptions
 ---@field update games.GameUpdate
 ---@field header_height integer
----@field mapped_keys table<string, true> lhs currently mapped in the buffer
+---@field bindings table<string, games.KeyBinding> by key; each is mapped in the buffer
 
 ---@class games.KeyBinding
 ---@field key string
@@ -75,6 +75,9 @@ local CORE_KEYS = { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [CLOSE_KEY] = tr
 for _, spec in ipairs(CONTROL_KEYS) do
   CORE_KEYS[spec.key] = true
 end
+
+---@type table<games.GameModule, true>
+local checked_modules = setmetatable({}, { __mode = "k" })
 
 local NAMESPACE = vim.api.nvim_create_namespace("games.shell")
 local AUGROUP = vim.api.nvim_create_augroup("games.shell", { clear = true })
@@ -118,24 +121,37 @@ end
 ---@param elapsed_ms integer
 ---@return games.Rendered
 local function render_header(update, me, elapsed_ms)
-  local names, seats, clocks, markers = {}, {}, {}, {}
-  for _, player in ipairs(update.players) do
-    names[#names + 1] = compose.text(player.user)
-    seats[#seats + 1] = compose.text(player.seat, "GamesMuted")
-    if update.clock then
-      clocks[#clocks + 1] = compose.text(describe.clock_text(update, player.user, elapsed_ms))
-    end
-    markers[#markers + 1] = turn_marker(update, player.user, me)
+  ---@param cell fun(player: games.PlayerSeat): games.Node
+  ---@return games.Node
+  local function column(cell)
+    return compose.col(vim.tbl_map(cell, update.players))
   end
-  local columns = { compose.col(names), compose.pad(2, compose.col(seats)) }
+  local columns = {
+    column(function(player)
+      return compose.text(player.user)
+    end),
+    compose.pad(
+      2,
+      column(function(player)
+        return compose.text(player.seat, "GamesMuted")
+      end)
+    ),
+  }
   if update.clock then
-    columns[#columns + 1] = compose.pad(2, compose.col(clocks))
+    columns[#columns + 1] = compose.pad(
+      2,
+      column(function(player)
+        return compose.text(describe.clock_text(update, player.user, elapsed_ms))
+      end)
+    )
   end
-  columns[#columns + 1] = compose.pad(2, compose.col(markers))
-
-  local lines = { compose.row(columns) }
-  lines[#lines + 1] = status_banner(update)
-  return compose.render(compose.col(lines))
+  columns[#columns + 1] = compose.pad(
+    2,
+    column(function(player)
+      return turn_marker(update, player.user, me)
+    end)
+  )
+  return compose.render(compose.col({ compose.row(columns), status_banner(update) }))
 end
 
 ---@param bindings games.KeyBinding[]
@@ -223,23 +239,28 @@ end
 ---@type fun(board: games.Board)
 local render_board
 
----@param bindings games.KeyBinding[]
----@param binding games.KeyBinding
-local function add_game_binding(bindings, binding)
-  assert(
-    not CORE_KEYS[binding.key],
-    ("game action key %q is reserved by the shell"):format(binding.key)
-  )
-  for _, existing in ipairs(bindings) do
-    assert(existing.key ~= binding.key, ("game action key %q is bound twice"):format(binding.key))
+---@param module games.GameModule
+local function check_action_keys(module)
+  if checked_modules[module] then
+    return
   end
-  bindings[#bindings + 1] = binding
+  local seen = {}
+  for _, entry in ipairs(module.actions or {}) do
+    assert(
+      not CORE_KEYS[entry.key],
+      ("game action key %q is reserved by the shell"):format(entry.key)
+    )
+    assert(not seen[entry.key], ("game action key %q is bound twice"):format(entry.key))
+    seen[entry.key] = true
+  end
+  checked_modules[module] = true
 end
 
 ---@param update games.GameUpdate
 ---@param module games.GameModule
 ---@return games.KeyBinding[]
 local function bindings_for(update, module)
+  check_action_keys(module)
   local ongoing = update.result == nil
   local bindings = {}
   for _, spec in ipairs(CONTROL_KEYS) do
@@ -266,22 +287,22 @@ local function bindings_for(update, module)
   for _, entry in ipairs(module.actions or {}) do
     local local_fn, game_action = entry.local_fn, entry.action
     if local_fn then
-      add_game_binding(bindings, {
+      bindings[#bindings + 1] = {
         key = entry.key,
         label = entry.label,
         run = function(board)
           board.view = local_fn(board.view)
           render_board(board)
         end,
-      })
+      }
     elseif ongoing and game_action then
-      add_game_binding(bindings, {
+      bindings[#bindings + 1] = {
         key = entry.key,
         label = entry.label,
         run = function(board)
           act(board, game_action)
         end,
-      })
+      }
     end
   end
   bindings[#bindings + 1] = {
@@ -302,16 +323,18 @@ end
 ---@param elapsed_ms? integer time since `update` arrived, charged to the running clock
 ---@return games.Rendered
 ---@return integer header_height lines owned by the header, which the clock rewrites
+---@return games.KeyBinding[] bindings the footer lists
 function M.render(update, module, view, me, elapsed_ms)
   local header = render_header(update, me, elapsed_ms or 0)
   local ctx = vim.tbl_extend("force", view, { me = me }) --[[@as games.LayoutCtx]]
+  local bindings = bindings_for(update, module)
   local body = compose.render(compose.col({
     compose.text(""),
     module.layout(update, ctx),
     compose.text(""),
-    footer_node(bindings_for(update, module)),
+    footer_node(bindings),
   }))
-  return stack(header, body), #header.lines
+  return stack(header, body), #header.lines, bindings
 end
 
 ---@param buf integer
@@ -330,28 +353,32 @@ end
 ---@param board games.Board
 ---@param bindings games.KeyBinding[]
 local function map_keys(board, bindings)
-  local wanted = {}
+  local by_key = {}
   for _, binding in ipairs(bindings) do
-    wanted[binding.key] = true
-    vim.keymap.set("n", binding.key, function()
-      binding.run(board)
-    end, { buffer = board.buf, nowait = true, desc = "games: " .. binding.label })
+    local key = binding.key
+    by_key[key] = binding
+    local mapped = board.bindings[key]
+    if not (mapped and mapped.label == binding.label) then
+      vim.keymap.set("n", key, function()
+        board.bindings[key].run(board)
+      end, { buffer = board.buf, nowait = true, desc = "games: " .. binding.label })
+    end
   end
-  for key in pairs(board.mapped_keys) do
-    if not wanted[key] then
+  for key in pairs(board.bindings) do
+    if not by_key[key] then
       vim.keymap.del("n", key, { buffer = board.buf })
     end
   end
-  board.mapped_keys = wanted
+  board.bindings = by_key
 end
 
 render_board = function(board)
-  local rendered, header_height =
+  local rendered, header_height, bindings =
     M.render(board.update, board.module, board.view, board.me, elapsed_ms(board))
   paint(board.buf, NAMESPACE, 0, -1, rendered)
   board.header_height = header_height
   vim.b[board.buf].games_dirty = false
-  map_keys(board, bindings_for(board.update, board.module))
+  map_keys(board, bindings)
 end
 
 ---@param board games.Board
@@ -520,6 +547,7 @@ function M.open(client, game_id, opts)
   )
   vim.api.nvim_buf_set_name(buf, name)
   vim.bo[buf].modifiable = false
+  vim.bo[buf].undolevels = -1
 
   ---@type games.Board
   local board = {
@@ -530,7 +558,7 @@ function M.open(client, game_id, opts)
     view = { glyphs = (opts or games.open_options()).glyphs, flipped = false },
     update = update,
     header_height = 0,
-    mapped_keys = {},
+    bindings = {},
   }
   boards[buf] = board
   watch_buffer(board)
