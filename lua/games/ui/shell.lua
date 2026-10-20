@@ -549,7 +549,6 @@ function M.open(client, game_id, opts)
     return nil
   end
 
-  theme.setup()
   subscribe(client)
   local buf = vim.api.nvim_create_buf(true, true)
   local name = ("games://%s/%s/%s"):format(

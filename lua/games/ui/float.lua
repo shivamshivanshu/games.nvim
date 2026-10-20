@@ -1,7 +1,6 @@
 local compose = require("games.ui.compose")
 local paint = require("games.ui.paint")
 local text = require("games.ui.text")
-local theme = require("games.ui.theme")
 
 local CLOSE_KEYS = { "q", "<Esc>" }
 local NAMESPACE = vim.api.nvim_create_namespace("games.float")
@@ -19,7 +18,6 @@ function M.open(title, node)
   if open_win and vim.api.nvim_win_is_valid(open_win) then
     vim.api.nvim_win_close(open_win, true)
   end
-  theme.setup()
   local rendered = compose.render(node)
   local buf = vim.api.nvim_create_buf(false, true)
   paint(buf, NAMESPACE, 0, -1, rendered)

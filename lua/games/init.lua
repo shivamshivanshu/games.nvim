@@ -2,6 +2,7 @@ local Client = require("games.core.client")
 local Conn = require("games.core.conn")
 local config = require("games.config")
 local notify = require("games.core.notify")
+local theme = require("games.ui.theme")
 
 local AUTOCONNECT_GROUP = "games.autoconnect"
 
@@ -35,6 +36,7 @@ function M.setup(opts)
     return
   end
   M.config = config.resolve(opts)
+  theme.setup({ palette = M.config.palette, highlights = M.config.highlights })
   if M.client then
     M.client.conn:close()
   end

@@ -72,4 +72,14 @@ function T.health_never_calls_a_password_function()
   assert(mentions(lines, "password: set (function)"), vim.inspect(lines))
 end
 
+function T.health_warns_that_vivid_needs_termguicolors()
+  helpers.with_overrides({ { vim.o, "termguicolors", false } }, function()
+    local lines = report_lines({ palette = "vivid" }, helpers.stub_conn())
+    assert(
+      mentions(lines, 'warn: palette = "vivid", termguicolors = false; vivid needs termguicolors'),
+      vim.inspect(lines)
+    )
+  end)
+end
+
 return T

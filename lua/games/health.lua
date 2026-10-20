@@ -63,6 +63,17 @@ local function check_glyphs(glyphs)
   health.info(('glyphs = "%s"; if pieces render badly, set glyphs = "ascii"'):format(glyphs))
 end
 
+---@param palette games.Palette
+local function check_palette(palette)
+  local truecolor = vim.o.termguicolors
+  local summary = ('palette = "%s", termguicolors = %s'):format(palette, tostring(truecolor))
+  if palette == "vivid" and not truecolor then
+    health.warn(summary .. '; vivid needs termguicolors, so "theme" is used')
+    return
+  end
+  health.ok(summary)
+end
+
 ---Run by `:checkhealth games`.
 function M.check()
   health.start("games.nvim")
@@ -80,6 +91,8 @@ function M.check()
   check_connection(games.client)
   health.start("games.nvim: glyphs")
   check_glyphs(games.config.glyphs)
+  health.start("games.nvim: colour")
+  check_palette(games.config.palette)
 end
 
 return M
