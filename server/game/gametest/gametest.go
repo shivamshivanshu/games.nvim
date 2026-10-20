@@ -3,6 +3,7 @@ package gametest
 import (
 	"maps"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -24,10 +25,16 @@ type Script[Opts, Action any] struct {
 	Seed       game.Seed
 	Steps      []Step[Action]
 	WantResult *game.Result
+	// PrivateOf names, per state, the strings only that seat may see: never in another seat's view, nor in any event.
+	PrivateOf Privacy
+	// Secrets must not appear in any view or event until the game finishes.
+	Secrets []string
 }
 
 type observation[View any] struct {
 	Views    map[game.Seat]View
+	Events   []game.Event
+	Private  map[game.Seat][]string
 	ToAct    []game.Seat
 	Result   game.Result
 	Finished bool
@@ -43,30 +50,39 @@ type replay[View any] struct {
 func Run[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, View], scripts []Script[Opts, Action]) {
 	t.Helper()
 	for _, script := range scripts {
-		t.Run(script.Name, func(t *testing.T) {
-			first := play(t, rules, script)
-			second := play(t, rules, script)
-			if diff := cmp.Diff(first, second); diff != "" {
-				t.Errorf("replay is not deterministic (-first +second):\n%s", diff)
-			}
-			checkWantResult(t, script, first)
-			checkEliminate(t, rules, script)
-		})
+		t.Run(script.Name, func(t *testing.T) { conform(t, rules, script) })
 	}
 }
 
-func play[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) replay[View] {
+func conform[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) {
+	t.Helper()
+	first, final := play(t, rules, script)
+	second, _ := play(t, rules, script)
+	if diff := cmp.Diff(first, second); diff != "" {
+		t.Errorf("replay is not deterministic (-first +second):\n%s", diff)
+	}
+	for i, obs := range first.Observed {
+		checkSecrecy(t, script, obs, "observation "+strconv.Itoa(i))
+	}
+	checkWantResult(t, script, first)
+	if first.Finished {
+		checkEliminateFinishedIsNoOp(t, script.PrivateOf, final, sortedSeats(first.Seats), "after the script")
+	}
+	checkEliminate(t, rules, script)
+}
+
+func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) (replay[View], game.State[Action, View]) {
 	t.Helper()
 	state, seats, err := rules.New(script.Opts, script.Challenger, script.Invitees, game.StepRNG(script.Seed, 0))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 	allSeats := sortedSeats(seats)
-	observed := []observation[View]{observe(t, state, allSeats)}
+	observed := []observation[View]{record(t, script.PrivateOf, state, allSeats, nil)}
 	applied := game.Seq(0)
 	for i, step := range script.Steps {
 		before := observe(t, state, allSeats)
-		next, _, err := state.Apply(step.Seat, step.Action, game.StepRNG(script.Seed, applied+1))
+		next, events, err := state.Apply(step.Seat, step.Action, game.StepRNG(script.Seed, applied+1))
 		if diff := cmp.Diff(before, observe(t, state, allSeats)); diff != "" {
 			t.Fatalf("step %d: Apply mutated its receiver (-before +after):\n%s", i, diff)
 		}
@@ -81,13 +97,32 @@ func play[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, V
 		}
 		state = next
 		applied++
-		observed = append(observed, observe(t, state, allSeats))
+		observed = append(observed, record(t, script.PrivateOf, state, allSeats, events))
 	}
 	result, finished := state.Outcome()
-	return replay[View]{Seats: seats, Observed: observed, FinalResult: result, Finished: finished}
+	return replay[View]{Seats: seats, Observed: observed, FinalResult: result, Finished: finished}, state
 }
 
-func observe[Action, View any](t *testing.T, state game.State[Action, View], seats []game.Seat) observation[View] {
+// record observes state as reached by a step that emitted events.
+func record[Action, View any](t testing.TB, privacy Privacy, state game.State[Action, View], seats []game.Seat, events []game.Event) observation[View] {
+	t.Helper()
+	obs := observe(t, state, seats)
+	obs.Events = events
+	if privacy == nil {
+		return obs
+	}
+	obs.Private = make(map[game.Seat][]string, len(seats))
+	for _, seat := range seats {
+		private, err := privacy.privateTo(state, seat)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		obs.Private[seat] = private
+	}
+	return obs
+}
+
+func observe[Action, View any](t testing.TB, state game.State[Action, View], seats []game.Seat) observation[View] {
 	t.Helper()
 	views := make(map[game.Seat]View, len(seats))
 	for _, seat := range seats {
@@ -105,7 +140,7 @@ func sortedSeats(seats map[game.UserID]game.Seat) []game.Seat {
 	return slices.Sorted(maps.Values(seats))
 }
 
-func checkWantResult[Opts, Action, View any](t *testing.T, script Script[Opts, Action], got replay[View]) {
+func checkWantResult[Opts, Action, View any](t testing.TB, script Script[Opts, Action], got replay[View]) {
 	t.Helper()
 	if script.WantResult == nil {
 		return
@@ -118,23 +153,64 @@ func checkWantResult[Opts, Action, View any](t *testing.T, script Script[Opts, A
 	}
 }
 
-func checkEliminate[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) {
+func checkEliminate[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) {
 	t.Helper()
 	state, seats, err := rules.New(script.Opts, script.Challenger, script.Invitees, game.StepRNG(script.Seed, 0))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 	allSeats := sortedSeats(seats)
-	twoPlayer := rules.Info().Players.Max == 2
+	solo := rules.Info().Players.Max == 1
 	for _, seat := range allSeats {
-		before := observe(t, state, allSeats)
-		eliminated, _ := state.Eliminate(seat, game.ReasonResign)
-		if diff := cmp.Diff(before, observe(t, state, allSeats)); diff != "" {
-			t.Fatalf("Eliminate(%s) mutated its receiver (-before +after):\n%s", seat, diff)
+		_, after := eliminate(t, script.PrivateOf, state, seat, allSeats)
+		checkSecrecy(t, script, after, "eliminating only "+string(seat))
+		checkEliminationOutcome(t, solo, len(allSeats)-1, after, seat)
+	}
+	for i, seat := range allSeats {
+		var after observation[View]
+		state, after = eliminate(t, script.PrivateOf, state, seat, allSeats)
+		checkSecrecy(t, script, after, "eliminating "+string(seat))
+		checkEliminationOutcome(t, solo, len(allSeats)-1-i, after, seat)
+		if after.Finished {
+			checkEliminateFinishedIsNoOp(t, script.PrivateOf, state, allSeats, "after eliminating "+string(seat))
+			return
 		}
-		after := observe(t, eliminated, allSeats)
-		if twoPlayer && !after.Finished {
-			t.Errorf("Eliminate(%s) in a two-player game must finish it", seat)
+	}
+}
+
+func eliminate[Action, View any](t testing.TB, privacy Privacy, state game.State[Action, View], seat game.Seat, allSeats []game.Seat) (game.State[Action, View], observation[View]) {
+	t.Helper()
+	before := observe(t, state, allSeats)
+	next, events := state.Eliminate(seat, game.ReasonResign)
+	if diff := cmp.Diff(before, observe(t, state, allSeats)); diff != "" {
+		t.Fatalf("Eliminate(%s) mutated its receiver (-before +after):\n%s", seat, diff)
+	}
+	return next, record(t, privacy, next, allSeats, events)
+}
+
+func checkEliminationOutcome[View any](t testing.TB, solo bool, remaining int, after observation[View], seat game.Seat) {
+	t.Helper()
+	switch {
+	case remaining >= 2 && after.Finished:
+		t.Errorf("Eliminate(%s) finished the game with %d seats remaining; play must continue while 2 or more remain", seat, remaining)
+	case remaining == 1 && !after.Finished:
+		t.Errorf("Eliminate(%s) left one seat but did not finish the game", seat)
+	case remaining == 0 && solo && !after.Finished:
+		t.Errorf("Eliminate(%s) of the only seat must finish a solo game", seat)
+	}
+}
+
+func checkEliminateFinishedIsNoOp[Action, View any](t testing.TB, privacy Privacy, finished game.State[Action, View], allSeats []game.Seat, when string) {
+	t.Helper()
+	before := record(t, privacy, finished, allSeats, nil)
+	for _, seat := range allSeats {
+		_, after := eliminate(t, privacy, finished, seat, allSeats)
+		if len(after.Events) > 0 {
+			t.Errorf("%s: Eliminate(%s) on a finished game emitted events %v; it must be a no-op", when, seat, after.Events)
+		}
+		after.Events = nil
+		if diff := cmp.Diff(before, after); diff != "" {
+			t.Errorf("%s: Eliminate(%s) on a finished game must be a no-op (-before +after):\n%s", when, seat, diff)
 		}
 	}
 }

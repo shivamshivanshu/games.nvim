@@ -95,7 +95,7 @@ func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedS
 func erasedWithEvents[Action, View any](next State[Action, View], events []Event) (ErasedState, []json.RawMessage, error) {
 	encoded := make([]json.RawMessage, 0, len(events))
 	for _, e := range events {
-		raw, err := encodeEvent(e)
+		raw, err := EncodeEvent(e)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -106,7 +106,8 @@ func erasedWithEvents[Action, View any](next State[Action, View], events []Event
 
 const eventKindField = "kind"
 
-func encodeEvent(e Event) (json.RawMessage, error) {
+// EncodeEvent is the wire form of e: its JSON object with the event kind added.
+func EncodeEvent(e Event) (json.RawMessage, error) {
 	raw, err := json.Marshal(e)
 	if err != nil {
 		return nil, fmt.Errorf("encode %s event: %w", e.EventKind(), err)
