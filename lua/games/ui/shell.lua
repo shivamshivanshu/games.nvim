@@ -1,8 +1,6 @@
 local compose = require("games.ui.compose")
 local theme = require("games.ui.theme")
 
----@alias games.Glyphs "unicode"|"ascii"
-
 ---@class games.ViewOptions per-buffer presentation choices
 ---@field glyphs games.Glyphs
 ---@field flipped boolean perspective toggled away from the player's default
