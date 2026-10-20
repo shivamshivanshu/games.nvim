@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      LUALS_VERSION: 3.13.5
+      STYLUA_VERSION: 2.5.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - name: Install stylua
+        run: |
+          dir="$RUNNER_TEMP/stylua"
+          mkdir -p "$dir"
+          curl -fsSL "https://github.com/JohnnyMorganz/StyLua/releases/download/v${STYLUA_VERSION}/stylua-linux-x86_64.zip" -o "$dir/stylua.zip"
+          unzip -q "$dir/stylua.zip" -d "$dir"
+          chmod +x "$dir/stylua"
+          echo "$dir" >> "$GITHUB_PATH"
+      - name: Install lua-language-server
+        run: |
+          dir="$RUNNER_TEMP/luals"
+          mkdir -p "$dir"
+          curl -fsSL "https://github.com/LuaLS/lua-language-server/releases/download/${LUALS_VERSION}/lua-language-server-${LUALS_VERSION}-linux-x64.tar.gz" | tar -xz -C "$dir"
+          echo "LUALS=$dir/bin/lua-language-server" >> "$GITHUB_ENV"
+      - run: make check
