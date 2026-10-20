@@ -118,6 +118,8 @@ Details and flags are under Server below.
 | `archive.dir` | string | unset | archive folder (`~` expanded); archiving is off when unset; see Archive below |
 | `board.max_cell_height` | integer | unset | lines per board square at most; `1` keeps one-line glyphs; see Board size below |
 | `assets` | table | `{}` | asset pack per game, e.g. `{ chess = "my.chess_art" }`; every game defaults to `"default"` |
+| `picker` | `"snacks"`, `"telescope"`, `"fzf"` or `"select"` | unset | the finder's picker; unset takes the first installed of snacks.picker, telescope, fzf-lua, else `vim.ui.select`; a forced one that is not installed falls back to `vim.ui.select` with a warning |
+| `keys` | `{ dashboard?, find? }` | `{}` | global normal-mode keys for `:Games` and `:Games find`, e.g. `{ dashboard = "<leader>gg", find = "<leader>gf" }`; none are mapped by default |
 
 A bad login or protocol mismatch stops auto-reconnect and notifies; fix the config and restart Neovim (or call `setup()` again).
 
@@ -128,7 +130,7 @@ Board cells stack highlight groups, so a background layer and a foreground layer
 | Role | Groups |
 |---|---|
 | background | `GamesSquareLight`, `GamesSquareDark`, `GamesLastMove`, `GamesLastMoveDark` (layered over `GamesLastMove` on dark squares), `GamesCheck`, `GamesWin`, `GamesHit`, `GamesPresent`, `GamesMiss` |
-| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign` |
+| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection` |
 | ink (foreground) | `<background group>Ink` for each background group above, e.g. `GamesLastMoveInk`: dark or light text, whichever contrasts more with that background; stacked over it where text has no colour of its own (empty squares, the latest move in the move list) |
 | badge (both) | `GamesYourTurn` |
 
@@ -165,7 +167,7 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 
 ## Commands
 
-`:Games` with no argument opens a menu of the subcommands. Pickers use `vim.ui.select`, so a fuzzy picker plugin (telescope, snacks, fzf-lua) gives fuzzy search.
+`:Games` with no argument opens the dashboard. The subcommands' own pickers use `vim.ui.select`, so a plugin that replaces it (telescope, snacks, fzf-lua) gives fuzzy search there too.
 
 | Command | Does |
 |---|---|
@@ -176,8 +178,51 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 | `:Games leaderboard [game]` | leaderboard float, optionally for one game type |
 | `:Games next` | open the next game waiting on your move |
 | `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or failed |
+| `:Games find [source]` | fuzzy-find `requests`, `games`, `types`, `players` or `puzzles`; asks which when no source is given; see Finder below |
 
 Incoming challenges and moves in boards you are not viewing arrive as `vim.notify` messages. Accepting a challenge opens the board when the game starts.
+
+## Dashboard
+
+`:Games` opens a centred float that follows the server live while it is open:
+
+| Section | Lists |
+|---|---|
+| Requests | pending challenges, incoming first, then your outgoing ones |
+| Your move | ongoing games waiting on you |
+| Ongoing | ongoing games waiting on someone else |
+| Recent | your last 5 finished games, coloured by how they went |
+| New | every game type the server offers, solo games included, numbered `1`-`9` |
+
+Keys are buffer-local and act on the line under the cursor:
+
+| Key | Action |
+|---|---|
+| `<CR>` | open: a game's board, a new game of that type, or a choice of accept/decline (incoming) or cancel (outgoing) for a request |
+| `a` | accept the request |
+| `d` | decline the incoming request, or cancel your own |
+| `r` | resign the game (confirms) |
+| `1`-`9` | start a game of that New type: a solo game starts at once, any other asks whom to challenge |
+| `/` | open the finder on this section's source |
+| `R` | refresh from the server |
+| `?` | list every key |
+| `q`, `<Esc>` | close |
+
+The dashboard closes when you leave its window; a board it opens takes the window the dashboard was opened over.
+
+## Finder
+
+`:Games find [source]` lists one source with a preview of the item under the cursor:
+
+| Source | Lists | `<CR>` | Other actions |
+|---|---|---|---|
+| `requests` | pending challenges | asks which action | accept, decline, cancel |
+| `games` | ongoing games, your move first, then finished ones, newest first | open | resign |
+| `types` | the server's game types, with their options and actions | start | leaderboard |
+| `players` | other users, online first, with the server's ranking | challenge | stats |
+| `puzzles` | nothing yet: puzzle sets arrive with chess puzzles | | |
+
+The finder is a thin adapter over whichever picker is installed, tried in this order: [snacks.picker](https://github.com/folke/snacks.nvim), [telescope](https://github.com/nvim-telescope/telescope.nvim), [fzf-lua](https://github.com/ibhagwan/fzf-lua); `picker = "..."` forces one. Each is optional. In snacks, telescope and fzf-lua, `<M-CR>` asks which of the item's actions to run. Without any of them it falls back to `vim.ui.select`, which has no preview: picking an item runs `<CR>`'s action, or asks which action for a request.
 
 ## Archive
 
@@ -245,3 +290,4 @@ The wire protocol, for writing another client: [docs/protocol.md](docs/protocol.
 | `make test-lua` | headless Neovim tests (`tests/lua/run.lua`); builds the server first |
 | `make lint` | gofmt, `go vet`, `stylua --check`, lua-language-server |
 | `make fmt` | gofmt and stylua |
+| `make smoke-finders` | opens the finder in snacks.picker, telescope, fzf-lua and `vim.ui.select`, headless, and confirms an item in each; fetches the pickers at pinned commits into `PICKERS_PACK` (default `.pickers/`) with `tests/smoke/fetch-pickers.sh`, and needs `fzf` on `PATH`; CI runs it after `make check` |

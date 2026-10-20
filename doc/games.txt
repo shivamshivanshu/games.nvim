@@ -7,10 +7,11 @@ CONTENTS                                                         *games-contents
     2. Install ............................. |games-install|
     3. Configuration ....................... |games-config|
     4. Commands ............................ |games-commands|
-    5. Board keys .......................... |games-keys|
-    6. Health .............................. |games-health|
-    7. Running and joining a server ........ |games-server|
-    8. Security ............................ |games-security|
+    5. Dashboard and finder ................ |games-dashboard|
+    6. Board keys .......................... |games-keys|
+    7. Health .............................. |games-health|
+    8. Running and joining a server ........ |games-server|
+    9. Security ............................ |games-security|
 
 ==============================================================================
 1. INTRODUCTION                                                    *games-intro*
@@ -64,9 +65,22 @@ Passed to `require("games").setup({opts})`.
     `archive.dir`     string, optional           unset (no archive)
     `board`           `{ max_cell_height? }`       `{}` (no cap)
     `assets`          table of game -> pack      `{}` (`"default"`)
+    `picker`          `"snacks"` `"telescope"`       detected
+                    `"fzf"` or `"select"`
+    `keys`            `{ dashboard?, find? }`      `{}` (none mapped)
 
 `password` as a function is called at each connect, never during setup(), so
 the secret need not live in your dotfiles.
+
+`picker` forces the finder's picker (|games-finder|); unset, the first
+installed of snacks.picker, telescope and fzf-lua is used, else
+|vim.ui.select()|. A forced picker that is not installed falls back to
+|vim.ui.select()| with a warning.
+
+`keys` maps global Normal-mode keys, and only these: `dashboard` runs |:Games|
+and `find` runs |:Games-find|. >lua
+    keys = { dashboard = "<leader>gg", find = "<leader>gf" }
+<
 
                                                               *games-credentials*
 When `username` or `password` is missing, the first |:Games| prompts for the
@@ -101,6 +115,7 @@ colour. Each group sets only the attribute of its role:
     foreground      `GamesPieceWhite` `GamesPieceBlack` `GamesSeat1`-`GamesSeat4`
                     `GamesKey` `GamesLabel` `GamesMuted` `GamesWon` `GamesLost`
                     `GamesDrawn` `GamesClockLow` `GamesCheckSign`
+                    `GamesDashSection`
     ink (fg)        `<background group>Ink`, e.g. `GamesLastMoveInk`
     badge (both)    `GamesYourTurn`
 
@@ -192,9 +207,10 @@ same `dir` can both append the same events to `events.jsonl`.
 4. COMMANDS                                                      *games-commands*
 
                                                                        *:Games*
-:Games                  Open a menu of the subcommands. Pickers use
-                        |vim.ui.select()|, so a picker plugin (telescope,
-                        snacks, fzf-lua) gives fuzzy search.
+:Games                  Open the dashboard (|games-dashboard|). The
+                        subcommands' pickers use |vim.ui.select()|, so a
+                        plugin that replaces it (telescope, snacks,
+                        fzf-lua) gives fuzzy search there too.
 
 :Games challenge [game] [user...]
                         Challenge one or more users. Without users, prompts
@@ -215,6 +231,11 @@ same `dir` can both append the same events to `events.jsonl`.
 
 :Games next             Open the next game waiting on your move.
 
+:Games find [source]                                            *:Games-find*
+                        Fuzzy-find one source: `requests`, `games`,
+                        `types`, `players` or `puzzles` (|games-finder|).
+                        Asks which when none is given.
+
 :Games export                                                  *:Games-export*
                         Archive the finished games the server lists for
                         you, its 50 most recent (|games-archive|), and
@@ -226,7 +247,55 @@ Incoming challenges, and moves in boards you are not viewing, arrive as
 starts.
 
 ==============================================================================
-5. BOARD KEYS                                                       *games-keys*
+5. DASHBOARD AND FINDER                                        *games-dashboard*
+
+|:Games| opens a centred float that follows the server live while it is open.
+Its sections:
+
+    Section     Lists ~
+    Requests    pending challenges, incoming first, then your own
+    Your move   ongoing games waiting on you
+    Ongoing     ongoing games waiting on someone else
+    Recent      your last 5 finished games, coloured by outcome
+    New         every game type the server offers, solo ones included,
+                numbered 1-9
+
+Keys are buffer-local and act on the line under the cursor:
+
+    Key     Action ~
+    <CR>    open: a game's board, a new game of that type, or for a
+            request a choice of its actions
+    a       accept the request
+    d       decline the incoming request, or cancel your own
+    r       resign the game (confirms)
+    1-9     start a game of that New type: a solo game starts at once,
+            any other asks whom to challenge
+    /       open the finder on this section's source
+    R       refresh from the server
+    ?       list every key
+    q <Esc> close
+
+The dashboard closes when you leave its window. A board opened from it takes
+the window the dashboard was opened over.
+
+                                                                *games-finder*
+|:Games-find| lists one source, with a preview of the item under the cursor:
+
+    Source      <CR>          Other actions ~
+    `requests`    asks which    accept, decline, cancel
+    `games`       open          resign
+    `types`       start         leaderboard
+    `players`     challenge     stats
+    `puzzles`     (none yet: puzzle sets arrive with chess puzzles)
+
+The finder adapts whichever picker is installed, tried in order:
+snacks.picker, telescope, fzf-lua; `picker` forces one (|games-config|). Each
+is optional. In those three, <M-CR> asks which of the item's actions to run.
+Without them it falls back to |vim.ui.select()|, which shows no preview:
+picking an item runs the <CR> action, or for a request asks which action.
+
+==============================================================================
+6. BOARD KEYS                                                       *games-keys*
 
 Buffer-local, Normal mode, in a `games://` board buffer. Only keys valid for
 the current state are mapped; the footer lists them.
@@ -250,7 +319,7 @@ up, as the opponent's pieces (P1 N3 B3 R5 Q9, kings not counted), then `+N`
 for the side ahead; even trades cancel.
 
 ==============================================================================
-6. HEALTH                                                          *games-health*
+7. HEALTH                                                          *games-health*
 
 >vim
     :checkhealth games
@@ -261,7 +330,7 @@ glyph rendering works (if not, try `glyphs = "ascii"`), and the palette with
 'termguicolors'.
 
 ==============================================================================
-7. RUNNING AND JOINING A SERVER                                    *games-server*
+8. RUNNING AND JOINING A SERVER                                    *games-server*
 
 Joining: get an account and the server address from whoever hosts it, set
 `server.host` / `server.port` (|games-config|), then run |:Games|. There is no
@@ -286,7 +355,7 @@ From a checkout, `make build` produces `bin/games-server` instead.
 the password from one line of stdin. Use the same `--db` as `serve`.
 
 ==============================================================================
-8. SECURITY                                                      *games-security*
+9. SECURITY                                                      *games-security*
 
 Transport is plain TCP, no TLS: username, password and game traffic are
 readable by anyone on the path. Passwords are stored as bcrypt hashes.
