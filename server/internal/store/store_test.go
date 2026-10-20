@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -111,6 +112,29 @@ func TestLoadOngoingGroupsPlayersAndStepsPerGame(t *testing.T) {
 	}
 	if diff := cmp.Diff([]GameRecord{first, second, empty}, got); diff != "" {
 		t.Fatalf("mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestClockStoredAsMillisecondsOrNull(t *testing.T) {
+	ctx := t.Context()
+	s := openTemp(t)
+	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
+		t.Fatal(err)
+	}
+	untimed := step(2, bob)
+	untimed.ClockRemaining = nil
+	for _, st := range []StepRecord{step(3, alice), untimed} {
+		if err := s.AppendStep(ctx, "g1", st); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var timed, none sql.NullString
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT (SELECT clock_json FROM actions WHERE seq = 3), (SELECT clock_json FROM actions WHERE seq = 2)`).Scan(&timed, &none); err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"alice":3000,"bob":2000}`; timed.String != want || none.Valid {
+		t.Fatalf("clock_json = %q and %+v, want %s and NULL", timed.String, none, want)
 	}
 }
 

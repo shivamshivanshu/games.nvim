@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
 	"games.nvim/server/game"
@@ -173,11 +172,11 @@ func (s *Store) FinishGame(ctx context.Context, id game.GameID, step StepRecord,
 }
 
 func (s *Store) LoadOngoing(ctx context.Context) ([]GameRecord, error) {
-	return s.loadGames(ctx, `WHERE finished_at IS NULL ORDER BY created_at, game_id`)
+	return s.loadGames(ctx, `finished_at IS NULL`, `ORDER BY created_at, game_id`)
 }
 
 func (s *Store) LoadGame(ctx context.Context, id game.GameID) (GameRecord, error) {
-	recs, err := s.loadGames(ctx, `WHERE game_id = ?`, id)
+	recs, err := s.loadGames(ctx, `game_id = ?`, ``, id)
 	if err != nil {
 		return GameRecord{}, err
 	}
@@ -194,21 +193,23 @@ func (s *Store) FinishedGameIDs(ctx context.Context, user game.UserID, limit int
 		 ORDER BY g.finished_at DESC, g.game_id LIMIT ?`, user, limit)
 }
 
-func (s *Store) loadGames(ctx context.Context, where string, args ...any) ([]GameRecord, error) {
+// loadGames reads the games matching filter, then all their players and steps
+// in one query each, selected by the same filter.
+func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any) ([]GameRecord, error) {
 	recs, err := queryAll(ctx, s.db, scanGame,
-		`SELECT game_id, game_type, options_json, rng_seed, created_at FROM games `+where, args...)
+		`SELECT game_id, game_type, options_json, rng_seed, created_at FROM games WHERE `+filter+` `+order, args...)
 	if err != nil || len(recs) == 0 {
 		return recs, err
 	}
-	ids := xslices.Map(recs, func(rec GameRecord) any { return rec.ID })
+	ofMatchingGames := `game_id IN (SELECT game_id FROM games WHERE ` + filter + `)`
 	players, err := queryAll(ctx, s.db, scanPlayer,
-		`SELECT game_id, username, seat FROM game_players WHERE game_id IN (`+placeholders(len(ids))+`) ORDER BY rowid`, ids...)
+		`SELECT game_id, username, seat FROM game_players WHERE `+ofMatchingGames+` ORDER BY rowid`, args...)
 	if err != nil {
 		return nil, err
 	}
 	steps, err := queryAll(ctx, s.db, scanStep,
 		`SELECT game_id, seq, username, kind, action_json, server_ts, clock_json
-		 FROM actions WHERE game_id IN (`+placeholders(len(ids))+`) ORDER BY game_id, seq`, ids...)
+		 FROM actions WHERE `+ofMatchingGames+` ORDER BY game_id, seq`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -272,10 +273,6 @@ func scanStep(row scanner) (ofGame[StepRecord], error) {
 	}
 	s.value.ClockRemaining = xslices.MapValues(remainingMS, func(ms int64) time.Duration { return time.Duration(ms) * time.Millisecond })
 	return s, nil
-}
-
-func placeholders(n int) string {
-	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }
 
 type execer interface {
