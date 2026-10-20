@@ -4,6 +4,12 @@ Turn-based games against friends inside Neovim: a Go game server plus a Neovim L
 
 Only chess exists today. The server owns all state and rules; Neovim renders what it is sent and forwards your input. Wire format is NDJSON over TCP.
 
+## Games
+
+| Game | Players | Rules |
+|---|---|---|
+| Chess | 2 | [docs/games/chess.md](docs/games/chess.md) |
+
 ## Requirements
 
 | Part | Needs |
