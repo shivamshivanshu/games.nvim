@@ -1,4 +1,5 @@
-local compose = require("games.ui.compose")
+local art = require("games.ui.art")
+local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
@@ -34,24 +35,6 @@ local BLACK = "black"
 local KING_TO_MOVE = { w = "K", b = "k" }
 local EMPTY_KEY = "empty"
 
----@type table<games.ChessPiece, string>
-local UNICODE_PIECES = {
-  K = "♔",
-  Q = "♕",
-  R = "♖",
-  B = "♗",
-  N = "♘",
-  P = "♙",
-  k = "♚",
-  q = "♛",
-  r = "♜",
-  b = "♝",
-  n = "♞",
-  p = "♟",
-}
-
----@type table<games.Glyphs, string>
-local EMPTY_SQUARE = { unicode = "·", ascii = "." }
 local WHITE_PIECE_HL = "GamesPieceWhite"
 local BLACK_PIECE_HL = "GamesPieceBlack"
 local LAST_MOVE_HL = "GamesLastMove"
@@ -60,30 +43,34 @@ local CHECK_HL = "GamesCheck"
 ---@type games.MoveAnnotation
 local CHECK_ANNOTATION = { pattern = "[+#]$", hl = "GamesCheckSign" }
 
-local SAN_PIECE_NAMES = {
-  { piece = "K", name = "king" },
-  { piece = "Q", name = "queen" },
-  { piece = "R", name = "rook" },
-  { piece = "B", name = "bishop" },
-  { piece = "N", name = "knight" },
+---Display columns the move list reserves: "999. exd8=Q+ exd1=Q#".
+local MOVELIST_WIDTH = 20
+
+---@class (private) games.ChessLegendEntry
+---@field piece? games.ChessPiece whose glyph the entry shows, when it is not the SAN letter itself
+---@field san string
+---@field name string
+
+---@type games.ChessLegendEntry[]
+local SAN_LEGEND = {
+  { piece = "K", san = "K", name = "king" },
+  { piece = "Q", san = "Q", name = "queen" },
+  { piece = "R", san = "R", name = "rook" },
+  { piece = "B", san = "B", name = "bishop" },
+  { piece = "N", san = "N", name = "knight" },
+  { piece = "P", san = " ", name = "pawn: e4" },
+  { san = " ", name = "castle: O-O" },
 }
 
----@param glyphs games.Glyphs
+---@param set games.ArtSet
 ---@return games.KvPair[]
-local function san_legend(glyphs)
-  local function key(glyph, letter)
-    return glyphs == "unicode" and ("%s %s"):format(glyph, letter) or letter
-  end
-  local legend = vim.tbl_map(function(entry)
-    return { key(UNICODE_PIECES[entry.piece], entry.piece), entry.name }
-  end, SAN_PIECE_NAMES)
-  table.insert(legend, { key(UNICODE_PIECES.P, " "), "pawn: e4" })
-  table.insert(legend, { key(" ", " "), "castle: O-O" })
-  return legend
+local function san_legend(set)
+  return vim.tbl_map(function(entry)
+    local glyph = entry.piece and art.glyph(set, entry.piece)
+    local key = (glyph and glyph ~= entry.piece) and ("%s %s"):format(glyph, entry.san) or entry.san
+    return { key, entry.name }
+  end, SAN_LEGEND)
 end
-
----@type table<games.Glyphs, games.KvPair[]>
-local SAN_LEGEND = { unicode = san_legend("unicode"), ascii = san_legend("ascii") }
 
 ---@param fen string
 ---@return (games.ChessPiece|false)[][] rows from rank 8 down, false for an empty square
@@ -128,14 +115,12 @@ local function find_piece(pieces, piece)
 end
 
 ---@param piece games.ChessPiece|false
----@param ctx games.LayoutCtx
 ---@return games.GridCell
-local function cell_for(piece, ctx)
+local function cell_for(piece)
   if not piece then
-    return { EMPTY_SQUARE[ctx.glyphs] }
+    return { EMPTY_KEY }
   end
-  local glyph = ctx.glyphs == "unicode" and UNICODE_PIECES[piece] or piece
-  return { glyph, piece:match("%u") and WHITE_PIECE_HL or BLACK_PIECE_HL }
+  return { piece, piece:match("%u") and WHITE_PIECE_HL or BLACK_PIECE_HL }
 end
 
 ---The last-move tint, with its darker shade layered on over a dark square.
@@ -187,36 +172,40 @@ M.asset_keys = { "K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p", EMP
 function M.layout(update, ctx)
   local view = update.view
   local pieces = fen_to_pieces(view.fen)
-  return compose.row({
-    grid({
+  local set = assert(ctx.art, "chess draws from an asset pack")
+  return board({
+    grid = {
       rows = 8,
       cols = 8,
       shade = "checker",
       flip = black_at_bottom(update, ctx),
       labels = { cols = FILES, rows = RANKS },
       cell = function(r, c)
-        return cell_for(pieces[r][c], ctx)
+        return cell_for(pieces[r][c])
       end,
       marks = marks_for(view, pieces),
-    }),
-    compose.pad(
-      3,
-      kv({
-        pairs = SAN_LEGEND[ctx.glyphs],
-        key_hl = "GamesKey",
-        value_hl = "GamesLabel",
-      })
-    ),
-    compose.pad(
-      3,
-      movelist({
-        items = view.history_san,
-        columns = 2,
-        numbered = true,
-        annotation = CHECK_ANNOTATION,
-      })
-    ),
-  })
+    },
+    art = set,
+    panels = {
+      {
+        node = function()
+          return kv({ pairs = san_legend(set), key_hl = "GamesKey", value_hl = "GamesLabel" })
+        end,
+      },
+      {
+        width = MOVELIST_WIDTH,
+        node = function(max_height)
+          return movelist({
+            items = view.history_san,
+            columns = 2,
+            numbered = true,
+            annotation = CHECK_ANNOTATION,
+            max_lines = max_height,
+          })
+        end,
+      },
+    },
+  }, ctx)
 end
 
 M.input = {
