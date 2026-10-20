@@ -2,6 +2,7 @@
 ---before scalable boards, changed only by rulings R1 (a blank status line without a banner) and
 ---R2 (the move list shows its tail within the board's height), and by C14: the claim-draw key
 ---shows only when the view says a draw is claimable, and a finished game always has its view.
+---C12 added the material cases, whose header shows each side's surplus after the clock.
 
 local update = require("helpers").chess_update
 
@@ -47,6 +48,17 @@ local long_game = update({
       " "
     ),
     last_move = { from = "e4", to = "d6" },
+    legal_moves = {},
+    claimable_draw = false,
+  },
+})
+
+local material = update({
+  seq = 16,
+  clock = { remaining_ms = { alice = 240000, bob = 180000 }, running = "alice" },
+  view = {
+    fen = "1nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R2QKBNR w Kk - 0 9",
+    history_san = {},
     legal_moves = {},
     claimable_draw = false,
   },
@@ -105,6 +117,20 @@ return {
   },
   italian_clock_ascii = {
     update = italian,
+    glyphs = "ascii",
+    flipped = false,
+    me = "bob",
+    elapsed_ms = 0,
+  },
+  material_unicode = {
+    update = material,
+    glyphs = "unicode",
+    flipped = false,
+    me = "alice",
+    elapsed_ms = 0,
+  },
+  material_ascii_black = {
+    update = material,
     glyphs = "ascii",
     flipped = false,
     me = "bob",
