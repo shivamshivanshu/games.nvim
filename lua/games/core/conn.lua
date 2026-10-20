@@ -97,7 +97,7 @@ function Conn.new(opts)
     opts = opts,
     pending = {},
     next_id = 1,
-    handlers = {},
+    handlers = vim.defaulttable(),
     auto_reconnect = false,
     backoff_ms = RECONNECT_MIN_MS,
   }, Conn)
@@ -133,7 +133,6 @@ end
 ---@param event games.ConnEvent
 ---@param fn fun(payload: any)
 function Conn:on(event, fn)
-  self.handlers[event] = self.handlers[event] or {}
   table.insert(self.handlers[event], fn)
 end
 
@@ -176,7 +175,7 @@ end
 ---@param event string
 ---@param payload any
 function Conn:emit(event, payload)
-  for _, fn in ipairs(self.handlers[event] or {}) do
+  for _, fn in ipairs(self.handlers[event]) do
     vim.schedule(function()
       fn(payload)
     end)

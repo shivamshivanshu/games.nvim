@@ -49,6 +49,16 @@ local function request_fn(message_type, on_reply)
   end
 end
 
+---@generic T
+---@param handlers fun(item: T, is_new: boolean)[]
+---@param item T
+---@param is_new boolean
+local function emit(handlers, item, is_new)
+  for _, fn in ipairs(handlers) do
+    fn(item, is_new)
+  end
+end
+
 ---@type games.ReplyHook
 local function store_listed_games(self, _, _, result)
   for _, update in ipairs(result and result.games or {}) do
@@ -207,9 +217,7 @@ function Client:store(update)
   end
   self.updates[update.game_id] = update
   self.received_ms[update.game_id] = vim.uv.now()
-  for _, fn in ipairs(self.update_handlers) do
-    fn(update, cached == nil)
-  end
+  emit(self.update_handlers, update, cached == nil)
 end
 
 ---A push that skips a seq means we missed steps, so the snapshot (not the push) becomes the truth.
@@ -239,9 +247,7 @@ function Client:receive_challenge(challenge)
     self.challenges[id] = nil
     self.resolved_challenges[id] = true
   end
-  for _, fn in ipairs(self.challenge_handlers) do
-    fn(challenge, is_new)
-  end
+  emit(self.challenge_handlers, challenge, is_new)
 end
 
 ---@package
@@ -255,9 +261,7 @@ function Client:replace_challenges(challenges)
   for _, challenge in ipairs(unresolved) do
     self.challenges[challenge.challenge_id] = challenge
     if not previous[challenge.challenge_id] then
-      for _, fn in ipairs(self.challenge_handlers) do
-        fn(challenge, true)
-      end
+      emit(self.challenge_handlers, challenge, true)
     end
   end
 end

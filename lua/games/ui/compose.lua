@@ -111,14 +111,13 @@ local function layout(node)
     lines[i] = ""
   end
   for _, block in ipairs(blocks) do
-    local marks_by_row = {}
+    local marks_by_row = vim.defaulttable()
     for _, mark in ipairs(block.extmarks) do
-      marks_by_row[mark.row] = marks_by_row[mark.row] or {}
       table.insert(marks_by_row[mark.row], mark)
     end
     for i = 1, height do
       local line_prefix_bytes = #lines[i]
-      vim.list_extend(extmarks, shifted(marks_by_row[i - 1] or {}, 0, line_prefix_bytes))
+      vim.list_extend(extmarks, shifted(marks_by_row[i - 1], 0, line_prefix_bytes))
       lines[i] = lines[i] .. text_util.pad_to_width(block.lines[i] or "", block.width)
     end
   end

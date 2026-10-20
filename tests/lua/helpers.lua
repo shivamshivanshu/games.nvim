@@ -162,16 +162,15 @@ end
 ---Records requests instead of sending them; push() delivers an event synchronously.
 ---@return games.test.StubConn
 function M.stub_conn()
-  local conn = { handlers = {}, requests = {} }
+  local conn = { handlers = vim.defaulttable(), requests = {} }
   function conn:on(event, fn)
-    self.handlers[event] = self.handlers[event] or {}
     table.insert(self.handlers[event], fn)
   end
   function conn:request(message_type, body, cb)
     table.insert(self.requests, { type = message_type, body = body, cb = cb })
   end
   function conn:push(event, body)
-    for _, fn in ipairs(self.handlers[event] or {}) do
+    for _, fn in ipairs(self.handlers[event]) do
       fn(body)
     end
   end

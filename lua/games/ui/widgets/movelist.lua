@@ -10,11 +10,9 @@ local text_util = require("games.ui.text")
 ---@return games.Node
 return function(props)
   local columns = props.columns
-  local items_by_column = {}
+  local items_by_column = vim.defaulttable()
   for i, item in ipairs(props.items) do
-    local column = (i - 1) % columns + 1
-    items_by_column[column] = items_by_column[column] or {}
-    table.insert(items_by_column[column], item)
+    table.insert(items_by_column[(i - 1) % columns + 1], item)
   end
   local column_widths = vim.tbl_map(text_util.max_display_width, items_by_column)
 
