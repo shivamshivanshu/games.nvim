@@ -10,6 +10,7 @@ Only chess exists today. The server owns all state and rules; Neovim renders wha
 |---|---|---|
 | Chess | 2 | [docs/games/chess.md](docs/games/chess.md) |
 | Tic-Tac-Toe | 2 | [docs/games/tictactoe.md](docs/games/tictactoe.md) |
+| Connect4 | 2 | [docs/games/connect4.md](docs/games/connect4.md) |
 
 ## Requirements
 
