@@ -182,6 +182,44 @@ function T.starting_a_solo_type_starts_it_and_any_other_challenges()
   end)
 end
 
+function T.a_game_played_alone_shows_solo_and_offers_to_give_up()
+  local client, conn = hub.client()
+  local alone = helpers.chess_update({
+    game_id = "5010a1e0",
+    game = "sudoku",
+    players = { { user = "alice", seat = "solo" } },
+    controls = { "resign" },
+    view = {},
+  })
+  conn:push("game.update", alone)
+  local games = sources.build(SourceName.GAMES, hub.snapshot(client))
+  local shown = vim.iter(games.items):find(function(update)
+    return update.game_id == alone.game_id
+  end)
+  assert(vim.startswith(games.format(shown), "● sudoku solo        "), games.format(shown))
+  assert_eq({ "open", "give up" }, applicable_names(games, shown))
+  assert_eq({ "open", "resign" }, applicable_names(games, hub.YOUR_MOVE))
+
+  local asked
+  helpers.with_overrides({
+    {
+      vim.fn,
+      "confirm",
+      function(message)
+        asked = message
+        return 1
+      end,
+    },
+  }, function()
+    run(games, "give up", shown)
+  end)
+  assert_eq("Give up this game?", asked)
+  assert_eq(
+    { game_id = alone.game_id, seq = 0, control = "resign" },
+    hub.sent(conn, "game.control")
+  )
+end
+
 ---@param answer integer what vim.fn.confirm answers: 1 yes, 2 no
 ---@param fn fun()
 local function confirming(answer, fn)

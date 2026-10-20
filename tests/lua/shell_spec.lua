@@ -332,6 +332,29 @@ function T.resign_confirms_then_sends_control()
   assert_eq({ { game_id = "resign01", seq = 3, control = "resign" } }, sent(conn, "game.control"))
 end
 
+function T.a_game_played_alone_is_named_solo_and_offers_to_give_up()
+  local alone = chess_update({
+    game_id = "solo0001",
+    players = { { user = "alice", seat = "white" } },
+    controls = { "resign" },
+  })
+  local client, conn = client_with("alice", { alone })
+  local buf = shell.open(client, "solo0001")
+  assert_eq("games://chess/solo/solo", vim.api.nvim_buf_get_name(buf))
+  local footer = vim.api.nvim_buf_get_lines(buf, -2, -1, false)[1]
+  assert(footer:find("R give up", 1, true) and not footer:find("resign", 1, true), footer)
+
+  local asked
+  with_stub(vim.fn, "confirm", function(message)
+    asked = message
+    return 1
+  end, function()
+    mapping(buf, "R").callback()
+  end)
+  assert_eq("Give up this game?", asked)
+  assert_eq({ { game_id = "solo0001", seq = 0, control = "resign" } }, sent(conn, "game.control"))
+end
+
 function T.flip_toggles_black_default_perspective()
   local client = client_with("bob", { chess_update({ game_id = "flip01" }) })
   local buf = shell.open(client, "flip01")

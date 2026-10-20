@@ -9,6 +9,9 @@ local SECONDS_PER_MINUTE = 60
 
 local M = {}
 
+---What stands in for the opponents of a game played alone.
+M.SOLO = "solo"
+
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@param separator string
@@ -33,12 +36,49 @@ function M.short_id(game_id)
   return game_id:sub(1, SHORT_ID_LENGTH)
 end
 
----"<game> vs <opponents>", the name notifications and errors use for a game.
+---The opponents' names, or "solo" for a game played alone.
+---@param update games.GameUpdate
+---@param me games.UserID
+---@param separator string
+---@return string
+function M.opponents_text(update, me, separator)
+  return players.is_solo(update) and M.SOLO or M.opponent_names(update, me, separator)
+end
+
+---"vs <opponents>", or "solo" for a game played alone.
+---@param update games.GameUpdate
+---@param me games.UserID
+---@param separator string
+---@return string
+function M.versus_text(update, me, separator)
+  return players.is_solo(update) and M.SOLO or "vs " .. M.opponent_names(update, me, separator)
+end
+
+---"<game> vs <opponents>" or "<game> solo", the name notifications and errors use for a game.
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@return string
 function M.title(update, me)
-  return ("%s vs %s"):format(update.game, M.opponent_names(update, me, ", "))
+  return ("%s %s"):format(update.game, M.versus_text(update, me, ", "))
+end
+
+---@class games.ControlWording
+---@field label string
+---@field confirm? string asked before the control is sent; nil sends it at once
+
+---@class games.ConfirmedWording: games.ControlWording
+---@field confirm string
+
+---@type games.ConfirmedWording
+local RESIGN_WORDING = { label = "resign", confirm = "Resign this game?" }
+---@type games.ConfirmedWording
+local GIVE_UP_WORDING = { label = "give up", confirm = "Give up this game?" }
+
+---How the resign control reads: giving up, in a game played alone.
+---@param update games.GameUpdate
+---@return games.ConfirmedWording
+function M.resign_wording(update)
+  return players.is_solo(update) and GIVE_UP_WORDING or RESIGN_WORDING
 end
 
 ---Time since the clock's reading, never negative so a client clock behind the server's charges none.

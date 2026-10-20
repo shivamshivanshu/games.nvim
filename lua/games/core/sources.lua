@@ -27,6 +27,7 @@ local ActionName = {
   CANCEL = "cancel",
   OPEN = "open",
   RESIGN = "resign",
+  GIVE_UP = "give up",
   START = "start",
   LEADERBOARD = "leaderboard",
   CHALLENGE = "challenge",
@@ -320,6 +321,25 @@ local function game_preview(update, me, info, now_ms)
   return kv_lines(rows)
 end
 
+---Resigning, named for whether the game is played alone, so a solo game offers to give up.
+---@param name games.SourceActionName
+---@param client games.Client
+---@param solo boolean which games it acts on: those played alone, or the others
+---@return games.SourceAction
+local function resign_action(name, client, solo)
+  return {
+    name = name,
+    applies = function(update)
+      return update.result == nil
+        and players.is_solo(update) == solo
+        and vim.tbl_contains(update.controls, types.Control.RESIGN)
+    end,
+    run = function(update)
+      commands().resign(client, update)
+    end,
+  }
+end
+
 ---@param snapshot games.SourceSnapshot
 ---@return games.Source
 local function games(snapshot)
@@ -347,25 +367,19 @@ local function games(snapshot)
           require("games.ui.shell").open(client, update.game_id)
         end,
       },
-      {
-        name = ActionName.RESIGN,
-        applies = function(update)
-          return update.result == nil and vim.tbl_contains(update.controls, types.Control.RESIGN)
-        end,
-        run = function(update)
-          commands().resign(client, update)
-        end,
-      },
+      resign_action(ActionName.RESIGN, client, false),
+      resign_action(ActionName.GIVE_UP, client, true),
     },
     default_action = ActionName.OPEN,
   }
 end
 
----@param range games.PlayerRange
+---@param info games.GameInfo
 ---@return string
-local function players_text(range)
-  if range.max == 1 then
-    return "solo"
+local function players_text(info)
+  local range = info.players
+  if players.is_solo_game(info) then
+    return describe.SOLO
   end
   if range.min == range.max then
     return ("%d players"):format(range.max)
@@ -387,7 +401,7 @@ end
 local function type_preview(info)
   local rows = {
     { "game", info.name },
-    { "players", players_text(info.players) },
+    { "players", players_text(info) },
     { "controls", listed(info.capabilities) },
   }
   local names = vim.tbl_keys(info.options)
@@ -420,7 +434,7 @@ local function game_types(snapshot)
       return info.id
     end,
     format = function(info)
-      return ("%s  %s"):format(text.pad_to_width(info.name, name_width), players_text(info.players))
+      return ("%s  %s"):format(text.pad_to_width(info.name, name_width), players_text(info))
     end,
     preview = type_preview,
     actions = {

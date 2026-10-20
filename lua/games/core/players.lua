@@ -41,4 +41,18 @@ function M.is_to_act(update, user)
   return update.result == nil and vim.tbl_contains(update.to_act, user)
 end
 
+---Whether update's game is played alone.
+---@param update games.GameUpdate
+---@return boolean
+function M.is_solo(update)
+  return #update.players == 1
+end
+
+---Whether info's game seats its player alone, so it starts without a challenge.
+---@param info games.GameInfo
+---@return boolean
+function M.is_solo_game(info)
+  return info.players.max == 1
+end
+
 return M

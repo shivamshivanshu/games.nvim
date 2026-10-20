@@ -24,4 +24,19 @@ function T.result_text_by_kind()
   )
 end
 
+function T.title_names_the_opponents_or_solo()
+  local players = {
+    { user = "alice", seat = "white" },
+    { user = "bob", seat = "black" },
+    { user = "carol", seat = "red" },
+  }
+  for _, case in ipairs({
+    { seated = 3, title = "party vs bob, carol" },
+    { seated = 1, title = "party solo" },
+  }) do
+    local update = { game = "party", players = vim.list_slice(players, 1, case.seated) }
+    assert_eq(case.title, describe.title(update --[[@as games.GameUpdate]], "alice"))
+  end
+end
+
 return T

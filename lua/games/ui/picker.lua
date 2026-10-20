@@ -6,7 +6,7 @@ local types = require("games.types")
 local YOUR_TURN_MARKER = "●"
 local MARKER_WIDTH = 2
 local GAME_WIDTH = 7
-local OPPONENTS_WIDTH = 8
+local VERSUS_WIDTH = 11
 local TIME_CONTROL_WIDTH = 6
 local TURN_WIDTH = 10
 local CLOCK_WIDTH = 5
@@ -48,7 +48,8 @@ local function time_control(info, options)
   end
 end
 
----One searchable picker line, e.g. `● chess  vs ravi    10+5  your move  4:51  last: Nf3  #7f3a`.
+---One searchable picker line, e.g. `● chess  vs ravi    10+5  your move  4:51  last: Nf3  #7f3a`;
+---a game played alone shows `solo` in place of `vs ravi`.
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@param info? games.GameInfo the game's catalog entry
@@ -59,7 +60,7 @@ function M.format_game(update, me, info, now_ms)
   return table.concat({
     text.pad_to_width(players.is_to_act(update, me) and YOUR_TURN_MARKER or "", MARKER_WIDTH),
     column(update.game, GAME_WIDTH),
-    "vs " .. column(describe.opponent_names(update, me, ","), OPPONENTS_WIDTH),
+    column(describe.versus_text(update, me, ","), VERSUS_WIDTH),
     column(time_control(info, update.options) or "", TIME_CONTROL_WIDTH),
     column(describe.turn_text(update, me), TURN_WIDTH),
     text.align_right(clock(update, me, now_ms), CLOCK_WIDTH),

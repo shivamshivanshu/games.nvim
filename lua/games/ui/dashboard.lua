@@ -357,7 +357,11 @@ KEYS = {
     label = "decline or cancel",
     run = act({ ActionName.DECLINE, ActionName.CANCEL }, "decline"),
   },
-  { key = "r", label = "resign", run = act({ ActionName.RESIGN }, "resign") },
+  {
+    key = "r",
+    label = "resign or give up",
+    run = act({ ActionName.RESIGN, ActionName.GIVE_UP }, "resign"),
+  },
   { key = "/", label = "find", run = find, hint = true },
   { key = "R", label = "refresh", run = refresh },
   { key = "?", label = "keys", run = toggle_keys, hint = true },

@@ -88,15 +88,23 @@ local Control = types.Control
 ---@class games.ControlKey
 ---@field control games.Control
 ---@field key string
----@field label string
----@field confirm? string
+---@field wording fun(update: games.GameUpdate): games.ControlWording
+
+---@param label string
+---@return fun(): games.ControlWording the same wording for every game
+local function labelled(label)
+  local wording = { label = label }
+  return function()
+    return wording
+  end
+end
 
 ---@type games.ControlKey[]
 local CONTROL_KEYS = {
-  { control = Control.RESIGN, key = "R", label = "resign", confirm = "Resign this game?" },
-  { control = Control.OFFER_DRAW, key = "D", label = "offer draw" },
-  { control = Control.DECLINE_DRAW, key = "X", label = "decline draw" },
-  { control = Control.ABORT, key = "A", label = "abort" },
+  { control = Control.RESIGN, key = "R", wording = describe.resign_wording },
+  { control = Control.OFFER_DRAW, key = "D", wording = labelled("offer draw") },
+  { control = Control.DECLINE_DRAW, key = "X", wording = labelled("decline draw") },
+  { control = Control.ABORT, key = "A", wording = labelled("abort") },
 }
 local INPUT_KEY = "m"
 local NEXT_GAME_KEY = "]g"
@@ -299,13 +307,14 @@ local function act(board, game_action)
 end
 
 ---@param board games.Board
----@param spec games.ControlKey
-local function send_control(board, spec)
-  if spec.confirm and not prompt.confirm(spec.confirm) then
+---@param control games.Control
+---@param wording games.ControlWording
+local function send_control(board, control, wording)
+  if wording.confirm and not prompt.confirm(wording.confirm) then
     return
   end
   board.client:game_control(
-    { game_id = board.update.game_id, seq = board.update.seq, control = spec.control },
+    { game_id = board.update.game_id, seq = board.update.seq, control = control },
     report_error(board)
   )
 end
@@ -367,11 +376,12 @@ local function bindings_for(update, module, catalogued)
   local bindings = {}
   for _, spec in ipairs(CONTROL_KEYS) do
     if vim.tbl_contains(update.controls, spec.control) then
+      local wording = spec.wording(update)
       bindings[#bindings + 1] = {
         key = spec.key,
-        label = spec.label,
+        label = wording.label,
         run = function(board)
-          send_control(board, spec)
+          send_control(board, spec.control, wording)
         end,
       }
     end
@@ -873,7 +883,7 @@ open_update = function(client, update, me, opts)
   local buf = vim.api.nvim_create_buf(true, true)
   local name = ("games://%s/%s/%s"):format(
     update.game,
-    describe.opponent_names(update, me, ","),
+    describe.opponents_text(update, me, ","),
     describe.short_id(game_id)
   )
   vim.api.nvim_buf_set_name(buf, name)

@@ -1,5 +1,6 @@
 local Archive = require("games.core.archive")
 local dashboard = require("games.ui.dashboard")
+local describe = require("games.core.describe")
 local finder = require("games.ui.finder")
 local float = require("games.ui.float")
 local kv = require("games.ui.widgets.kv")
@@ -356,7 +357,7 @@ end
 ---@param client games.Client
 ---@param update games.GameUpdate
 function M.resign(client, update)
-  if not prompt.confirm("Resign this game?") then
+  if not prompt.confirm(describe.resign_wording(update).confirm) then
     return
   end
   local latest = client:game(update.game_id) or update
