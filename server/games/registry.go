@@ -7,6 +7,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/connect4"
 	"github.com/shivamshivanshu/games.nvim/server/games/ludo"
 	"github.com/shivamshivanshu/games.nvim/server/games/tictactoe"
+	"github.com/shivamshivanshu/games.nvim/server/games/wordle"
 )
 
 func All() []game.Game {
@@ -16,5 +17,6 @@ func All() []game.Game {
 		game.Adapt(connect4.Rules{}),
 		game.Adapt(checkers.Rules{}),
 		game.Adapt(ludo.Rules{}),
+		game.Adapt(wordle.Rules{}),
 	}
 }
