@@ -97,8 +97,8 @@ func (h *Hub) SendUpdate(to game.UserID, u protocol.GameUpdate) {
 	h.push(protocol.TypeGameUpdate, u, to)
 }
 
-func (h *Hub) challengeChanged(c challenge.Challenge) {
-	h.push(protocol.TypeChallengeChanged, wireChallenge(c), append([]game.UserID{c.From}, c.To...)...)
+func (h *Hub) challengeChanged(c protocol.Challenge) {
+	h.push(protocol.TypeChallengeChanged, c, c.Participants()...)
 }
 
 func (h *Hub) push(typ protocol.MessageType, body any, to ...game.UserID) {
@@ -121,19 +121,4 @@ func (h *Hub) sessionsOf(users []game.UserID) []*session.Session {
 		out = slices.AppendSeq(out, maps.Keys(h.sessions[user]))
 	}
 	return out
-}
-
-func wireChallenge(c challenge.Challenge) protocol.Challenge {
-	return protocol.Challenge{
-		ChallengeID: c.ID,
-		From:        c.From,
-		To:          c.To,
-		Accepted:    c.Accepted,
-		Game:        c.Game,
-		Options:     c.Options,
-		State:       c.State,
-		By:          c.By,
-		GameID:      c.GameID,
-		ExpiresAt:   c.ExpiresAt,
-	}
 }

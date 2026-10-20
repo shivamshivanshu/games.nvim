@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"games.nvim/server/game"
-	"games.nvim/server/internal/challenge"
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/room"
 	"games.nvim/server/internal/store"
@@ -25,15 +24,15 @@ type liveGame struct {
 	lastStep time.Time
 }
 
-func (h *Hub) startChallenge(c challenge.Challenge) (game.GameID, error) {
+func (h *Hub) startChallenge(c protocol.Challenge) (game.GameID, error) {
 	id, err := h.startGame(c)
 	if err != nil {
-		slog.Error("hub: start game", "challenge", c.ID, "err", err)
+		slog.Error("hub: start game", "challenge", c.ChallengeID, "err", err)
 	}
 	return id, err
 }
 
-func (h *Hub) startGame(c challenge.Challenge) (game.GameID, error) {
+func (h *Hub) startGame(c protocol.Challenge) (game.GameID, error) {
 	p, state, err := h.prepareGame(c)
 	if err != nil {
 		return "", err
@@ -45,7 +44,7 @@ func (h *Hub) startGame(c challenge.Challenge) (game.GameID, error) {
 	return p.ID, h.launch(p, state, now)
 }
 
-func (h *Hub) prepareGame(c challenge.Challenge) (room.Params, game.ErasedState, error) {
+func (h *Hub) prepareGame(c protocol.Challenge) (room.Params, game.ErasedState, error) {
 	g, err := h.gameType(c.Game)
 	if err != nil {
 		return room.Params{}, nil, err
@@ -55,7 +54,7 @@ func (h *Hub) prepareGame(c challenge.Challenge) (room.Params, game.ErasedState,
 	if err != nil {
 		return room.Params{}, nil, err
 	}
-	players, err := seated(append([]game.UserID{c.From}, c.To...), seats)
+	players, err := seated(c.Participants(), seats)
 	if err != nil {
 		return room.Params{}, nil, err
 	}
@@ -82,7 +81,7 @@ func (h *Hub) launch(p room.Params, state game.ErasedState, createdAt time.Time)
 	return nil
 }
 
-// seated lists players in challenger-first order, which room.Restore relies on.
+// seated keeps the challenger first, which store.GameRecord.Challenger relies on.
 func seated(users []game.UserID, seats map[game.UserID]game.Seat) ([]game.Player, error) {
 	if len(seats) != len(users) {
 		return nil, fmt.Errorf("hub: game assigned %d seats for %d players", len(seats), len(users))

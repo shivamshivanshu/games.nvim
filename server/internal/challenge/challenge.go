@@ -16,23 +16,10 @@ import (
 
 const idBytes = 8
 
-type Challenge struct {
-	ID        protocol.ChallengeID
-	From      game.UserID
-	To        []game.UserID
-	Accepted  []game.UserID
-	Game      game.GameType
-	Options   game.Options
-	State     protocol.ChallengeState
-	By        *game.UserID
-	GameID    *game.GameID
-	ExpiresAt time.Time
-}
-
-type StartFunc func(Challenge) (game.GameID, error)
+type StartFunc func(protocol.Challenge) (game.GameID, error)
 
 type pendingChallenge struct {
-	Challenge
+	protocol.Challenge
 	expiry clock.Timer
 }
 
@@ -41,14 +28,14 @@ type pendingChallenge struct {
 type Registry struct {
 	ttl      time.Duration
 	clock    clock.Clock
-	onChange func(Challenge)
+	onChange func(protocol.Challenge)
 	start    StartFunc
 
 	mu      sync.Mutex
 	pending map[protocol.ChallengeID]*pendingChallenge
 }
 
-func NewRegistry(ttl time.Duration, clock clock.Clock, onChange func(Challenge), start StartFunc) *Registry {
+func NewRegistry(ttl time.Duration, clock clock.Clock, onChange func(protocol.Challenge), start StartFunc) *Registry {
 	return &Registry{
 		ttl:      ttl,
 		clock:    clock,
@@ -58,128 +45,90 @@ func NewRegistry(ttl time.Duration, clock clock.Clock, onChange func(Challenge),
 	}
 }
 
-func (r *Registry) Create(from game.UserID, to []game.UserID, info game.Info, opts game.Options) (Challenge, error) {
+func (r *Registry) Create(from game.UserID, to []game.UserID, info game.Info, opts game.Options) (protocol.Challenge, error) {
 	if err := validateInvitees(from, to, info.Players); err != nil {
-		return Challenge{}, err
+		return protocol.Challenge{}, err
 	}
-	c := &pendingChallenge{Challenge: Challenge{
-		ID:        newID(),
-		From:      from,
-		To:        slices.Clone(to),
-		Accepted:  []game.UserID{},
-		Game:      info.Type,
-		Options:   opts,
-		State:     protocol.ChallengePending,
-		ExpiresAt: r.clock.Now().Add(r.ttl),
+	c := &pendingChallenge{Challenge: protocol.Challenge{
+		ChallengeID: newID(),
+		From:        from,
+		To:          slices.Clone(to),
+		Accepted:    []game.UserID{},
+		Game:        info.Type,
+		Options:     opts,
+		State:       protocol.ChallengePending,
+		ExpiresAt:   r.clock.Now().Add(r.ttl),
 	}}
-
-	r.mu.Lock()
-	r.pending[c.ID] = c
-	c.expiry = r.clock.AfterFunc(r.ttl, func() { r.expire(c.ID) })
-	snapshot := c.snapshot()
-	r.mu.Unlock()
-
+	snapshot, _ := locked(&r.mu, func() (protocol.Challenge, error) {
+		r.pending[c.ChallengeID] = c
+		c.expiry = r.clock.AfterFunc(r.ttl, func() { r.expire(c.ChallengeID) })
+		return c.snapshot(), nil
+	})
 	r.onChange(snapshot)
 	return snapshot, nil
 }
 
 func (r *Registry) Accept(id protocol.ChallengeID, by game.UserID) error {
-	r.mu.Lock()
-	c, err := r.invitedLocked(id, by)
-	if err != nil {
-		r.mu.Unlock()
-		return err
+	changed, err := locked(&r.mu, func() (*protocol.Challenge, error) { return r.acceptLocked(id, by) })
+	if err == nil && changed != nil && allAccepted(*changed) {
+		changed = new(r.started(*changed))
 	}
-	if slices.Contains(c.Accepted, by) {
-		r.mu.Unlock()
-		return nil
-	}
-	c.Accepted = append(c.Accepted, by)
-	if len(c.Accepted) < len(c.To) {
-		snapshot := c.snapshot()
-		r.mu.Unlock()
-		r.onChange(snapshot)
-		return nil
-	}
-	r.resolveLocked(c)
-	snapshot := c.snapshot()
-	r.mu.Unlock()
-
-	r.onChange(r.started(snapshot))
-	return nil
+	return r.announce(changed, err)
 }
 
 func (r *Registry) Decline(id protocol.ChallengeID, by game.UserID) error {
-	r.mu.Lock()
-	c, err := r.invitedLocked(id, by)
-	if err != nil {
-		r.mu.Unlock()
-		return err
-	}
-	r.resolveLocked(c)
-	c.State, c.By = protocol.ChallengeDeclined, &by
-	snapshot := c.snapshot()
-	r.mu.Unlock()
-
-	r.onChange(snapshot)
-	return nil
+	return r.announce(locked(&r.mu, func() (*protocol.Challenge, error) {
+		c, err := r.invitedLocked(id, by)
+		if err != nil {
+			return nil, err
+		}
+		return r.closeLocked(c, protocol.ChallengeDeclined, &by), nil
+	}))
 }
 
 func (r *Registry) Cancel(id protocol.ChallengeID, by game.UserID) error {
-	r.mu.Lock()
-	c, ok := r.pending[id]
-	if !ok {
-		r.mu.Unlock()
-		return unknownChallenge(id)
-	}
-	if by != c.From {
-		r.mu.Unlock()
-		return game.BadRequestError{Msg: "only the challenger can cancel a challenge"}
-	}
-	r.resolveLocked(c)
-	c.State, c.By = protocol.ChallengeCancelled, &by
-	snapshot := c.snapshot()
-	r.mu.Unlock()
-
-	r.onChange(snapshot)
-	return nil
+	return r.announce(locked(&r.mu, func() (*protocol.Challenge, error) {
+		c, ok := r.pending[id]
+		if !ok {
+			return nil, unknownChallenge(id)
+		}
+		if by != c.From {
+			return nil, game.BadRequestError{Msg: "only the challenger can cancel a challenge"}
+		}
+		return r.closeLocked(c, protocol.ChallengeCancelled, &by), nil
+	}))
 }
 
 // Pending returns the open challenges a user sent or received, soonest expiry first.
-func (r *Registry) Pending(user game.UserID) []Challenge {
-	r.mu.Lock()
-	out := []Challenge{}
-	for _, c := range r.pending {
-		if c.From == user || slices.Contains(c.To, user) {
-			out = append(out, c.snapshot())
+func (r *Registry) Pending(user game.UserID) []protocol.Challenge {
+	out, _ := locked(&r.mu, func() ([]protocol.Challenge, error) {
+		out := []protocol.Challenge{}
+		for _, c := range r.pending {
+			if c.From == user || slices.Contains(c.To, user) {
+				out = append(out, c.snapshot())
+			}
 		}
-	}
-	r.mu.Unlock()
-
-	slices.SortFunc(out, func(a, b Challenge) int {
-		return cmp.Or(a.ExpiresAt.Compare(b.ExpiresAt), cmp.Compare(a.ID, b.ID))
+		return out, nil
+	})
+	slices.SortFunc(out, func(a, b protocol.Challenge) int {
+		return cmp.Or(a.ExpiresAt.Compare(b.ExpiresAt), cmp.Compare(a.ChallengeID, b.ChallengeID))
 	})
 	return out
 }
 
 func (r *Registry) expire(id protocol.ChallengeID) {
-	r.mu.Lock()
-	c, ok := r.pending[id]
-	if !ok {
-		r.mu.Unlock()
-		return
-	}
-	r.resolveLocked(c)
-	c.State = protocol.ChallengeExpired
-	snapshot := c.snapshot()
-	r.mu.Unlock()
-
-	r.onChange(snapshot)
+	_ = r.announce(locked(&r.mu, func() (*protocol.Challenge, error) {
+		c, ok := r.pending[id]
+		if !ok {
+			return nil, nil
+		}
+		return r.closeLocked(c, protocol.ChallengeExpired, nil), nil
+	}))
 }
 
 // started runs the game for a fully accepted challenge. The challenge is
 // already out of the pending map, so no other caller can start it again.
-func (r *Registry) started(c Challenge) Challenge {
+func (r *Registry) started(c protocol.Challenge) protocol.Challenge {
 	gameID, err := r.start(c)
 	if err != nil {
 		c.State = protocol.ChallengeCancelled
@@ -188,6 +137,38 @@ func (r *Registry) started(c Challenge) Challenge {
 	c.State, c.GameID = protocol.ChallengeAccepted, &gameID
 	return c
 }
+
+// announce reports a change, if there was one, to onChange.
+func (r *Registry) announce(changed *protocol.Challenge, err error) error {
+	if err != nil || changed == nil {
+		return err
+	}
+	r.onChange(*changed)
+	return nil
+}
+
+func locked[T any](mu *sync.Mutex, fn func() (T, error)) (T, error) {
+	mu.Lock()
+	defer mu.Unlock()
+	return fn()
+}
+
+func (r *Registry) acceptLocked(id protocol.ChallengeID, by game.UserID) (*protocol.Challenge, error) {
+	c, err := r.invitedLocked(id, by)
+	if err != nil {
+		return nil, err
+	}
+	if slices.Contains(c.Accepted, by) {
+		return nil, nil
+	}
+	c.Accepted = append(c.Accepted, by)
+	if allAccepted(c.Challenge) {
+		r.resolveLocked(c)
+	}
+	return new(c.snapshot()), nil
+}
+
+func allAccepted(c protocol.Challenge) bool { return len(c.Accepted) == len(c.To) }
 
 func (r *Registry) invitedLocked(id protocol.ChallengeID, user game.UserID) (*pendingChallenge, error) {
 	c, ok := r.pending[id]
@@ -200,12 +181,18 @@ func (r *Registry) invitedLocked(id protocol.ChallengeID, user game.UserID) (*pe
 	return c, nil
 }
 
+func (r *Registry) closeLocked(c *pendingChallenge, state protocol.ChallengeState, by *game.UserID) *protocol.Challenge {
+	r.resolveLocked(c)
+	c.State, c.By = state, by
+	return new(c.snapshot())
+}
+
 func (r *Registry) resolveLocked(c *pendingChallenge) {
-	delete(r.pending, c.ID)
+	delete(r.pending, c.ChallengeID)
 	c.expiry.Stop()
 }
 
-func (c *pendingChallenge) snapshot() Challenge {
+func (c *pendingChallenge) snapshot() protocol.Challenge {
 	s := c.Challenge
 	s.To = slices.Clone(c.To)
 	s.Accepted = slices.Clone(c.Accepted)

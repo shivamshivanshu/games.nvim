@@ -126,6 +126,11 @@ type Challenge struct {
 	ExpiresAt   time.Time      `json:"expires_at"`
 }
 
+// Participants lists the challenger first, then the invitees.
+func (c Challenge) Participants() []game.UserID {
+	return append([]game.UserID{c.From}, c.To...)
+}
+
 type ChallengeListResult struct {
 	Challenges []Challenge `json:"challenges"`
 }

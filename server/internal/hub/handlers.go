@@ -90,7 +90,7 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 	if err != nil {
 		return protocol.ChallengeCreateResult{}, err
 	}
-	return protocol.ChallengeCreateResult{ChallengeID: c.ID}, nil
+	return protocol.ChallengeCreateResult{ChallengeID: c.ChallengeID}, nil
 }
 
 func resolveChallenge(resolve func(protocol.ChallengeID, game.UserID) error) session.Handler {
@@ -100,7 +100,7 @@ func resolveChallenge(resolve func(protocol.ChallengeID, game.UserID) error) ses
 }
 
 func (h *Hub) pendingChallenges(_ context.Context, s *session.Session, _ protocol.Empty) (protocol.ChallengeListResult, error) {
-	return protocol.ChallengeListResult{Challenges: xslices.Map(h.challenges.Pending(s.User()), wireChallenge)}, nil
+	return protocol.ChallengeListResult{Challenges: h.challenges.Pending(s.User())}, nil
 }
 
 func (h *Hub) listGames(ctx context.Context, s *session.Session, req protocol.GameListRequest) (protocol.GameListResult, error) {
