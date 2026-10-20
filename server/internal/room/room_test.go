@@ -457,6 +457,50 @@ func TestUpdateViewIsPerRecipient(t *testing.T) {
 	}
 }
 
+func TestBroadcastMatchesEachPlayersSnapshot(t *testing.T) {
+	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
+	h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlOfferDraw)
+	for _, user := range []game.UserID{alice, bob, carol} {
+		sent, _ := h.sent.last(user)
+		if diff := cmp.Diff(h.snapshot(t, user), sent); diff != "" {
+			t.Errorf("%s broadcast vs snapshot (-snapshot +broadcast):\n%s", user, diff)
+		}
+		var view relayView
+		if err := json.Unmarshal(sent.View, &view); err != nil || view.Viewer != game.Seat(user) {
+			t.Errorf("%s got the view of %q, %v", user, view.Viewer, err)
+		}
+	}
+}
+
+func TestFinishingBroadcastAddsStepToSealedUpdate(t *testing.T) {
+	h := newHarness(t, game.TimeControl10Plus5)
+	seq := game.Seq(0)
+	for i, san := range []string{"f3", "e5", "g4"} {
+		seq = h.play(t, []game.UserID{alice, bob}[i%2], seq, san)
+	}
+	h.clock.Advance(time.Minute)
+	h.play(t, bob, seq, "Qh4#")
+	waitDone(t, h.room)
+	wantClock := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 605_000, bob: 545_000}}
+	for _, user := range []game.UserID{alice, bob} {
+		sent, _ := h.sent.last(user)
+		sealed := h.snapshot(t, user)
+		if diff := cmp.Diff(wantClock, sent.Clock); diff != "" {
+			t.Errorf("%s finishing clock (-want +got):\n%s", user, diff)
+		}
+		if want := `{"by":"black","kind":"moved","san":"Qh4#"}`; len(sent.Events) != 1 || string(sent.Events[0]) != want {
+			t.Errorf("%s finishing events %s, want [%s]", user, sent.Events, want)
+		}
+		if len(sent.View) == 0 {
+			t.Errorf("%s finishing broadcast has no view", user)
+		}
+		sealed.Events, sealed.Clock, sealed.View = sent.Events, sent.Clock, sent.View
+		if diff := cmp.Diff(sealed, sent); diff != "" {
+			t.Errorf("%s finishing broadcast vs sealed snapshot (-sealed +broadcast):\n%s", user, diff)
+		}
+	}
+}
+
 func TestPersistFailureLeavesStateUnchanged(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
 	diskFull := errors.New("disk full")

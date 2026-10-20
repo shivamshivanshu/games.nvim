@@ -27,7 +27,8 @@ type relayAction struct {
 }
 
 type relayView struct {
-	Turn game.Seat `json:"turn"`
+	Turn   game.Seat `json:"turn"`
+	Viewer game.Seat `json:"viewer"`
 }
 
 type relayState struct {
@@ -70,11 +71,11 @@ func (s relayState) Apply(seat game.Seat, a relayAction, _ *rand.Rand) (game.Sta
 	return s, nil, nil
 }
 
-func (s relayState) View(game.Seat) relayView {
+func (s relayState) View(seat game.Seat) relayView {
 	if s.result != nil {
-		return relayView{}
+		return relayView{Viewer: seat}
 	}
-	return relayView{Turn: s.order[s.turn]}
+	return relayView{Turn: s.order[s.turn], Viewer: seat}
 }
 
 func (s relayState) ToAct() []game.Seat {

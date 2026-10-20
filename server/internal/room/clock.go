@@ -17,46 +17,57 @@ import (
 // that is already down does not re-fire in a tight loop.
 const timeoutRetryDelay = time.Second
 
-func (s roomState) clockRunning(g Setup) bool {
-	return g.clock.Enabled && s.allActiveActed(g) && !s.finished()
+func (s roomState) left(user game.UserID, at time.Time) time.Duration {
+	if !s.clockRunning || !s.hasTurn(user) {
+		return s.remaining[user]
+	}
+	return max(0, s.remaining[user]-at.Sub(s.since))
 }
 
-func (s roomState) charged(g Setup, at time.Time) map[game.UserID]time.Duration {
+func (s roomState) charged(at time.Time) map[game.UserID]time.Duration {
 	remaining := maps.Clone(s.remaining)
-	if !s.clockRunning(g) {
-		return remaining
-	}
-	elapsed := at.Sub(s.since)
-	for _, user := range s.toAct(g) {
-		remaining[user] = max(0, remaining[user]-elapsed)
+	for user := range remaining {
+		remaining[user] = s.left(user, at)
 	}
 	return remaining
 }
 
-func (s roomState) soonestFlag(g Setup, at time.Time) (game.UserID, time.Duration, bool) {
-	users := s.toAct(g)
-	if !s.clockRunning(g) || len(users) == 0 {
+// clockAfter is the clock once st has taken s to next: st's time is charged
+// to whoever was to act, then st's own adjustment applies.
+func (s roomState) clockAfter(g Setup, st step, next roomState) map[game.UserID]time.Duration {
+	remaining := s.charged(st.at)
+	switch {
+	case st.kind == store.StepAction && s.clockRunning && s.hasTurn(st.user) && !next.hasTurn(st.user):
+		remaining[st.user] += g.clock.Increment
+	case st.kind == store.StepTimeout && remaining != nil:
+		remaining[st.user] = 0
+	}
+	return remaining
+}
+
+func (s roomState) soonestFlag(at time.Time) (game.UserID, time.Duration, bool) {
+	if !s.clockRunning || len(s.toAct) == 0 {
 		return "", 0, false
 	}
-	remaining := s.charged(g, at)
-	user := slices.MinFunc(users, func(a, b game.UserID) int { return cmp.Compare(remaining[a], remaining[b]) })
-	return user, remaining[user], true
+	user := slices.MinFunc(s.toAct, func(a, b game.UserID) int { return cmp.Compare(s.left(a, at), s.left(b, at)) })
+	return user, s.left(user, at), true
 }
 
 func (s roomState) wireClock(g Setup, at time.Time) *protocol.WireClock {
 	if !g.clock.Enabled {
 		return nil
 	}
-	wire := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(g, at), time.Duration.Milliseconds)}
-	if users := s.toAct(g); s.clockRunning(g) && len(users) > 0 {
-		wire.Running = &users[0]
+	wire := &protocol.WireClock{RemainingMS: xslices.MapValues(s.charged(at), time.Duration.Milliseconds)}
+	if s.clockRunning && len(s.toAct) > 0 {
+		running := s.toAct[0]
+		wire.Running = &running
 	}
 	return wire
 }
 
 func (r *Room) armTimer() {
 	r.stopTimer()
-	if _, d, ok := r.cur.soonestFlag(r.setup, r.setup.Time.Now()); ok {
+	if _, d, ok := r.cur.soonestFlag(r.setup.Time.Now()); ok {
 		r.armIn(d)
 	}
 }
@@ -83,7 +94,7 @@ func (r *Room) tick() {
 
 func (r *Room) expireFlagged() {
 	now := r.setup.Time.Now()
-	user, left, ok := r.cur.soonestFlag(r.setup, now)
+	user, left, ok := r.cur.soonestFlag(now)
 	if !ok || left > 0 {
 		return
 	}

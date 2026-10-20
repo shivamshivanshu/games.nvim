@@ -43,14 +43,14 @@ func (s roomState) applyControl(g Setup, st step) (roomState, error) {
 	case protocol.ControlDeclineDraw:
 		s.drawAgreed = nil
 	case protocol.ControlAbort:
-		s.imposed = &game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
+		return s.impose(g, game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}), nil
 	}
 	return s, nil
 }
 
 func (s roomState) imposeAgreedDraw(g Setup) roomState {
 	if !s.finished() && s.everyActive(g, func(u game.UserID) bool { return slices.Contains(s.drawAgreed, u) }) {
-		s.imposed = &game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
+		return s.impose(g, game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
 	}
 	return s
 }

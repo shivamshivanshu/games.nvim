@@ -28,6 +28,8 @@ type Persister interface {
 	FinishGame(ctx context.Context, id game.GameID, f store.Finish) error
 }
 
+// Broadcaster gets one update per player for each step. Those updates share
+// their slices and maps, so SendUpdate must not modify u.
 type Broadcaster interface {
 	SendUpdate(to game.UserID, u protocol.GameUpdate)
 }
@@ -112,6 +114,11 @@ type roomState struct {
 	since      time.Time
 	lastStepAt time.Time
 	final      *archive.Finished
+	// result, toAct and clockRunning follow from the fields above; settled
+	// recomputes them whenever those change.
+	result       *game.Result
+	toAct        []game.UserID
+	clockRunning bool
 }
 
 func initialState(g Setup, state game.ErasedState, now time.Time) roomState {
@@ -122,37 +129,35 @@ func initialState(g Setup, state game.ErasedState, now time.Time) roomState {
 			s.remaining[player.User] = g.clock.Initial
 		}
 	}
+	return s.settled(g)
+}
+
+func (s roomState) settled(g Setup) roomState {
+	s.result = s.imposed
+	if s.result == nil {
+		if result, done := s.game.Outcome(); done {
+			s.result = &result
+		}
+	}
+	s.toAct = []game.UserID{}
+	if s.result == nil {
+		s.toAct = g.usersAt(s.game.ToAct())
+	}
+	s.clockRunning = g.clock.Enabled && s.result == nil && s.allActiveActed(g)
 	return s
 }
 
-func (s roomState) result() (game.Result, bool) {
-	if s.imposed != nil {
-		return *s.imposed, true
-	}
-	return s.game.Outcome()
+func (s roomState) impose(g Setup, result game.Result) roomState {
+	s.imposed = &result
+	return s.settled(g)
 }
 
-func (s roomState) finished() bool {
-	_, done := s.result()
-	return done
-}
+func (s roomState) finished() bool { return s.result != nil }
 
-func (s roomState) toAct(g Setup) []game.UserID {
-	if s.finished() {
-		return []game.UserID{}
-	}
-	return g.usersAt(s.game.ToAct())
-}
-
-func (s roomState) hasTurn(g Setup, user game.UserID) bool {
-	return slices.Contains(s.toAct(g), user)
-}
+func (s roomState) hasTurn(user game.UserID) bool { return slices.Contains(s.toAct, user) }
 
 func (s roomState) apply(g Setup, st step) (roomState, error) {
 	next := s
-	next.seq = st.seq
-	next.remaining = s.charged(g, st.at)
-	next.since, next.lastStepAt = st.at, st.at
 	next.events = []json.RawMessage{}
 	var err error
 	switch st.kind {
@@ -168,6 +173,9 @@ func (s roomState) apply(g Setup, st step) (roomState, error) {
 	if err != nil {
 		return roomState{}, err
 	}
+	next.seq = st.seq
+	next.since, next.lastStepAt = st.at, st.at
+	next.remaining = s.clockAfter(g, st, next)
 	return next, nil
 }
 
@@ -183,24 +191,14 @@ func (s roomState) applyAction(g Setup, st step) (roomState, error) {
 	next.game, next.events = state, events
 	next.drawAgreed = nil
 	next.acted = xslices.With(s.acted, st.user, struct{}{})
-	if s.clockRunning(g) && s.hasTurn(g, st.user) && !next.hasTurn(g, st.user) {
-		next.remaining[st.user] += g.clock.Increment
-	}
-	return next, nil
+	return next.settled(g), nil
 }
 
 func (s roomState) applyTimeout(g Setup, st step) (roomState, error) {
 	if s.finished() {
 		return s, errGameOver
 	}
-	s, err := s.eliminate(g, st.user, game.ReasonTimeout)
-	if err != nil {
-		return s, err
-	}
-	if s.remaining != nil {
-		s.remaining[st.user] = 0
-	}
-	return s, nil
+	return s.eliminate(g, st.user, game.ReasonTimeout)
 }
 
 func (s roomState) eliminate(g Setup, user game.UserID, reason game.ResultReason) (roomState, error) {
@@ -211,7 +209,7 @@ func (s roomState) eliminate(g Setup, user game.UserID, reason game.ResultReason
 	s.game, s.events = state, events
 	s.eliminated = xslices.With(s.eliminated, user, struct{}{})
 	s.drawAgreed = slices.DeleteFunc(slices.Clone(s.drawAgreed), func(u game.UserID) bool { return u == user })
-	return s.imposeAgreedDraw(g), nil
+	return s.settled(g).imposeAgreedDraw(g), nil
 }
 
 func (s roomState) isEliminated(user game.UserID) bool {
@@ -231,7 +229,7 @@ func (s roomState) allActiveActed(g Setup) bool {
 }
 
 func (s roomState) ending(g Setup) (store.Ending, error) {
-	result, _ := s.result()
+	result := *s.result
 	scores, scored := s.gameScores()
 	standings := make(map[game.UserID]store.Standing, len(g.Players))
 	for _, player := range g.Players {
@@ -289,30 +287,49 @@ func (s roomState) view(g Setup, user game.UserID) (json.RawMessage, error) {
 	return view, nil
 }
 
-// update is a finished game's metadata only; broadcastUpdate adds what the
-// finishing step's broadcast alone carries.
+// update is what user sees at at: a finished game's metadata only, or the live game.
 func (s roomState) update(g Setup, user game.UserID, at time.Time) (protocol.GameUpdate, error) {
 	if s.final != nil {
 		return s.final.Update(), nil
 	}
-	view, err := s.view(g, user)
-	if err != nil {
-		return protocol.GameUpdate{}, err
-	}
+	return s.addressed(g, s.live(g, at), user)
+}
+
+// live is the ongoing game at at as every player sees it.
+func (s roomState) live(g Setup, at time.Time) protocol.GameUpdate {
 	return protocol.GameUpdate{
 		GameID:     g.ID,
 		Game:       g.info.Type,
 		Options:    maps.Clone(g.Options),
 		Seq:        s.seq,
 		Players:    slices.Clone(g.Players),
-		ToAct:      s.toAct(g),
+		ToAct:      slices.Clone(s.toAct),
 		Clock:      s.wireClock(g, at),
 		DrawAgreed: slices.Clone(s.drawAgreed),
-		Controls:   s.controls(g, user),
 		Events:     slices.Clone(s.events),
-		View:       view,
 		StartedAt:  protocol.UnixMSOf(g.CreatedAt),
-	}, nil
+	}
+}
+
+// stepUpdate is what the step that reached s broadcasts to every player; a
+// finishing step adds its events and clock to the sealed game's metadata.
+func (s roomState) stepUpdate(g Setup) protocol.GameUpdate {
+	if s.final == nil {
+		return s.live(g, s.since)
+	}
+	u := s.final.Update()
+	u.Events, u.Clock = slices.Clone(s.events), s.wireClock(g, s.since)
+	return u
+}
+
+// addressed is u with the view and controls of user alone.
+func (s roomState) addressed(g Setup, u protocol.GameUpdate, user game.UserID) (protocol.GameUpdate, error) {
+	view, err := s.view(g, user)
+	if err != nil {
+		return protocol.GameUpdate{}, err
+	}
+	u.View, u.Controls = view, s.controls(g, user)
+	return u, nil
 }
 
 type Room struct {
@@ -461,21 +478,10 @@ func (r *Room) persist(st step, next roomState) (roomState, error) {
 	return next, r.setup.Persist.AppendStep(r.ctx, r.setup.ID, rec)
 }
 
-func (s roomState) broadcastUpdate(g Setup, user game.UserID) (protocol.GameUpdate, error) {
-	u, err := s.update(g, user, s.since)
-	if err != nil || s.final == nil {
-		return u, err
-	}
-	if u.View, err = s.view(g, user); err != nil {
-		return protocol.GameUpdate{}, err
-	}
-	u.Events, u.Clock = slices.Clone(s.events), s.wireClock(g, s.since)
-	return u, nil
-}
-
 func (r *Room) broadcast() {
+	shared := r.cur.stepUpdate(r.setup)
 	for _, player := range r.setup.Players {
-		u, err := r.cur.broadcastUpdate(r.setup, player.User)
+		u, err := r.cur.addressed(r.setup, shared, player.User)
 		if err != nil {
 			slog.Error("room: build update", "game", r.setup.ID, "user", player.User, "err", err)
 			continue
