@@ -6,16 +6,20 @@ import (
 	"games.nvim/server/game"
 )
 
-type StatRecord struct {
-	User                game.UserID
-	Game                game.GameType
+type Tally struct {
 	Wins, Losses, Draws int
 }
 
+type StatRecord struct {
+	User game.UserID
+	Game game.GameType
+	Tally
+}
+
 type HeadToHeadRecord struct {
-	User, Opponent      game.UserID
-	Game                game.GameType
-	Wins, Losses, Draws int
+	User, Opponent game.UserID
+	Game           game.GameType
+	Tally
 }
 
 const outcomeTallies = `
@@ -24,7 +28,10 @@ const outcomeTallies = `
 	COALESCE(SUM(a.outcome = 'draw'), 0)`
 
 func (s *Store) Stats(ctx context.Context) ([]StatRecord, []HeadToHeadRecord, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	stats, err := queryAll(ctx, s.db, func(row scanner) (StatRecord, error) {
+		var r StatRecord
+		return r, row.Scan(&r.User, &r.Game, &r.Wins, &r.Losses, &r.Draws)
+	}, `
 		SELECT a.username, g.game_type,`+outcomeTallies+`
 		FROM game_players a JOIN games g ON g.game_id = a.game_id
 		WHERE a.outcome IS NOT NULL
@@ -33,15 +40,10 @@ func (s *Store) Stats(ctx context.Context) ([]StatRecord, []HeadToHeadRecord, er
 	if err != nil {
 		return nil, nil, err
 	}
-	stats, err := collect(rows, func() (StatRecord, error) {
-		var r StatRecord
-		return r, rows.Scan(&r.User, &r.Game, &r.Wins, &r.Losses, &r.Draws)
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	rows, err = s.db.QueryContext(ctx, `
+	headToHead, err := queryAll(ctx, s.db, func(row scanner) (HeadToHeadRecord, error) {
+		var r HeadToHeadRecord
+		return r, row.Scan(&r.User, &r.Opponent, &r.Game, &r.Wins, &r.Losses, &r.Draws)
+	}, `
 		SELECT a.username, b.username, g.game_type,`+outcomeTallies+`
 		FROM game_players a
 		JOIN game_players b ON b.game_id = a.game_id AND b.username <> a.username
@@ -49,12 +51,5 @@ func (s *Store) Stats(ctx context.Context) ([]StatRecord, []HeadToHeadRecord, er
 		WHERE a.outcome IS NOT NULL
 		GROUP BY a.username, b.username, g.game_type
 		ORDER BY a.username, b.username, g.game_type`)
-	if err != nil {
-		return nil, nil, err
-	}
-	headToHead, err := collect(rows, func() (HeadToHeadRecord, error) {
-		var r HeadToHeadRecord
-		return r, rows.Scan(&r.User, &r.Opponent, &r.Game, &r.Wins, &r.Losses, &r.Draws)
-	})
 	return stats, headToHead, err
 }

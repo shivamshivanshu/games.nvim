@@ -7,7 +7,6 @@ import (
 
 	"games.nvim/server/game"
 	"games.nvim/server/internal/store"
-	"games.nvim/server/internal/xslices"
 )
 
 // Restore rebuilds a room from its persisted steps.
@@ -33,7 +32,7 @@ func Restore(ctx context.Context, p Params, steps []store.StepRecord) (*Room, er
 		}
 	}
 	if len(steps) > 0 && g.clock.Enabled {
-		s.remaining = xslices.MapValues(steps[len(steps)-1].ClockRemainingMS, durationFromMS)
+		s.remaining = steps[len(steps)-1].ClockRemaining
 	}
 	// Downtime is not charged: clocks resume from the last persisted values as of now.
 	s.since = p.Time.Now()

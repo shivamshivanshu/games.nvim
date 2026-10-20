@@ -69,8 +69,6 @@ func (s roomState) wireClock(g setup, at time.Time) *protocol.WireClock {
 	return wire
 }
 
-func durationFromMS(ms int64) time.Duration { return time.Duration(ms) * time.Millisecond }
-
 func (r *Room) armTimer() {
 	r.stopTimer()
 	if d, ok := r.cur.untilFlag(r.setup, r.setup.Time.Now()); ok {

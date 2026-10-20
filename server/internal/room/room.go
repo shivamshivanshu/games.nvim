@@ -348,7 +348,7 @@ func (r *Room) commit(rec store.StepRecord) (game.Seq, error) {
 	if err != nil {
 		return 0, err
 	}
-	rec.ClockRemainingMS = xslices.MapValues(next.remaining, time.Duration.Milliseconds)
+	rec.ClockRemaining = next.remaining
 	if err := r.persist(rec, next); err != nil {
 		return 0, err
 	}

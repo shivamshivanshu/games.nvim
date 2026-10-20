@@ -158,12 +158,12 @@ func (h *Hub) stats(ctx context.Context, _ *session.Session, _ protocol.Empty) (
 	return protocol.StatsResult{
 		Records: xslices.Map(records, func(r store.StatRecord) protocol.StatsRecord {
 			return protocol.StatsRecord{
-				User: r.User, Game: r.Game, Tally: protocol.Tally{Wins: r.Wins, Losses: r.Losses, Draws: r.Draws},
+				User: r.User, Game: r.Game, Tally: protocol.Tally(r.Tally),
 			}
 		}),
 		HeadToHead: xslices.Map(headToHead, func(r store.HeadToHeadRecord) protocol.HeadToHeadRecord {
 			return protocol.HeadToHeadRecord{
-				User: r.User, Opponent: r.Opponent, Game: r.Game, Tally: protocol.Tally{Wins: r.Wins, Losses: r.Losses, Draws: r.Draws},
+				User: r.User, Opponent: r.Opponent, Game: r.Game, Tally: protocol.Tally(r.Tally),
 			}
 		}),
 	}, nil

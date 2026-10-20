@@ -16,6 +16,7 @@ import (
 	"games.nvim/server/internal/clocktest"
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/store"
+	"games.nvim/server/internal/xslices"
 )
 
 const (
@@ -327,7 +328,7 @@ func TestTimeoutEliminates(t *testing.T) {
 		t.Fatalf("outcomes (-want +got):\n%s", diff)
 	}
 	last := steps[len(steps)-1]
-	if last.Kind != store.StepTimeout || last.User != alice || last.Payload != nil || last.ClockRemainingMS[alice] != 0 {
+	if last.Kind != store.StepTimeout || last.User != alice || last.Payload != nil || last.ClockRemaining[alice] != 0 {
 		t.Fatalf("timeout step %+v", last)
 	}
 	if u, _ := h.sent.last(bob); u.Result == nil || u.Result.Reason != game.ReasonTimeout {
@@ -387,7 +388,7 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 		if diff := cmp.Diff(original, got); diff != "" {
 			t.Errorf("%s snapshot after restore (-want +got):\n%s", user, diff)
 		}
-		if diff := cmp.Diff(steps[len(steps)-1].ClockRemainingMS, got.Clock.RemainingMS); diff != "" {
+		if diff := cmp.Diff(xslices.MapValues(steps[len(steps)-1].ClockRemaining, time.Duration.Milliseconds), got.Clock.RemainingMS); diff != "" {
 			t.Errorf("%s remaining vs last step (-want +got):\n%s", user, diff)
 		}
 	}

@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"games.nvim/server/game"
+	"games.nvim/server/internal/xslices"
 
 	_ "modernc.org/sqlite"
 )
@@ -40,12 +42,12 @@ const (
 )
 
 type StepRecord struct {
-	Seq              game.Seq
-	User             game.UserID
-	Kind             StepKind
-	Payload          json.RawMessage
-	At               time.Time
-	ClockRemainingMS map[game.UserID]int64
+	Seq            game.Seq
+	User           game.UserID
+	Kind           StepKind
+	Payload        json.RawMessage
+	At             time.Time
+	ClockRemaining map[game.UserID]time.Duration
 }
 
 type GameRecord struct {
@@ -123,14 +125,7 @@ func (s *Store) UserExists(ctx context.Context, user game.UserID) (bool, error) 
 }
 
 func (s *Store) ListUsers(ctx context.Context) ([]game.UserID, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT username FROM users ORDER BY username`)
-	if err != nil {
-		return nil, err
-	}
-	return collect(rows, func() (game.UserID, error) {
-		var u game.UserID
-		return u, rows.Scan(&u)
-	})
+	return queryAll(ctx, s.db, scanOne[game.UserID], `SELECT username FROM users ORDER BY username`)
 }
 
 func (s *Store) CreateGame(ctx context.Context, rec GameRecord) error {
@@ -169,28 +164,16 @@ func (s *Store) FinishGame(ctx context.Context, id game.GameID, step StepRecord,
 		if err := insertStep(ctx, tx, id, step); err != nil {
 			return err
 		}
-		res, err := tx.ExecContext(ctx,
+		if err := requireAffected(ctx, tx, ErrNotFound,
 			`UPDATE games SET finished_at = ?, result_reason = ? WHERE game_id = ?`,
-			step.At.UnixMilli(), reason, id)
-		if err != nil {
+			step.At.UnixMilli(), reason, id); err != nil {
 			return err
-		}
-		if n, err := res.RowsAffected(); err != nil {
-			return err
-		} else if n == 0 {
-			return ErrNotFound
 		}
 		for user, outcome := range outcomes {
-			res, err := tx.ExecContext(ctx,
+			if err := requireAffected(ctx, tx, fmt.Errorf("store: outcome for %q: not a player of game %q", user, id),
 				`UPDATE game_players SET outcome = ? WHERE game_id = ? AND username = ?`,
-				outcome, id, user)
-			if err != nil {
+				outcome, id, user); err != nil {
 				return err
-			}
-			if n, err := res.RowsAffected(); err != nil {
-				return err
-			} else if n == 0 {
-				return fmt.Errorf("store: outcome for %q: not a player of game %q", user, id)
 			}
 		}
 		return nil
@@ -213,81 +196,94 @@ func (s *Store) LoadGame(ctx context.Context, id game.GameID) (GameRecord, error
 }
 
 func (s *Store) FinishedGameIDs(ctx context.Context, user game.UserID, limit int) ([]game.GameID, error) {
-	rows, err := s.db.QueryContext(ctx,
+	return queryAll(ctx, s.db, scanOne[game.GameID],
 		`SELECT g.game_id FROM games g JOIN game_players p ON p.game_id = g.game_id
 		 WHERE p.username = ? AND g.finished_at IS NOT NULL
 		 ORDER BY g.finished_at DESC, g.game_id LIMIT ?`, user, limit)
-	if err != nil {
-		return nil, err
-	}
-	return collect(rows, func() (game.GameID, error) {
-		var id game.GameID
-		return id, rows.Scan(&id)
-	})
 }
 
 func (s *Store) loadGames(ctx context.Context, where string, args ...any) ([]GameRecord, error) {
-	rows, err := s.db.QueryContext(ctx,
+	recs, err := queryAll(ctx, s.db, scanGame,
 		`SELECT game_id, game_type, options_json, rng_seed, created_at FROM games `+where, args...)
+	if err != nil || len(recs) == 0 {
+		return recs, err
+	}
+	ids := xslices.Map(recs, func(rec GameRecord) any { return rec.ID })
+	players, err := queryAll(ctx, s.db, scanPlayer,
+		`SELECT game_id, username, seat FROM game_players WHERE game_id IN (`+placeholders(len(ids))+`) ORDER BY rowid`, ids...)
 	if err != nil {
 		return nil, err
 	}
-	recs, err := collect(rows, func() (GameRecord, error) {
-		var rec GameRecord
-		var seed, createdMS int64
-		var options []byte
-		err := rows.Scan(&rec.ID, &rec.Type, &options, &seed, &createdMS)
-		rec.Options, rec.Seed, rec.CreatedAt = options, game.Seed(seed), time.UnixMilli(createdMS)
-		return rec, err
-	})
+	steps, err := queryAll(ctx, s.db, scanStep,
+		`SELECT game_id, seq, username, kind, action_json, server_ts, clock_json
+		 FROM actions WHERE game_id IN (`+placeholders(len(ids))+`) ORDER BY game_id, seq`, ids...)
 	if err != nil {
 		return nil, err
 	}
+	playersOf, stepsOf := groupByGame(players), groupByGame(steps)
 	for i := range recs {
-		if recs[i].Players, err = s.loadPlayers(ctx, recs[i].ID); err != nil {
-			return nil, err
-		}
-		if recs[i].Steps, err = s.loadSteps(ctx, recs[i].ID); err != nil {
-			return nil, err
-		}
+		recs[i].Players, recs[i].Steps = playersOf[recs[i].ID], stepsOf[recs[i].ID]
 	}
 	return recs, nil
 }
 
-func (s *Store) loadPlayers(ctx context.Context, id game.GameID) ([]game.Player, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT username, seat FROM game_players WHERE game_id = ? ORDER BY rowid`, id)
-	if err != nil {
-		return nil, err
-	}
-	return collect(rows, func() (game.Player, error) {
-		var p game.Player
-		return p, rows.Scan(&p.User, &p.Seat)
-	})
+type scanner interface {
+	Scan(dest ...any) error
 }
 
-func (s *Store) loadSteps(ctx context.Context, id game.GameID) ([]StepRecord, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT seq, username, kind, action_json, server_ts, clock_json
-		 FROM actions WHERE game_id = ? ORDER BY seq`, id)
-	if err != nil {
-		return nil, err
+type ofGame[T any] struct {
+	game  game.GameID
+	value T
+}
+
+func groupByGame[T any](rows []ofGame[T]) map[game.GameID][]T {
+	grouped := make(map[game.GameID][]T)
+	for _, row := range rows {
+		grouped[row.game] = append(grouped[row.game], row.value)
 	}
-	return collect(rows, func() (StepRecord, error) {
-		var step StepRecord
-		var seq, atMS int64
-		var payload, clock []byte
-		if err := rows.Scan(&seq, &step.User, &step.Kind, &payload, &atMS, &clock); err != nil {
-			return step, err
-		}
-		step.Seq, step.Payload, step.At = game.Seq(seq), payload, time.UnixMilli(atMS)
-		if clock != nil {
-			if err := json.Unmarshal(clock, &step.ClockRemainingMS); err != nil {
-				return step, fmt.Errorf("store: decode clock: %w", err)
-			}
-		}
-		return step, nil
-	})
+	return grouped
+}
+
+func scanOne[T any](row scanner) (T, error) {
+	var v T
+	return v, row.Scan(&v)
+}
+
+func scanGame(row scanner) (GameRecord, error) {
+	var rec GameRecord
+	var seed, createdMS int64
+	var options []byte
+	err := row.Scan(&rec.ID, &rec.Type, &options, &seed, &createdMS)
+	rec.Options, rec.Seed, rec.CreatedAt = options, game.Seed(seed), time.UnixMilli(createdMS)
+	return rec, err
+}
+
+func scanPlayer(row scanner) (ofGame[game.Player], error) {
+	var p ofGame[game.Player]
+	return p, row.Scan(&p.game, &p.value.User, &p.value.Seat)
+}
+
+func scanStep(row scanner) (ofGame[StepRecord], error) {
+	var s ofGame[StepRecord]
+	var seq, atMS int64
+	var payload, clock []byte
+	if err := row.Scan(&s.game, &seq, &s.value.User, &s.value.Kind, &payload, &atMS, &clock); err != nil {
+		return s, err
+	}
+	s.value.Seq, s.value.Payload, s.value.At = game.Seq(seq), payload, time.UnixMilli(atMS)
+	if clock == nil {
+		return s, nil
+	}
+	var remainingMS map[game.UserID]int64
+	if err := json.Unmarshal(clock, &remainingMS); err != nil {
+		return s, fmt.Errorf("store: decode clock: %w", err)
+	}
+	s.value.ClockRemaining = xslices.MapValues(remainingMS, func(ms int64) time.Duration { return time.Duration(ms) * time.Millisecond })
+	return s, nil
+}
+
+func placeholders(n int) string {
+	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }
 
 type execer interface {
@@ -296,9 +292,9 @@ type execer interface {
 
 func insertStep(ctx context.Context, db execer, id game.GameID, step StepRecord) error {
 	var clock []byte
-	if step.ClockRemainingMS != nil {
+	if step.ClockRemaining != nil {
 		var err error
-		if clock, err = json.Marshal(step.ClockRemainingMS); err != nil {
+		if clock, err = json.Marshal(xslices.MapValues(step.ClockRemaining, time.Duration.Milliseconds)); err != nil {
 			return fmt.Errorf("store: encode clock: %w", err)
 		}
 	}
@@ -321,15 +317,35 @@ func (s *Store) inTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	return tx.Commit()
 }
 
-func collect[T any](rows *sql.Rows, scan func() (T, error)) ([]T, error) {
+func queryAll[T any](ctx context.Context, db *sql.DB, scan func(scanner) (T, error), query string, args ...any) ([]T, error) {
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	var out []T
 	for rows.Next() {
-		v, err := scan()
+		v, err := scan(rows)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, v)
 	}
 	return out, rows.Err()
+}
+
+// requireAffected runs a statement that must change a row, returning missing when it changes none.
+func requireAffected(ctx context.Context, db execer, missing error, query string, args ...any) error {
+	res, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return missing
+	}
+	return nil
 }

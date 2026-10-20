@@ -46,8 +46,8 @@ func newGame(id game.GameID) GameRecord {
 func step(seq game.Seq, user game.UserID) StepRecord {
 	return StepRecord{
 		Seq: seq, User: user, Kind: StepAction, Payload: json.RawMessage(`"e4"`),
-		At:               epoch.Add(time.Duration(seq) * time.Second),
-		ClockRemainingMS: map[game.UserID]int64{alice: 1000 * int64(seq), bob: 2000},
+		At:             epoch.Add(time.Duration(seq) * time.Second),
+		ClockRemaining: map[game.UserID]time.Duration{alice: time.Duration(seq) * time.Second, bob: 2 * time.Second},
 	}
 }
 
@@ -88,6 +88,29 @@ func TestStepsRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff([]GameRecord{rec}, got); diff != "" {
+		t.Fatalf("mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestLoadOngoingGroupsPlayersAndStepsPerGame(t *testing.T) {
+	ctx := context.Background()
+	s := openTemp(t)
+	first := newGame("g1")
+	first.Steps = []StepRecord{step(1, alice), step(2, bob), step(3, alice)}
+	second := newGame("g2")
+	second.Players = []game.Player{{User: bob, Seat: "white"}, {User: alice, Seat: "black"}}
+	second.Steps = []StepRecord{step(1, bob)}
+	empty := newGame("g3")
+	for _, rec := range []GameRecord{second, first, empty} {
+		if err := s.CreateGame(ctx, rec); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := s.LoadOngoing(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]GameRecord{first, second, empty}, got); diff != "" {
 		t.Fatalf("mismatch (-want +got):\n%s", diff)
 	}
 }
@@ -203,15 +226,15 @@ func TestStatsExcludeAborted(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantStats := []StatRecord{
-		{User: alice, Game: "chess", Wins: 1, Draws: 1},
-		{User: bob, Game: "chess", Losses: 1, Draws: 1},
+		{User: alice, Game: "chess", Tally: Tally{Wins: 1, Draws: 1}},
+		{User: bob, Game: "chess", Tally: Tally{Losses: 1, Draws: 1}},
 	}
 	if diff := cmp.Diff(wantStats, stats); diff != "" {
 		t.Fatalf("stats (-want +got):\n%s", diff)
 	}
 	wantH2H := []HeadToHeadRecord{
-		{User: alice, Opponent: bob, Game: "chess", Wins: 1, Draws: 1},
-		{User: bob, Opponent: alice, Game: "chess", Losses: 1, Draws: 1},
+		{User: alice, Opponent: bob, Game: "chess", Tally: Tally{Wins: 1, Draws: 1}},
+		{User: bob, Opponent: alice, Game: "chess", Tally: Tally{Losses: 1, Draws: 1}},
 	}
 	if diff := cmp.Diff(wantH2H, h2h); diff != "" {
 		t.Fatalf("head-to-head (-want +got):\n%s", diff)
