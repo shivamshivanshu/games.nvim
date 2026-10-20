@@ -1,3 +1,5 @@
+local text_util = require("games.ui.text")
+
 ---@alias games.Hl string|string[] one group, or groups layered so later ones override only the attributes they set
 
 ---@class games.Extmark
@@ -126,15 +128,15 @@ end
 local function layout_box(node, child)
   local top = math.max(0, math.floor((node.h - #child.lines) / 2))
   local left = math.max(0, math.floor((node.w - child.width) / 2))
-  local indent = (" "):rep(left)
+  local indent = text_util.spaces(left)
   local lines, extmarks, widths = {}, {}, {}
   for i = 1, node.h do
     local child_row = i - top
     local child_line = child.lines[child_row]
     if child_line then
-      lines[i] = indent .. child_line .. (" "):rep(node.w - left - child.widths[child_row])
+      lines[i] = indent .. child_line .. text_util.spaces(node.w - left - child.widths[child_row])
     else
-      lines[i] = (" "):rep(node.w)
+      lines[i] = text_util.spaces(node.w)
     end
     widths[i] = node.w
     if node.hl then
@@ -160,7 +162,7 @@ local function layout(node)
 
   if node.kind == "pad" then
     local child = layout(node.child)
-    local indent = (" "):rep(node.n)
+    local indent = text_util.spaces(node.n)
     return {
       lines = vim.tbl_map(function(line)
         return indent .. line
@@ -209,7 +211,7 @@ local function layout(node)
       local line_prefix_bytes = #lines[i]
       vim.list_extend(extmarks, shifted(marks_by_row[i - 1], 0, line_prefix_bytes))
       local shortfall = block.width - (block.widths[i] or 0)
-      lines[i] = lines[i] .. (block.lines[i] or "") .. (" "):rep(shortfall)
+      lines[i] = lines[i] .. (block.lines[i] or "") .. text_util.spaces(shortfall)
     end
   end
   return { lines = lines, extmarks = extmarks, widths = widths, width = width }

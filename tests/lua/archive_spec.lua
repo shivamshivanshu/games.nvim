@@ -1,6 +1,7 @@
 local Archive = require("games.core.archive")
 local Client = require("games.core.client")
 local helpers = require("helpers")
+local json = require("games.core.json")
 
 local assert_eq = helpers.assert_eq
 local read_file = helpers.read_file
@@ -16,7 +17,6 @@ local SUMMARY = (
   .. '"reason":"checkmate","outcomes":[{"user":"alice","score":-1},{"user":"bob","score":1}]}'
 ):format(GAME_ID, STARTED_AT, STARTED_AT + 60000)
 local DIGEST_LINE = vim.fn.sha256(SUMMARY) .. "  summary.json\n"
-local JSON_DECODE_OPTS = { luanil = { object = true, array = true } }
 
 ---Fool's mate after seq plies, with the last ply's event.
 ---@param seq integer
@@ -114,10 +114,7 @@ function T.finishing_broadcast_archives_the_whole_game()
 
     assert_eq(SUMMARY, read_file(game_file(root, "summary.json")))
     assert_eq(DIGEST_LINE, read_file(game_file(root, "summary.sha256")))
-    assert_eq(
-      finishing_broadcast(),
-      vim.json.decode(read_file(game_file(root, "final.json")) or "", JSON_DECODE_OPTS)
-    )
+    assert_eq(finishing_broadcast(), json.decode(read_file(game_file(root, "final.json")) or ""))
     assert_eq(FOOLS_MATE, archived_moves(root))
     assert(read_file(game_file(root, "game.pgn")), "no game.pgn")
   end)

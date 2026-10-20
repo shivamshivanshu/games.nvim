@@ -41,10 +41,45 @@ function T.typeless_push_does_not_drop_the_rest_of_the_chunk()
   assert(vim.deep_equal(updates, { "g1" }), vim.inspect(updates))
 end
 
-function T.wire_body_marks_objects_but_keeps_empty_arrays()
-  local frame = vim.json.encode(Conn.wire_body({ to = {}, options = {} }))
-  assert(frame:find('"options":{}', 1, true) and frame:find('"to":[]', 1, true), frame)
-  assert(vim.json.encode(Conn.wire_body(nil)) == "{}")
+function T.request_encodes_the_body_and_its_options_as_objects_even_when_empty()
+  local conn = Conn.new({ host = "127.0.0.1", port = 1, username = "alice", password = "pw" })
+  local frames = {}
+  conn.attempt = {
+    phase = "authenticated",
+    socket = {
+      write = function(_, frame)
+        table.insert(frames, frame)
+      end,
+    },
+  }
+  local function ignore() end
+  conn:request("challenge.create", { to = {}, game = "chess", options = {} }, ignore)
+  conn:request("ping", nil, ignore)
+  conn.attempt = nil
+
+  assert(frames[1]:find('"options":{}', 1, true) and frames[1]:find('"to":[]', 1, true), frames[1])
+  assert(frames[2]:find('"body":{}', 1, true), frames[2])
+end
+
+function T.close_reports_a_final_disconnect_and_forgets_the_user()
+  helpers.with_server(nil, function(env)
+    local conn = env.new_conn("alice")
+    local log = helpers.record_lifecycle(conn)
+    local client = Client.new(conn)
+    conn:connect()
+    helpers.wait_for(function()
+      return client:me() == "alice"
+    end, "login")
+
+    conn:close()
+    helpers.wait_for(function()
+      return #log.disconnected == 1
+    end, "the disconnect")
+    assert(log.disconnected[1].retrying == false, vim.inspect(log.disconnected))
+    helpers.wait_for(function()
+      return client:me() == nil
+    end, "the user forgotten")
+  end)
 end
 
 function T.login_and_catalog()

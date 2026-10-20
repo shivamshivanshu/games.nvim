@@ -1,4 +1,5 @@
 local highlights = require("games.ui.highlights")
+local predicates = require("games.core.predicates")
 
 local M = {}
 
@@ -89,8 +90,7 @@ end
 ---@return boolean
 local function valid_board(board)
   local height = type(board) == "table" and board.max_cell_height
-  return height == nil
-    or (type(height) == "number" and height >= 1 and height == math.floor(height))
+  return height == nil or predicates.is_positive_integer(height)
 end
 
 ---@param assets any

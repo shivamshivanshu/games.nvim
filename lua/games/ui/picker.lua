@@ -28,7 +28,7 @@ local function clock(update, me)
   if not (update.clock and update.clock.remaining_ms[me]) then
     return ""
   end
-  return describe.clock_text(update, me, 0)
+  return describe.clock_text(describe.clock_remaining_ms(update, me, 0))
 end
 
 ---One searchable picker line, e.g. `● chess  vs ravi    10+5  your move  4:51  last: Nf3  #7f3a`.

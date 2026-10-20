@@ -1,6 +1,7 @@
 local art = require("games.ui.art")
 local compose = require("games.ui.compose")
 local highlights = require("games.ui.highlights")
+local predicates = require("games.core.predicates")
 local text_util = require("games.ui.text")
 
 ---@class games.GridCell
@@ -97,7 +98,7 @@ local function shade_hl(shade, row, col)
 end
 
 ---@param n integer
----@param flip boolean
+---@param flip boolean|nil
 ---@return integer[]
 local function display_order(n, flip)
   local order = {}
@@ -128,9 +129,7 @@ end
 
 ---@param blocks integer|nil
 local function validate_blocks(blocks)
-  local valid = blocks == nil
-    or (type(blocks) == "number" and blocks >= 1 and blocks == math.floor(blocks))
-  if not valid then
+  if not (blocks == nil or predicates.is_positive_integer(blocks)) then
     error(("grid: blocks must be a positive integer or nil, got %s"):format(vim.inspect(blocks)), 2)
   end
 end
@@ -172,7 +171,7 @@ end
 ---@return games.Node
 local function block_separator_row(props, col_order, geometry, separators)
   local cell = separators.row:rep(geometry.cell.w)
-  local parts = { (" "):rep(geometry.prefix), cell }
+  local parts = { text_util.spaces(geometry.prefix), cell }
   for j = 2, #col_order do
     local crossing = crosses_block(props.blocks, col_order[j - 1], col_order[j])
     parts[#parts + 1] = crossing and separators.crossing or separators.row:rep(geometry.gap)
@@ -187,11 +186,11 @@ end
 ---@param geometry games.GridGeometry
 ---@return games.Node
 local function column_label_row(props, col_labels, col_order, geometry)
-  local parts = { (" "):rep(geometry.prefix) }
+  local parts = { text_util.spaces(geometry.prefix) }
   for j, label in ipairs(col_labels) do
     if j > 1 then
       local crossing = crosses_block(props.blocks, col_order[j - 1], col_order[j])
-      parts[#parts + 1] = (" "):rep(crossing and 1 or geometry.gap)
+      parts[#parts + 1] = text_util.spaces(crossing and 1 or geometry.gap)
     end
     parts[#parts + 1] = text_util.center_to_width(label, geometry.cell.w)
   end
@@ -206,8 +205,8 @@ local function render(props)
   local separators = separators_for(props.glyphs or "unicode", ambiwidth)
   local cell_height = props.cell_height or 1
   local marks = props.marks or {}
-  local row_order = display_order(props.rows, props.flip == true)
-  local col_order = display_order(props.cols, props.flip == true)
+  local row_order = display_order(props.rows, props.flip)
+  local col_order = display_order(props.cols, props.flip)
   local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)
   local col_labels = props.labels and labels_in_order(props.labels.cols, col_order)
   local label_width = row_labels and text_util.max_display_width(row_labels) or 0

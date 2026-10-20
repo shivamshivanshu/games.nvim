@@ -226,7 +226,7 @@ end
 
 ---@class games.test.StubConn
 ---@field handlers table<string, fun(body: table)[]>
----@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil)}[]
+---@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil), frame: string}[] frame as Conn encodes it
 ---@field credentials games.Credentials
 ---@field connects integer how often connect() was called
 ---@field connecting boolean
@@ -267,7 +267,8 @@ function M.stub_conn(credentials)
     table.insert(self.handlers[event], fn)
   end
   function conn:request(message_type, body, cb)
-    table.insert(self.requests, { type = message_type, body = body, cb = cb })
+    local _, frame = Conn.encode_request(#self.requests + 1, message_type, body)
+    table.insert(self.requests, { type = message_type, body = body, cb = cb, frame = frame })
   end
   function conn:push(event, body)
     for _, fn in ipairs(self.handlers[event]) do

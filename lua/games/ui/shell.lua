@@ -138,8 +138,9 @@ end
 ---@param elapsed_ms integer
 ---@return games.Node
 local function clock_node(update, user, elapsed_ms)
-  local low = describe.clock_remaining_ms(update, user, elapsed_ms) < LOW_CLOCK_MS
-  return compose.text(describe.clock_text(update, user, elapsed_ms), low and "GamesClockLow" or nil)
+  local remaining_ms = describe.clock_remaining_ms(update, user, elapsed_ms)
+  local hl = remaining_ms < LOW_CLOCK_MS and "GamesClockLow" or nil
+  return compose.text(describe.clock_text(remaining_ms), hl)
 end
 
 ---@param update games.GameUpdate

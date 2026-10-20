@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local players = require("games.core.players")
 local types = require("games.types")
 
@@ -85,7 +86,7 @@ end
 ---@return string
 function M.build(update)
   local result = pgn_result(update)
-  local date = os.date("%Y.%m.%d", math.floor(update.started_at / 1000)) --[[@as string]]
+  local date = describe.date(update, "%Y.%m.%d")
   local lines = {
     tag("Event", EVENT),
     tag("Site", UNKNOWN),

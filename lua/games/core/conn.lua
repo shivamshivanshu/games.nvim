@@ -1,3 +1,5 @@
+local json = require("games.core.json")
+local timer = require("games.core.timer")
 local types = require("games.types")
 
 local MessageType = types.MessageType
@@ -8,7 +10,6 @@ local IDLE_HEARTBEATS = 3
 local RECONNECT_MIN_MS = 1000
 local RECONNECT_MAX_MS = 30000
 local RECONNECT_JITTER = 0.2
-local JSON_DECODE_OPTS = { luanil = { object = true, array = true } }
 local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_MISMATCH] = true }
 ---@type games.CredentialField[]
 local CREDENTIAL_FIELDS = { "username", "password" }
@@ -30,12 +31,19 @@ local CREDENTIAL_FIELDS = { "username", "password" }
 ---@field host string
 ---@field port integer
 
+---How far one connection try has got, in order.
+---@enum games.ConnPhase
+local Phase = {
+  CONNECTING = "connecting",
+  OPEN = "open",
+  AUTHENTICATED = "authenticated",
+}
+
 ---One TCP connection try; every libuv callback checks it is still current before acting.
 ---@class (private) games.ConnAttempt
 ---@field buffer string
 ---@field socket? uv.uv_tcp_t
----@field opened boolean
----@field authenticated boolean
+---@field phase games.ConnPhase
 ---@field idle_ms integer
 ---@field watchdog uv.uv_timer_t
 ---@field heartbeat? uv.uv_timer_t
@@ -104,14 +112,6 @@ local function resolve_login(opts)
   return resolve_password(opts.password)
 end
 
----@param timer uv.uv_timer_t|nil
-local function close_timer(timer)
-  if timer and not timer:is_closing() then
-    timer:stop()
-    timer:close()
-  end
-end
-
 ---@param opts games.ConnOpts
 ---@return games.Conn
 function Conn.new(opts)
@@ -145,18 +145,21 @@ function Conn.split_frames(buffer, chunk)
   return lines, rest
 end
 
----Empty Lua tables encode as `[]`, so the wire objects in a request (the body and its options)
----are marked to encode as `{}`; every other empty table stays an array.
+---A request's frame, without its newline. The body and its options are wire objects, so they
+---encode as `{}` even when empty; every other empty table stays an array.
+---@param id integer
+---@param message_type games.MessageType
 ---@param body table|nil
----@return table
-function Conn.wire_body(body)
-  if body == nil or vim.tbl_isempty(body) then
-    return vim.empty_dict()
+---@return boolean encoded
+---@return string frame the frame, or why it could not be encoded
+function Conn.encode_request(id, message_type, body)
+  local wire_body = json.object(body or {})
+  if wire_body.options then
+    wire_body = vim.tbl_extend("force", wire_body, { options = json.object(wire_body.options) })
   end
-  if body.options == nil or not vim.tbl_isempty(body.options) then
-    return body
-  end
-  return vim.tbl_extend("force", body, { options = vim.empty_dict() })
+  ---@type games.Envelope
+  local envelope = { id = id, type = message_type, body = wire_body }
+  return pcall(vim.json.encode, envelope)
 end
 
 ---Subscribes fn to a push type or a lifecycle event; fn runs via vim.schedule.
@@ -211,7 +214,7 @@ end
 ---True from connect() until logged in, including the waits between reconnect tries.
 ---@return boolean
 function Conn:is_connecting()
-  return self.auto_reconnect and not (self.attempt and self.attempt.authenticated)
+  return self.auto_reconnect and not (self.attempt and self.attempt.phase == Phase.AUTHENTICATED)
 end
 
 ---Why the latest attempt or connection ended, or nil if none has.
@@ -226,7 +229,7 @@ end
 ---@param cb games.ReplyCallback
 function Conn:request(message_type, body, cb)
   local attempt = self.attempt
-  if not (attempt and attempt.authenticated) then
+  if not (attempt and attempt.phase == Phase.AUTHENTICATED) then
     deliver(cb, disconnected("not connected"), nil)
     return
   end
@@ -236,7 +239,7 @@ end
 ---Stops reconnecting and drops the connection.
 function Conn:close()
   self.auto_reconnect = false
-  close_timer(self.reconnect_timer)
+  timer.close(self.reconnect_timer)
   self.reconnect_timer = nil
   if self.attempt then
     self:teardown(self.attempt, disconnected("closed"))
@@ -271,8 +274,7 @@ function Conn:open()
   ---@type games.ConnAttempt
   local attempt = {
     buffer = "",
-    opened = false,
-    authenticated = false,
+    phase = Phase.CONNECTING,
     idle_ms = CONNECT_TIMEOUT_MS,
     watchdog = assert(vim.uv.new_timer()),
   }
@@ -321,7 +323,7 @@ function Conn:try_address(attempt, addresses, index, password)
       try_next_address()
       return
     end
-    attempt.opened = true
+    attempt.phase = Phase.OPEN
     socket:read_start(function(read_err, chunk)
       self:receive(attempt, read_err, chunk)
     end)
@@ -353,7 +355,7 @@ function Conn:login(attempt, password)
       return
     end
     ---@cast result games.LoginResult
-    attempt.authenticated = true
+    attempt.phase = Phase.AUTHENTICATED
     attempt.idle_ms = IDLE_HEARTBEATS * result.heartbeat_ms
     self.backoff_ms = RECONNECT_MIN_MS
     self:arm_watchdog(attempt)
@@ -400,9 +402,7 @@ end
 function Conn:send_request(attempt, message_type, body, cb)
   local id = self.next_id
   self.next_id = id + 1
-  ---@type games.Envelope
-  local envelope = { id = id, type = message_type, body = Conn.wire_body(body) }
-  local encoded, frame = pcall(vim.json.encode, envelope)
+  local encoded, frame = Conn.encode_request(id, message_type, body)
   if not encoded then
     local message = ("cannot encode %s request: %s"):format(message_type, frame)
     deliver(cb, { code = ErrorCode.BAD_REQUEST, message = message }, nil)
@@ -450,7 +450,7 @@ end
 ---@param attempt games.ConnAttempt
 ---@param line string
 function Conn:dispatch(attempt, line)
-  local ok, envelope = pcall(vim.json.decode, line, JSON_DECODE_OPTS)
+  local ok, envelope = pcall(json.decode, line)
   if not ok or type(envelope) ~= "table" then
     self:teardown(attempt, disconnected("malformed frame from server"))
     return
@@ -481,8 +481,8 @@ function Conn:teardown(attempt, reason)
   end
   self.attempt = nil
   self.last_disconnect = reason
-  close_timer(attempt.watchdog)
-  close_timer(attempt.heartbeat)
+  timer.close(attempt.watchdog)
+  timer.close(attempt.heartbeat)
   if attempt.socket and not attempt.socket:is_closing() then
     attempt.socket:close()
   end
@@ -492,7 +492,7 @@ function Conn:teardown(attempt, reason)
   for _, cb in pairs(pending) do
     deliver(cb, disconnected("connection lost"), nil)
   end
-  if attempt.opened then
+  if attempt.phase ~= Phase.CONNECTING then
     self:emit("disconnected", vim.tbl_extend("force", reason, { retrying = self.auto_reconnect }))
   end
   if self.auto_reconnect then

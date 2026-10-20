@@ -1,4 +1,5 @@
 local notify = require("games.core.notify")
+local timer = require("games.core.timer")
 
 ---One full connect attempt (a 10s watchdog) plus a retry; a command firing later than this would
 ---surprise a user who has moved on.
@@ -26,9 +27,8 @@ local states = setmetatable({}, { __mode = "k" })
 local function take_pending(state)
   local pending = state.pending
   state.pending = nil
-  if pending and pending.timer and not pending.timer:is_closing() then
-    pending.timer:stop()
-    pending.timer:close()
+  if pending then
+    timer.close(pending.timer)
   end
   return pending
 end

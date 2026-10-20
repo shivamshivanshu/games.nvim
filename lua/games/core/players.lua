@@ -20,18 +20,6 @@ function M.seat_of_user(update, user)
   return player and player.seat
 end
 
----Position of seat in update.players, which is the order seat colours follow.
----@param update games.GameUpdate
----@param seat games.Seat
----@return integer|nil
-function M.seat_index(update, seat)
-  for index, player in ipairs(update.players) do
-    if player.seat == seat then
-      return index
-    end
-  end
-end
-
 ---Whether the game is ongoing and waiting on user.
 ---@param update games.GameUpdate
 ---@param user games.UserID

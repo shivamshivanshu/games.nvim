@@ -159,6 +159,10 @@ function T.challenge_with_three_invitees_sends_all_of_them()
       { to = { "bob", "carol", "dave" }, game = "party", options = {} },
       sent_challenge(conn)
     )
+    local frame = vim.iter(conn.requests):find(function(request)
+      return request.type == MessageType.CHALLENGE_CREATE
+    end).frame
+    assert(frame:find('"options":{}', 1, true), frame)
   end)
 end
 

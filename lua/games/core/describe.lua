@@ -4,6 +4,8 @@ local text = require("games.ui.text")
 local types = require("games.types")
 
 local SHORT_ID_LENGTH = 4
+local MS_PER_SECOND = 1000
+local SECONDS_PER_MINUTE = 60
 
 local M = {}
 
@@ -51,13 +53,20 @@ function M.clock_remaining_ms(update, user, elapsed_ms)
   return math.max(0, remaining_ms)
 end
 
----@param update games.GameUpdate with a clock
----@param user games.UserID
----@param elapsed_ms integer charged to user's clock if it is the running one
+---"m:ss", rounding up to the whole second.
+---@param remaining_ms integer never negative
 ---@return string
-function M.clock_text(update, user, elapsed_ms)
-  local seconds = math.ceil(M.clock_remaining_ms(update, user, elapsed_ms) / 1000)
-  return ("%d:%02d"):format(math.floor(seconds / 60), seconds % 60)
+function M.clock_text(remaining_ms)
+  local seconds = math.ceil(remaining_ms / MS_PER_SECOND)
+  return ("%d:%02d"):format(math.floor(seconds / SECONDS_PER_MINUTE), seconds % SECONDS_PER_MINUTE)
+end
+
+---The local day the game started on, in os.date format.
+---@param update games.GameUpdate
+---@param format string e.g. "%Y-%m-%d"
+---@return string
+function M.date(update, format)
+  return os.date(format, math.floor(update.started_at / MS_PER_SECOND)) --[[@as string]]
 end
 
 ---@param result games.WireResult

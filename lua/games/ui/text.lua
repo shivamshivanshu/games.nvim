@@ -1,5 +1,11 @@
 local M = {}
 
+---@param n integer blanks; none when n is not positive
+---@return string
+function M.spaces(n)
+  return (" "):rep(n)
+end
+
 ---@param lines string[]
 ---@return integer
 function M.max_display_width(lines)
@@ -21,7 +27,7 @@ end
 ---@param width integer
 ---@return string
 function M.pad_to_width(line, width)
-  return line .. (" "):rep(width - vim.fn.strdisplaywidth(line))
+  return line .. M.spaces(width - vim.fn.strdisplaywidth(line))
 end
 
 ---Centres line in width columns; odd padding goes right.
@@ -31,14 +37,14 @@ end
 function M.center_to_width(line, width)
   local padding = width - vim.fn.strdisplaywidth(line)
   local left = math.floor(padding / 2)
-  return (" "):rep(left) .. line .. (" "):rep(padding - left)
+  return M.spaces(left) .. line .. M.spaces(padding - left)
 end
 
 ---@param line string
 ---@param width integer
 ---@return string
 function M.align_right(line, width)
-  return (" "):rep(width - vim.fn.strdisplaywidth(line)) .. line
+  return M.spaces(width - vim.fn.strdisplaywidth(line)) .. line
 end
 
 return M

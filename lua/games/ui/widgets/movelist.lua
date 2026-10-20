@@ -63,7 +63,8 @@ return function(props)
       )
       if i < last then
         local column_width = column_widths[(i - 1) % columns + 1]
-        parts[#parts + 1] = compose.text((" "):rep(column_width - vim.fn.strdisplaywidth(item)))
+        parts[#parts + 1] =
+          compose.text(text_util.spaces(column_width - vim.fn.strdisplaywidth(item)))
       end
     end
     rows[#rows + 1] = compose.row(parts)

@@ -29,9 +29,9 @@ local M = {}
 
 local say = notify.say
 
----Reply callback that reports request errors and hands successful results on.
+---Reply callback that reports request errors and hands successful results on, if asked to.
 ---@generic R
----@param on_result fun(result: R)
+---@param on_result? fun(result: R)
 ---@return games.Reply<R>
 local function on_ok(on_result)
   return function(err, result)
@@ -39,11 +39,11 @@ local function on_ok(on_result)
       say("games: " .. err.message, ERROR)
       return
     end
-    on_result(result)
+    if on_result then
+      on_result(result)
+    end
   end
 end
-
-local function ignore() end
 
 ---@class (private) games.OpponentChoice
 ---@field label string
@@ -242,34 +242,30 @@ end
 ---@type games.SubcommandRun
 local function challenge(client, me, args)
   local game_type, invitees = args[1], vim.list_slice(args, 2)
-  client:catalog_list(
-    nil,
-    on_ok(
-      ---@param catalog games.CatalogResult
-      function(catalog)
-        ---@param opponents games.UserID[]
-        local function challenge_opponents(opponents)
-          pick_game(catalog.games, game_type, #opponents + 1, function(info)
-            send_challenge(client, info, opponents)
-          end)
-        end
-        if #invitees > 0 then
-          challenge_opponents(invitees)
-          return
-        end
-        local range = opponent_range(catalog.games, game_type)
-        if not range then
-          say(
-            game_type and ("games: no game %q to challenge anyone to"):format(game_type)
-              or "games: no games available",
-            ERROR
-          )
-          return
-        end
-        pick_opponents(client, me, range, challenge_opponents)
-      end
-    )
-  )
+  ---@param catalog games.CatalogResult
+  local function challenge_from_catalog(catalog)
+    ---@param opponents games.UserID[]
+    local function challenge_opponents(opponents)
+      pick_game(catalog.games, game_type, #opponents + 1, function(info)
+        send_challenge(client, info, opponents)
+      end)
+    end
+    if #invitees > 0 then
+      challenge_opponents(invitees)
+      return
+    end
+    local range = opponent_range(catalog.games, game_type)
+    if not range then
+      say(
+        game_type and ("games: no game %q to challenge anyone to"):format(game_type)
+          or "games: no games available",
+        ERROR
+      )
+      return
+    end
+    pick_opponents(client, me, range, challenge_opponents)
+  end
+  client:catalog_list(nil, on_ok(challenge_from_catalog))
 end
 
 ---@type games.ChallengeAction[]
@@ -310,7 +306,7 @@ local function resolve_challenge(client, me, picked)
       return action.label
     end,
   }, function(action)
-    action.send(client, { challenge_id = picked.challenge_id }, on_ok(ignore))
+    action.send(client, { challenge_id = picked.challenge_id }, on_ok())
   end)
 end
 

@@ -1,9 +1,10 @@
+local describe = require("games.core.describe")
 local fs = require("games.core.fs")
+local json = require("games.core.json")
 local notify = require("games.core.notify")
 local registry = require("games.core.registry")
 
 local ERROR = vim.log.levels.ERROR
-local JSON_DECODE_OPTS = { luanil = { object = true, array = true } }
 local UUID_PATTERN = "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$"
 local LAST_MS_OF_YEAR_9999 = 253402300799999
 
@@ -112,7 +113,7 @@ function Archive:game_for(update)
   if game then
     return game
   end
-  local day = os.date("%Y-%m-%d", math.floor(update.started_at / 1000)) --[[@as string]]
+  local day = describe.date(update, "%Y-%m-%d")
   local dir = vim.fs.normalize(vim.fs.joinpath(self.root, day, update.game, update.game_id))
   if not vim.startswith(dir, vim.fs.normalize(self.root) .. "/") then
     return nil
@@ -192,9 +193,7 @@ end
 ---@return games.Event[]
 local function read_events(game)
   local text = fs.read(file_path(game, File.EVENTS)) or ""
-  return vim.tbl_map(function(line)
-    return vim.json.decode(line, JSON_DECODE_OPTS)
-  end, vim.split(text, "\n", { trimempty = true }))
+  return vim.tbl_map(json.decode, vim.split(text, "\n", { trimempty = true }))
 end
 
 ---@param game games.ArchivedGame

@@ -1,4 +1,5 @@
 local notify = require("games.core.notify")
+local predicates = require("games.core.predicates")
 
 ---@class games.AssetPack
 ---@field name string
@@ -22,12 +23,6 @@ local PRINTABLE_ASCII = "^[ -~]*$"
 ---@type table<string, games.AssetPack> "<game>/<pack>" -> the pack it resolved to
 local loaded = {}
 
----@param value any
----@return boolean
-local function is_count(value)
-  return type(value) == "number" and value >= 1 and value == math.floor(value)
-end
-
 ---@param line string
 ---@return boolean
 local function only_blocks_and_spaces(line)
@@ -37,7 +32,11 @@ end
 ---@param entry any
 ---@return string|nil problem
 local function shape_problem(entry)
-  if type(entry) ~= "table" or not is_count(entry.h) or not is_count(entry.w) then
+  if
+    type(entry) ~= "table"
+    or not predicates.is_positive_integer(entry.h)
+    or not predicates.is_positive_integer(entry.w)
+  then
     return "needs integer h and w of at least 1"
   end
   if type(entry.lines) ~= "table" or #entry.lines ~= entry.h then
