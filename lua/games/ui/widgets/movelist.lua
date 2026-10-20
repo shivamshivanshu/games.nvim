@@ -1,4 +1,5 @@
 local compose = require("games.ui.compose")
+local text_util = require("games.ui.text")
 
 ---@class games.MovelistProps
 ---@field items string[]
@@ -9,11 +10,13 @@ local compose = require("games.ui.compose")
 ---@return games.Node
 return function(props)
   local columns = props.columns
-  local column_widths = {}
+  local items_by_column = {}
   for i, item in ipairs(props.items) do
     local column = (i - 1) % columns + 1
-    column_widths[column] = math.max(column_widths[column] or 0, vim.fn.strdisplaywidth(item))
+    items_by_column[column] = items_by_column[column] or {}
+    table.insert(items_by_column[column], item)
   end
+  local column_widths = vim.tbl_map(text_util.max_display_width, items_by_column)
 
   local line_count = math.ceil(#props.items / columns)
   local number_width = #tostring(line_count)
@@ -26,8 +29,7 @@ return function(props)
     for column = 1, columns do
       local item = props.items[(line - 1) * columns + column]
       if item then
-        local gap = (" "):rep(column_widths[column] - vim.fn.strdisplaywidth(item))
-        cells[#cells + 1] = item .. gap
+        cells[#cells + 1] = text_util.pad_to_width(item, column_widths[column])
       end
     end
     rows[line] = compose.text((table.concat(cells, " "):gsub("%s+$", "")))

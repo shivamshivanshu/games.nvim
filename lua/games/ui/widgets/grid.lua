@@ -1,4 +1,5 @@
 local compose = require("games.ui.compose")
+local text_util = require("games.ui.text")
 
 ---@class games.GridCell
 ---@field [1] string glyph
@@ -41,18 +42,11 @@ local function display_order(n, flip)
   return order
 end
 
----@param text string
----@param width integer
----@return string
-local function pad_glyph(text, width)
-  return text .. (" "):rep(width - vim.fn.strdisplaywidth(text))
-end
-
 ---@param labels string
 ---@param order integer[]
 ---@return string[]
 local function labels_in_order(labels, order)
-  local chars = vim.split(labels, "", { plain = true })
+  local chars = vim.fn.split(labels, "\\zs")
   return vim.tbl_map(function(i)
     return chars[i]
   end, order)
@@ -72,7 +66,7 @@ return function(props)
     local glyph, own_hl = unpack(props.cell(r, c))
     local shade = props.shade == "checker" and SHADE_BY_PARITY[(r + c) % 2] or nil
     local hl = marks[r .. "," .. c] or own_hl or shade
-    return compose.text(pad_glyph(glyph, cell_width), hl)
+    return compose.text(text_util.pad_to_width(glyph, cell_width), hl)
   end
 
   local lines = {}
@@ -92,7 +86,7 @@ return function(props)
 
   if col_labels then
     local padded = vim.tbl_map(function(label)
-      return pad_glyph(label, cell_width)
+      return text_util.pad_to_width(label, cell_width)
     end, col_labels)
     lines[#lines + 1] = compose.text("  " .. table.concat(padded, " "))
   end

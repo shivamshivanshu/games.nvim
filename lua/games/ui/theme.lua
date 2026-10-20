@@ -10,6 +10,7 @@ local DEFAULT_LINKS = {
   GamesMuted = "Comment",
 }
 
+---@return nil
 function M.setup()
   for name, target in pairs(DEFAULT_LINKS) do
     vim.api.nvim_set_hl(0, name, { link = target, default = true })

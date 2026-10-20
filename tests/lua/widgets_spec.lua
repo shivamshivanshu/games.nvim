@@ -88,6 +88,33 @@ return {
     assert_movelist_aligned("♟")
   end,
 
+  extmark_columns_are_bytes_after_multibyte_glyph = function()
+    local rendered = compose.render(small_grid({
+      cell = function()
+        return { "♟" }
+      end,
+    }))
+    assert_eq({ "2 ♟ ♟", "1 ♟ ♟", "  a b" }, rendered.lines)
+    local second = rendered.extmarks[2]
+    assert_eq({ row = 0, col = 6, end_col = 9, hl = "GamesSquareDark" }, second)
+  end,
+
+  grid_cell_width_two_with_wide_glyph = function()
+    local rendered = compose.render(small_grid({
+      cell_width = 2,
+      cell = function()
+        return { "中" }
+      end,
+    }))
+    assert_eq({ "2 中 中", "1 中 中", "  a  b " }, rendered.lines)
+    assert_uniform_width(rendered.lines)
+  end,
+
+  grid_labels_split_by_character = function()
+    local rendered = compose.render(small_grid({ labels = { cols = "①②", rows = "③④" } }))
+    assert_eq({ "③ x x", "④ x x", "  ① ②" }, rendered.lines)
+  end,
+
   text_field_builds_action = function()
     assert_eq({ kind = "move", move = "e4" }, action.text_field("move", "move")("e4"))
   end,

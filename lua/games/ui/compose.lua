@@ -21,6 +21,8 @@
 ---@field extmarks games.Extmark[]
 ---@field width integer display width of the widest line
 
+local text_util = require("games.ui.text")
+
 local M = {}
 
 ---@param str string
@@ -47,23 +49,6 @@ end
 ---@return games.Node
 function M.pad(n, node)
   return { kind = "pad", n = n, child = node }
-end
-
----@param lines string[]
----@return integer
-local function max_display_width(lines)
-  local width = 0
-  for _, line in ipairs(lines) do
-    width = math.max(width, vim.fn.strdisplaywidth(line))
-  end
-  return width
-end
-
----@param line string
----@param width integer
----@return string
-local function pad_to_width(line, width)
-  return line .. (" "):rep(width - vim.fn.strdisplaywidth(line))
 end
 
 ---@param extmarks games.Extmark[]
@@ -114,7 +99,7 @@ local function layout(node)
       vim.list_extend(extmarks, shifted(block.extmarks, #lines, 0))
       vim.list_extend(lines, block.lines)
     end
-    return { lines = lines, extmarks = extmarks, width = max_display_width(lines) }
+    return { lines = lines, extmarks = extmarks, width = text_util.max_display_width(lines) }
   end
 
   local height = 0
@@ -126,19 +111,18 @@ local function layout(node)
     lines[i] = ""
   end
   for _, block in ipairs(blocks) do
+    local marks_by_row = {}
+    for _, mark in ipairs(block.extmarks) do
+      marks_by_row[mark.row] = marks_by_row[mark.row] or {}
+      table.insert(marks_by_row[mark.row], mark)
+    end
     for i = 1, height do
       local line_prefix_bytes = #lines[i]
-      local cell = pad_to_width(block.lines[i] or "", block.width)
-      for _, mark in ipairs(block.extmarks) do
-        if mark.row == i - 1 then
-          local moved = shifted({ mark }, 0, line_prefix_bytes)
-          extmarks[#extmarks + 1] = moved[1]
-        end
-      end
-      lines[i] = lines[i] .. cell
+      vim.list_extend(extmarks, shifted(marks_by_row[i - 1] or {}, 0, line_prefix_bytes))
+      lines[i] = lines[i] .. text_util.pad_to_width(block.lines[i] or "", block.width)
     end
   end
-  return { lines = lines, extmarks = extmarks, width = max_display_width(lines) }
+  return { lines = lines, extmarks = extmarks, width = text_util.max_display_width(lines) }
 end
 
 ---@param node games.Node
