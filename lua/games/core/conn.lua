@@ -89,11 +89,16 @@ local function close_timer(timer)
   end
 end
 
----@param opts games.ConnOpts
+---@param opts games.ConnOpts copied, so later changes to the table do not reach the conn
 ---@return games.Conn
 function Conn.new(opts)
   return setmetatable({
-    opts = opts,
+    opts = {
+      host = opts.host,
+      port = opts.port,
+      username = opts.username,
+      password = opts.password,
+    },
     pending = {},
     next_id = 1,
     handlers = vim.defaulttable(),
