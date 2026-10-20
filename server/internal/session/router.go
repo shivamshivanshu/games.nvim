@@ -10,15 +10,9 @@ import (
 
 	"games.nvim/server/game"
 	"games.nvim/server/internal/protocol"
-	"games.nvim/server/internal/room"
-	"games.nvim/server/internal/store"
 )
 
-var (
-	ErrAuthFailed      = errors.New("authentication failed")
-	errUnauthenticated = errors.New("login required")
-	errVersionMismatch = errors.New("protocol version mismatch")
-)
+var errUnauthenticated = protocol.Error{Code: protocol.CodeUnauthenticated, Msg: "login required"}
 
 const internalErrorMessage = "internal error"
 
@@ -41,35 +35,26 @@ func decodeBody(body json.RawMessage, into any) error {
 		return nil
 	}
 	if err := json.Unmarshal(body, into); err != nil {
-		return game.BadRequestError{Msg: fmt.Sprintf("malformed body: %v", err)}
+		return protocol.BadRequestf("malformed body: %v", err)
 	}
 	return nil
 }
 
 func errorBody(err error) protocol.ErrorBody {
-	var badRequest game.BadRequestError
-	var illegal game.IllegalActionError
-	switch {
-	case errors.As(err, &badRequest):
-		return protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: badRequest.Msg}
-	case errors.As(err, &illegal):
-		return protocol.ErrorBody{Code: protocol.CodeIllegalAction, Message: illegal.Msg}
-	case errors.Is(err, game.ErrNotYourTurn):
-		return protocol.ErrorBody{Code: protocol.CodeNotYourTurn, Message: err.Error()}
-	case errors.Is(err, room.ErrStale):
-		return protocol.ErrorBody{Code: protocol.CodeStale, Message: err.Error()}
-	case errors.Is(err, store.ErrNotFound), errors.Is(err, room.ErrNotAPlayer):
-		return protocol.ErrorBody{Code: protocol.CodeNotFound, Message: err.Error()}
-	case errors.Is(err, ErrAuthFailed):
-		return protocol.ErrorBody{Code: protocol.CodeAuthFailed, Message: err.Error()}
-	case errors.Is(err, errVersionMismatch):
-		return protocol.ErrorBody{Code: protocol.CodeVersionMismatch, Message: err.Error()}
-	case errors.Is(err, errUnauthenticated):
-		return protocol.ErrorBody{Code: protocol.CodeUnauthenticated, Message: err.Error()}
-	default:
-		slog.Error("session: request failed", "err", err)
-		return protocol.ErrorBody{Code: protocol.CodeInternal, Message: internalErrorMessage}
+	if e, ok := errors.AsType[protocol.Error](err); ok {
+		return protocol.ErrorBody{Code: e.Code, Message: e.Msg}
 	}
+	if e, ok := errors.AsType[game.BadRequestError](err); ok {
+		return protocol.ErrorBody{Code: protocol.CodeBadRequest, Message: e.Msg}
+	}
+	if e, ok := errors.AsType[game.IllegalActionError](err); ok {
+		return protocol.ErrorBody{Code: protocol.CodeIllegalAction, Message: e.Msg}
+	}
+	if errors.Is(err, game.ErrNotYourTurn) {
+		return protocol.ErrorBody{Code: protocol.CodeNotYourTurn, Message: err.Error()}
+	}
+	slog.Error("session: request failed", "err", err)
+	return protocol.ErrorBody{Code: protocol.CodeInternal, Message: internalErrorMessage}
 }
 
 func errorEnvelope(id *protocol.RequestID, body protocol.ErrorBody) protocol.Envelope {

@@ -3,7 +3,6 @@ package room
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -17,11 +16,10 @@ import (
 )
 
 var (
-	ErrStale      = errors.New("room: stale seq")
-	ErrNotAPlayer = errors.New("room: not a player in this game")
+	ErrStale      = protocol.Error{Code: protocol.CodeStale, Msg: "room: stale seq"}
+	ErrNotAPlayer = protocol.Error{Code: protocol.CodeNotFound, Msg: "room: not a player in this game"}
+	errGameOver   = protocol.Error{Code: protocol.CodeIllegalAction, Msg: "game is over"}
 )
-
-var errGameOver = game.IllegalActionError{Msg: "game is over"}
 
 type Persister interface {
 	AppendStep(ctx context.Context, id game.GameID, step store.StepRecord) error

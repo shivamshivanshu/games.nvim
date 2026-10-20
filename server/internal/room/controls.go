@@ -2,7 +2,6 @@ package room
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 
 	"games.nvim/server/game"
@@ -35,10 +34,10 @@ func (s roomState) controls(g setup, user game.UserID) []protocol.Control {
 func (s roomState) applyControl(g setup, rec store.StepRecord) (roomState, error) {
 	var c protocol.Control
 	if err := json.Unmarshal(rec.Payload, &c); err != nil {
-		return s, game.BadRequestError{Msg: fmt.Sprintf("malformed control: %v", err)}
+		return s, protocol.BadRequestf("malformed control: %v", err)
 	}
 	if !slices.Contains(s.controls(g, rec.User), c) {
-		return s, game.IllegalActionError{Msg: "control not available: " + string(c)}
+		return s, protocol.Error{Code: protocol.CodeIllegalAction, Msg: "control not available: " + string(c)}
 	}
 	switch c {
 	case protocol.ControlResign:

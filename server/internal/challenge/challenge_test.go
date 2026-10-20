@@ -69,8 +69,8 @@ func (h *harness) create(t *testing.T, to ...game.UserID) protocol.Challenge {
 
 func wantBadRequest(t *testing.T, err error) {
 	t.Helper()
-	if !errors.As(err, &game.BadRequestError{}) {
-		t.Fatalf("got %v, want BadRequestError", err)
+	if e, ok := errors.AsType[protocol.Error](err); !ok || e.Code != protocol.CodeBadRequest {
+		t.Fatalf("got %v, want bad_request", err)
 	}
 }
 

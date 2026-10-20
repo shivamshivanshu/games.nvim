@@ -3,7 +3,6 @@ package hub
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"games.nvim/server/game"
 	"games.nvim/server/internal/auth"
@@ -14,8 +13,8 @@ import (
 )
 
 var (
-	errInvalidCredentials = fmt.Errorf("%w: invalid credentials", session.ErrAuthFailed)
-	errLockedOut          = fmt.Errorf("%w: locked out, retry later", session.ErrAuthFailed)
+	errInvalidCredentials = protocol.Error{Code: protocol.CodeAuthFailed, Msg: "authentication failed: invalid credentials"}
+	errLockedOut          = protocol.Error{Code: protocol.CodeAuthFailed, Msg: "authentication failed: locked out, retry later"}
 )
 
 func (h *Hub) Login() session.Authenticator { return h.login }
@@ -37,18 +36,18 @@ func (h *Hub) login(ctx context.Context, s *session.Session, req protocol.LoginR
 
 func (h *Hub) Routes() session.Router {
 	return session.Router{
-		protocol.TypeCatalogList:      session.Handle(h.catalog),
-		protocol.TypeUserList:         session.Handle(h.users),
-		protocol.TypeChallengeCreate:  session.Handle(h.createChallenge),
+		protocol.TypeCatalogList:      handle(h.catalog),
+		protocol.TypeUserList:         handle(h.users),
+		protocol.TypeChallengeCreate:  handle(h.createChallenge),
 		protocol.TypeChallengeAccept:  resolveChallenge(h.challenges.Accept),
 		protocol.TypeChallengeDecline: resolveChallenge(h.challenges.Decline),
 		protocol.TypeChallengeCancel:  resolveChallenge(h.challenges.Cancel),
-		protocol.TypeChallengeList:    session.Handle(h.pendingChallenges),
-		protocol.TypeGameList:         session.Handle(h.listGames),
-		protocol.TypeGameSnapshot:     session.Handle(h.gameSnapshot),
-		protocol.TypeGameAct:          session.Handle(h.act),
-		protocol.TypeGameControl:      session.Handle(h.control),
-		protocol.TypeStatsGet:         session.Handle(h.stats),
+		protocol.TypeChallengeList:    handle(h.pendingChallenges),
+		protocol.TypeGameList:         handle(h.listGames),
+		protocol.TypeGameSnapshot:     handle(h.gameSnapshot),
+		protocol.TypeGameAct:          handle(h.act),
+		protocol.TypeGameControl:      handle(h.control),
+		protocol.TypeStatsGet:         handle(h.stats),
 	}
 }
 
@@ -79,7 +78,7 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 			return protocol.ChallengeCreateResult{}, err
 		}
 		if !exists {
-			return protocol.ChallengeCreateResult{}, game.BadRequestError{Msg: fmt.Sprintf("unknown user %q", user)}
+			return protocol.ChallengeCreateResult{}, protocol.BadRequestf("unknown user %q", user)
 		}
 	}
 	opts, err := g.ResolveOptions(req.Options)
@@ -93,8 +92,20 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 	return protocol.ChallengeCreateResult{ChallengeID: c.ChallengeID}, nil
 }
 
+// handle reports the store's not-found as the client's not_found, so session
+// need not know the store.
+func handle[Req, Resp any](fn func(ctx context.Context, s *session.Session, req Req) (Resp, error)) session.Handler {
+	return session.Handle(func(ctx context.Context, s *session.Session, req Req) (Resp, error) {
+		resp, err := fn(ctx, s, req)
+		if errors.Is(err, store.ErrNotFound) {
+			return resp, protocol.Error{Code: protocol.CodeNotFound, Msg: err.Error()}
+		}
+		return resp, err
+	})
+}
+
 func resolveChallenge(resolve func(protocol.ChallengeID, game.UserID) error) session.Handler {
-	return session.Handle(func(_ context.Context, s *session.Session, req protocol.ChallengeRef) (protocol.Empty, error) {
+	return handle(func(_ context.Context, s *session.Session, req protocol.ChallengeRef) (protocol.Empty, error) {
 		return protocol.Empty{}, resolve(req.ChallengeID, s.User())
 	})
 }
@@ -112,7 +123,7 @@ func (h *Hub) listGames(ctx context.Context, s *session.Session, req protocol.Ga
 	case protocol.StatusFinished:
 		games, err = h.finishedGames(ctx, s.User())
 	default:
-		err = game.BadRequestError{Msg: fmt.Sprintf("unknown game status %q", req.Status)}
+		err = protocol.BadRequestf("unknown game status %q", req.Status)
 	}
 	return protocol.GameListResult{Games: games}, err
 }

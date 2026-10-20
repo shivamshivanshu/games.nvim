@@ -149,17 +149,20 @@ func (s *Session) dispatch(ctx context.Context, env protocol.Envelope) (any, err
 	}
 	handler, ok := s.cfg.routes[env.Type]
 	if !ok {
-		return nil, game.BadRequestError{Msg: fmt.Sprintf("unknown message type %q", env.Type)}
+		return nil, protocol.BadRequestf("unknown message type %q", env.Type)
 	}
 	return handler(ctx, s, env.Body)
 }
 
 func login(ctx context.Context, s *Session, req protocol.LoginRequest) (protocol.LoginResult, error) {
 	if s.authenticated() {
-		return protocol.LoginResult{}, game.BadRequestError{Msg: "already logged in"}
+		return protocol.LoginResult{}, protocol.BadRequestf("already logged in")
 	}
 	if req.V != protocol.Version {
-		return protocol.LoginResult{}, fmt.Errorf("%w: client v%d, server v%d", errVersionMismatch, req.V, protocol.Version)
+		return protocol.LoginResult{}, protocol.Error{
+			Code: protocol.CodeVersionMismatch,
+			Msg:  fmt.Sprintf("protocol version mismatch: client v%d, server v%d", req.V, protocol.Version),
+		}
 	}
 	res, err := s.cfg.login(ctx, s, req)
 	if err != nil {

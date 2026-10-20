@@ -175,6 +175,11 @@ func (h *harness) snapshot(t *testing.T, user game.UserID) protocol.GameUpdate {
 	return u
 }
 
+func isCode(err error, code protocol.ErrorCode) bool {
+	e, ok := errors.AsType[protocol.Error](err)
+	return ok && e.Code == code
+}
+
 func waitDone(t *testing.T, r *Room) {
 	t.Helper()
 	select {
@@ -295,9 +300,8 @@ func TestAbortWindow(t *testing.T) {
 	if controls := h.snapshot(t, alice).Controls; slices.Contains(controls, protocol.ControlAbort) {
 		t.Fatalf("abort still offered after both moved: %v", controls)
 	}
-	var illegal game.IllegalActionError
-	if _, err := h.room.Control(context.Background(), alice, seq+1, protocol.ControlAbort); !errors.As(err, &illegal) {
-		t.Fatalf("want IllegalActionError, got %v", err)
+	if _, err := h.room.Control(context.Background(), alice, seq+1, protocol.ControlAbort); !isCode(err, protocol.CodeIllegalAction) {
+		t.Fatalf("want illegal_action, got %v", err)
 	}
 
 	early := newHarness(t, chess.TimeControl10Plus5)

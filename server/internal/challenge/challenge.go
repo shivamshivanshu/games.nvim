@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -93,7 +92,7 @@ func (r *Registry) Cancel(id protocol.ChallengeID, by game.UserID) error {
 			return nil, unknownChallenge(id)
 		}
 		if by != c.From {
-			return nil, game.BadRequestError{Msg: "only the challenger can cancel a challenge"}
+			return nil, protocol.BadRequestf("only the challenger can cancel a challenge")
 		}
 		return r.closeLocked(c, protocol.ChallengeCancelled, &by), nil
 	}))
@@ -176,7 +175,7 @@ func (r *Registry) invitedLocked(id protocol.ChallengeID, user game.UserID) (*pe
 		return nil, unknownChallenge(id)
 	}
 	if !slices.Contains(c.To, user) {
-		return nil, game.BadRequestError{Msg: "you are not invited to this challenge"}
+		return nil, protocol.BadRequestf("you are not invited to this challenge")
 	}
 	return c, nil
 }
@@ -201,18 +200,18 @@ func (c *pendingChallenge) snapshot() protocol.Challenge {
 
 func validateInvitees(from game.UserID, to []game.UserID, players game.PlayerRange) error {
 	if len(to) == 0 {
-		return game.BadRequestError{Msg: "challenge needs at least one opponent"}
+		return protocol.BadRequestf("challenge needs at least one opponent")
 	}
 	if n := len(to) + 1; n < players.Min || n > players.Max {
-		return game.BadRequestError{Msg: fmt.Sprintf("this game takes %d to %d players, got %d", players.Min, players.Max, n)}
+		return protocol.BadRequestf("this game takes %d to %d players, got %d", players.Min, players.Max, n)
 	}
 	seen := map[game.UserID]bool{from: true}
 	for _, u := range to {
 		if u == from {
-			return game.BadRequestError{Msg: "you cannot challenge yourself"}
+			return protocol.BadRequestf("you cannot challenge yourself")
 		}
 		if seen[u] {
-			return game.BadRequestError{Msg: fmt.Sprintf("%s is invited twice", u)}
+			return protocol.BadRequestf("%s is invited twice", u)
 		}
 		seen[u] = true
 	}
@@ -220,7 +219,7 @@ func validateInvitees(from game.UserID, to []game.UserID, players game.PlayerRan
 }
 
 func unknownChallenge(id protocol.ChallengeID) error {
-	return game.BadRequestError{Msg: fmt.Sprintf("no pending challenge %s", id)}
+	return protocol.BadRequestf("no pending challenge %s", id)
 }
 
 func newID() protocol.ChallengeID {

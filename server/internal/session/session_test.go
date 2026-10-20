@@ -18,7 +18,6 @@ import (
 	"games.nvim/server/internal/protocol"
 	"games.nvim/server/internal/room"
 	"games.nvim/server/internal/session"
-	"games.nvim/server/internal/store"
 )
 
 const (
@@ -42,7 +41,7 @@ func echo(_ context.Context, _ *session.Session, req echoReq) (echoResp, error) 
 
 func stubLogin(_ context.Context, _ *session.Session, req protocol.LoginRequest) (protocol.LoginResult, error) {
 	if req.Password != testPassword {
-		return protocol.LoginResult{}, fmt.Errorf("%w: wrong password", session.ErrAuthFailed)
+		return protocol.LoginResult{}, protocol.Error{Code: protocol.CodeAuthFailed, Msg: "authentication failed: wrong password"}
 	}
 	return protocol.LoginResult{User: req.Username}, nil
 }
@@ -272,7 +271,7 @@ func TestErrorsMapToCodes(t *testing.T) {
 		{fmt.Errorf("wrapped: %w", game.IllegalActionError{Msg: "illegal"}), protocol.CodeIllegalAction},
 		{fmt.Errorf("wrapped: %w", game.ErrNotYourTurn), protocol.CodeNotYourTurn},
 		{fmt.Errorf("wrapped: %w", room.ErrStale), protocol.CodeStale},
-		{fmt.Errorf("wrapped: %w", store.ErrNotFound), protocol.CodeNotFound},
+		{fmt.Errorf("wrapped: %w", protocol.Error{Code: protocol.CodeNotFound, Msg: "gone"}), protocol.CodeNotFound},
 		{room.ErrNotAPlayer, protocol.CodeNotFound},
 		{context.Canceled, protocol.CodeInternal},
 		{errors.New("db exploded at /var/lib/games.db"), protocol.CodeInternal},

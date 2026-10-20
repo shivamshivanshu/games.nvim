@@ -274,7 +274,7 @@ func (h *Hub) replayedSnapshot(ctx context.Context, id game.GameID, user game.Us
 func (h *Hub) gameType(t game.GameType) (game.Game, error) {
 	g, ok := h.gameTypes[t]
 	if !ok {
-		return nil, game.BadRequestError{Msg: fmt.Sprintf("unknown game %q", t)}
+		return nil, protocol.BadRequestf("unknown game %q", t)
 	}
 	return g, nil
 }

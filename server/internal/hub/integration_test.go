@@ -344,6 +344,15 @@ func TestChallengeUnknownUser(t *testing.T) {
 	wantCode(t, err, protocol.CodeBadRequest)
 }
 
+func TestUnknownGameIsNotFound(t *testing.T) {
+	t.Parallel()
+	a := newEnv(t).start(t).login(t, alice)
+	_, err := a.Request(protocol.TypeGameSnapshot, protocol.GameSnapshotRequest{GameID: "nope"})
+	wantCode(t, err, protocol.CodeNotFound)
+	_, err = a.Request(protocol.TypeGameAct, protocol.GameActRequest{GameID: "nope"})
+	wantCode(t, err, protocol.CodeNotFound)
+}
+
 func TestWrongPasswordAndLockout(t *testing.T) {
 	t.Parallel()
 	c := dial(t, newEnv(t).start(t).addr)
