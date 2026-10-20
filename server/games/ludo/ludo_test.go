@@ -6,6 +6,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -139,7 +140,7 @@ func TestThreePlayers(t *testing.T) {
 			if diff := cmp.Diff(tt.wantMovable, movable); diff != "" {
 				t.Fatalf("movable (-want +got):\n%s", diff)
 			}
-			next, events := mustApply(t, s, Action{Kind: ActionMove, Token: movable[len(movable)-1]}, nil)
+			next, events := mustApply(t, s, moveToken(movable[len(movable)-1]), nil)
 			if diff := cmp.Diff(tt.wantEvents, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
@@ -164,7 +165,7 @@ func TestEliminatingASeatNotToActKeepsTheTurn(t *testing.T) {
 	if _, ok := view.Progress[SeatRed]; ok {
 		t.Error("red's tokens remain on the board")
 	}
-	if after, _ := mustApply(t, next, Action{Kind: ActionMove, Token: 1}, nil); after.turn != SeatYellow {
+	if after, _ := mustApply(t, next, moveToken(1), nil); after.turn != SeatYellow {
 		t.Errorf("turn after blue's move is %s, want yellow, skipping red", after.turn)
 	}
 }
@@ -235,7 +236,7 @@ func TestRoll(t *testing.T) {
 			if diff := cmp.Diff(tt.wantEvents, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
-			view := next.View(SeatYellow)
+			view := next.View(SeatBlue)
 			got := []any{next.turn, view.Phase, view.SixesInRow, view.Movable, view.LastRoll}
 			want := []any{tt.wantTurn, tt.wantPhase, tt.wantSixes, tt.wantMovable, tt.roll}
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -249,7 +250,7 @@ func TestForfeitKeepsMovesMadeWithEarlierSixes(t *testing.T) {
 	s := position(SeatBlue, 0, map[game.Seat]Tokens{SeatBlue: inBase(), SeatYellow: inBase()})
 	for range 2 {
 		s, _ = mustApply(t, s, Action{Kind: ActionRoll}, rngRolling(t, 6))
-		s, _ = mustApply(t, s, Action{Kind: ActionMove, Token: 1}, nil)
+		s, _ = mustApply(t, s, moveToken(1), nil)
 	}
 	s, _ = mustApply(t, s, Action{Kind: ActionRoll}, rngRolling(t, 6))
 	if s.turn != SeatYellow || s.tokens[SeatBlue] != (Tokens{6, out, out, out}) {
@@ -339,7 +340,7 @@ func TestMove(t *testing.T) {
 				mover = SeatBlue
 			}
 			s := position(mover, tt.roll, map[game.Seat]Tokens{SeatBlue: tt.blue, SeatYellow: tt.yellow})
-			next, events := mustApply(t, s, Action{Kind: ActionMove, Token: tt.token}, nil)
+			next, events := mustApply(t, s, moveToken(tt.token), nil)
 			if diff := cmp.Diff(tt.wantEvents, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
@@ -356,7 +357,7 @@ func TestMove(t *testing.T) {
 
 func TestLastTokenHomeWins(t *testing.T) {
 	s := position(SeatYellow, 3, map[game.Seat]Tokens{SeatBlue: inBase(), SeatYellow: {home, home, home, 53}})
-	next, _ := mustApply(t, s, Action{Kind: ActionMove, Token: 4}, nil)
+	next, _ := mustApply(t, s, moveToken(4), nil)
 	result, finished := next.Outcome()
 	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatYellow}, Reason: ReasonAllHome}
 	if diff := cmp.Diff(want, result); !finished || diff != "" {
@@ -379,13 +380,14 @@ func TestIllegalActions(t *testing.T) {
 		wantMsg string
 	}{
 		{"roll while a move is due", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionRoll}, "move a token first"},
-		{"move before rolling", rolled(0, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove, Token: 1}, "roll first"},
-		{"token out of range", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove, Token: 5}, "token must be 1 to 4, got 5"},
-		{"missing token", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove}, "token must be 1 to 4, got 0"},
-		{"leave base without a six", rolled(3, Tokens{out, 4, out, out}, inBase()), SeatBlue, Action{Kind: ActionMove, Token: 1}, "token 1 cannot move 3"},
-		{"overshoot home", rolled(4, Tokens{53, 4, out, out}, inBase()), SeatBlue, Action{Kind: ActionMove, Token: 1}, "token 1 cannot move 4"},
-		{"move a finished token", rolled(1, Tokens{home, 4, out, out}, inBase()), SeatBlue, Action{Kind: ActionMove, Token: 1}, "token 1 cannot move 1"},
-		{"land on an opponent pair", rolled(3, Tokens{2, 4, out, out}, Tokens{31, 31, out, out}), SeatBlue, Action{Kind: ActionMove, Token: 1}, "token 1 cannot move 3"},
+		{"move before rolling", rolled(0, inBase(), inBase()), SeatBlue, moveToken(1), "roll first"},
+		{"token out of range", rolled(6, inBase(), inBase()), SeatBlue, moveToken(5), `token must be 1 to 4, got "5"`},
+		{"missing token", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove}, `token must be 1 to 4, got ""`},
+		{"token not a number", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove, Token: "two"}, `token must be 1 to 4, got "two"`},
+		{"leave base without a six", rolled(3, Tokens{out, 4, out, out}, inBase()), SeatBlue, moveToken(1), "token 1 cannot move 3"},
+		{"overshoot home", rolled(4, Tokens{53, 4, out, out}, inBase()), SeatBlue, moveToken(1), "token 1 cannot move 4"},
+		{"move a finished token", rolled(1, Tokens{home, 4, out, out}, inBase()), SeatBlue, moveToken(1), "token 1 cannot move 1"},
+		{"land on an opponent pair", rolled(3, Tokens{2, 4, out, out}, Tokens{31, 31, out, out}), SeatBlue, moveToken(1), "token 1 cannot move 3"},
 		{"unknown kind", rolled(0, inBase(), inBase()), SeatBlue, Action{Kind: "jump"}, "unknown action: jump"},
 	}
 	for _, tt := range tests {
@@ -451,8 +453,8 @@ func TestApplyAndEliminateLeaveTheEarlierStateUnchanged(t *testing.T) {
 		step func(state)
 	}{
 		{"six roll", position(SeatBlue, 0, board), func(s state) { mustApply(t, s, Action{Kind: ActionRoll}, rngRolling(t, 6)) }},
-		{"capturing move", position(SeatBlue, 3, board), func(s state) { mustApply(t, s, Action{Kind: ActionMove, Token: 1}, nil) }},
-		{"winning move", position(SeatRed, 1, board), func(s state) { mustApply(t, s, Action{Kind: ActionMove, Token: 4}, nil) }},
+		{"capturing move", position(SeatBlue, 3, board), func(s state) { mustApply(t, s, moveToken(1), nil) }},
+		{"winning move", position(SeatRed, 1, board), func(s state) { mustApply(t, s, moveToken(4), nil) }},
 		{"eliminate", position(SeatBlue, 3, board), func(s state) { s.Eliminate(SeatBlue, game.ReasonResign) }},
 	}
 	for _, tt := range tests {
@@ -486,5 +488,44 @@ func TestEveryTimeControlStartsAGame(t *testing.T) {
 				t.Errorf("New: seats %v, %v", seats, err)
 			}
 		})
+	}
+}
+
+func moveToken(token Token) Action {
+	return Action{Kind: ActionMove, Token: strconv.Itoa(int(token))}
+}
+
+func TestViewOffersMovesAndRollsOnlyToTheSeatToAct(t *testing.T) {
+	tokens := map[game.Seat]Tokens{SeatBlue: {3, out, out, out}, SeatYellow: inBase()}
+	tests := []struct {
+		name        string
+		s           state
+		viewer      game.Seat
+		wantMovable []Token
+		wantCanRoll bool
+	}{
+		{"roller before the roll", position(SeatBlue, 0, tokens), SeatBlue, []Token{}, true},
+		{"opponent before the roll", position(SeatBlue, 0, tokens), SeatYellow, []Token{}, false},
+		{"mover after a six", position(SeatBlue, 6, tokens), SeatBlue, []Token{1, 2, 3, 4}, false},
+		{"opponent after a six", position(SeatBlue, 6, tokens), SeatYellow, []Token{}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			view := tt.s.View(tt.viewer)
+			if !slices.Equal(view.Movable, tt.wantMovable) || view.CanRoll != tt.wantCanRoll {
+				t.Errorf("movable %v can_roll %t, want %v %t", view.Movable, view.CanRoll, tt.wantMovable, tt.wantCanRoll)
+			}
+		})
+	}
+}
+
+func TestConcludeStopsOfferingMoves(t *testing.T) {
+	s := position(SeatBlue, 6, map[game.Seat]Tokens{SeatBlue: inBase(), SeatYellow: inBase()})
+	aborted := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
+	next := s.Conclude(aborted)
+	result, finished := next.Outcome()
+	view := next.View(SeatBlue)
+	if !finished || result.Kind != game.ResultAborted || len(next.ToAct()) != 0 || view.Phase != PhaseFinished || len(view.Movable) != 0 || view.CanRoll {
+		t.Errorf("concluded: finished %t result %+v to_act %v view %+v; want an aborted game offering nothing", finished, result, next.ToAct(), view)
 	}
 }

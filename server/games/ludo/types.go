@@ -35,25 +35,24 @@ const (
 	PhaseFinished Phase = "finished"
 )
 
-// ActionKind names an Action.
-type ActionKind string
-
 // The action kinds.
 const (
-	ActionRoll ActionKind = "roll"
-	ActionMove ActionKind = "move"
+	ActionRoll game.ActionKind = "roll"
+	ActionMove game.ActionKind = "move"
 )
 
-// Action is a roll, or a move of Token by the last roll.
+// Action is a roll, or a move of the token numbered Token by the last roll.
 type Action struct {
-	Kind  ActionKind `json:"kind"`
-	Token Token      `json:"token,omitempty"`
+	Kind  game.ActionKind `json:"kind"`
+	Token string          `json:"token,omitempty"`
 }
 
 // Tokens is one seat's token progress, indexed by Token-1.
 type Tokens [TokensPerSeat]Progress
 
-// View is the whole board, the same for every seat. Starts maps each seat to its start square on the track.
+// View is the board as one seat sees it. Starts maps each seat to its start
+// square on the track; Movable and CanRoll are the viewer's own, empty and
+// false unless it is the viewer's turn.
 type View struct {
 	Starts     map[game.Seat]int    `json:"starts"`
 	Progress   map[game.Seat]Tokens `json:"progress"`
@@ -61,6 +60,7 @@ type View struct {
 	SixesInRow int                  `json:"sixes_in_row"`
 	Phase      Phase                `json:"phase"`
 	Movable    []Token              `json:"movable"`
+	CanRoll    bool                 `json:"can_roll"`
 }
 
 // ReasonAllHome ends the game when a seat brings its last token home.

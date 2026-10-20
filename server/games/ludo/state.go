@@ -5,6 +5,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"slices"
+	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
@@ -71,12 +72,21 @@ func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event
 	return next, events, nil
 }
 
-func (s state) applyMove(token Token) (game.State[Action, View], []game.Event, error) {
+func parseToken(text string) (Token, error) {
+	n, err := strconv.Atoi(text)
+	if err != nil || n < 1 || n > TokensPerSeat {
+		return 0, game.IllegalActionError{Msg: fmt.Sprintf("token must be 1 to %d, got %q", TokensPerSeat, text)}
+	}
+	return Token(n), nil
+}
+
+func (s state) applyMove(text string) (game.State[Action, View], []game.Event, error) {
 	if s.phase != PhaseMove {
 		return nil, nil, game.IllegalActionError{Msg: "roll first"}
 	}
-	if token < 1 || token > TokensPerSeat {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("token must be 1 to %d, got %d", TokensPerSeat, token)}
+	token, err := parseToken(text)
+	if err != nil {
+		return nil, nil, err
 	}
 	if !slices.Contains(s.movable(), token) {
 		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("token %d cannot move %d", token, s.lastRoll)}
@@ -181,9 +191,10 @@ func allHome(tokens Tokens) bool {
 	return !slices.ContainsFunc(tokens[:], func(p Progress) bool { return p != ProgressHome })
 }
 
-func (s state) View(game.Seat) View {
+func (s state) View(viewer game.Seat) View {
+	toAct := viewer == s.turn && !s.finished
 	movable := []Token{}
-	if s.phase == PhaseMove {
+	if toAct && s.phase == PhaseMove {
 		movable = s.movable()
 	}
 	starts := make(map[game.Seat]int, len(s.order))
@@ -197,6 +208,7 @@ func (s state) View(game.Seat) View {
 		SixesInRow: s.sixes,
 		Phase:      s.phase,
 		Movable:    movable,
+		CanRoll:    toAct && s.phase == PhaseRoll,
 	}
 }
 
@@ -208,6 +220,14 @@ func (s state) ToAct() []game.Seat {
 }
 
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
+
+// Conclude takes a result the core imposed, such as an abort.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
+	if s.finished {
+		return s
+	}
+	return s.finish(result)
+}
 
 // Eliminate removes the seat and its tokens; the last seat standing wins.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {

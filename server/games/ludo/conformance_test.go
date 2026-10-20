@@ -20,7 +20,7 @@ func firstChoice(v View) Action {
 	if v.Phase == PhaseRoll {
 		return Action{Kind: ActionRoll}
 	}
-	return Action{Kind: ActionMove, Token: v.Movable[0]}
+	return moveToken(v.Movable[0])
 }
 
 // playToFinish plays firstChoice for every seat with the rng each step would get in the server.

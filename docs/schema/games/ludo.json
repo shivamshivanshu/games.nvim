@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "token": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is a roll, or a move of the token numbered Token by the last roll."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "roll",
+        "move"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "CapturedEvent": {
+      "properties": {
+        "kind": {
+          "const": "captured"
+        },
+        "by": {
+          "type": "string"
+        },
+        "victim": {
+          "type": "string"
+        },
+        "token": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "victim",
+        "token"
+      ],
+      "description": "CapturedEvent reports a victim's token sent back to base by the mover."
+    },
+    "ForfeitedEvent": {
+      "properties": {
+        "kind": {
+          "const": "forfeited"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "ForfeitedEvent means a third six in a row ended the turn."
+    },
+    "MovedEvent": {
+      "properties": {
+        "kind": {
+          "const": "moved"
+        },
+        "by": {
+          "type": "string"
+        },
+        "token": {
+          "type": "integer"
+        },
+        "from": {
+          "type": "integer"
+        },
+        "to": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "token",
+        "from",
+        "to"
+      ],
+      "description": "MovedEvent reports a token moving along its route."
+    },
+    "PassedEvent": {
+      "properties": {
+        "kind": {
+          "const": "passed"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "PassedEvent means the roll left no token able to move."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "all_home"
+      ],
+      "description": "The result reasons Ludo adds to the core's."
+    },
+    "RolledEvent": {
+      "properties": {
+        "kind": {
+          "const": "rolled"
+        },
+        "by": {
+          "type": "string"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "value"
+      ],
+      "description": "RolledEvent reports a die throw."
+    },
+    "Tokens": {
+      "items": {
+        "type": "integer"
+      },
+      "type": "array",
+      "maxItems": 4,
+      "minItems": 4,
+      "description": "Tokens is one seat's token progress, indexed by Token-1."
+    },
+    "View": {
+      "properties": {
+        "starts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "progress": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Tokens"
+          },
+          "type": "object"
+        },
+        "last_roll": {
+          "type": "integer"
+        },
+        "sixes_in_row": {
+          "type": "integer"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "movable": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "can_roll": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "starts",
+        "progress",
+        "last_roll",
+        "sixes_in_row",
+        "phase",
+        "movable",
+        "can_roll"
+      ],
+      "description": "View is the board as one seat sees it. Starts maps each seat to its start\nsquare on the track; Movable and CanRoll are the viewer's own, empty and\nfalse unless it is the viewer's turn."
+    }
+  },
+  "title": "Ludo",
+  "description": "The game-specific bodies inside a ludo game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "captured": {
+      "$ref": "#/$defs/CapturedEvent"
+    },
+    "forfeited": {
+      "$ref": "#/$defs/ForfeitedEvent"
+    },
+    "moved": {
+      "$ref": "#/$defs/MovedEvent"
+    },
+    "passed": {
+      "$ref": "#/$defs/PassedEvent"
+    },
+    "rolled": {
+      "$ref": "#/$defs/RolledEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
