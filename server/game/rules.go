@@ -20,6 +20,12 @@ type State[Action, View any] interface {
 	Eliminate(seat Seat, reason ResultReason) (State[Action, View], []Event)
 }
 
+// Scorer is optionally implemented by a finished state to report each seat's
+// score, such as a chip delta, in place of the core's win/draw/loss default.
+type Scorer interface {
+	Scores() map[Seat]int64
+}
+
 // Game is the type-erased side the server core uses.
 type Game interface {
 	Info() Info
@@ -33,6 +39,7 @@ type ErasedState interface {
 	ToAct() []Seat
 	Outcome() (Result, bool)
 	Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error)
+	Scores() (map[Seat]int64, bool)
 }
 
 func ForfeitToRemaining(all []Seat, eliminated Seat, reason ResultReason) Result {

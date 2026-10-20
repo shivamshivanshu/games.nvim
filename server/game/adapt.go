@@ -87,6 +87,14 @@ func (e erased[Action, View]) View(seat Seat) (json.RawMessage, error) {
 func (e erased[Action, View]) ToAct() []Seat           { return e.state.ToAct() }
 func (e erased[Action, View]) Outcome() (Result, bool) { return e.state.Outcome() }
 
+func (e erased[Action, View]) Scores() (map[Seat]int64, bool) {
+	scorer, ok := e.state.(Scorer)
+	if !ok {
+		return nil, false
+	}
+	return scorer.Scores(), true
+}
+
 func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error) {
 	next, events := e.state.Eliminate(seat, reason)
 	return erasedWithEvents(next, events)
