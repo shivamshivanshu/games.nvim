@@ -212,6 +212,8 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 
 Chess move input is case-insensitive (`nf3`, `o-o`); the capital `B` is needed only when `bxc4` could be a bishop or a b-pawn.
 
+After each chess player's clock, the header shows the material that side is up, as the opponent's pieces (P1 N3 B3 R5 Q9, kings not counted), then `+N` for the side ahead; even trades cancel.
+
 ## Adding a game
 
 No core edits.
