@@ -148,6 +148,18 @@ func TestClockStoredAsMillisecondsOrNull(t *testing.T) {
 	}
 }
 
+func TestCreateUserRefusesNamesWithHiddenCharacters(t *testing.T) {
+	s := storetest.Open(t, passwordHash)
+	for _, name := range []game.UserID{"", "ev\nil", "a\x00b", "bi\u202edi"} {
+		if err := s.CreateUser(t.Context(), name, passwordHash); err == nil {
+			t.Errorf("created user %q", name)
+		}
+	}
+	if err := s.CreateUser(t.Context(), "zoë", passwordHash); err != nil {
+		t.Errorf("refused a plain name: %v", err)
+	}
+}
+
 func TestReopenKeepsOngoingGames(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "games.db")

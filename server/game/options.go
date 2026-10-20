@@ -48,15 +48,15 @@ func (s OptionSpec) checkText(value OptionValue) error {
 	if len(value) > s.MaxLen {
 		return BadRequestError{Msg: fmt.Sprintf("option %q: %d bytes, want at most %d", s.Name, len(value), s.MaxLen)}
 	}
-	if strings.ContainsFunc(string(value), isHiddenRune) {
+	if strings.ContainsFunc(string(value), IsHiddenRune) {
 		return BadRequestError{Msg: fmt.Sprintf("option %q: control and format characters are not allowed", s.Name)}
 	}
 	return nil
 }
 
-// isHiddenRune covers controls and format characters such as bidi overrides
+// IsHiddenRune covers controls and format characters such as bidi overrides
 // and zero-width joiners, which would make text display differently than it reads.
-func isHiddenRune(r rune) bool {
+func IsHiddenRune(r rune) bool {
 	return unicode.IsControl(r) || unicode.Is(unicode.Cf, r)
 }
 

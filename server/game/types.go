@@ -1,6 +1,7 @@
 package game
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -18,6 +19,19 @@ type (
 	Seq        uint64
 	Seed       uint64
 )
+
+// CheckUserID rejects an empty name, or one with control or format characters,
+// which would display differently than it reads or break the text it is
+// written into, such as a PGN tag.
+func CheckUserID(u UserID) error {
+	switch {
+	case u == "":
+		return errors.New("user name must not be empty")
+	case strings.ContainsFunc(string(u), IsHiddenRune):
+		return fmt.Errorf("user name %q has control or format characters", u)
+	}
+	return nil
+}
 
 // Digest is the lowercase hex SHA-256 of a finished game's summary bytes.
 type Digest string

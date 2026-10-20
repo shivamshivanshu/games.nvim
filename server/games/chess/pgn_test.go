@@ -101,7 +101,9 @@ func TestPGNWrapsLongMovetext(t *testing.T) {
 func TestPGNEscapesTagValues(t *testing.T) {
 	ctx := exportContext(game.Result{Kind: game.ResultAborted})
 	ctx.Players[0].User = `a"b\c`
-	if text := buildPGN(mustFEN(t, StartFEN), nil, ctx); !strings.Contains(text, `[White "a\"b\\c"]`) {
+	ctx.Players[1].User = "b\no]\x00b\u202e"
+	text := buildPGN(mustFEN(t, StartFEN), nil, ctx)
+	if !strings.Contains(text, `[White "a\"b\\c"]`) || !strings.Contains(text, `[Black "bo]b"]`) {
 		t.Errorf("unescaped tag in\n%s", text)
 	}
 }

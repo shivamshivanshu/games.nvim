@@ -33,6 +33,9 @@ func addUser(args []string, stdin io.Reader) error {
 		return errUsage
 	}
 	name := game.UserID(fs.Arg(0))
+	if err := game.CheckUserID(name); err != nil {
+		return err
+	}
 
 	ctx := context.Background()
 	st, err := store.Open(ctx, *dbPath)

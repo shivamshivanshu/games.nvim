@@ -70,8 +70,16 @@ func pgnResultOf(r game.Result) pgnResult {
 
 var pgnEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
 
+// pgnTag drops control and format characters, which no tag value may hold,
+// and escapes the rest.
 func pgnTag(name, value string) string {
-	return "[" + name + ` "` + pgnEscaper.Replace(value) + `"]`
+	visible := strings.Map(func(r rune) rune {
+		if game.IsHiddenRune(r) {
+			return -1
+		}
+		return r
+	}, value)
+	return "[" + name + ` "` + pgnEscaper.Replace(visible) + `"]`
 }
 
 func userAt(players []game.Player, seat game.Seat) string {

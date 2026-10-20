@@ -144,7 +144,11 @@ func (s *Store) Close() error {
 	return errors.Join(s.reader.Close(), s.writer.Close())
 }
 
+// CreateUser refuses a name game.CheckUserID rejects.
 func (s *Store) CreateUser(ctx context.Context, user game.UserID, passwordHash []byte) error {
+	if err := game.CheckUserID(user); err != nil {
+		return err
+	}
 	_, err := s.writer.ExecContext(ctx,
 		`INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)`,
 		user, passwordHash, time.Now().UnixMilli())
