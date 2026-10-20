@@ -101,7 +101,7 @@ function Conn.new(opts)
     },
     pending = {},
     next_id = 1,
-    handlers = vim.defaulttable(),
+    handlers = {},
     auto_reconnect = false,
     backoff_ms = RECONNECT_MIN_MS,
   }, Conn)
@@ -140,6 +140,7 @@ end
 ---@overload fun(self: games.Conn, event: "challenge.changed", fn: fun(challenge: games.Challenge))
 ---@overload fun(self: games.Conn, event: "game.update", fn: fun(update: games.GameUpdate))
 function Conn:on(event, fn)
+  self.handlers[event] = self.handlers[event] or {}
   table.insert(self.handlers[event], fn)
 end
 
@@ -184,7 +185,7 @@ end
 ---@overload fun(self: games.Conn, event: "connected", payload: games.LoginResult)
 ---@overload fun(self: games.Conn, event: "disconnected", payload: games.Disconnect)
 function Conn:emit(event, payload)
-  for _, fn in ipairs(self.handlers[event]) do
+  for _, fn in ipairs(self.handlers[event] or {}) do
     vim.schedule(function()
       fn(payload)
     end)

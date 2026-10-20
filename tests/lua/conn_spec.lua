@@ -16,6 +16,31 @@ function T.frames_split_across_chunks()
   assert(rest == "", rest)
 end
 
+function T.typeless_push_does_not_drop_the_rest_of_the_chunk()
+  local conn = Conn.new({ host = "127.0.0.1", port = 1, username = "alice", password = "pw" })
+  local updates = {}
+  conn:on("game.update", function(update)
+    table.insert(updates, update.game_id)
+  end)
+  local attempt = { buffer = "", idle_ms = 60000, watchdog = assert(vim.uv.new_timer()) }
+  conn.attempt = attempt
+  local ok, err = pcall(
+    conn.receive,
+    conn,
+    attempt,
+    nil,
+    '{"body":{}}\n{"type":"game.update","body":{"game_id":"g1"}}\n'
+  )
+  attempt.watchdog:close()
+  conn.attempt = nil
+
+  assert(ok, err)
+  vim.wait(100, function()
+    return #updates > 0
+  end)
+  assert(vim.deep_equal(updates, { "g1" }), vim.inspect(updates))
+end
+
 function T.wire_body_marks_objects_but_keeps_empty_arrays()
   local frame = vim.json.encode(Conn.wire_body({ to = {}, options = {} }))
   assert(frame:find('"options":{}', 1, true) and frame:find('"to":[]', 1, true), frame)
