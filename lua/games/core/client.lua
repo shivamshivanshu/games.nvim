@@ -12,6 +12,7 @@ local ChallengeState = types.ChallengeState
 ---@field conn games.Conn
 ---@field package user? games.UserID
 ---@field private updates table<games.GameID, games.GameUpdate>
+---@field private received_ms table<games.GameID, integer>
 ---@field private challenges table<games.ChallengeID, games.Challenge>
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
@@ -103,6 +104,7 @@ function Client.new(conn)
   local self = setmetatable({
     conn = conn,
     updates = {},
+    received_ms = {},
     challenges = {},
     update_handlers = {},
     challenge_handlers = {},
@@ -135,6 +137,13 @@ function Client:game(game_id)
   return self.updates[game_id]
 end
 
+---Loop time (`vim.uv.now()`, ms) when the cached update for game_id was stored.
+---@param game_id games.GameID
+---@return integer|nil
+function Client:received_at(game_id)
+  return self.received_ms[game_id]
+end
+
 ---@return games.GameUpdate[]
 function Client:games()
   return vim.tbl_values(self.updates)
@@ -159,6 +168,7 @@ function Client:store(update)
     return
   end
   self.updates[update.game_id] = update
+  self.received_ms[update.game_id] = vim.uv.now()
   for _, fn in ipairs(self.update_handlers) do
     fn(update, cached == nil)
   end

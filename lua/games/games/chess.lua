@@ -2,6 +2,7 @@ local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local movelist = require("games.ui.widgets.movelist")
 local action = require("games.ui.action")
+local players = require("games.core.players")
 
 ---@class games.ChessSquares
 ---@field from string
@@ -110,20 +111,10 @@ local function marks_for(view, pieces)
 end
 
 ---@param update games.GameUpdate
----@param user string
----@return string|nil
-local function seat_of(update, user)
-  local player = vim.iter(update.players):find(function(p)
-    return p.user == user
-  end)
-  return player and player.seat
-end
-
----@param update games.GameUpdate
 ---@param ctx games.LayoutCtx
 ---@return boolean
 local function black_at_bottom(update, ctx)
-  return (seat_of(update, ctx.me) == BLACK) ~= ctx.flipped
+  return (players.seat_of_user(update, ctx.me) == BLACK) ~= ctx.flipped
 end
 
 local M = {}
@@ -164,17 +155,14 @@ M.actions = {
   },
 }
 
----@param event table
+---@param event games.Event
 ---@param update games.GameUpdate
 ---@return string|nil
 function M.describe_event(event, update)
   if event.kind ~= "moved" then
     return nil
   end
-  local player = vim.iter(update.players):find(function(p)
-    return p.seat == event.by
-  end)
-  return ("%s played %s"):format(player and player.user or event.by, event.san)
+  return ("%s played %s"):format(players.user_of_seat(update, event.by) or event.by, event.san)
 end
 
 return M

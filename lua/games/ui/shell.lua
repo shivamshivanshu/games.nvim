@@ -1,52 +1,45 @@
 local compose = require("games.ui.compose")
 local theme = require("games.ui.theme")
+local players = require("games.core.players")
+local types = require("games.types")
+
+local Control = types.Control
 
 ---@class games.ViewOptions per-buffer presentation choices
 ---@field glyphs games.Glyphs
 ---@field flipped boolean perspective toggled away from the player's default
 
 ---@class games.LayoutCtx: games.ViewOptions
----@field me string
+---@field me games.UserID
 
 ---@class games.GameInput
 ---@field prompt string
----@field parse fun(text: string): table action sent with game.act
+---@field parse fun(text: string): games.Action
 
 ---@class games.GameAction
 ---@field key string
 ---@field label string
----@field action? table sent with game.act
+---@field action? games.Action
 ---@field local_fn? fun(view: games.ViewOptions): games.ViewOptions
 
 ---@class games.GameModule
 ---@field layout fun(update: games.GameUpdate, ctx: games.LayoutCtx): games.Node
 ---@field input? games.GameInput
 ---@field actions? games.GameAction[]
----@field describe_event? fun(event: table, update: games.GameUpdate): string|nil
-
----@alias games.ReplyFn fun(err: games.ErrorBody|nil, result: table|nil)
-
----@class games.ShellClient
----@field game fun(self: games.ShellClient, game_id: string): games.GameUpdate|nil
----@field games fun(self: games.ShellClient): games.GameUpdate[]
----@field me fun(self: games.ShellClient): string
----@field on_update fun(self: games.ShellClient, fn: fun(update: games.GameUpdate, is_new: boolean))
----@field game_act fun(self: games.ShellClient, body: table, cb: games.ReplyFn)
----@field game_control fun(self: games.ShellClient, body: table, cb: games.ReplyFn)
+---@field describe_event? fun(event: games.Event, update: games.GameUpdate): string|nil
 
 ---@class games.OpenOptions
 ---@field glyphs? games.Glyphs
 
 ---@class games.Board
 ---@field buf integer
----@field client games.ShellClient
+---@field client games.Client
 ---@field module games.GameModule
----@field me string
+---@field me games.UserID
 ---@field view games.ViewOptions
 ---@field update games.GameUpdate
----@field received_at integer loop time (ms) when `update` arrived
 ---@field header_height integer
----@field mapped_keys string[]
+---@field mapped_keys table<string, true> lhs currently mapped in the buffer
 
 ---@class games.KeyBinding
 ---@field key string
@@ -54,17 +47,17 @@ local theme = require("games.ui.theme")
 ---@field run fun(board: games.Board)
 
 ---@class games.ControlKey
----@field control string
+---@field control games.Control
 ---@field key string
 ---@field label string
 ---@field confirm? string
 
 ---@type games.ControlKey[]
 local CONTROL_KEYS = {
-  { control = "resign", key = "R", label = "resign", confirm = "Resign this game?" },
-  { control = "offer_draw", key = "D", label = "offer draw" },
-  { control = "decline_draw", key = "X", label = "decline draw" },
-  { control = "abort", key = "A", label = "abort" },
+  { control = Control.RESIGN, key = "R", label = "resign", confirm = "Resign this game?" },
+  { control = Control.OFFER_DRAW, key = "D", label = "offer draw" },
+  { control = Control.DECLINE_DRAW, key = "X", label = "decline draw" },
+  { control = Control.ABORT, key = "A", label = "abort" },
 }
 local INPUT_KEY = "m"
 local NEXT_GAME_KEY = "]g"
@@ -72,7 +65,12 @@ local CLOSE_KEY = "q"
 local DEFAULT_GLYPHS = "unicode"
 local CLOCK_TICK_MS = 1000
 local CONFIRM_YES = 1
-local STALE = "stale"
+
+---@type table<string, true> keys the shell owns whether or not they are active
+local CORE_KEYS = { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [CLOSE_KEY] = true }
+for _, spec in ipairs(CONTROL_KEYS) do
+  CORE_KEYS[spec.key] = true
+end
 
 local NAMESPACE = vim.api.nvim_create_namespace("games.shell")
 local AUGROUP = vim.api.nvim_create_augroup("games.shell", { clear = true })
@@ -81,12 +79,12 @@ local M = {}
 
 ---@type table<integer, games.Board> buffer -> board
 local boards = {}
----@type table<games.ShellClient, true>
+---@type table<games.Client, true>
 local subscribed_clients = setmetatable({}, { __mode = "k" })
 ---@type uv.uv_timer_t|nil
 local clock_timer
 
----@param game string
+---@param game games.GameType
 ---@return games.GameModule|nil
 local function game_module(game)
   local ok, module = pcall(require, "games.games." .. game)
@@ -94,8 +92,8 @@ local function game_module(game)
 end
 
 ---@param update games.GameUpdate
----@param me string
----@return string[]
+---@param me games.UserID
+---@return games.UserID[]
 local function opponents(update, me)
   local users = {}
   for _, player in ipairs(update.players) do
@@ -107,14 +105,14 @@ local function opponents(update, me)
 end
 
 ---@param update games.GameUpdate
----@param me string
+---@param me games.UserID
 ---@return string
 local function title(update, me)
   return ("%s vs %s"):format(update.game, table.concat(opponents(update, me), ", "))
 end
 
 ---@param update games.GameUpdate
----@param user string
+---@param user games.UserID
 ---@param elapsed_ms integer
 ---@return string
 local function clock_text(update, user, elapsed_ms)
@@ -127,8 +125,8 @@ local function clock_text(update, user, elapsed_ms)
 end
 
 ---@param update games.GameUpdate
----@param user string
----@param me string
+---@param user games.UserID
+---@param me games.UserID
 ---@return games.Node
 local function turn_marker(update, user, me)
   if update.result or not vim.tbl_contains(update.to_act, user) then
@@ -165,10 +163,10 @@ local function status_banner(update)
 end
 
 ---@param update games.GameUpdate
----@param me string
+---@param me games.UserID
 ---@param elapsed_ms integer
----@return games.Node
-local function header_node(update, me, elapsed_ms)
+---@return games.Rendered
+local function render_header(update, me, elapsed_ms)
   local names, seats, clocks, markers = {}, {}, {}, {}
   for _, player in ipairs(update.players) do
     names[#names + 1] = compose.text(player.user)
@@ -186,7 +184,7 @@ local function header_node(update, me, elapsed_ms)
 
   local lines = { compose.row(columns) }
   lines[#lines + 1] = status_banner(update)
-  return compose.col(lines)
+  return compose.render(compose.col(lines))
 end
 
 ---@param bindings games.KeyBinding[]
@@ -203,12 +201,24 @@ local function footer_node(bindings)
   return compose.row(parts)
 end
 
+---@param top games.Rendered
+---@param bottom games.Rendered
+---@return games.Rendered
+local function stack(top, bottom)
+  local lines = vim.list_extend(vim.list_extend({}, top.lines), bottom.lines)
+  local extmarks = vim.list_extend({}, top.extmarks)
+  for _, mark in ipairs(bottom.extmarks) do
+    extmarks[#extmarks + 1] = vim.tbl_extend("force", mark, { row = mark.row + #top.lines })
+  end
+  return { lines = lines, extmarks = extmarks }
+end
+
 ---@param board games.Board
----@return games.ReplyFn
+---@return games.ReplyCallback
 local function report_error(board)
   return function(err)
     -- The client resyncs on stale; the snapshot it fetches re-renders the board.
-    if err and err.code ~= STALE then
+    if err and err.code ~= types.ErrorCode.STALE then
       vim.notify(
         ("%s: %s"):format(title(board.update, board.me), err.message),
         vim.log.levels.ERROR
@@ -218,7 +228,7 @@ local function report_error(board)
 end
 
 ---@param board games.Board
----@param game_action table
+---@param game_action games.Action
 local function act(board, game_action)
   board.client:game_act(
     { game_id = board.update.game_id, seq = board.update.seq, action = game_action },
@@ -249,7 +259,10 @@ local function prompt_input(board, input)
 end
 
 local function close_window()
-  if #vim.api.nvim_list_wins() > 1 then
+  local tiled = vim.tbl_filter(function(win)
+    return vim.api.nvim_win_get_config(win).relative == ""
+  end, vim.api.nvim_tabpage_list_wins(0))
+  if #tiled > 1 then
     vim.api.nvim_win_close(0, false)
   else
     vim.cmd.enew()
@@ -258,6 +271,19 @@ end
 
 ---@type fun(board: games.Board)
 local render_board
+
+---@param bindings games.KeyBinding[]
+---@param binding games.KeyBinding
+local function add_game_binding(bindings, binding)
+  assert(
+    not CORE_KEYS[binding.key],
+    ("game action key %q is reserved by the shell"):format(binding.key)
+  )
+  for _, existing in ipairs(bindings) do
+    assert(existing.key ~= binding.key, ("game action key %q is bound twice"):format(binding.key))
+  end
+  bindings[#bindings + 1] = binding
+end
 
 ---@param update games.GameUpdate
 ---@param module games.GameModule
@@ -287,24 +313,24 @@ local function bindings_for(update, module)
     }
   end
   for _, entry in ipairs(module.actions or {}) do
-    local local_fn = entry.local_fn
+    local local_fn, game_action = entry.local_fn, entry.action
     if local_fn then
-      bindings[#bindings + 1] = {
+      add_game_binding(bindings, {
         key = entry.key,
         label = entry.label,
         run = function(board)
           board.view = local_fn(board.view)
           render_board(board)
         end,
-      }
-    elseif ongoing then
-      bindings[#bindings + 1] = {
+      })
+    elseif ongoing and game_action then
+      add_game_binding(bindings, {
         key = entry.key,
         label = entry.label,
         run = function(board)
-          act(board, entry.action)
+          act(board, game_action)
         end,
-      }
+      })
     end
   end
   bindings[#bindings + 1] = {
@@ -321,28 +347,27 @@ end
 ---@param update games.GameUpdate
 ---@param module games.GameModule
 ---@param view games.ViewOptions
----@param me string
+---@param me games.UserID
 ---@param elapsed_ms? integer time since `update` arrived, charged to the running clock
 ---@return games.Rendered
+---@return integer header_height lines owned by the header, which the clock rewrites
 function M.render(update, module, view, me, elapsed_ms)
+  local header = render_header(update, me, elapsed_ms or 0)
   local ctx = vim.tbl_extend("force", view, { me = me }) --[[@as games.LayoutCtx]]
-  return compose.render(compose.col({
-    header_node(update, me, elapsed_ms or 0),
+  local body = compose.render(compose.col({
     compose.text(""),
     module.layout(update, ctx),
     compose.text(""),
     footer_node(bindings_for(update, module)),
   }))
+  return stack(header, body), #header.lines
 end
 
----@param event table
+---@param event games.Event
 ---@param update games.GameUpdate
 ---@return string
 local function fallback_description(event, update)
-  local player = vim.iter(update.players):find(function(p)
-    return p.seat == event.by or p.user == event.by
-  end)
-  local actor = player and player.user or event.by
+  local actor = event.by and (players.user_of_seat(update, event.by) or event.by)
   return actor and ("%s: %s"):format(actor, event.kind) or event.kind
 end
 
@@ -366,7 +391,8 @@ end
 ---@param board games.Board
 ---@return integer
 local function elapsed_ms(board)
-  return vim.uv.now() - board.received_at
+  local now = vim.uv.now()
+  return now - (board.client:received_at(board.update.game_id) or now)
 end
 
 ---@param buf integer
@@ -376,8 +402,11 @@ end
 local function paint(buf, first, last, rendered)
   vim.api.nvim_buf_clear_namespace(buf, NAMESPACE, first, last)
   vim.bo[buf].modifiable = true
-  vim.api.nvim_buf_set_lines(buf, first, last, false, rendered.lines)
+  local ok, err = pcall(vim.api.nvim_buf_set_lines, buf, first, last, false, rendered.lines)
   vim.bo[buf].modifiable = false
+  if not ok then
+    error(err, 0)
+  end
   for _, mark in ipairs(rendered.extmarks) do
     vim.api.nvim_buf_set_extmark(buf, NAMESPACE, first + mark.row, mark.col, {
       end_col = mark.end_col,
@@ -387,31 +416,35 @@ local function paint(buf, first, last, rendered)
 end
 
 ---@param board games.Board
-local function map_keys(board)
-  for _, key in ipairs(board.mapped_keys) do
-    vim.keymap.del("n", key, { buffer = board.buf })
-  end
-  board.mapped_keys = {}
-  for _, binding in ipairs(bindings_for(board.update, board.module)) do
+---@param bindings games.KeyBinding[]
+local function map_keys(board, bindings)
+  local wanted = {}
+  for _, binding in ipairs(bindings) do
+    wanted[binding.key] = true
     vim.keymap.set("n", binding.key, function()
       binding.run(board)
     end, { buffer = board.buf, nowait = true, desc = "games: " .. binding.label })
-    table.insert(board.mapped_keys, binding.key)
   end
+  for key in pairs(board.mapped_keys) do
+    if not wanted[key] then
+      vim.keymap.del("n", key, { buffer = board.buf })
+    end
+  end
+  board.mapped_keys = wanted
 end
 
 render_board = function(board)
-  local elapsed = elapsed_ms(board)
-  paint(board.buf, 0, -1, M.render(board.update, board.module, board.view, board.me, elapsed))
-  board.header_height = #compose.render(header_node(board.update, board.me, elapsed)).lines
+  local rendered, header_height =
+    M.render(board.update, board.module, board.view, board.me, elapsed_ms(board))
+  paint(board.buf, 0, -1, rendered)
+  board.header_height = header_height
   vim.b[board.buf].games_dirty = false
-  map_keys(board)
+  map_keys(board, bindings_for(board.update, board.module))
 end
 
 ---@param board games.Board
 local function repaint_header(board)
-  local header = compose.render(header_node(board.update, board.me, elapsed_ms(board)))
-  paint(board.buf, 0, board.header_height, header)
+  paint(board.buf, 0, board.header_height, render_header(board.update, board.me, elapsed_ms(board)))
 end
 
 ---@return games.Board[]
@@ -441,7 +474,6 @@ end
 ---@param update games.GameUpdate
 local function apply_update(board, update)
   board.update = update
-  board.received_at = vim.uv.now()
   if is_visible(board.buf) then
     render_board(board)
   else
@@ -450,8 +482,8 @@ local function apply_update(board, update)
   sync_clock_timer()
 end
 
----@param client games.ShellClient
----@param game_id string
+---@param client games.Client
+---@param game_id games.GameID
 ---@return games.Board|nil
 local function board_for(client, game_id)
   return vim.iter(vim.tbl_values(boards)):find(function(board)
@@ -459,7 +491,7 @@ local function board_for(client, game_id)
   end)
 end
 
----@param client games.ShellClient
+---@param client games.Client
 local function subscribe(client)
   if subscribed_clients[client] then
     return
@@ -470,6 +502,19 @@ local function subscribe(client)
     if board then
       apply_update(board, update)
     end
+  end)
+end
+
+---@param buf integer
+local function forget_board(buf)
+  boards[buf] = nil
+  vim.api.nvim_clear_autocmds({ group = AUGROUP, buffer = buf })
+  -- A buffer cannot be wiped from its own unload autocmd, so the husk goes next tick.
+  vim.schedule(function()
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+    sync_clock_timer()
   end)
 end
 
@@ -493,12 +538,12 @@ local function watch_buffer(board)
       vim.schedule(sync_clock_timer)
     end,
   })
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  vim.api.nvim_create_autocmd({ "BufUnload", "BufDelete" }, {
     group = AUGROUP,
     buffer = buf,
+    once = true,
     callback = function()
-      boards[buf] = nil
-      vim.schedule(sync_clock_timer)
+      forget_board(buf)
     end,
   })
 end
@@ -513,11 +558,25 @@ local function focus(buf)
   end
 end
 
----@param client games.ShellClient
----@param game_id string
+---@param client games.Client
+---@return games.UserID|nil
+local function connected_user(client)
+  local me = client:me()
+  if not me then
+    vim.notify("games: not connected", vim.log.levels.WARN)
+  end
+  return me
+end
+
+---@param client games.Client
+---@param game_id games.GameID
 ---@param opts? games.OpenOptions
 ---@return integer|nil buf
 function M.open(client, game_id, opts)
+  local me = connected_user(client)
+  if not me then
+    return nil
+  end
   local existing = board_for(client, game_id)
   if existing then
     focus(existing.buf)
@@ -536,7 +595,6 @@ function M.open(client, game_id, opts)
 
   theme.setup()
   subscribe(client)
-  local me = client:me()
   local buf = vim.api.nvim_create_buf(true, true)
   local name = ("games://%s/%s/%s"):format(
     update.game,
@@ -546,6 +604,7 @@ function M.open(client, game_id, opts)
   vim.api.nvim_buf_set_name(buf, name)
   vim.bo[buf].modifiable = false
 
+  ---@type games.Board
   local board = {
     buf = buf,
     client = client,
@@ -553,7 +612,6 @@ function M.open(client, game_id, opts)
     me = me,
     view = { glyphs = opts and opts.glyphs or DEFAULT_GLYPHS, flipped = false },
     update = update,
-    received_at = vim.uv.now(),
     header_height = 0,
     mapped_keys = {},
   }
@@ -565,12 +623,15 @@ function M.open(client, game_id, opts)
   return buf
 end
 
----@param client games.ShellClient
----@param after_game_id? string
+---@param client games.Client
+---@param after_game_id? games.GameID
 ---@param opts? games.OpenOptions
 ---@return integer|nil buf
 function M.open_next(client, after_game_id, opts)
-  local me = client:me()
+  local me = connected_user(client)
+  if not me then
+    return nil
+  end
   local waiting = vim.tbl_filter(function(update)
     return update.result == nil
       and update.game_id ~= after_game_id

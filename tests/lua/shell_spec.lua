@@ -48,10 +48,11 @@ local function hl_at_square(rendered, square)
   end
 end
 
-local function stub_client(updates)
-  local client = { cache = {}, listeners = {}, sent = {} }
+local function stub_client(updates, me)
+  local client = { cache = {}, stamps = {}, listeners = {}, sent = {}, user = me or "alice" }
   for _, update in ipairs(updates) do
     client.cache[update.game_id] = update
+    client.stamps[update.game_id] = vim.uv.now()
   end
   function client:game(game_id)
     return self.cache[game_id]
@@ -60,7 +61,10 @@ local function stub_client(updates)
     return vim.tbl_values(self.cache)
   end
   function client:me()
-    return "alice"
+    return self.user
+  end
+  function client:received_at(game_id)
+    return self.stamps[game_id]
   end
   function client:on_update(fn)
     table.insert(self.listeners, fn)
@@ -73,6 +77,7 @@ local function stub_client(updates)
   end
   function client:push(update)
     self.cache[update.game_id] = update
+    self.stamps[update.game_id] = vim.uv.now()
     for _, fn in ipairs(self.listeners) do
       fn(update, false)
     end
@@ -86,6 +91,18 @@ local function mapping(buf, lhs)
       return map
     end
   end
+end
+
+local function first_board_line(buf)
+  return board_lines(vim.api.nvim_buf_get_lines(buf, 0, -1, false))[1]
+end
+
+local function with_stub(tbl, key, value, fn)
+  local original = tbl[key]
+  tbl[key] = value
+  local ok, err = pcall(fn)
+  tbl[key] = original
+  assert(ok, err)
 end
 
 local T = {}
@@ -156,21 +173,73 @@ end
 function T.resign_confirms_then_sends_control()
   local client = stub_client({ chess_update({ game_id = "resign01", seq = 3 }) })
   local buf = shell.open(client, "resign01")
-  local confirm = vim.fn.confirm
   local answer = 2
-  vim.fn.confirm = function()
+  with_stub(vim.fn, "confirm", function()
     return answer
-  end
-
-  mapping(buf, "R").callback()
-  assert_eq({}, client.sent)
-  answer = 1
-  mapping(buf, "R").callback()
-  vim.fn.confirm = confirm
+  end, function()
+    mapping(buf, "R").callback()
+    assert_eq({}, client.sent)
+    answer = 1
+    mapping(buf, "R").callback()
+  end)
 
   assert_eq({
     { type = "game.control", body = { game_id = "resign01", seq = 3, control = "resign" } },
   }, client.sent)
+end
+
+function T.flip_toggles_black_default_perspective()
+  local client = stub_client({ chess_update({ game_id = "flip01" }) }, "bob")
+  local buf = shell.open(client, "flip01")
+  assert(vim.startswith(first_board_line(buf), "1 "), first_board_line(buf))
+
+  mapping(buf, "F").callback()
+  assert(vim.startswith(first_board_line(buf), "8 "), first_board_line(buf))
+end
+
+function T.open_charges_clock_from_cache_arrival()
+  local update = chess_update({
+    game_id = "clock01",
+    clock = { remaining_ms = { alice = 300000, bob = 300000 }, running = "alice" },
+  })
+  local client = stub_client({ update })
+  client.stamps.clock01 = vim.uv.now() - 61000
+  local buf = shell.open(client, "clock01")
+  local header = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+  vim.api.nvim_buf_delete(buf, { force = true })
+
+  assert(header:find("3:59", 1, true), header)
+end
+
+function T.open_refuses_while_disconnected()
+  local client = stub_client({ chess_update({ game_id = "offline01" }) })
+  client.user = nil
+  local messages = {}
+  with_stub(vim, "notify", function(message)
+    table.insert(messages, message)
+  end, function()
+    assert_eq(nil, shell.open(client, "offline01"))
+  end)
+
+  assert_eq({ "games: not connected" }, messages)
+end
+
+function T.reopen_after_bdelete_builds_fresh_board()
+  local client = stub_client({ chess_update({ game_id = "bdel01" }) })
+  local buf = shell.open(client, "bdel01")
+  vim.cmd.bdelete(buf)
+  vim.wait(100, function()
+    return not vim.api.nvim_buf_is_valid(buf)
+  end)
+  assert(not vim.api.nvim_buf_is_valid(buf), "the deleted board buffer is wiped")
+
+  local reopened = shell.open(client, "bdel01")
+  assert_eq("games://chess/bob/bdel", vim.api.nvim_buf_get_name(reopened))
+  assert(
+    first_board_line(reopened),
+    vim.inspect(vim.api.nvim_buf_get_lines(reopened, 0, -1, false))
+  )
+  assert(mapping(reopened, "R"))
 end
 
 function T.hidden_buffer_marked_dirty()
