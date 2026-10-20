@@ -84,12 +84,12 @@ local function fallback_description(event, update)
   return actor and ("%s: %s"):format(actor, event.kind) or event.kind
 end
 
----The update's events in words, joined by "; ".
+---A game module that fails to load falls back to generic descriptions, so listings still work.
 ---@param update games.GameUpdate
 ---@return string
 function M.events(update)
-  local module = registry.game_module(update.game)
-  local describe_event = module and module.describe_event
+  local loaded, module = pcall(registry.game_module, update.game)
+  local describe_event = loaded and module and module.describe_event
   local descriptions = vim.tbl_map(function(event)
     return describe_event and describe_event(event, update) or fallback_description(event, update)
   end, update.events)
