@@ -146,6 +146,35 @@ function T.resolved_challenge_ignores_late_pending()
   assert(#client:pending_challenges() == 0, vim.inspect(client:pending_challenges()))
 end
 
+function T.resolved_challenges_are_forgotten_at_the_next_login()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  local pending = {
+    challenge_id = "c1",
+    from = "alice",
+    to = { "bob" },
+    accepted = {},
+    game = "chess",
+    options = {},
+    state = "pending",
+    expires_at = "2026-10-20T10:05:00Z",
+  }
+
+  conn:push(
+    "challenge.changed",
+    vim.tbl_extend("force", pending, { state = "declined", by = "bob" })
+  )
+  conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
+  conn:push("challenge.changed", pending)
+
+  helpers.assert_eq(
+    { "c1" },
+    vim.tbl_map(function(challenge)
+      return challenge.challenge_id
+    end, client:pending_challenges())
+  )
+end
+
 function T.a_failing_update_handler_does_not_skip_the_others()
   local conn = stub_conn()
   local client = Client.new(conn --[[@as games.Conn]])

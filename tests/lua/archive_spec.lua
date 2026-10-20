@@ -177,6 +177,38 @@ function T.a_finished_game_is_written_once()
   end)
 end
 
+function T.a_sealed_game_is_released_and_a_later_record_of_it_reads_the_disk()
+  helpers.with_temp_dir(function(root)
+    local archive = Archive.new(root)
+    for seq = 1, #FOOLS_MATE - 1 do
+      record(archive, ongoing(seq))
+    end
+    assert_eq(Outcome.WRITTEN, record(archive, finishing_broadcast()))
+    assert_eq({}, archive.games)
+
+    assert_eq(Outcome.ALREADY_PRESENT, record(archive, finishing_broadcast()))
+    assert_eq(FOOLS_MATE, archived_moves(root))
+  end)
+end
+
+function T.a_failed_seal_keeps_the_game_so_a_retry_still_writes_final_json()
+  helpers.with_temp_dir(function(root)
+    local archive = Archive.new(root)
+    for seq = 1, #FOOLS_MATE - 1 do
+      record(archive, ongoing(seq))
+    end
+    local summary_path = game_file(root, "summary.json")
+    vim.fn.mkdir(summary_path, "p")
+    with_notify_recorded(function()
+      assert_eq(Outcome.FAILED, record(archive, finishing_broadcast()))
+    end)
+    vim.fn.delete(summary_path, "d")
+
+    assert_eq(Outcome.WRITTEN, record(archive, metadata_only()))
+    assert_eq(finishing_broadcast(), json.decode(read_file(game_file(root, "final.json")) or ""))
+  end)
+end
+
 function T.updates_that_would_leave_the_root_are_refused()
   local cases = {
     { field = "game_id", value = "../../../escaped" },

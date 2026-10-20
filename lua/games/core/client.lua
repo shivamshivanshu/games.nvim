@@ -14,7 +14,7 @@ local ChallengeState = types.ChallengeState
 ---@field private updates table<games.GameID, games.GameUpdate>
 ---@field private received_ms table<games.GameID, integer>
 ---@field private challenges table<games.ChallengeID, games.Challenge> pending only
----@field private resolved_challenges table<games.ChallengeID, true>
+---@field package resolved_challenges table<games.ChallengeID, true> this connection's, which only its own lists can race
 ---@field package catalog? games.CatalogResult static per server process, so refetched per connection
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
@@ -170,6 +170,7 @@ function Client.new(conn)
   conn:on("connected", function(result)
     self.user = result.user
     self.catalog = nil
+    self.resolved_challenges = {}
     self:resync()
   end)
   conn:on("disconnected", function()

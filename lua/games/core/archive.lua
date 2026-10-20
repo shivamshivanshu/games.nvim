@@ -47,7 +47,9 @@ local Outcome = {
 ---@field private root string
 ---@field private games table<games.GameID, games.ArchivedGame>
 ---@field private refused table<string, true> game ids nothing more is written for
----@field private queue games.ArchiveJob[]
+---@field private queue table<integer, games.ArchiveJob> jobs from queue_head to queue_tail
+---@field private queue_head integer
+---@field private queue_tail integer
 ---@field private busy boolean
 local Archive = {}
 Archive.__index = Archive
@@ -59,7 +61,15 @@ local function ignore() end
 ---@param root string absolute
 ---@return games.Archive
 function Archive.new(root)
-  return setmetatable({ root = root, games = {}, refused = {}, queue = {}, busy = false }, Archive)
+  return setmetatable({
+    root = root,
+    games = {},
+    refused = {},
+    queue = {},
+    queue_head = 1,
+    queue_tail = 0,
+    busy = false,
+  }, Archive)
 end
 
 ---An archive under root that records every update client stores.
@@ -140,7 +150,8 @@ end
 ---@private
 ---@param job games.ArchiveJob
 function Archive:enqueue(job)
-  table.insert(self.queue, job)
+  self.queue_tail = self.queue_tail + 1
+  self.queue[self.queue_tail] = job
   if not self.busy then
     self:run_next()
   end
@@ -148,11 +159,13 @@ end
 
 ---@private
 function Archive:run_next()
-  local job = table.remove(self.queue, 1)
+  local job = self.queue[self.queue_head]
   self.busy = job ~= nil
   if not job then
     return
   end
+  self.queue[self.queue_head] = nil
+  self.queue_head = self.queue_head + 1
   fs.run(job.run, function(ok, result)
     if not ok then
       notify.say(("games: archive %s: %s"):format(job.game.label, result), ERROR)
@@ -225,6 +238,8 @@ local function write_sealed(game, update)
   return game.last_full and Outcome.WRITTEN or Outcome.SUMMARY_ONLY
 end
 
+---Once its files are on disk they are all a later record of the game needs, so its state is
+---released; after a failed write it is kept, so a retry still has the last full update.
 ---@private
 ---@param game games.ArchivedGame
 ---@param update games.GameUpdate sealed
@@ -244,6 +259,9 @@ function Archive:seal(game, update, on_done)
     on_done = function(outcome)
       local waiting = game.finishing or {}
       game.finishing = nil
+      if outcome ~= Outcome.FAILED and self.games[update.game_id] == game then
+        self.games[update.game_id] = nil
+      end
       for _, done in ipairs(waiting) do
         done(outcome)
       end
