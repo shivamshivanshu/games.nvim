@@ -13,7 +13,8 @@ local ChallengeState = types.ChallengeState
 ---@field package user? games.UserID
 ---@field private updates table<games.GameID, games.GameUpdate>
 ---@field private received_ms table<games.GameID, integer>
----@field private challenges table<games.ChallengeID, games.Challenge>
+---@field private challenges table<games.ChallengeID, games.Challenge> pending only
+---@field private resolved_challenges table<games.ChallengeID, true>
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
 ---@field catalog_list fun(self: games.Client, body: nil, cb?: fun(err: games.ErrorBody|nil, result: games.CatalogResult|nil))
@@ -106,6 +107,7 @@ function Client.new(conn)
     updates = {},
     received_ms = {},
     challenges = {},
+    resolved_challenges = {},
     update_handlers = {},
     challenge_handlers = {},
   }, Client)
@@ -149,6 +151,12 @@ function Client:games()
   return vim.tbl_values(self.updates)
 end
 
+---Pending challenges from and to the logged-in user.
+---@return games.Challenge[]
+function Client:pending_challenges()
+  return vim.tbl_values(self.challenges)
+end
+
 ---@param fn games.UpdateHandler called with is_new = true the first time a game_id is seen
 function Client:on_update(fn)
   table.insert(self.update_handlers, fn)
@@ -186,12 +194,21 @@ function Client:receive_update(update)
   self:store(update)
 end
 
+---Resolution is terminal, so a pending snapshot that arrives after it is stale and dropped.
 ---@package
 ---@param challenge games.Challenge
 function Client:receive_challenge(challenge)
-  local is_new = self.challenges[challenge.challenge_id] == nil
-  self.challenges[challenge.challenge_id] = challenge.state == ChallengeState.PENDING and challenge
-    or nil
+  local id = challenge.challenge_id
+  if self.resolved_challenges[id] then
+    return
+  end
+  local is_new = self.challenges[id] == nil
+  if challenge.state == ChallengeState.PENDING then
+    self.challenges[id] = challenge
+  else
+    self.challenges[id] = nil
+    self.resolved_challenges[id] = true
+  end
   for _, fn in ipairs(self.challenge_handlers) do
     fn(challenge, is_new)
   end
@@ -202,7 +219,10 @@ end
 function Client:replace_challenges(challenges)
   local previous = self.challenges
   self.challenges = {}
-  for _, challenge in ipairs(challenges) do
+  local unresolved = vim.tbl_filter(function(challenge)
+    return not self.resolved_challenges[challenge.challenge_id]
+  end, challenges)
+  for _, challenge in ipairs(unresolved) do
     self.challenges[challenge.challenge_id] = challenge
     if not previous[challenge.challenge_id] then
       for _, fn in ipairs(self.challenge_handlers) do

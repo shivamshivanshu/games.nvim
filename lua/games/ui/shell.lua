@@ -94,7 +94,7 @@ end
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@return games.UserID[]
-local function opponents(update, me)
+function M.opponents(update, me)
   local users = {}
   for _, player in ipairs(update.players) do
     if player.user ~= me then
@@ -104,18 +104,19 @@ local function opponents(update, me)
   return users
 end
 
+---"<game> vs <opponents>", the name notifications and errors use for a game.
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@return string
-local function title(update, me)
-  return ("%s vs %s"):format(update.game, table.concat(opponents(update, me), ", "))
+function M.title(update, me)
+  return ("%s vs %s"):format(update.game, table.concat(M.opponents(update, me), ", "))
 end
 
----@param update games.GameUpdate
+---@param update games.GameUpdate with a clock
 ---@param user games.UserID
----@param elapsed_ms integer
+---@param elapsed_ms integer charged to user's clock if it is the running one
 ---@return string
-local function clock_text(update, user, elapsed_ms)
+function M.clock_text(update, user, elapsed_ms)
   local remaining_ms = update.clock.remaining_ms[user] or 0
   if update.clock.running == user then
     remaining_ms = remaining_ms - elapsed_ms
@@ -140,7 +141,7 @@ end
 
 ---@param result games.WireResult
 ---@return string
-local function result_text(result)
+function M.result_text(result)
   local reason = (result.reason:gsub("_", " "))
   if #result.winners > 0 then
     return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
@@ -155,7 +156,7 @@ end
 ---@return games.Node|nil
 local function status_banner(update)
   if update.result then
-    return compose.text(result_text(update.result))
+    return compose.text(M.result_text(update.result))
   end
   if update.draw_agreed and #update.draw_agreed > 0 then
     return compose.text("Draw offered by " .. table.concat(update.draw_agreed, ", "))
@@ -172,7 +173,7 @@ local function render_header(update, me, elapsed_ms)
     names[#names + 1] = compose.text(player.user)
     seats[#seats + 1] = compose.text(player.seat, "GamesMuted")
     if update.clock then
-      clocks[#clocks + 1] = compose.text(clock_text(update, player.user, elapsed_ms))
+      clocks[#clocks + 1] = compose.text(M.clock_text(update, player.user, elapsed_ms))
     end
     markers[#markers + 1] = turn_marker(update, player.user, me)
   end
@@ -220,7 +221,7 @@ local function report_error(board)
     -- The client resyncs on stale; the snapshot it fetches re-renders the board.
     if err and err.code ~= types.ErrorCode.STALE then
       vim.notify(
-        ("%s: %s"):format(title(board.update, board.me), err.message),
+        ("%s: %s"):format(M.title(board.update, board.me), err.message),
         vim.log.levels.ERROR
       )
     end
@@ -384,7 +385,7 @@ end
 
 ---@param buf integer
 ---@return boolean
-local function is_visible(buf)
+local function is_shown(buf)
   return #vim.fn.win_findbuf(buf) > 0
 end
 
@@ -450,7 +451,7 @@ end
 ---@return games.Board[]
 local function ticking_boards()
   return vim.tbl_filter(function(board)
-    return board.update.clock ~= nil and board.update.clock.running ~= nil and is_visible(board.buf)
+    return board.update.clock ~= nil and board.update.clock.running ~= nil and is_shown(board.buf)
   end, vim.tbl_values(boards))
 end
 
@@ -474,7 +475,7 @@ end
 ---@param update games.GameUpdate
 local function apply_update(board, update)
   board.update = update
-  if is_visible(board.buf) then
+  if is_shown(board.buf) then
     render_board(board)
   else
     vim.b[board.buf].games_dirty = true
@@ -488,6 +489,15 @@ end
 local function board_for(client, game_id)
   return vim.iter(vim.tbl_values(boards)):find(function(board)
     return board.client == client and board.update.game_id == game_id
+  end)
+end
+
+---Whether some window shows the board of game_id.
+---@param game_id games.GameID
+---@return boolean
+function M.is_visible(game_id)
+  return vim.iter(vim.tbl_values(boards)):any(function(board)
+    return board.update.game_id == game_id and is_shown(board.buf)
   end)
 end
 
@@ -598,7 +608,7 @@ function M.open(client, game_id, opts)
   local buf = vim.api.nvim_create_buf(true, true)
   local name = ("games://%s/%s/%s"):format(
     update.game,
-    table.concat(opponents(update, me), ","),
+    table.concat(M.opponents(update, me), ","),
     game_id:sub(1, 4)
   )
   vim.api.nvim_buf_set_name(buf, name)

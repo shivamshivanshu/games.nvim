@@ -97,4 +97,32 @@ function T.connected_resyncs_games_and_challenges()
   assert(vim.deep_equal(types, { "game.list", "challenge.list" }), vim.inspect(types))
 end
 
+function T.resolved_challenge_ignores_late_pending()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  local seen = {}
+  client:on_challenge(function(challenge)
+    table.insert(seen, challenge.state)
+  end)
+  local pending = {
+    challenge_id = "c1",
+    from = "alice",
+    to = { "bob" },
+    accepted = {},
+    game = "chess",
+    options = {},
+    state = "pending",
+    expires_at = "2026-10-20T10:05:00Z",
+  }
+  local declined = vim.tbl_extend("force", pending, { state = "declined", by = "bob" })
+
+  conn:push("challenge.changed", declined)
+  conn:push("challenge.changed", pending)
+  client:challenge_list(nil)
+  conn.requests[#conn.requests].cb(nil, { challenges = { pending } })
+
+  assert(vim.deep_equal(seen, { "declined" }), vim.inspect(seen))
+  assert(#client:pending_challenges() == 0, vim.inspect(client:pending_challenges()))
+end
+
 return T

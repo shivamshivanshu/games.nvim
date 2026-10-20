@@ -1,6 +1,7 @@
 local Client = require("games.core.client")
 local Conn = require("games.core.conn")
 local config = require("games.config")
+local notify = require("games.core.notify")
 
 local AUTOCONNECT_GROUP = "games.autoconnect"
 
@@ -31,6 +32,7 @@ function M.setup(opts)
     username = M.config.username,
     password = M.config.password,
   }))
+  notify.attach(M.client)
 
   local group = vim.api.nvim_create_augroup(AUTOCONNECT_GROUP, { clear = true })
   if not M.config.autoconnect then
@@ -47,6 +49,12 @@ function M.setup(opts)
       vim.schedule(connect_current)
     end,
   })
+end
+
+---Options for every board this plugin opens, taken from the user's config.
+---@return games.OpenOptions
+function M.open_options()
+  return { glyphs = M.config and M.config.glyphs }
 end
 
 return M
