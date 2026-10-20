@@ -119,6 +119,7 @@ function T.finishing_broadcast_archives_the_whole_game()
       vim.json.decode(read_file(game_file(root, "final.json")) or "", JSON_DECODE_OPTS)
     )
     assert_eq(FOOLS_MATE, archived_moves(root))
+    assert(read_file(game_file(root, "game.pgn")), "no game.pgn")
   end)
 end
 

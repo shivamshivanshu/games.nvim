@@ -2,6 +2,7 @@ local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
+local pgn = require("games.games.chess.pgn")
 local players = require("games.core.players")
 
 ---@class games.ChessSquares
@@ -242,6 +243,15 @@ function M.describe_event(event, update)
   end
   ---@cast event games.ChessMovedEvent
   return ("%s played %s"):format(players.user_of_seat(update, event.by) or event.by, event.san)
+end
+
+---@param update games.ChessUpdate
+---@return table<string, string>
+function M.export(update)
+  if not update.view then
+    return {}
+  end
+  return { ["game.pgn"] = pgn.build(update) }
 end
 
 return M
