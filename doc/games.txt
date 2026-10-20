@@ -223,6 +223,12 @@ same `dir` can both append the same events to `events.jsonl`.
 :Games challenges       Pick a pending challenge: accept or decline
                         (incoming), or cancel (outgoing).
 
+:Games solo [game]                                              *:Games-solo*
+                        Start a one-player game and open its board.
+                        Without a game, prompts for one of the server's
+                        solo games, then for options. A game for more
+                        players is refused: challenge someone instead.
+
 :Games list [ongoing|finished]
                         Pick a game and open its board. Default `ongoing`.
 
@@ -230,6 +236,8 @@ same `dir` can both append the same events to `events.jsonl`.
 
 :Games leaderboard [game]
                         Leaderboard float, optionally for one game type.
+                        The all-games total leaves solo games out; a solo
+                        game's own board still ranks them.
 
 :Games next             Open the next game waiting on your move.
 
@@ -247,6 +255,14 @@ same `dir` can both append the same events to `events.jsonl`.
 Incoming challenges, and moves in boards you are not viewing, arrive as
 |vim.notify()| messages. Accepting a challenge opens the board when the game
 starts.
+
+Options are asked one by one, in name order: a choice of values, default
+first, or typed text for a text option, at most its byte limit and without
+control characters. Cancelling any of them cancels the start or challenge.
+
+A game played alone shows `solo` where other games name their opponents: in
+titles, pickers and buffer names (`games://<game>/solo/<id>`). Its resign key
+reads "give up".
 
 ==============================================================================
 5. DASHBOARD AND FINDER                                        *games-dashboard*
@@ -269,7 +285,7 @@ Keys are buffer-local and act on the line under the cursor:
             request a choice of its actions
     a       accept the request
     d       decline the incoming request, or cancel your own
-    r       resign the game (confirms)
+    r       resign the game, or give up a solo one (confirms)
     1-9     start a game of that New type: a solo game starts at once,
             any other asks whom to challenge
     /       open the finder on this section's source
@@ -289,7 +305,7 @@ it.
 
     Source      <CR>          Other actions ~
     `requests`    asks which    accept, decline, cancel
-    `games`       open          resign
+    `games`       open          resign (give up, for a solo game)
     `types`       start         leaderboard
     `players`     challenge     stats
     `puzzles`     (none yet: puzzle sets arrive with chess puzzles)
@@ -308,7 +324,7 @@ the current state are mapped; the footer lists them.
 
     Key     Action ~
     m       enter a move (chess: SAN or UCI)
-    R       resign (confirms)
+    R       resign, or give up a solo game (confirms)
     D       offer draw (the opponent's D agrees)
     X       decline draw
     A       abort

@@ -32,7 +32,8 @@ function M.stats_pairs(stats)
   )
 end
 
----The server's ranking: of game's records when game is given, else of the totals over every game.
+---The server's ranking: of game's records when game is given, else of the totals over every game
+---but solo ones.
 ---@param stats games.StatsResult
 ---@param game games.GameType|nil
 ---@return games.KvPair[]

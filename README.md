@@ -174,14 +174,19 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 |---|---|
 | `:Games challenge [game] [user…]` | challenge one or more users; prompts for missing opponents (pick "done" to stop), a game that fits that many players, and options |
 | `:Games challenges` | pick a pending challenge: accept/decline (incoming) or cancel (outgoing) |
+| `:Games solo [game]` | start a one-player game and open its board; prompts for a solo game when none is given, then its options. A game for more players is refused: challenge someone instead |
 | `:Games list [ongoing\|finished]` | pick a game and open its board (default `ongoing`) |
 | `:Games stats [user]` | W/L/D float (default: you) |
-| `:Games leaderboard [game]` | leaderboard float, optionally for one game type |
+| `:Games leaderboard [game]` | leaderboard float, optionally for one game type; the all-games total leaves solo games out |
 | `:Games next` | open the next game waiting on your move |
 | `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or failed |
 | `:Games find [source]` | fuzzy-find `requests`, `games`, `types`, `players` or `puzzles`; asks which when no source is given; see Finder below |
 
 Incoming challenges and moves in boards you are not viewing arrive as `vim.notify` messages. Accepting a challenge opens the board when the game starts.
+
+Options are asked one by one, in name order: a choice of values, default first, or typed text for a text option, at most its byte limit and without control characters. Cancelling any of them cancels the start or challenge.
+
+A game played alone is shown as `solo` where other games name their opponents, in titles, pickers and buffer names (`games://<game>/solo/<id>`), and its resign key reads "give up".
 
 ## Dashboard
 
@@ -202,7 +207,7 @@ Keys are buffer-local and act on the line under the cursor:
 | `<CR>` | open: a game's board, a new game of that type, or a choice of accept/decline (incoming) or cancel (outgoing) for a request |
 | `a` | accept the request |
 | `d` | decline the incoming request, or cancel your own |
-| `r` | resign the game (confirms) |
+| `r` | resign the game, or give up a solo one (confirms) |
 | `1`-`9` | start a game of that New type: a solo game starts at once, any other asks whom to challenge |
 | `/` | open the finder on this section's source |
 | `R` | refresh from the server |
@@ -218,7 +223,7 @@ The dashboard closes when focus moves to an ordinary window, such as a board's; 
 | Source | Lists | `<CR>` | Other actions |
 |---|---|---|---|
 | `requests` | pending challenges | asks which action | accept, decline, cancel |
-| `games` | ongoing games, your move first, then finished ones, newest first | open | resign |
+| `games` | ongoing games, your move first, then finished ones, newest first | open | resign, or give up for a solo game |
 | `types` | the server's game types, with their options and actions | start | leaderboard |
 | `players` | other users, online first, with the server's ranking | challenge | stats |
 | `puzzles` | nothing yet: puzzle sets arrive with chess puzzles | | |
@@ -253,7 +258,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | Key | Action |
 |---|---|
 | `m` | enter a move (chess: SAN or UCI) |
-| `R` | resign (confirms) |
+| `R` | resign, or give up a solo game (confirms) |
 | `D` | offer draw (the opponent's `D` agrees) |
 | `X` | decline draw |
 | `A` | abort |
