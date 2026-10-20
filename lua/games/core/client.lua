@@ -31,7 +31,8 @@ local ChallengeState = types.ChallengeState
 local Client = {}
 Client.__index = Client
 
----@alias games.ReplyHook fun(self: games.Client, body: table|nil, err: games.ErrorBody|nil, result: table|nil)
+---Sees a reply before cb does; returning true marks err as handled, so cb never gets it.
+---@alias games.ReplyHook fun(self: games.Client, body: table|nil, err: games.ErrorBody|nil, result: table|nil): boolean|nil
 
 ---Builds the typed wrapper for one request type; on_reply lets the cache see the reply before cb.
 ---@param message_type games.MessageType
@@ -40,10 +41,8 @@ Client.__index = Client
 local function request_fn(message_type, on_reply)
   return function(self, body, cb)
     self.conn:request(message_type, body, function(err, result)
-      if on_reply then
-        on_reply(self, body, err, result)
-      end
-      if cb then
+      local handled = on_reply and on_reply(self, body, err, result)
+      if cb and not handled then
         cb(err, result)
       end
     end)
@@ -64,10 +63,12 @@ local function store_snapshot(self, _, _, result)
   end
 end
 
+---The snapshot replaces the stale state, so the caller never sees the error.
 ---@type games.ReplyHook
 local function snapshot_if_stale(self, body, err)
   if err and err.code == ErrorCode.STALE and body then
     self:game_snapshot({ game_id = body.game_id })
+    return true
   end
 end
 

@@ -184,8 +184,7 @@ end
 ---@return games.ReplyCallback
 local function report_error(board)
   return function(err)
-    -- The client resyncs on stale; the snapshot it fetches re-renders the board.
-    if err and err.code ~= types.ErrorCode.STALE then
+    if err then
       notify.say(
         ("%s: %s"):format(describe.title(board.update, board.me), err.message),
         vim.log.levels.ERROR
