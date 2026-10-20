@@ -1,3 +1,4 @@
+local notify = require("games.core.notify")
 local types = require("games.types")
 
 local MessageType = types.MessageType
@@ -54,13 +55,18 @@ local function request_fn(message_type, on_reply)
   end
 end
 
+---Calls every handler even when one raises; each failure is reported, naming what was handled.
 ---@generic T
 ---@param handlers fun(item: T, is_new: boolean)[]
 ---@param item T
 ---@param is_new boolean
-local function emit(handlers, item, is_new)
+---@param what string e.g. "update for game <id>"
+local function emit(handlers, item, is_new, what)
   for _, fn in ipairs(handlers) do
-    fn(item, is_new)
+    local ok, err = pcall(fn, item, is_new)
+    if not ok then
+      notify.say(("games: handling %s failed: %s"):format(what, err), vim.log.levels.ERROR)
+    end
   end
 end
 
@@ -223,7 +229,7 @@ function Client:store(update)
   end
   self.updates[update.game_id] = update
   self.received_ms[update.game_id] = vim.uv.now()
-  emit(self.update_handlers, update, cached == nil)
+  emit(self.update_handlers, update, cached == nil, "update for game " .. update.game_id)
 end
 
 ---A push that skips a seq means we missed steps, so the snapshot (not the push) becomes the truth.
@@ -253,7 +259,7 @@ function Client:receive_challenge(challenge)
     self.challenges[id] = nil
     self.resolved_challenges[id] = true
   end
-  emit(self.challenge_handlers, challenge, is_new)
+  emit(self.challenge_handlers, challenge, is_new, "challenge " .. id)
 end
 
 ---@package
@@ -267,7 +273,7 @@ function Client:replace_challenges(challenges)
   for _, challenge in ipairs(unresolved) do
     self.challenges[challenge.challenge_id] = challenge
     if not previous[challenge.challenge_id] then
-      emit(self.challenge_handlers, challenge, true)
+      emit(self.challenge_handlers, challenge, true, "challenge " .. challenge.challenge_id)
     end
   end
 end

@@ -146,4 +146,30 @@ function T.resolved_challenge_ignores_late_pending()
   assert(#client:pending_challenges() == 0, vim.inspect(client:pending_challenges()))
 end
 
+function T.a_failing_update_handler_does_not_skip_the_others()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  local seen, notified = {}, {}
+  client:on_update(function()
+    error("boom", 0)
+  end)
+  client:on_update(function(stored)
+    table.insert(seen, stored.seq)
+  end)
+  helpers.with_overrides({
+    {
+      vim,
+      "notify",
+      function(message)
+        table.insert(notified, message)
+      end,
+    },
+  }, function()
+    conn:push("game.update", update(1))
+  end)
+
+  helpers.assert_eq({ 1 }, seen)
+  helpers.assert_eq({ "games: handling update for game g1 failed: boom" }, notified)
+end
+
 return T
