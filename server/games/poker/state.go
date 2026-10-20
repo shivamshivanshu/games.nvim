@@ -123,6 +123,15 @@ func (s state) ToAct() []game.Seat {
 	return []game.Seat{seatName(s.hand.toAct)}
 }
 
+// Conclude ends the game on a result the core imposed, such as an abort, so
+// that no seat is left to act.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
+	if !s.finished {
+		s.result, s.finished = result, true
+	}
+	return s
+}
+
 // Outcome is the result once one seat holds every chip in play.
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
@@ -149,6 +158,7 @@ func (s state) View(seat game.Seat) View {
 		Board:    slices.Clone(h.board[:h.dealt]),
 		Pots:     s.potViews(),
 		Seats:    s.seatViews(),
+		Legal:    []MoveKind{},
 		MyCards:  []Card{},
 		LastHand: s.ended.summary(),
 	}
@@ -159,8 +169,11 @@ func (s state) View(seat game.Seat) View {
 	if h.dealtIn[i] {
 		v.MyCards = slices.Clone(h.holes[i][:])
 	}
-	if !s.finished && h.chips.canBet(i) {
-		v.ToCall, v.MinRaiseTo, v.CanRaise = h.chips.toCall(i), h.chips.minRaiseTo(), h.chips.canRaise(i)
+	if !s.finished && i == h.toAct {
+		v.Legal, v.ToCall = h.chips.legalMoves(i), h.chips.toCall(i)
+		if slices.ContainsFunc(v.Legal, raisesTo) {
+			v.MinRaiseTo, v.MaxRaiseTo = h.chips.minRaiseTo(), h.chips.allInTotal(i)
+		}
 	}
 	return v
 }

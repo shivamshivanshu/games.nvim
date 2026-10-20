@@ -18,8 +18,28 @@ func (Rules) Info() game.Info {
 		Name:         "Poker",
 		Players:      game.PlayerRange{Min: minPlayers, Max: maxPlayers},
 		Capabilities: []game.Capability{game.CapResign, game.CapAbort},
+		Actions: []game.ActionSpec{{
+			Kind:        ActionAct,
+			Description: "Make your betting move, on your turn.",
+			Input: &game.ActionInput{
+				Field:       actionTextField,
+				Description: "fold, check, call, bet N, raise N or allin, any case; N is your total for the street, e.g. raise 400.",
+				Pattern:     movePattern,
+			},
+		}},
 	}
 }
+
+// EventTypes lists one value of each event a poker state emits.
+func (Rules) EventTypes() []game.Event {
+	return []game.Event{
+		HandStartedEvent{}, PostedEvent{}, ActedEvent{}, BoardEvent{}, ShownEvent{},
+		ReturnedEvent{}, WonEvent{}, BustedEvent{}, LeftEvent{},
+	}
+}
+
+// Reasons lists the result reason poker adds to the core's.
+func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonAllChips} }
 
 // New seats the challenger as p1 and the invitees clockwise after, draws the
 // button and the sub-seed every hand's deck comes from, and deals hand 1.

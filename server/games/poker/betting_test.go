@@ -1,6 +1,7 @@
 package poker
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -90,19 +91,22 @@ func TestBettingSizesRaisesFromTheLastFullIncrement(t *testing.T) {
 	}
 }
 
-func TestBettingReopensOnlyAfterAFullRaise(t *testing.T) {
+func TestLegalMovesFollowTheReopenRuleAndTheStack(t *testing.T) {
 	tests := []struct {
 		name   string
 		stacks []Chips
 		script string
 		seat   int
-		want   bool
+		want   []MoveKind
 	}{
-		{"a seat yet to act may raise an incomplete all-in", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin", 2, true},
-		{"the bettor facing only an incomplete all-in may not", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin, 2:call", 0, false},
-		{"a full raise after the incomplete one reopens", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin, 2:raise 250", 0, true},
-		{"incomplete all-ins that add up to a full raise reopen", []Chips{1000, 150, 220, 1000}, "0:bet 100, 1:allin, 2:allin, 3:call", 0, true},
-		{"a checker facing an all-in below the big blind may not", []Chips{1000, 15, 1000}, "0:check, 1:allin, 2:call", 0, false},
+		{"no bet open: check or bet", []Chips{1000, 1000}, "0:check", 1, []MoveKind{MoveFold, MoveCheck, MoveBet, MoveAllIn}},
+		{"a seat yet to act may raise an incomplete all-in", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin", 2, []MoveKind{MoveFold, MoveCall, MoveRaise, MoveAllIn}},
+		{"the bettor facing only an incomplete all-in may not", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin, 2:call", 0, []MoveKind{MoveFold, MoveCall}},
+		{"a full raise after the incomplete one reopens", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin, 2:raise 250", 0, []MoveKind{MoveFold, MoveCall, MoveRaise, MoveAllIn}},
+		{"incomplete all-ins that add up to a full raise reopen", []Chips{1000, 150, 220, 1000}, "0:bet 100, 1:allin, 2:allin, 3:call", 0, []MoveKind{MoveFold, MoveCall, MoveRaise, MoveAllIn}},
+		{"a checker facing an all-in below the big blind may not", []Chips{1000, 15, 1000}, "0:check, 1:allin, 2:call", 0, []MoveKind{MoveFold, MoveCall}},
+		{"a stack short of the minimum raise may still go all-in", []Chips{1000, 150}, "0:bet 100", 1, []MoveKind{MoveFold, MoveCall, MoveAllIn}},
+		{"facing an all-in no one else can call: call or fold", []Chips{500, 1000}, "0:allin", 1, []MoveKind{MoveFold, MoveCall}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -113,8 +117,8 @@ func TestBettingReopensOnlyAfterAFullRaise(t *testing.T) {
 			if !b.needsAction(tt.seat) {
 				t.Fatalf("seat %d does not need to act", tt.seat)
 			}
-			if got := b.canRaise(tt.seat); got != tt.want {
-				t.Errorf("canRaise(%d) = %t, want %t", tt.seat, got, tt.want)
+			if got := b.legalMoves(tt.seat); !slices.Equal(got, tt.want) {
+				t.Errorf("legalMoves(%d) = %v, want %v", tt.seat, got, tt.want)
 			}
 		})
 	}

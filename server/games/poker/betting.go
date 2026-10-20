@@ -83,7 +83,7 @@ func (b betting) toCall(i int) Chips {
 	var reach Chips
 	for j := range b.n {
 		if j != i && b.contesting[j] {
-			reach = max(reach, b.bet[j]+b.stack[j])
+			reach = max(reach, b.allInTotal(j))
 		}
 	}
 	return min(b.stack[i], max(0, min(b.currentBet, reach)-b.bet[i]))
@@ -117,9 +117,27 @@ func (b betting) raiseBlocked(i int) error {
 	return nil
 }
 
-func (b betting) canRaise(i int) bool {
-	return b.canBet(i) && b.raiseBlocked(i) == nil && b.bet[i]+b.stack[i] >= b.minRaiseTo()
+func (b betting) allInTotal(i int) Chips { return b.bet[i] + b.stack[i] }
+
+// legalMoves are the moves apply accepts from seat i as named: call is left
+// out when it would be a check, and bet or raise is in when one to
+// minRaiseTo is legal.
+func (b betting) legalMoves(i int) []MoveKind {
+	probes := []move{
+		{kind: MoveFold}, {kind: MoveCheck}, {kind: MoveCall},
+		{kind: MoveBet, amount: b.minRaiseTo()}, {kind: MoveRaise, amount: b.minRaiseTo()},
+		{kind: MoveAllIn},
+	}
+	legal := []MoveKind{}
+	for _, m := range probes {
+		if _, played, err := b.apply(i, m); err == nil && played == m.kind {
+			legal = append(legal, m.kind)
+		}
+	}
+	return legal
 }
+
+func raisesTo(kind MoveKind) bool { return kind == MoveBet || kind == MoveRaise }
 
 // apply plays seat i's move and returns the move as played: a call with
 // nothing to call is a check.
@@ -162,7 +180,7 @@ func (b betting) fullRaise(i int, m move) (betting, error) {
 	if err := b.raiseBlocked(i); err != nil {
 		return b, err
 	}
-	if most := b.bet[i] + b.stack[i]; m.amount > most {
+	if most := b.allInTotal(i); m.amount > most {
 		return b, game.IllegalActionError{Msg: fmt.Sprintf("%s %d is more than your %d", m.kind, m.amount, most)}
 	}
 	if least := b.minRaiseTo(); m.amount < least {
@@ -175,7 +193,7 @@ func (b betting) fullRaise(i int, m move) (betting, error) {
 // above it, a raise that changes the increment and reopens betting only
 // when it is a full raise.
 func (b betting) allInMove(i int) (betting, error) {
-	total := b.bet[i] + b.stack[i]
+	total := b.allInTotal(i)
 	if total <= b.currentBet {
 		return b.commit(i, b.stack[i]), nil
 	}

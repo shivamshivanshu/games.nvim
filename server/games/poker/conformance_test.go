@@ -22,31 +22,35 @@ func users(n int) []game.UserID {
 func choose(v View, seat game.Seat) Action {
 	n, _ := strconv.Atoi(strings.TrimPrefix(string(seat), seatPrefix))
 	me := v.Seats[n-1]
-	betOpen := slices.ContainsFunc(v.Seats, func(s SeatView) bool { return s.Bet > 0 })
 	key := (v.HandNo*7 + n*3 + len(v.Board)) % 11
-	smallRaise := key%4 == 1 && v.CanRaise && v.MinRaiseTo <= 3*v.Blinds.Big
-	text := "call"
+	canRaise := slices.ContainsFunc(v.Legal, raisesTo)
+	smallRaise := key%4 == 1 && canRaise && v.MinRaiseTo <= 3*v.Blinds.Big
+	text := string(MoveCall)
 	switch {
 	case v.ToCall*4 > me.Stack && key%3 != 0:
-		text = "fold"
-	case key == 2 && v.CanRaise:
-		text = "allin"
-	case smallRaise && betOpen:
-		text = fmt.Sprintf("raise %d", v.MinRaiseTo)
-	case smallRaise:
+		text = string(MoveFold)
+	case key == 2 && canRaise:
+		text = string(MoveAllIn)
+	case smallRaise && slices.Contains(v.Legal, MoveBet):
 		text = fmt.Sprintf("bet %d", v.MinRaiseTo)
+	case smallRaise:
+		text = fmt.Sprintf("raise %d", v.MinRaiseTo)
+	case !slices.Contains(v.Legal, MoveCall):
+		text = string(MoveCheck)
 	}
 	return Action{Kind: ActionAct, Text: text}
 }
 
-// playToFinish plays choose for every seat with the rng each step gets in the server.
-func playToFinish(t *testing.T, players []game.UserID, seed game.Seed) ([]gametest.Step[Action], state) {
+// playToFinish plays choose for every seat with the rng each step gets in the
+// server, and returns the steps and every state from the first to the final one.
+func playToFinish(t *testing.T, players []game.UserID, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
 	st, _, err := Rules{}.New(Opts{}, players[0], players[1:], game.StepRNG(seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var steps []gametest.Step[Action]
+	states := []state{st.(state)}
 	for seq := game.Seq(1); len(st.ToAct()) > 0; seq++ {
 		if seq > maxGameSteps {
 			t.Fatalf("%d players: no finish within %d steps", len(players), maxGameSteps)
@@ -57,8 +61,9 @@ func playToFinish(t *testing.T, players []game.UserID, seed game.Seed) ([]gamete
 			t.Fatalf("seq %d %s %q: %v", seq, seat, action.Text, err)
 		}
 		steps = append(steps, gametest.Step[Action]{Seat: seat, Action: action})
+		states = append(states, st.(state))
 	}
-	return steps, st.(state)
+	return steps, states
 }
 
 func holes(h hand) []Card {
@@ -153,14 +158,14 @@ func TestConformance(t *testing.T) {
 	for n := minPlayers; n <= maxPlayers; n++ {
 		for _, seed := range []game.Seed{3, 8} {
 			players := users(n)
-			steps, final := playToFinish(t, players, seed)
+			steps, states := playToFinish(t, players, seed)
 			first, _, _ := Rules{}.New(Opts{}, players[0], players[1:], game.StepRNG(seed, 0))
 			toAct := first.ToAct()[0]
 			illegal := []gametest.Step[Action]{
 				{Seat: seatName((first.(state).hand.toAct + 1) % n), Action: Action{Kind: ActionAct, Text: "call"}, WantErr: true},
 				{Seat: toAct, Action: Action{Kind: ActionAct, Text: "check"}, WantErr: true},
 			}
-			result, _ := final.Outcome()
+			result, _ := states[len(states)-1].Outcome()
 			scripts = append(scripts, gametest.Script[Opts, Action]{
 				Name:       fmt.Sprintf("%d players seed %d", n, seed),
 				Challenger: players[0],
@@ -178,7 +183,8 @@ func TestConformance(t *testing.T) {
 
 func TestFinishedGamesScoreChipDeltasThatSumToZero(t *testing.T) {
 	for n := minPlayers; n <= maxPlayers; n++ {
-		_, final := playToFinish(t, users(n), 5)
+		_, states := playToFinish(t, users(n), 5)
+		final := states[len(states)-1]
 		var sum int64
 		for _, score := range final.Scores() {
 			sum += score
@@ -188,4 +194,52 @@ func TestFinishedGamesScoreChipDeltasThatSumToZero(t *testing.T) {
 			t.Errorf("%d players: scores %v sum to %d", n, final.Scores(), sum)
 		}
 	}
+}
+
+// TestViewLegalityIsWhatApplyAccepts holds the view to Apply: the seat to act
+// may make a move exactly when Legal lists it, with a bet or raise amount
+// inside [MinRaiseTo, MaxRaiseTo], and every other seat is offered nothing.
+func TestViewLegalityIsWhatApplyAccepts(t *testing.T) {
+	for n := minPlayers; n <= maxPlayers; n++ {
+		_, states := playToFinish(t, users(n), 3)
+		for _, s := range states[:len(states)-1] {
+			toAct := s.ToAct()[0]
+			for i := range s.n {
+				if v := s.View(seatName(i)); seatName(i) != toAct && (len(v.Legal) > 0 || v.ToCall != 0 || v.MaxRaiseTo != 0) {
+					t.Fatalf("%d players hand %d: %s is not to act but is offered %v", n, s.hand.number, seatName(i), v.Legal)
+				}
+			}
+			v := s.View(toAct)
+			for _, text := range probeMoves(v) {
+				m, _ := parseMove(text)
+				_, _, err := s.Apply(toAct, Action{Kind: ActionAct, Text: text}, nil)
+				if offered := offers(v, m); offered != (err == nil) {
+					t.Fatalf("%d players hand %d %s %q: offered %t, Apply: %v; legal %v range %d..%d",
+						n, s.hand.number, toAct, text, offered, err, v.Legal, v.MinRaiseTo, v.MaxRaiseTo)
+				}
+			}
+		}
+	}
+}
+
+// probeMoves are every move kind, with bet and raise amounts on and just past each end of the view's range.
+func probeMoves(v View) []string {
+	texts := []string{string(MoveFold), string(MoveCheck), string(MoveCall), string(MoveAllIn)}
+	for _, kind := range []MoveKind{MoveBet, MoveRaise} {
+		for _, amount := range []Chips{v.Blinds.Big, v.MinRaiseTo - 1, v.MinRaiseTo, v.MaxRaiseTo, v.MaxRaiseTo + 1} {
+			if amount > 0 {
+				texts = append(texts, fmt.Sprintf("%s %d", kind, amount))
+			}
+		}
+	}
+	return texts
+}
+
+// offers is whether v lets its seat play m; a call with nothing to call is the check it plays as.
+func offers(v View, m move) bool {
+	listed := slices.Contains(v.Legal, m.kind) || (m.kind == MoveCall && slices.Contains(v.Legal, MoveCheck))
+	if raisesTo(m.kind) {
+		return listed && v.MinRaiseTo <= m.amount && m.amount <= v.MaxRaiseTo
+	}
+	return listed
 }

@@ -30,17 +30,19 @@ const ReasonAllChips game.ResultReason = "all_chips"
 // Opts is empty: the stack, blinds and schedule are fixed (D13).
 type Opts struct{}
 
-// ActionKind names an action. Poker has one: act, with the move as text.
-type ActionKind string
+// ActionAct carries a betting move typed by the player; it is poker's only action.
+const ActionAct game.ActionKind = "act"
 
-// ActionAct carries a betting move typed by the player.
-const ActionAct ActionKind = "act"
+const actionTextField = "text"
+
+// movePattern is what parseMove accepts, for clients to check input before sending it.
+const movePattern = `(?i)^\s*(fold|check|call|allin|(bet|raise)\s+[0-9]+)\s*$`
 
 // Action is a betting move as typed: fold, check, call, bet N, raise N or allin.
 // Amounts are the seat's total for the street ("raise to").
 type Action struct {
-	Kind ActionKind `json:"kind"`
-	Text string     `json:"text"`
+	Kind game.ActionKind `json:"kind"`
+	Text string          `json:"text"`
 }
 
 // MoveKind is a parsed betting move.
@@ -82,6 +84,11 @@ type Blinds struct {
 }
 
 // View is the table as one seat sees it: only its own hole cards, until a showdown reveals others in LastHand.
+//
+// Legal, ToCall and the raise range are given to the seat to act alone; every
+// other viewer gets none and zeros. MinRaiseTo and MaxRaiseTo bound N in
+// "bet N" or "raise N", a street total, when Legal holds bet or raise, and are
+// 0 otherwise; MaxRaiseTo is the all-in total.
 type View struct {
 	HandNo     int          `json:"hand_no"`
 	Button     game.Seat    `json:"button"`
@@ -89,11 +96,12 @@ type View struct {
 	Board      []Card       `json:"board"`
 	Pots       []PotView    `json:"pots"`
 	Seats      []SeatView   `json:"seats"`
+	Legal      []MoveKind   `json:"legal"`
 	ToCall     Chips        `json:"to_call"`
 	MinRaiseTo Chips        `json:"min_raise_to"`
-	CanRaise   bool         `json:"can_raise"`
+	MaxRaiseTo Chips        `json:"max_raise_to"`
 	MyCards    []Card       `json:"my_cards"`
-	LastHand   *HandSummary `json:"last_hand"`
+	LastHand   *HandSummary `json:"last_hand" jsonschema:"nullable"`
 }
 
 // SeatView is one seat at the table, in table order.

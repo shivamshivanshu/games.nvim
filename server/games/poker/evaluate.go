@@ -32,6 +32,9 @@ func (c Category) String() string {
 // MarshalText encodes the category as its wire name.
 func (c Category) MarshalText() ([]byte, error) { return []byte(c.String()), nil }
 
+// JSONSchemaAlias has the wire schema describe a Category as the name it marshals to.
+func (Category) JSONSchemaAlias() any { return "" }
+
 // UnmarshalText decodes a category from its wire name.
 func (c *Category) UnmarshalText(text []byte) error {
 	for k := HighCard; k <= StraightFlush; k++ {

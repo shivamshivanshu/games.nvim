@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -69,7 +70,7 @@ func TestBlindsAndFirstToAct(t *testing.T) {
 func TestBigBlindHasTheOptionAfterLimps(t *testing.T) {
 	s := table(t, 1, 0, full(3)...)
 	s, _ = playAll(t, s, "p1:call, p2:call")
-	if s.hand.toAct != 2 || !s.View(seatName(2)).CanRaise {
+	if s.hand.toAct != 2 || !slices.Contains(s.View(seatName(2)).Legal, MoveRaise) {
 		t.Fatalf("big blind p3 should act with a raise option; to act p%d", s.hand.toAct+1)
 	}
 	raised, _ := play(t, s, 2, "raise 60")
@@ -425,9 +426,10 @@ func TestMutatingAViewOrEventLeavesTheStateUnchanged(t *testing.T) {
 
 func TestViewPotsAndBettingNumbers(t *testing.T) {
 	type numbers struct {
-		ToCall, MinRaiseTo Chips
-		CanRaise           bool
+		Legal                          []MoveKind
+		ToCall, MinRaiseTo, MaxRaiseTo Chips
 	}
+	none := numbers{Legal: []MoveKind{}}
 	tests := []struct {
 		name        string
 		stacks      []Chips
@@ -440,25 +442,37 @@ func TestViewPotsAndBettingNumbers(t *testing.T) {
 			"settled pots leave out the street's bets",
 			full(3), "p1:call, p2:call, p3:check, p2:bet 40", "p3",
 			[]PotView{{60, []game.Seat{"p1", "p2", "p3"}}},
-			numbers{40, 80, true},
+			numbers{[]MoveKind{MoveFold, MoveCall, MoveRaise, MoveAllIn}, 40, 80, 980},
 		},
 		{
 			"a folded viewer is not eligible and gets no numbers",
 			full(3), "p1:fold, p2:call, p3:check", "p1",
 			[]PotView{{40, []game.Seat{"p2", "p3"}}},
-			numbers{},
+			none,
+		},
+		{
+			"a viewer with chips who is not to act gets no numbers",
+			full(3), "p1:call", "p1",
+			[]PotView{},
+			none,
+		},
+		{
+			"a short stack facing a raise gets no raise range",
+			[]Chips{1000, 1000, 60}, "p1:raise 100, p2:fold", "p3",
+			[]PotView{},
+			numbers{[]MoveKind{MoveFold, MoveCall, MoveAllIn}, 40, 0, 0},
 		},
 		{
 			"an earlier all-in caps a side pot, and the all-in viewer gets no numbers",
 			[]Chips{1000, 50, 1000}, "p1:raise 100, p2:allin, p3:call", "p2",
 			[]PotView{{150, []game.Seat{"p1", "p2", "p3"}}, {100, []game.Seat{"p1", "p3"}}},
-			numbers{},
+			none,
 		},
 		{
 			"an out viewer gets no numbers",
 			[]Chips{1000, 0, 1000}, "", "p2",
 			[]PotView{},
-			numbers{},
+			none,
 		},
 	}
 	for _, tt := range tests {
@@ -471,9 +485,24 @@ func TestViewPotsAndBettingNumbers(t *testing.T) {
 			if diff := cmp.Diff(tt.wantPots, v.Pots); diff != "" {
 				t.Errorf("pots (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(tt.wantNumbers, numbers{v.ToCall, v.MinRaiseTo, v.CanRaise}); diff != "" {
-				t.Errorf("to_call, min_raise_to, can_raise (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tt.wantNumbers, numbers{v.Legal, v.ToCall, v.MinRaiseTo, v.MaxRaiseTo}); diff != "" {
+				t.Errorf("legal, to_call, min_raise_to, max_raise_to (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestConcludeLeavesNoSeatToActAndOffersNoMoves(t *testing.T) {
+	s := table(t, 1, 0, full(3)...)
+	aborted := game.Result{Kind: game.ResultAborted}
+	concluded := s.Conclude(aborted)
+	if got := concluded.ToAct(); len(got) != 0 {
+		t.Errorf("to act after conclude: %v", got)
+	}
+	if result, done := concluded.Outcome(); !done || result.Kind != game.ResultAborted {
+		t.Errorf("outcome %+v, %t; want the imposed abort", result, done)
+	}
+	if v := concluded.View(seatName(s.hand.toAct)); len(v.Legal) != 0 || v.ToCall != 0 {
+		t.Errorf("concluded view offers %v, %d to call", v.Legal, v.ToCall)
 	}
 }

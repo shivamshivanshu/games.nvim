@@ -55,6 +55,9 @@ func (c Card) String() string {
 // MarshalText encodes the card in its wire form.
 func (c Card) MarshalText() ([]byte, error) { return []byte(c.String()), nil }
 
+// JSONSchemaAlias has the wire schema describe a Card as the string it marshals to.
+func (Card) JSONSchemaAlias() any { return "" }
+
 // UnmarshalText decodes a card from its wire form.
 func (c *Card) UnmarshalText(text []byte) error {
 	parsed, err := parseCard(string(text))

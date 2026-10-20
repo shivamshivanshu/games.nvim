@@ -1,0 +1,532 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ActedEvent": {
+      "properties": {
+        "kind": {
+          "const": "acted"
+        },
+        "by": {
+          "type": "string"
+        },
+        "move": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "move",
+        "amount"
+      ],
+      "description": "ActedEvent is a betting move. Amount is By's total for the street after it, 0 for fold and check."
+    },
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "text"
+      ],
+      "description": "Action is a betting move as typed: fold, check, call, bet N, raise N or allin.\nAmounts are the seat's total for the street (\"raise to\")."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "act"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Award": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "pot": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "amount",
+        "pot"
+      ],
+      "description": "Award is a pot, or a seat's share of a split pot. Pot 0 is the main pot."
+    },
+    "Blinds": {
+      "properties": {
+        "small": {
+          "type": "integer"
+        },
+        "big": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "small",
+        "big"
+      ],
+      "description": "Blinds are the forced bets of a hand."
+    },
+    "BoardEvent": {
+      "properties": {
+        "kind": {
+          "const": "board"
+        },
+        "by": {
+          "type": "string"
+        },
+        "street": {
+          "type": "string"
+        },
+        "cards": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "street",
+        "cards"
+      ],
+      "description": "BoardEvent deals a street's board cards."
+    },
+    "BustedEvent": {
+      "properties": {
+        "kind": {
+          "const": "busted"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat"
+      ],
+      "description": "BustedEvent is Seat losing its last chip, which puts it out of the game."
+    },
+    "HandStartedEvent": {
+      "properties": {
+        "kind": {
+          "const": "hand_started"
+        },
+        "by": {
+          "type": "string"
+        },
+        "hand_no": {
+          "type": "integer"
+        },
+        "button": {
+          "type": "string"
+        },
+        "blinds": {
+          "$ref": "#/$defs/Blinds"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "hand_no",
+        "button",
+        "blinds"
+      ],
+      "description": "HandStartedEvent deals a new hand."
+    },
+    "HandSummary": {
+      "properties": {
+        "hand_no": {
+          "type": "integer"
+        },
+        "board": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "shown": {
+          "items": {
+            "$ref": "#/$defs/ShownHand"
+          },
+          "type": "array"
+        },
+        "awards": {
+          "items": {
+            "$ref": "#/$defs/Award"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "hand_no",
+        "board",
+        "shown",
+        "awards"
+      ],
+      "description": "HandSummary is how the previous hand ended: its board, the hands shown at\nshowdown (none when everyone else folded) and the pots won."
+    },
+    "LeftEvent": {
+      "properties": {
+        "kind": {
+          "const": "left"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "LeftEvent is By leaving the game; its stack leaves play."
+    },
+    "PostedEvent": {
+      "properties": {
+        "kind": {
+          "const": "posted"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        },
+        "blind": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat",
+        "blind",
+        "amount"
+      ],
+      "description": "PostedEvent is a blind posted by Seat; Amount is less than the blind when it put Seat all-in."
+    },
+    "PotView": {
+      "properties": {
+        "amount": {
+          "type": "integer"
+        },
+        "eligible": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "amount",
+        "eligible"
+      ],
+      "description": "PotView is a settled pot from earlier streets; current bets are in SeatView.Bet."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "all_chips"
+      ],
+      "description": "The result reasons Poker adds to the core's."
+    },
+    "ReturnedEvent": {
+      "properties": {
+        "kind": {
+          "const": "returned"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat",
+        "amount"
+      ],
+      "description": "ReturnedEvent gives Seat back the part of its bet that no one called."
+    },
+    "SeatView": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string"
+        },
+        "stack": {
+          "type": "integer"
+        },
+        "bet": {
+          "type": "integer"
+        },
+        "folded": {
+          "type": "boolean"
+        },
+        "allin": {
+          "type": "boolean"
+        },
+        "out": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "user",
+        "stack",
+        "bet",
+        "folded",
+        "allin",
+        "out"
+      ],
+      "description": "SeatView is one seat at the table, in table order."
+    },
+    "ShownEvent": {
+      "properties": {
+        "kind": {
+          "const": "shown"
+        },
+        "by": {
+          "type": "string"
+        },
+        "hands": {
+          "items": {
+            "$ref": "#/$defs/ShownHand"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "hands"
+      ],
+      "description": "ShownEvent reveals every hand still live once no more betting is possible."
+    },
+    "ShownHand": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "cards": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "category": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "cards",
+        "category"
+      ],
+      "description": "ShownHand is a hand revealed at showdown."
+    },
+    "View": {
+      "properties": {
+        "hand_no": {
+          "type": "integer"
+        },
+        "button": {
+          "type": "string"
+        },
+        "blinds": {
+          "$ref": "#/$defs/Blinds"
+        },
+        "board": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pots": {
+          "items": {
+            "$ref": "#/$defs/PotView"
+          },
+          "type": "array"
+        },
+        "seats": {
+          "items": {
+            "$ref": "#/$defs/SeatView"
+          },
+          "type": "array"
+        },
+        "legal": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "to_call": {
+          "type": "integer"
+        },
+        "min_raise_to": {
+          "type": "integer"
+        },
+        "max_raise_to": {
+          "type": "integer"
+        },
+        "my_cards": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "last_hand": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/HandSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "hand_no",
+        "button",
+        "blinds",
+        "board",
+        "pots",
+        "seats",
+        "legal",
+        "to_call",
+        "min_raise_to",
+        "max_raise_to",
+        "my_cards",
+        "last_hand"
+      ],
+      "description": "View is the table as one seat sees it: only its own hole cards, until a showdown reveals others in LastHand.\n\nLegal, ToCall and the raise range are given to the seat to act alone; every\nother viewer gets none and zeros. MinRaiseTo and MaxRaiseTo bound N in\n\"bet N\" or \"raise N\", a street total, when Legal holds bet or raise, and are\n0 otherwise; MaxRaiseTo is the all-in total."
+    },
+    "WonEvent": {
+      "properties": {
+        "kind": {
+          "const": "won"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "pot": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat",
+        "amount",
+        "pot"
+      ],
+      "description": "WonEvent awards Seat a pot or its share of one. Pot 0 is the main pot."
+    }
+  },
+  "title": "Poker",
+  "description": "The game-specific bodies inside a poker game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "acted": {
+      "$ref": "#/$defs/ActedEvent"
+    },
+    "board": {
+      "$ref": "#/$defs/BoardEvent"
+    },
+    "busted": {
+      "$ref": "#/$defs/BustedEvent"
+    },
+    "hand_started": {
+      "$ref": "#/$defs/HandStartedEvent"
+    },
+    "left": {
+      "$ref": "#/$defs/LeftEvent"
+    },
+    "posted": {
+      "$ref": "#/$defs/PostedEvent"
+    },
+    "returned": {
+      "$ref": "#/$defs/ReturnedEvent"
+    },
+    "shown": {
+      "$ref": "#/$defs/ShownEvent"
+    },
+    "won": {
+      "$ref": "#/$defs/WonEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
