@@ -11,6 +11,7 @@ Only chess exists today. The server owns all state and rules; Neovim renders wha
 | Chess | 2 | [docs/games/chess.md](docs/games/chess.md) |
 | Tic-Tac-Toe | 2 | [docs/games/tictactoe.md](docs/games/tictactoe.md) |
 | Connect4 | 2 | [docs/games/connect4.md](docs/games/connect4.md) |
+| Checkers | 2 | [docs/games/checkers.md](docs/games/checkers.md) |
 
 ## Requirements
 
@@ -131,7 +132,7 @@ Board cells stack highlight groups, so a background layer and a foreground layer
 
 | Role | Groups |
 |---|---|
-| background | `GamesSquareLight`, `GamesSquareDark`, `GamesLastMove`, `GamesLastMoveDark` (layered over `GamesLastMove` on dark squares), `GamesCheck`, `GamesWin`, `GamesHit`, `GamesPresent`, `GamesMiss` |
+| background | `GamesSquareLight`, `GamesSquareDark`, `GamesLastMove`, `GamesLastMoveDark` (layered over `GamesLastMove` on dark squares), `GamesCheck`, `GamesWin`, `GamesHit`, `GamesPresent`, `GamesMiss`, `GamesMovable` |
 | foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection` |
 | ink (foreground) | `<background group>Ink` for each background group above, e.g. `GamesLastMoveInk`: dark or light text, whichever contrasts more with that background; stacked over it where text has no colour of its own (empty squares, the latest move in the move list) |
 | badge (both) | `GamesYourTurn` |
@@ -272,6 +273,8 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 Chess move input is case-insensitive (`nf3`, `o-o`); the capital `B` is needed only when `bxc4` could be a bishop or a b-pawn.
 
 After each chess player's clock, the header shows the material that side is up, as the opponent's pieces (P1 N3 B3 R5 Q9, kings not counted), then `+N` for the side ahead; even trades cancel.
+
+Checkers moves are entered with `m` as square numbers 1-32: `11-15` for a step, every landing for a capture (`15x24x31`); `F` flips the board. On your move the pieces you may move are tinted (`GamesMovable`), so a mandatory capture shows as only the capturing pieces.
 
 ## Adding a game
 

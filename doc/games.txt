@@ -114,6 +114,7 @@ colour. Each group sets only the attribute of its role:
     background      `GamesSquareLight` `GamesSquareDark` `GamesLastMove`
                     `GamesLastMoveDark` (over `GamesLastMove` on dark squares)
                     `GamesCheck` `GamesWin` `GamesHit` `GamesPresent` `GamesMiss`
+                    `GamesMovable` (pieces you may move)
     foreground      `GamesPieceWhite` `GamesPieceBlack` `GamesSeat1`-`GamesSeat4`
                     `GamesKey` `GamesLabel` `GamesMuted` `GamesWon` `GamesLost`
                     `GamesDrawn` `GamesClockLow` `GamesCheckSign`
@@ -342,6 +343,11 @@ needed only when `bxc4` could be a bishop or a b-pawn.
 After each chess player's clock, the header shows the material that side is
 up, as the opponent's pieces (P1 N3 B3 R5 Q9, kings not counted), then `+N`
 for the side ahead; even trades cancel.
+
+Checkers moves are entered with `m` as square numbers 1-32: `11-15` for a
+step, every landing for a capture (`15x24x31`); `F` flips the board. On your
+move the pieces you may move are tinted (`GamesMovable`), so a mandatory
+capture shows as only the capturing pieces. Rules: docs/games/checkers.md.
 
 ==============================================================================
 7. HEALTH                                                          *games-health*
