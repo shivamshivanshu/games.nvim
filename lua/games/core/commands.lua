@@ -13,6 +13,7 @@ local puzzles = require("games.core.puzzles")
 local shell = require("games.ui.shell")
 local sources = require("games.core.sources")
 local stats = require("games.core.stats")
+local summary = require("games.core.summary")
 local tables = require("games.core.tables")
 local text = require("games.ui.text")
 local timer = require("games.core.timer")
@@ -68,7 +69,7 @@ local DONE_PICKING = { label = "done" }
 ---@param presence games.UserPresence
 ---@return games.OpponentChoice
 local function opponent_choice(presence)
-  return { label = picker.format_presence(presence), user = presence.user }
+  return { label = summary.format_presence(presence), user = presence.user }
 end
 
 ---@class (private) games.OpponentRange
@@ -285,7 +286,7 @@ local function send_challenge(client, info, opponents)
         say(
           ("challenged %s: %s"):format(
             table.concat(opponents, ", "),
-            picker.game_summary(info.id, info, options)
+            summary.game_summary(info.id, info, options)
           )
         )
       end)
@@ -481,7 +482,7 @@ local function challenges(client, me)
         picker.pick(pending, {
           prompt = "Pending challenges:",
           format_item = function(item)
-            return picker.format_challenge(item, me, infos[item.game])
+            return summary.format_challenge(item, me, infos[item.game])
           end,
         }, function(item)
           resolve_challenge(client, me, item)
@@ -512,7 +513,7 @@ local function list(client, me, args)
           picker.pick(result.games, {
             prompt = ("%s games:"):format(status),
             format_item = function(update)
-              return picker.format_game(update, me, infos[update.game], now_ms)
+              return summary.format_game(update, me, infos[update.game], now_ms)
             end,
           }, function(update)
             shell.open(client, update.game_id)

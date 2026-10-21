@@ -1,6 +1,6 @@
 local describe = require("games.core.describe")
-local picker = require("games.ui.picker")
 local players = require("games.core.players")
+local summary = require("games.core.summary")
 local types = require("games.types")
 
 local ChallengeState = types.ChallengeState
@@ -91,7 +91,7 @@ end
 ---@param message games.ChallengeMessage
 local function notify_challenge(client, challenge, message)
   client:game_infos(function(infos)
-    M.say(message(picker.game_summary(challenge.game, infos[challenge.game], challenge.options)))
+    M.say(message(summary.game_summary(challenge.game, infos[challenge.game], challenge.options)))
   end)
 end
 

@@ -2,9 +2,9 @@ local compose = require("games.ui.compose")
 local controls = require("games.core.controls")
 local describe = require("games.core.describe")
 local kv = require("games.ui.widgets.kv")
-local picker = require("games.ui.picker")
 local players = require("games.core.players")
 local stats = require("games.core.stats")
+local summary = require("games.core.summary")
 local tables = require("games.core.tables")
 local text = require("games.ui.text")
 local timer = require("games.core.timer")
@@ -244,14 +244,14 @@ local function requests(snapshot)
       return challenge.challenge_id
     end,
     format = function(challenge)
-      return picker.format_challenge(challenge, me, infos[challenge.game])
+      return summary.format_challenge(challenge, me, infos[challenge.game])
     end,
     preview = function(challenge)
       return kv_lines({
         { "from", challenge.from },
         { "to", table.concat(challenge.to, ", ") },
         { "accepted", listed(challenge.accepted) },
-        { "game", picker.game_summary(challenge.game, infos[challenge.game], challenge.options) },
+        { "game", summary.game_summary(challenge.game, infos[challenge.game], challenge.options) },
         { "options", options_text(challenge.options) },
         {
           "expires",
@@ -349,7 +349,7 @@ local function games(snapshot)
       return update.game_id
     end,
     format = function(update)
-      return picker.format_game(update, me, infos[update.game], snapshot.now_ms)
+      return summary.format_game(update, me, infos[update.game], snapshot.now_ms)
     end,
     preview = function(update)
       return game_preview(update, me, infos[update.game], snapshot.now_ms)
@@ -487,7 +487,7 @@ local function player_list(snapshot)
     key = function(presence)
       return presence.user
     end,
-    format = picker.format_presence,
+    format = summary.format_presence,
     preview = function(presence)
       local rows = { { "user", presence.user }, { "online", presence.online and "yes" or "no" } }
       if snapshot.stats then

@@ -1,5 +1,5 @@
-local picker = require("games.ui.picker")
 local helpers = require("helpers")
+local summary = require("games.core.summary")
 
 local assert_eq = helpers.assert_eq
 
@@ -45,11 +45,11 @@ local T = {}
 function T.format_game_line()
   assert_eq(
     "● chess  vs ravi    10+5  your move  4:51  last: ravi played Nf3  #7f3a",
-    picker.format_game(ravi_played_nf3(), "alice", chess_info("time_control"), A_SECOND_LATER_MS)
+    summary.format_game(ravi_played_nf3(), "alice", chess_info("time_control"), A_SECOND_LATER_MS)
   )
   assert_eq(
     "  chess  vs ravi    10+5  waiting    4:51  last: ravi played Nf3  #7f3a",
-    picker.format_game(
+    summary.format_game(
       ravi_played_nf3({ to_act = { "ravi" } }),
       "alice",
       chess_info("time_control"),
@@ -60,10 +60,10 @@ end
 
 function T.time_control_is_the_option_the_catalog_marks_as_the_clock()
   local update = ravi_played_nf3({ options = { pace = "3+2", time_control = "10+5" } })
-  local line = picker.format_game(update, "alice", chess_info("pace"), AS_OF_MS)
+  local line = summary.format_game(update, "alice", chess_info("pace"), AS_OF_MS)
   assert(line:find("vs ravi    3+2 ", 1, true), line)
-  assert_eq("chess", picker.game_summary("chess", nil, update.options))
-  assert_eq("Chess 3+2", picker.game_summary("chess", chess_info("pace"), update.options))
+  assert_eq("chess", summary.game_summary("chess", nil, update.options))
+  assert_eq("Chess 3+2", summary.game_summary("chess", chess_info("pace"), update.options))
 end
 
 function T.format_finished_game_line()
@@ -74,7 +74,7 @@ function T.format_finished_game_line()
   })
   assert_eq(
     "  chess  vs ravi    10+5  finished  10:05  last: ravi played Nf3  #7f3a",
-    picker.format_game(finished, "alice", chess_info("time_control"), A_SECOND_LATER_MS)
+    summary.format_game(finished, "alice", chess_info("time_control"), A_SECOND_LATER_MS)
   )
 end
 
