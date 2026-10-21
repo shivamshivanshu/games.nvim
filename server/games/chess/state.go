@@ -84,7 +84,7 @@ func (s state) View(seat game.Seat) View {
 		HistorySAN:  append([]string{}, s.san...),
 		LastMove:    s.last,
 		LegalMoves:  []string{},
-		CheckSquare: s.position.checkSquare(),
+		CheckSquare: s.position.CheckSquare(),
 	}
 	if slices.Contains(s.ToAct(), seat) {
 		view.LegalMoves = xslices.Map(s.legal, Move.UCI)

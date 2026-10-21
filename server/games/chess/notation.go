@@ -16,9 +16,9 @@ const (
 
 var uciPattern = regexp.MustCompile(`^[a-h][1-8][a-h][1-8][qrbn]?$`)
 
-// movePattern matches the text ParseMove reads: SAN or UCI in any case, with
+// MovePattern matches the text ParseMove reads: SAN or UCI in any case, with
 // 0 for O in castling and trailing check or annotation marks.
-const movePattern = `^\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\s*$`
+const MovePattern = `^\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\s*$`
 
 func (p Position) SAN(m Move) string {
 	next := p.Play(m)

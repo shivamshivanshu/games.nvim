@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is typed input, sent raw and parsed by the server."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "move",
+        "reveal"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "MissedEvent": {
+      "properties": {
+        "kind": {
+          "const": "missed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "san": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "san"
+      ],
+      "description": "MissedEvent reports a legal move that is not the line's: in study mode the\nposition stays, in puzzle mode the game ends."
+    },
+    "MoveSquares": {
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "MovedEvent": {
+      "properties": {
+        "kind": {
+          "const": "moved"
+        },
+        "by": {
+          "type": "string"
+        },
+        "san": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "san"
+      ],
+      "description": "MovedEvent reports the solver's move that the line accepted."
+    },
+    "RepliedEvent": {
+      "properties": {
+        "kind": {
+          "const": "replied"
+        },
+        "by": {
+          "type": "string"
+        },
+        "san": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "san"
+      ],
+      "description": "RepliedEvent reports a line move the server played for the other side."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "solved",
+        "wrong_move",
+        "completed"
+      ],
+      "description": "The result reasons Chess puzzle adds to the core's."
+    },
+    "RevealedEvent": {
+      "properties": {
+        "kind": {
+          "const": "revealed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "san": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "san"
+      ],
+      "description": "RevealedEvent reports the line's move, played for the solver as a miss."
+    },
+    "View": {
+      "properties": {
+        "fen": {
+          "type": "string"
+        },
+        "history_san": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "last_move": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MoveSquares"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legal_moves": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "check_square": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode": {
+          "type": "string"
+        },
+        "misses": {
+          "type": "integer"
+        },
+        "remaining": {
+          "type": "integer"
+        },
+        "solution": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "fen",
+        "history_san",
+        "last_move",
+        "legal_moves",
+        "check_square",
+        "mode",
+        "misses",
+        "remaining",
+        "solution"
+      ],
+      "description": "View is the chess position as chess shows it, plus the puzzle's progress.\nLegalMoves (UCI) is empty once the game is over; Remaining counts the\nsolver's moves left in the line; Solution is the whole line in SAN, empty\nuntil the game is over."
+    }
+  },
+  "title": "Chess puzzle",
+  "description": "The game-specific bodies inside a chess_puzzle game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "missed": {
+      "$ref": "#/$defs/MissedEvent"
+    },
+    "moved": {
+      "$ref": "#/$defs/MovedEvent"
+    },
+    "replied": {
+      "$ref": "#/$defs/RepliedEvent"
+    },
+    "revealed": {
+      "$ref": "#/$defs/RevealedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

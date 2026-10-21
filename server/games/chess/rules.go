@@ -45,7 +45,7 @@ func (Rules) Info() game.Info {
 				Input: &game.ActionInput{
 					Field:       moveField,
 					Description: "A move in SAN or UCI, any case, e.g. e4, Nf3, O-O, exd8=Q, e2e4.",
-					Pattern:     movePattern,
+					Pattern:     MovePattern,
 				},
 			},
 			{

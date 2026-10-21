@@ -37,8 +37,8 @@ func (p Position) IsAttacked(sq Square, by Color) bool {
 
 func (p Position) InCheck() bool { return p.kingAttacked(p.SideToMove) }
 
-// checkSquare is the square of the side to move's king while it is in check, else nil.
-func (p Position) checkSquare() *string {
+// CheckSquare is the square of the side to move's king while it is in check, else nil.
+func (p Position) CheckSquare() *string {
 	king := p.kingSquare(p.SideToMove)
 	if king == NoSquare || !p.IsAttacked(king, p.SideToMove.Opponent()) {
 		return nil
