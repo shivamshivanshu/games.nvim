@@ -27,7 +27,7 @@ func (s roomState) tickAfter(st step, next roomState) time.Time {
 		return time.Time{}
 	}
 	due := tickDue(next.game, st.at)
-	if st.kind != store.StepTick && !s.nextTickAt.IsZero() && !due.IsZero() {
+	if st.kind != store.StepTick && s.ticking() && !due.IsZero() {
 		return s.nextTickAt
 	}
 	return due
@@ -52,7 +52,7 @@ func (s roomState) applyPause(g Setup) roomState {
 
 func (r *Room) tickIfDue() {
 	now := r.setup.Time.Now()
-	if r.cur.nextTickAt.IsZero() || now.Before(r.cur.nextTickAt) {
+	if !r.cur.ticking() || now.Before(r.cur.nextTickAt) {
 		return
 	}
 	if _, err := r.commit(step{seq: r.cur.seq + 1, kind: store.StepTick, at: now}); err != nil {
@@ -69,7 +69,7 @@ func (r *Room) Pause(ctx context.Context) error {
 }
 
 func (r *Room) pause() (game.Seq, error) {
-	if r.cur.nextTickAt.IsZero() {
+	if !r.cur.ticking() {
 		return r.cur.seq, nil
 	}
 	return r.commit(step{seq: r.cur.seq + 1, kind: store.StepPause, at: r.setup.Time.Now()})

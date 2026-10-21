@@ -97,22 +97,19 @@ func TestPlayerStepKeepsTheDueTick(t *testing.T) {
 	}
 }
 
-func TestTicksDoNotMakeASeqStaleButPlayerStepsDo(t *testing.T) {
+func TestTickingGameInputIsNeverStale(t *testing.T) {
 	h := newMetronomeHarness(t)
 	h.advance(t, gametest.MetronomeInterval)
 	h.advance(t, gametest.MetronomeInterval)
-	tapped := h.metronome(t, 0, gametest.MetronomeTap)
-	if tapped != 3 {
-		t.Fatalf("a tap on seq 0 after two ticks got seq %d, want 3", tapped)
-	}
-	h.advance(t, gametest.MetronomeInterval)
-	for _, seq := range []game.Seq{tapped - 1, tapped + 2} {
-		if _, err := h.room.Act(t.Context(), alice, seq, metronomeAction(gametest.MetronomeTap)); !errors.Is(err, ErrStale) {
-			t.Errorf("tap at seq %d around the tap at %d and a tick: want stale, got %v", seq, tapped, err)
+	seq := game.Seq(2)
+	for _, kind := range []game.ActionKind{gametest.MetronomeTap, gametest.MetronomeTap, gametest.MetronomePause, gametest.MetronomeResume, gametest.MetronomeTap} {
+		got := h.metronome(t, 0, kind)
+		if seq++; got != seq {
+			t.Fatalf("%s on seq 0 got seq %d, want %d", kind, got, seq)
 		}
 	}
-	if got := h.metronome(t, tapped, gametest.MetronomeTap); got != tapped+2 {
-		t.Errorf("tap on the last tap's seq got seq %d, want %d", got, tapped+2)
+	if _, err := h.room.Act(t.Context(), alice, seq+1, metronomeAction(gametest.MetronomeTap)); !errors.Is(err, ErrStale) {
+		t.Errorf("tap on seq %d, past the game's %d: want stale, got %v", seq+1, seq, err)
 	}
 }
 

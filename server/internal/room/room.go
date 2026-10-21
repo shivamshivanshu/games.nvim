@@ -117,8 +117,8 @@ type roomState struct {
 	remaining  map[game.UserID]time.Duration
 	since      time.Time
 	lastStepAt time.Time
-	// freshFrom is the oldest seq a player may act on: ticks and pauses
-	// since then do not make it stale.
+	// freshFrom is the oldest seq a player may act on: the steps since then
+	// did not make it stale (see makesStale).
 	freshFrom game.Seq
 	// nextTickAt is when a ticking game's next tick is due, zero when none is.
 	nextTickAt time.Time
@@ -188,14 +188,27 @@ func (s roomState) apply(g Setup, st step) (roomState, error) {
 		return roomState{}, err
 	}
 	next.seq = st.seq
-	if !st.paces() {
-		next.freshFrom = st.seq
-	}
 	next.since, next.lastStepAt = st.at, st.at
 	next.remaining = s.clockAfter(g, st, next)
 	next.nextTickAt = s.tickAfter(st, next)
+	if s.makesStale(st, next) {
+		next.freshFrom = st.seq
+	}
 	return next, nil
 }
+
+// makesStale is whether st, taking s to next, makes the seqs before it stale.
+// Ticks and pauses never do, nor does an action in a game ticking before or
+// after it: real-time input is an intent that holds against any state, so a
+// stale check would only lose the player's newest key.
+func (s roomState) makesStale(st step, next roomState) bool {
+	if st.paces() {
+		return false
+	}
+	return st.kind != store.StepAction || !s.ticking() && !next.ticking()
+}
+
+func (s roomState) ticking() bool { return !s.nextTickAt.IsZero() }
 
 func (s roomState) applyAction(g Setup, st step) (roomState, error) {
 	if s.finished() {

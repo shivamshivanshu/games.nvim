@@ -77,7 +77,7 @@ func (r *Room) armTimer() {
 // nextWake is how long after at the room must step on its own, if it must.
 func (s roomState) nextWake(at time.Time) (time.Duration, bool) {
 	_, flag, flagging := s.soonestFlag(at)
-	if s.nextTickAt.IsZero() {
+	if !s.ticking() {
 		return flag, flagging
 	}
 	tick := max(0, s.nextTickAt.Sub(at))
