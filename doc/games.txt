@@ -385,6 +385,8 @@ the current state are mapped; the footer lists them.
     c       minesweeper: chord a revealed number, when one can be chorded
     m       fifteen: slide a tile by its number, e.g. `7`
     h j k l fifteen: slide the tile that moves left, down, up or right
+    h j k l 2048: move every tile left, down, up or right; the arrow keys
+            too, only when the move changes the board
     ]g      next game waiting on your move
     q       close
 

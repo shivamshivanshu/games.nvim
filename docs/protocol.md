@@ -368,6 +368,19 @@ An action object always carries `kind`.
   - `movable` lists `{tile, direction}` for each tile next to the blank and the way it would move; `[]` once over.
 - Actions: `slide` (`tile`: the number as text, `"1"` to `"15"`; one the board lacks is an `illegal_action`) and `move` (`direction`: `up`, `down`, `left` or `right`, the way the tile moves, so `up` moves the tile below the blank).
 - The shuffle is drawn at `game.start` from the seed, always solvable and never already solved.
+### 2048
+
+- Solo: one seat, `solver`; start it with `game.start`. No options.
+- Reasons: `no_moves`. It is a win (`winners: ["solver"]`) if a 2048 tile was ever made, else a loss (`winners: []`). Giving up is always a loss.
+- Events:
+  - `moved {by: seat, direction, gained, spawned: {row, col, value}}`: `gained` is the sum of the tiles the move merged; `spawned` is the 2 or 4 that appeared after it, `row` and `col` 1-4 from the top left;
+  - `reached {by: seat, tile: 2048}`, once, after the `moved` of the move that first made a 2048.
+- View `{cells, score, reached, movable}`:
+  - `cells` is 4 rows of 4, row 1 at the top; each is a tile's value, or 0 when empty;
+  - `score` is the sum of every merge so far;
+  - `reached` is true once a 2048 has been made; play goes on;
+  - `movable` lists the directions that would change the board, in the order `up`, `down`, `left`, `right`; `[]` once the game is over.
+- Actions: `move` (`direction`: `"up"`, `"down"`, `"left"` or `"right"`). A move that changes nothing is an `illegal_action`. The spawned tile comes from the step's seeded rng, so a restore replays it.
 
 ## Stats
 
