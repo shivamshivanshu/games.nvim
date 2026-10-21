@@ -1,34 +1,33 @@
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 1, lines = { line } }
-end
+local build = require("games.assets.shared.build")
+local text = require("games.ui.text")
+
+local GLYPH_WIDTH = 1
 
 ---@type table<games.Glyphs, games.ArtSet>
 local GLYPHS = {
-  unicode = {
-    face1 = { glyph("⚀") },
-    face2 = { glyph("⚁") },
-    face3 = { glyph("⚂") },
-    face4 = { glyph("⚃") },
-    face5 = { glyph("⚄") },
-    face6 = { glyph("⚅") },
+  unicode = build.glyph_set({
+    face1 = "⚀",
+    face2 = "⚁",
+    face3 = "⚂",
+    face4 = "⚃",
+    face5 = "⚄",
+    face6 = "⚅",
     -- "·" and "▲" are two cells wide under ambiwidth=double, where the ascii ones stand in.
-    none = { glyph("·") },
-    held = { glyph("▲") },
-    free = { glyph(" ") },
-  },
-  ascii = {
-    face1 = { glyph("1") },
-    face2 = { glyph("2") },
-    face3 = { glyph("3") },
-    face4 = { glyph("4") },
-    face5 = { glyph("5") },
-    face6 = { glyph("6") },
-    none = { glyph(".") },
-    held = { glyph("^") },
-    free = { glyph(" ") },
-  },
+    none = "·",
+    held = "▲",
+    free = " ",
+  }, GLYPH_WIDTH),
+  ascii = build.glyph_set({
+    face1 = "1",
+    face2 = "2",
+    face3 = "3",
+    face4 = "4",
+    face5 = "5",
+    face6 = "6",
+    none = ".",
+    held = "^",
+    free = " ",
+  }, GLYPH_WIDTH),
 }
 
 ---Which of a die's 3x3 pip spots each face fills, row by row from the top.
@@ -51,11 +50,11 @@ local function outlined(spots)
   for _, row in ipairs(spots) do
     local pips = vim.tbl_map(function(spot)
       return spot == "o" and "▗▖" or "  "
-    end, vim.split(row, ""))
+    end, text.chars(row))
     lines[#lines + 1] = "▕" .. table.concat(pips) .. "▏"
   end
   lines[#lines + 1] = "▕" .. ("▁"):rep(inner) .. "▏"
-  return { h = #lines, w = inner + 2, lines = lines }
+  return build.sprite(lines)
 end
 
 ---Dice at cell height 5 and up, two columns narrower than the cell so dice side by side stay apart;
@@ -66,17 +65,6 @@ local ART = vim.iter(PIPS):fold({}, function(set, key, spots)
   return set
 end)
 
----@param set games.ArtSet
----@param keys string[]
----@return games.ArtSet
-local function only(set, keys)
-  local out = {}
-  for _, key in ipairs(keys) do
-    out[key] = set[key]
-  end
-  return out
-end
-
 ---Dice faces with pips, the empty place of a die not rolled, and the marks under a die held or
 ---not, shared by the dice games.
 local M = {}
@@ -85,11 +73,7 @@ local M = {}
 ---@param keys string[]
 ---@return games.AssetPack
 function M.pack(keys)
-  return {
-    name = "default",
-    glyphs = { unicode = only(GLYPHS.unicode, keys), ascii = only(GLYPHS.ascii, keys) },
-    art = only(ART, keys),
-  }
+  return build.pack(keys, GLYPHS, ART)
 end
 
 return M

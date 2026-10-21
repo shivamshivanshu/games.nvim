@@ -1,27 +1,17 @@
+local build = require("games.assets.shared.build")
 local cards = require("games.ui.cards")
+local text = require("games.ui.text")
 
 local GLYPH_WIDTH = 3
 ---@type table<string, string> face -> its unicode symbol where it has one
 local FACE_SYMBOLS = { S = "⊘", R = "⇄" }
 
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = GLYPH_WIDTH, lines = { line } }
-end
-
----@param text string
----@return string text padded to the glyph width
-local function padded(text)
-  return text .. (" "):rep(GLYPH_WIDTH - vim.fn.strdisplaywidth(text))
-end
-
-local unicode = { deck = { glyph("▒▒▒") } }
-local ascii = { deck = { glyph("###") } }
+local unicode_lines = { deck = "▒▒▒" }
+local ascii_lines = { deck = "###" }
 for _, card in ipairs(cards.uno_keys()) do
   local color, face = card:sub(1, 1), card:sub(2)
-  unicode[card] = { glyph(padded(color .. (FACE_SYMBOLS[face] or face))) }
-  ascii[card] = { glyph(padded(card)) }
+  unicode_lines[card] = text.pad_to_width(color .. (FACE_SYMBOLS[face] or face), GLYPH_WIDTH)
+  ascii_lines[card] = text.pad_to_width(card, GLYPH_WIDTH)
 end
 
 ---Uno cards as colour letter and face, "R7", "G+2", "W+4", the skip "⊘" and the reverse "⇄";
@@ -29,6 +19,9 @@ end
 ---@type games.AssetPack
 return {
   name = "default",
-  glyphs = { unicode = unicode, ascii = ascii },
+  glyphs = {
+    unicode = build.glyph_set(unicode_lines, GLYPH_WIDTH),
+    ascii = build.glyph_set(ascii_lines, GLYPH_WIDTH),
+  },
   art = {},
 }

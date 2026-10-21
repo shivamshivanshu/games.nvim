@@ -1,45 +1,43 @@
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 1, lines = { line } }
-end
+local build = require("games.assets.shared.build")
+
+local GLYPH_WIDTH = 1
 
 ---Unicode chess glyphs, hollow white and solid black, with block art for cells 3 to 6 lines tall.
 ---@type games.AssetPack
 return {
   name = "default",
   glyphs = {
-    unicode = {
-      K = { glyph("♔") },
-      Q = { glyph("♕") },
-      R = { glyph("♖") },
-      B = { glyph("♗") },
-      N = { glyph("♘") },
-      P = { glyph("♙") },
-      k = { glyph("♚") },
-      q = { glyph("♛") },
-      r = { glyph("♜") },
-      b = { glyph("♝") },
-      n = { glyph("♞") },
-      p = { glyph("♟") },
+    unicode = build.glyph_set({
+      K = "♔",
+      Q = "♕",
+      R = "♖",
+      B = "♗",
+      N = "♘",
+      P = "♙",
+      k = "♚",
+      q = "♛",
+      r = "♜",
+      b = "♝",
+      n = "♞",
+      p = "♟",
       -- "·" is two cells wide under ambiwidth=double, where the ascii "." stands in for it.
-      empty = { glyph("·") },
-    },
-    ascii = {
-      K = { glyph("K") },
-      Q = { glyph("Q") },
-      R = { glyph("R") },
-      B = { glyph("B") },
-      N = { glyph("N") },
-      P = { glyph("P") },
-      k = { glyph("k") },
-      q = { glyph("q") },
-      r = { glyph("r") },
-      b = { glyph("b") },
-      n = { glyph("n") },
-      p = { glyph("p") },
-      empty = { glyph(".") },
-    },
+      empty = "·",
+    }, GLYPH_WIDTH),
+    ascii = build.glyph_set({
+      K = "K",
+      Q = "Q",
+      R = "R",
+      B = "B",
+      N = "N",
+      P = "P",
+      k = "k",
+      q = "q",
+      r = "r",
+      b = "b",
+      n = "n",
+      p = "p",
+      empty = ".",
+    }, GLYPH_WIDTH),
   },
   art = {
     K = {

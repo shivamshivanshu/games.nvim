@@ -1,47 +1,35 @@
+local art = require("games.ui.art")
+local build = require("games.assets.shared.build")
 local pacman = require("games.games.pacman")
 
-local GLYPH_WIDTH = pacman.glyph_width
 ---Cell heights the walls and the door get solid art for, so the maze stays joined in taller cells.
 local ART_HEIGHTS = { 2, 3, 4 }
----Display columns per cell line above one line tall, as the board scales cells.
-local CELL_ASPECT = 2
-
----@param line string
----@return games.ArtEntry[]
-local function glyph(line)
-  return { { h = 1, w = GLYPH_WIDTH, lines = { line } } }
-end
 
 ---Each ghost's letter after body, in lower case while frightened, and after a quote as eyes.
 ---@param body string
----@return table<string, games.ArtEntry[]> every ghost in each of its looks
+---@return table<string, string> every ghost's glyph in each of its looks
 local function ghosts(body)
-  local set = {}
+  local lines = {}
   for name, letter in pairs({ blinky = "B", pinky = "P", inky = "I", clyde = "C" }) do
-    set[name] = glyph(body .. letter)
-    set[name .. "_frightened"] = glyph(body .. letter:lower())
-    set[name .. "_eyes"] = glyph('"' .. letter)
+    lines[name] = body .. letter
+    lines[name .. "_frightened"] = body .. letter:lower()
+    lines[name .. "_eyes"] = '"' .. letter
   end
-  return set
+  return lines
 end
 
 ---@param tiles table<string, string> the maze tiles' and Pac-Man's glyphs by key
----@param ghost_set table<string, games.ArtEntry[]>
+---@param ghost_lines table<string, string>
 ---@return games.ArtSet
-local function glyph_set(tiles, ghost_set)
-  return vim.tbl_extend("error", vim.tbl_map(glyph, tiles), ghost_set)
+local function glyph_set(tiles, ghost_lines)
+  return build.glyph_set(vim.tbl_extend("error", tiles, ghost_lines), pacman.glyph_width)
 end
 
----@param line_of fun(w: integer): string one line of the art, w columns wide
----@return games.ArtEntry[] the art at every height of ART_HEIGHTS
-local function solid(line_of)
+---@param fill string one character
+---@return games.ArtEntry[] fill over the whole cell at every height of ART_HEIGHTS
+local function solid(fill)
   return vim.tbl_map(function(h)
-    local w = CELL_ASPECT * h
-    local lines = {}
-    for i = 1, h do
-      lines[i] = line_of(w)
-    end
-    return { h = h, w = w, lines = lines }
+    return build.sprite(vim.fn["repeat"]({ fill:rep(art.CELL_ASPECT * h) }, h))
   end, ART_HEIGHTS)
 end
 
@@ -76,8 +64,6 @@ return {
     }, ghosts("M")),
   },
   art = {
-    wall = solid(function(w)
-      return ("█"):rep(w)
-    end),
+    wall = solid("█"),
   },
 }

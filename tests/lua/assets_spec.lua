@@ -61,6 +61,31 @@ local function shipped_packs()
     :totable()
 end
 
+---@param shipped {game: string, name: string}
+---@return string
+local function pack_module(shipped)
+  return ("games.assets.%s.%s"):format(shipped.game, shipped.name)
+end
+
+---@param modules string[] packs' modules
+---@param ambiwidth string
+---@return table<string, games.AssetPack> each module's pack when loaded afresh under ambiwidth
+local function packs_loaded_under(modules, ambiwidth)
+  local overrides = { { vim.o, "ambiwidth", ambiwidth } }
+  for name in pairs(package.loaded) do
+    if vim.startswith(name, "games.assets.") then
+      overrides[#overrides + 1] = { package.loaded, name, nil }
+    end
+  end
+  local packs = {}
+  helpers.with_overrides(overrides, function()
+    for _, module in ipairs(modules) do
+      packs[module] = require(module)
+    end
+  end)
+  return packs
+end
+
 local T = {}
 
 function T.every_shipped_pack_draws_every_key_of_its_game_under_either_ambiwidth()
@@ -70,7 +95,7 @@ function T.every_shipped_pack_draws_every_key_of_its_game_under_either_ambiwidth
     local module = assert(registry.game_module(shipped.game), shipped.game)
     assert(module.asset_keys, shipped.game)
     local spec = assets.spec_of(module)
-    local loaded = require(("games.assets.%s.%s"):format(shipped.game, shipped.name))
+    local loaded = require(pack_module(shipped))
     local problem = assets.problem(loaded, spec)
     assert(not problem, ("%s/%s: %s"):format(shipped.game, shipped.name, problem))
     for _, ambiwidth in ipairs({ "single", "double" }) do
@@ -95,7 +120,7 @@ end
 function T.every_shipped_pack_picks_each_art_entry_in_a_box_its_size()
   for _, shipped in ipairs(shipped_packs()) do
     local module = assert(registry.game_module(shipped.game), shipped.game)
-    local loaded = require(("games.assets.%s.%s"):format(shipped.game, shipped.name))
+    local loaded = require(pack_module(shipped))
     helpers.with_overrides({ { vim.o, "ambiwidth", "single" } }, function()
       for _, glyphs in ipairs({ "unicode", "ascii" }) do
         local set = assets.art_set(loaded, glyphs)
@@ -109,6 +134,12 @@ function T.every_shipped_pack_picks_each_art_entry_in_a_box_its_size()
       end
     end)
   end
+end
+
+function T.every_shipped_pack_is_the_same_whatever_ambiwidth_it_loads_under()
+  local modules = vim.tbl_map(pack_module, shipped_packs())
+  vim.tbl_map(require, modules)
+  assert_eq(packs_loaded_under(modules, "single"), packs_loaded_under(modules, "double"))
 end
 
 function T.problem_names_what_a_pack_gets_wrong()

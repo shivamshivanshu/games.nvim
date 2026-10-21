@@ -1,24 +1,17 @@
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 3, lines = { line } }
-end
+local build = require("games.assets.shared.build")
+local tictactoe = require("games.games.tictactoe")
 
----@param lines string[] as many lines as the square cell is tall, each twice that wide
----@return games.ArtEntry
-local function sprite(lines)
-  return { h = #lines, w = 2 * #lines, lines = lines }
-end
+local sprite = build.sprite
 
 ---@param x string
 ---@param o string
 ---@return games.ArtSet the mark's key and each empty cell's number
 local function glyph_set(x, o)
-  local set = { x = { glyph(x) }, o = { glyph(o) } }
+  local lines = { x = x, o = o }
   for cell = 1, 9 do
-    set[tostring(cell)] = { glyph((" %d "):format(cell)) }
+    lines[tostring(cell)] = (" %d "):format(cell)
   end
-  return set
+  return build.glyph_set(lines, tictactoe.glyph_width)
 end
 
 ---Tic-Tac-Toe marks: a cross and a ring, with block art for cells 2 to 6 lines tall.

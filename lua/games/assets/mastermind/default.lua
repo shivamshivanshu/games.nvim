@@ -1,17 +1,5 @@
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 3, lines = { line } }
-end
-
----@param lines table<string, string> key -> its one-line glyph
----@return games.ArtSet
-local function glyph_set(lines)
-  return vim.iter(lines):fold({}, function(set, key, line)
-    set[key] = { glyph(line) }
-    return set
-  end)
-end
+local build = require("games.assets.shared.build")
+local mastermind = require("games.games.mastermind")
 
 ---Mastermind pegs: each colour is its own letter, circled in unicode, so a peg never rests on
 ---colour alone; key pegs are a filled dot for black and a ring for white.
@@ -19,7 +7,7 @@ end
 return {
   name = "default",
   glyphs = {
-    unicode = glyph_set({
+    unicode = build.glyph_set({
       ["peg:r"] = " Ⓡ ",
       ["peg:g"] = " Ⓖ ",
       ["peg:b"] = " Ⓑ ",
@@ -32,8 +20,8 @@ return {
       white = " ○ ",
       none = " · ",
       gap = "   ",
-    }),
-    ascii = glyph_set({
+    }, mastermind.glyph_width),
+    ascii = build.glyph_set({
       ["peg:r"] = " R ",
       ["peg:g"] = " G ",
       ["peg:b"] = " B ",
@@ -46,7 +34,7 @@ return {
       white = " + ",
       none = " . ",
       gap = "   ",
-    }),
+    }, mastermind.glyph_width),
   },
   art = {},
 }

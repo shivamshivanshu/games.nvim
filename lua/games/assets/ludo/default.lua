@@ -1,18 +1,8 @@
-local GLYPH_WIDTH = 2
+local build = require("games.assets.shared.build")
+local ludo = require("games.games.ludo")
+
 local MAX_STACK = 4
 local MAX_MIXED_COUNT = 9
-
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = GLYPH_WIDTH, lines = { line } }
-end
-
----@param lines string[]
----@return games.ArtEntry
-local function sprite(lines)
-  return { h = #lines, w = vim.fn.strdisplaywidth(lines[1]), lines = lines }
-end
 
 ---@class (private) games.LudoTokenLook
 ---@field seat string
@@ -71,26 +61,23 @@ end
 ---@param mixed string the shape of several colours on one square, followed by their count
 ---@return games.ArtSet
 local function glyph_set(mode, squares, mixed)
-  local set = {}
-  for key, line in pairs(squares) do
-    set[key] = { glyph(line) }
-  end
+  local lines = vim.deepcopy(squares)
   for _, token in ipairs(TOKENS) do
     for n = 1, MAX_STACK do
-      set[token.seat .. n] = { glyph(stack_glyph(token[mode], n)) }
+      lines[token.seat .. n] = stack_glyph(token[mode], n)
     end
   end
   for n = 2, MAX_MIXED_COUNT do
-    set["mixed" .. n] = { glyph(mixed .. n) }
+    lines["mixed" .. n] = mixed .. n
   end
-  return set
+  return build.glyph_set(lines, ludo.glyph_width)
 end
 
 ---@return games.ArtSet
 local function token_art()
   local set = {}
   for _, token in ipairs(TOKENS) do
-    set[token.seat .. 1] = vim.tbl_map(sprite, token.art)
+    set[token.seat .. 1] = vim.tbl_map(build.sprite, token.art)
   end
   return set
 end

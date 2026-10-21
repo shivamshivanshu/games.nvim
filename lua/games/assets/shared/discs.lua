@@ -1,24 +1,17 @@
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 1, lines = { line } }
-end
+local build = require("games.assets.shared.build")
+
+local GLYPH_WIDTH = 1
 
 ---@type table<games.Glyphs, games.ArtSet>
 local GLYPHS = {
-  unicode = {
-    black = { glyph("●") },
-    white = { glyph("○") },
+  unicode = build.glyph_set({
+    black = "●",
+    white = "○",
     -- "·" is two cells wide under ambiwidth=double, where the ascii "." stands in for it.
-    empty = { glyph("·") },
-    legal = { glyph("+") },
-  },
-  ascii = {
-    black = { glyph("X") },
-    white = { glyph("O") },
-    empty = { glyph(".") },
-    legal = { glyph("+") },
-  },
+    empty = "·",
+    legal = "+",
+  }, GLYPH_WIDTH),
+  ascii = build.glyph_set({ black = "X", white = "O", empty = ".", legal = "+" }, GLYPH_WIDTH),
 }
 
 ---Black solid and white hollow, so the seats differ by shape as well as colour.
@@ -71,17 +64,6 @@ local ART = {
   },
 }
 
----@param set games.ArtSet
----@param keys string[]
----@return games.ArtSet
-local function only(set, keys)
-  local out = {}
-  for _, key in ipairs(keys) do
-    out[key] = set[key]
-  end
-  return out
-end
-
 ---Black and white discs for the boards of games.ui.discs, shared by gomoku and reversi.
 local M = {}
 
@@ -89,11 +71,7 @@ local M = {}
 ---@param keys string[]
 ---@return games.AssetPack
 function M.pack(keys)
-  return {
-    name = "default",
-    glyphs = { unicode = only(GLYPHS.unicode, keys), ascii = only(GLYPHS.ascii, keys) },
-    art = only(ART, keys),
-  }
+  return build.pack(keys, GLYPHS, ART)
 end
 
 return M

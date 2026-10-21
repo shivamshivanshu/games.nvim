@@ -1,8 +1,6 @@
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 1, lines = { line } }
-end
+local build = require("games.assets.shared.build")
+
+local GLYPH_WIDTH = 1
 
 ---Draughts glyphs, hollow white and solid black, with disc art for cells 3 to 6 lines tall; a
 ---king's disc carries a ring.
@@ -10,23 +8,23 @@ end
 return {
   name = "default",
   glyphs = {
-    unicode = {
-      b = { glyph("⛂") },
-      B = { glyph("⛃") },
-      w = { glyph("⛀") },
-      W = { glyph("⛁") },
+    unicode = build.glyph_set({
+      b = "⛂",
+      B = "⛃",
+      w = "⛀",
+      W = "⛁",
       -- "·" is two cells wide under ambiwidth=double, where the ascii "." stands in for it.
-      empty = { glyph("·") },
-      light = { glyph(" ") },
-    },
-    ascii = {
-      b = { glyph("b") },
-      B = { glyph("B") },
-      w = { glyph("w") },
-      W = { glyph("W") },
-      empty = { glyph(".") },
-      light = { glyph(" ") },
-    },
+      empty = "·",
+      light = " ",
+    }, GLYPH_WIDTH),
+    ascii = build.glyph_set({
+      b = "b",
+      B = "B",
+      w = "w",
+      W = "W",
+      empty = ".",
+      light = " ",
+    }, GLYPH_WIDTH),
   },
   art = {
     b = {
