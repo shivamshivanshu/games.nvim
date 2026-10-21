@@ -33,6 +33,7 @@ const (
 	alice         game.UserID   = "alice"
 	bob           game.UserID   = "bob"
 	carol         game.UserID   = "carol"
+	dave          game.UserID   = "dave"
 	testPassword                = "correct horse"
 	chessType     game.GameType = "chess"
 	shutdownWait                = 5 * time.Second
@@ -55,7 +56,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &env{store: storetest.Open(t, hash, alice, bob, carol), clock: clocktest.New(clocktest.Epoch)}
+	return &env{store: storetest.Open(t, hash, alice, bob, carol, dave), clock: clocktest.New(clocktest.Epoch)}
 }
 
 type server struct {
