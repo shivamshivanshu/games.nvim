@@ -75,6 +75,14 @@ local GAME_CLASS = {
     PlacedEvent = "games.ReversiPlacedEvent",
     View = "games.ReversiView",
   },
+  chess_puzzle = {
+    MissedEvent = "games.ChessPuzzleMissedEvent",
+    MoveSquares = "games.ChessSquares",
+    MovedEvent = "games.ChessPuzzleMovedEvent",
+    RepliedEvent = "games.ChessPuzzleRepliedEvent",
+    RevealedEvent = "games.ChessPuzzleRevealedEvent",
+    View = "games.ChessPuzzleView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
