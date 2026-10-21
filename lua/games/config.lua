@@ -1,10 +1,8 @@
-local finder = require("games.ui.finder")
 local highlights = require("games.ui.highlights")
 local predicates = require("games.core.predicates")
+local types = require("games.types")
 
 local M = {}
-
----@alias games.Glyphs "unicode"|"ascii"
 
 ---@class games.ServerAddress
 ---@field host string
@@ -53,31 +51,38 @@ local M = {}
 ---@field keys? games.KeysConfig
 ---@field puzzles? {max_entries?: integer}
 
-local GLYPHS = { unicode = true, ascii = true }
-local PALETTES = { theme = true, vivid = true }
-local KEY_NAMES = { dashboard = true, find = true }
+---@type table<string, string[]> opts.keys name -> the :Games arguments its key runs
+M.KEY_COMMANDS = { dashboard = {}, find = { "find" } }
 
----@type games.Glyphs
-M.DEFAULT_GLYPHS = "unicode"
-M.DEFAULT_PUZZLE_MAX_ENTRIES = 5000
+local MAX_PORT = 65535
+local DEFAULT_PUZZLE_MAX_ENTRIES = 5000
 
 local DEFAULTS = {
   server = { host = "127.0.0.1", port = 7777 },
   autoconnect = true,
-  glyphs = M.DEFAULT_GLYPHS,
-  palette = "theme",
+  glyphs = types.Glyphs.UNICODE,
+  palette = types.Palette.THEME,
   highlights = {},
   archive = {},
   board = {},
   assets = {},
   keys = {},
-  puzzles = { max_entries = M.DEFAULT_PUZZLE_MAX_ENTRIES },
+  puzzles = { max_entries = DEFAULT_PUZZLE_MAX_ENTRIES },
 }
+
+---A validator accepting enum's values.
+---@param enum table<string, string>
+---@return fun(value: any): boolean
+local function one_of(enum)
+  return function(value)
+    return vim.tbl_contains(vim.tbl_values(enum), value)
+  end
+end
 
 ---@param port any
 ---@return boolean
 local function is_port(port)
-  return type(port) == "number" and port == math.floor(port) and port > 0 and port < 65536
+  return predicates.is_positive_integer(port) and port <= MAX_PORT
 end
 
 ---@param definitions any
@@ -128,7 +133,7 @@ local function valid_keys(keys)
     return false, "not a table"
   end
   for name, lhs in pairs(keys) do
-    if KEY_NAMES[name] == nil then
+    if M.KEY_COMMANDS[name] == nil then
       return false, ("unknown key %s"):format(vim.inspect(name))
     end
     if not is_nonempty_string(lhs) then
@@ -152,12 +157,8 @@ function M.resolve(opts)
   vim.validate("username", config.username, "string", true)
   vim.validate("password", config.password, { "string", "function" }, true)
   vim.validate("autoconnect", config.autoconnect, "boolean")
-  vim.validate("glyphs", config.glyphs, function(glyphs)
-    return GLYPHS[glyphs] ~= nil
-  end, '"unicode" or "ascii"')
-  vim.validate("palette", config.palette, function(palette)
-    return PALETTES[palette] ~= nil
-  end, '"theme" or "vivid"')
+  vim.validate("glyphs", config.glyphs, one_of(types.Glyphs), '"unicode" or "ascii"')
+  vim.validate("palette", config.palette, one_of(types.Palette), '"theme" or "vivid"')
   vim.validate("highlights", config.highlights, valid_highlights, "Games* group -> attributes")
   vim.validate("archive", config.archive, "table")
   vim.validate("archive.dir", config.archive.dir, is_nonempty_string, true, "non-empty path")
@@ -165,9 +166,13 @@ function M.resolve(opts)
   config.archive = { dir = archive_dir and vim.fs.abspath(vim.fs.normalize(archive_dir)) }
   vim.validate("board", config.board, valid_board, "{ max_cell_height = positive integer }")
   vim.validate("assets", config.assets, valid_assets, "game -> asset pack name")
-  vim.validate("picker", config.picker, function(picker)
-    return vim.tbl_contains(finder.PICKER_NAMES, picker)
-  end, true, '"snacks", "telescope", "fzf" or "select"')
+  vim.validate(
+    "picker",
+    config.picker,
+    one_of(types.PickerName),
+    true,
+    '"snacks", "telescope", "fzf" or "select"'
+  )
   vim.validate("keys", config.keys, valid_keys, "{ dashboard?: string, find?: string }")
   vim.validate("puzzles", config.puzzles, "table")
   vim.validate(

@@ -3,6 +3,7 @@ local compose = require("games.ui.compose")
 local highlights = require("games.ui.highlights")
 local predicates = require("games.core.predicates")
 local text_util = require("games.ui.text")
+local types = require("games.types")
 
 ---@class games.GridCell
 ---@field [1] string key into GridProps.art, or the glyph itself without art
@@ -48,8 +49,6 @@ local LIGHT_SQUARE_HL = "GamesSquareLight"
 local DARK_SQUARE_HL = "GamesSquareDark"
 local CELL_GAP = " "
 local LABEL_GAP = " "
----@type games.Ambiwidth
-local DEFAULT_AMBIWIDTH = "single"
 
 ---@class (private) games.BlockSeparators
 ---@field col string
@@ -75,7 +74,7 @@ local function separators_for(glyphs, ambiwidth)
   local drawable = vim.iter(UNICODE_SEPARATOR_GLYPHS):all(function(entry)
     return art.drawable(entry, ambiwidth)
   end)
-  return BLOCK_SEPARATORS[drawable and glyphs or "ascii"]
+  return BLOCK_SEPARATORS[drawable and glyphs or types.Glyphs.ASCII]
 end
 
 ---@class games.GridWidget
@@ -315,7 +314,7 @@ end
 ---@param ambiwidth games.Ambiwidth
 ---@return games.Node
 local function render_cells(props, ambiwidth)
-  local separators = separators_for(props.glyphs or "unicode", ambiwidth)
+  local separators = separators_for(props.glyphs or types.Glyphs.UNICODE, ambiwidth)
   local row_order = M.display_order(props.rows, props.flip)
   local col_order = M.display_order(props.cols, props.flip)
   local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)
@@ -415,7 +414,7 @@ end
 ---@return games.Node
 local function render(props)
   validate_blocks(props.blocks)
-  local ambiwidth = props.ambiwidth or DEFAULT_AMBIWIDTH
+  local ambiwidth = props.ambiwidth or types.DEFAULT_AMBIWIDTH
   if props.edges then
     return render_lattice(props, props.edges, ambiwidth)
   end

@@ -1,7 +1,5 @@
 local colour = require("games.ui.colour")
 
----@alias games.Palette "theme"|"vivid"
-
 ---What a group may set: a background layer sets no foreground, so it stacks under one; a
 ---foreground layer sets no background, so it stacks over one; a badge stands alone.
 ---@enum games.HlRole
@@ -355,7 +353,6 @@ end)
 local M = {}
 
 M.Role = Role
-M.GROUPS = GROUPS
 
 ---@type table<string, games.HlRole> every group, inks included
 M.ROLES = vim.iter(INK_OF):fold(

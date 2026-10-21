@@ -2,9 +2,10 @@ local finder = require("games.ui.finder")
 local helpers = require("helpers")
 local hub = require("fixtures.hub")
 local sources = require("games.core.sources")
+local types = require("games.types")
 
 local assert_eq = helpers.assert_eq
-local PickerName = finder.PickerName
+local PickerName = types.PickerName
 
 ---Runs fn with exactly the named picker plugins installed, as their adapters detect them.
 ---@param installed games.PickerName[]

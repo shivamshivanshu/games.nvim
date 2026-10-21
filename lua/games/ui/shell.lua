@@ -137,8 +137,6 @@ local HEADER_COLUMN_GAP = 2
 ---The header always has a status line, blank without a banner, so a banner never moves the board.
 local STATUS_LINES = 1
 local BODY_BLANK_LINES = 2
----@type games.Ambiwidth
-local DEFAULT_AMBIWIDTH = "single"
 
 ---@type table<string, true> keys the shell owns whether or not they are active
 local CORE_KEYS = vim.iter(CONTROL_KEYS):fold(
@@ -536,7 +534,7 @@ function M.render(update, module, view, me, elapsed_ms, display, catalogued)
   local ctx = vim.tbl_extend("force", view, {
     me = me,
     space = layout_space(seats, compose.measure(footer).h, measured.text_area),
-    ambiwidth = measured.ambiwidth or DEFAULT_AMBIWIDTH,
+    ambiwidth = measured.ambiwidth or types.DEFAULT_AMBIWIDTH,
     flip = is_flipped(update, module, view, me),
   }) --[[@as games.LayoutCtx]]
   local header, clocks =

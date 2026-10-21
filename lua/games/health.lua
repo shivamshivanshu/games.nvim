@@ -1,3 +1,5 @@
+local types = require("games.types")
+
 local health = vim.health
 
 local M = {}
@@ -56,7 +58,7 @@ end
 
 ---@param glyphs games.Glyphs
 local function check_glyphs(glyphs)
-  if glyphs == "ascii" then
+  if glyphs == types.Glyphs.ASCII then
     health.ok('glyphs = "ascii"')
     return
   end
@@ -67,7 +69,7 @@ end
 local function check_palette(palette)
   local truecolor = vim.o.termguicolors
   local summary = ('palette = "%s", termguicolors = %s'):format(palette, tostring(truecolor))
-  if palette == "vivid" and not truecolor then
+  if palette == types.Palette.VIVID and not truecolor then
     health.warn(summary .. '; vivid needs termguicolors, so "theme" is used')
     return
   end

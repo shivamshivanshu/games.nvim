@@ -183,20 +183,18 @@ function M.result_text(result)
   return ("Result: %s won (%s)"):format(table.concat(result.winners, ", "), reason)
 end
 
----@alias games.Outcome "won"|"lost"|"drawn"|"aborted"
-
 ---How the result went for me.
 ---@param result games.WireResult
 ---@param me games.UserID
 ---@return games.Outcome
 function M.outcome(result, me)
   if result.kind == types.ResultKind.ABORTED then
-    return "aborted"
+    return types.Outcome.ABORTED
   end
   if result.kind == types.ResultKind.DRAW then
-    return "drawn"
+    return types.Outcome.DRAWN
   end
-  return vim.tbl_contains(result.winners, me) and "won" or "lost"
+  return vim.tbl_contains(result.winners, me) and types.Outcome.WON or types.Outcome.LOST
 end
 
 ---@type table<games.GameStage, string>

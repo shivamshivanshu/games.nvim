@@ -1,6 +1,7 @@
 local highlights = require("games.ui.highlights")
 local notify = require("games.core.notify")
 local players = require("games.core.players")
+local types = require("games.types")
 
 ---@class games.ThemeOptions
 ---@field palette games.Palette
@@ -97,20 +98,20 @@ end
 ---@param requested games.Palette
 ---@return games.Palette
 local function showable_palette(requested)
-  if requested ~= "vivid" or vim.o.termguicolors then
+  if requested ~= types.Palette.VIVID or vim.o.termguicolors then
     return requested
   end
   if not warned_no_truecolor then
     warned_no_truecolor = true
     notify.say('games: palette "vivid" needs \'termguicolors\'; using "theme"', vim.log.levels.WARN)
   end
-  return "theme"
+  return types.Palette.THEME
 end
 
 ---@param palette games.Palette
 ---@return games.HlDefinitions
 local function palette_definitions(palette)
-  if palette == "vivid" then
+  if palette == types.Palette.VIVID then
     return highlights.vivid_definitions()
   end
   return highlights.theme_definitions(resolved)

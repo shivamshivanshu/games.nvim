@@ -2,6 +2,7 @@ local Archive = require("games.core.archive")
 local Client = require("games.core.client")
 local commands = require("games.core.commands")
 local games = require("games")
+local games_config = require("games.config")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local types = require("games.types")
@@ -32,6 +33,7 @@ local function with_stub_client(credentials, fn)
       "client",
       Client.new(conn --[[@as games.Conn]]),
     },
+    { games, "config", games_config.resolve({}) },
     {
       vim.ui,
       "input",

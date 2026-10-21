@@ -673,8 +673,8 @@ function M.find(client, me, name)
     done({})
   end
   fetch(client, function(extra)
-    local config = require("games").config
-    finder.open(sources.build(name, sources.snapshot(client, me, extra)), config and config.picker)
+    local picker = assert(require("games").config).picker
+    finder.open(sources.build(name, sources.snapshot(client, me, extra)), picker)
   end)
 end
 
@@ -701,8 +701,7 @@ end
 
 ---@return integer
 local function puzzle_max_entries()
-  local config = require("games").config
-  return config and config.puzzles.max_entries or require("games.config").DEFAULT_PUZZLE_MAX_ENTRIES
+  return assert(require("games").config).puzzles.max_entries
 end
 
 ---Imports args[1] into the puzzle set args[2], or one named after the file, keeping at most

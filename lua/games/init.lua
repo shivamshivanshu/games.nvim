@@ -6,8 +6,6 @@ local notify = require("games.core.notify")
 local theme = require("games.ui.theme")
 
 local AUTOCONNECT_GROUP = "games.autoconnect"
----@type table<string, string[]> opts.keys name -> the :Games arguments its key runs
-local KEY_COMMANDS = { dashboard = {}, find = { "find" } }
 
 local M = {}
 
@@ -48,7 +46,7 @@ local function map_global_keys(keys)
     vim.keymap.del("n", key.lhs)
   end
   mapped_keys = {}
-  for name, fargs in pairs(KEY_COMMANDS) do
+  for name, fargs in pairs(config.KEY_COMMANDS) do
     local lhs = keys[name]
     if lhs then
       local function run()
@@ -108,16 +106,15 @@ function M.setup(opts)
   })
 end
 
----Options for every board this plugin opens, taken from the user's config.
+---Options for every board this plugin opens, taken from the user's config, or the defaults
+---before setup().
 ---@return games.OpenOptions
 function M.open_options()
-  if not M.config then
-    return { glyphs = config.DEFAULT_GLYPHS }
-  end
+  local resolved = M.config or config.resolve({})
   return {
-    glyphs = M.config.glyphs,
-    max_cell_height = M.config.board.max_cell_height,
-    assets = M.config.assets,
+    glyphs = resolved.glyphs,
+    max_cell_height = resolved.board.max_cell_height,
+    assets = resolved.assets,
   }
 end
 

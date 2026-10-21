@@ -290,4 +290,28 @@ M.Control = {
   ABORT = "abort",
 }
 
+---@enum games.Glyphs
+M.Glyphs = { UNICODE = "unicode", ASCII = "ascii" }
+
+---@enum games.Palette
+M.Palette = { THEME = "theme", VIVID = "vivid" }
+
+---The 'ambiwidth' a render measures under.
+---@enum games.Ambiwidth
+M.Ambiwidth = { SINGLE = "single", DOUBLE = "double" }
+
+M.DEFAULT_AMBIWIDTH = M.Ambiwidth.SINGLE
+
+---How a finished game went for one player.
+---@enum games.Outcome
+M.Outcome = { WON = "won", LOST = "lost", DRAWN = "drawn", ABORTED = "aborted" }
+
+---@enum games.PickerName
+M.PickerName = {
+  SNACKS = "snacks",
+  TELESCOPE = "telescope",
+  FZF = "fzf",
+  SELECT = "select",
+}
+
 return M

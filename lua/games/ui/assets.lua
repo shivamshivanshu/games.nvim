@@ -2,6 +2,7 @@ local art = require("games.ui.art")
 local notify = require("games.core.notify")
 local predicates = require("games.core.predicates")
 local tables = require("games.core.tables")
+local types = require("games.types")
 
 ---@class games.AssetPack
 ---@field name string
@@ -20,7 +21,7 @@ local M = {}
 M.DEFAULT_PACK = "default"
 
 ---@type games.Glyphs[]
-local GLYPH_MODES = { "unicode", "ascii" }
+local GLYPH_MODES = { types.Glyphs.UNICODE, types.Glyphs.ASCII }
 local BLOCK_ELEMENT = "\226\150[\128-\159]" -- U+2580-259F in UTF-8
 local PRINTABLE_ASCII = art.PRINTABLE_ASCII
 
@@ -241,11 +242,11 @@ end
 ---@param glyphs games.Glyphs
 ---@return games.ArtSet
 local function build_art_set(pack, glyphs)
-  local ascii = pack.glyphs.ascii
-  if glyphs == "ascii" then
+  local ascii = pack.glyphs[types.Glyphs.ASCII]
+  if glyphs == types.Glyphs.ASCII then
     return ascii
   end
-  return vim.iter(pack.glyphs.unicode):fold({}, function(merged, key, entries)
+  return vim.iter(pack.glyphs[types.Glyphs.UNICODE]):fold({}, function(merged, key, entries)
     local combined = vim.list_extend({}, entries)
     vim.list_extend(combined, pack.art[key] or {})
     merged[key] = vim.list_extend(combined, ascii[key])

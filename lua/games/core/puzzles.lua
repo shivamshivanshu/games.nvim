@@ -265,6 +265,14 @@ function M.load(name, on_done)
   end)
 end
 
+---Runs fn, turning what it raises into an error message.
+---@param fn fun()
+---@return string|nil err
+local function try(fn)
+  local ok, err = pcall(fn)
+  return not ok and tostring(err) or nil
+end
+
 ---Moves the set name past started, when started is still the entry it starts next: a set imported
 ---again since keeps its own place. It reads and writes the set before it returns, so no other
 ---write to the set can land in between.
@@ -272,23 +280,21 @@ end
 ---@param started games.PuzzleEntry
 ---@return string|nil err
 function M.advance(name, started)
-  local ok, err = pcall(function()
+  return try(function()
     local set = read_set(name)
     if vim.deep_equal(set.entries[set.next], started) then
       write_set(name, { entries = set.entries, next = set.next + 1 })
     end
   end)
-  return not ok and tostring(err) or nil
 end
 
 ---Sends the set name back to its first entry, reading and writing it before it returns.
 ---@param name string
 ---@return string|nil err
 function M.restart(name)
-  local ok, err = pcall(function()
+  return try(function()
     write_set(name, { entries = read_set(name).entries, next = 1 })
   end)
-  return not ok and tostring(err) or nil
 end
 
 ---Each saved set's name, size and next entry, sorted by name; a set that cannot be read is left out.

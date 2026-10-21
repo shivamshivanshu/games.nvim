@@ -1,13 +1,11 @@
+local types = require("games.types")
+
 ---@class games.ArtEntry
 ---@field h integer lines
 ---@field w integer display columns of every line
 ---@field lines string[]
 
 ---@alias games.ArtSet table<string, games.ArtEntry[]> key -> its entries; a glyph is an h = 1 entry
-
----@alias games.Ambiwidth "single"|"double" the 'ambiwidth' a render measures under
-
-local AMBIWIDTH_DOUBLE = "double"
 
 local M = {}
 
@@ -48,7 +46,7 @@ end
 function M.drawable(entry, ambiwidth)
   local cache = drawable_by_ambiwidth[ambiwidth]
   if cache[entry] == nil then
-    cache[entry] = (entry.h == 1 or ambiwidth ~= AMBIWIDTH_DOUBLE or is_ascii(entry))
+    cache[entry] = (entry.h == 1 or ambiwidth ~= types.Ambiwidth.DOUBLE or is_ascii(entry))
       and renders_at_declared_size(entry)
   end
   return cache[entry]

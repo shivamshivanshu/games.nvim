@@ -1,14 +1,9 @@
 local notify = require("games.core.notify")
 local picker = require("games.ui.picker")
 local sources = require("games.core.sources")
+local types = require("games.types")
 
----@enum games.PickerName
-local PickerName = {
-  SNACKS = "snacks",
-  TELESCOPE = "telescope",
-  FZF = "fzf",
-  SELECT = "select",
-}
+local PickerName = types.PickerName
 
 ---@type games.PickerName[] tried in order when no picker is forced; select always works
 local DETECTION_ORDER = { PickerName.SNACKS, PickerName.TELESCOPE, PickerName.FZF }
@@ -24,7 +19,6 @@ local DETECTION_ORDER = { PickerName.SNACKS, PickerName.TELESCOPE, PickerName.FZ
 
 local M = {}
 
-M.PickerName = PickerName
 ---@type games.PickerName[]
 M.PICKER_NAMES = vim.list_extend(vim.list_slice(DETECTION_ORDER), { PickerName.SELECT })
 M.CHOOSE_KEY = "<M-CR>"

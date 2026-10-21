@@ -25,7 +25,7 @@
 ---@type table<string, games.PuzzleSide> by the FEN's side-to-move letter
 local SIDE_TO_MOVE = { w = "white", b = "black" }
 ---@type table<string, games.PuzzleSide> by the FEN's side-to-move letter
-local SIDE_NOT_TO_MOVE = { w = "black", b = "white" }
+local SIDE_NOT_TO_MOVE = { w = SIDE_TO_MOVE.b, b = SIDE_TO_MOVE.w }
 ---@type table<string, string> entry field -> Lichess CSV column
 local CSV_COLUMNS = { id = "PuzzleId", fen = "FEN", moves = "Moves" }
 local PGN_HEADER = '^%s*%[(%w+)%s+"(.-)"%]%s*$'
