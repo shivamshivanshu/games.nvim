@@ -10,6 +10,7 @@ local types = require("games.types")
 local assert_eq = helpers.assert_eq
 local MessageType = types.MessageType
 local ErrorCode = types.ErrorCode
+local Capability = types.Capability
 
 local LOGIN = { user = "alice", heartbeat_ms = 15000 }
 
@@ -182,7 +183,7 @@ local PUZZLE = {
   id = "puzzle",
   name = "Puzzle",
   players = { min = 1, max = 1 },
-  capabilities = { "resign" },
+  capabilities = { Capability.RESIGN },
   options = {
     level = { type = "enum", values = { "easy", "hard" }, default = "easy" },
     note = { type = "text", values = {}, default = "", max_len = 8 },
