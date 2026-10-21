@@ -73,4 +73,12 @@ function T.picker_and_keys_are_validated()
   end
 end
 
+function T.puzzles_max_entries_defaults_and_is_validated()
+  assert(config.resolve({}).puzzles.max_entries == config.DEFAULT_PUZZLE_MAX_ENTRIES)
+  assert(config.resolve({ puzzles = { max_entries = 10 } }).puzzles.max_entries == 10)
+  for _, puzzles in ipairs({ { max_entries = 0 }, { max_entries = 2.5 }, 5000 }) do
+    assert(not pcall(config.resolve, { puzzles = puzzles }), "accepted " .. vim.inspect(puzzles))
+  end
+end
+
 return T

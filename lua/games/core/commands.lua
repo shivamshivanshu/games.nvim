@@ -669,6 +669,11 @@ local EXTRA_FETCHES = {
       end)
     )
   end,
+  [sources.SourceName.PUZZLES] = function(_, done)
+    puzzles.summaries(function(summaries)
+      done({ puzzle_sets = summaries })
+    end)
+  end,
   [sources.SourceName.PLAYERS] = function(client, done)
     client:user_list(
       nil,
@@ -725,15 +730,34 @@ local function open_dashboard(client)
   dashboard.open(client)
 end
 
----Imports args[1] into the puzzle set args[2], or one named after the file.
+---@return integer
+local function puzzle_max_entries()
+  local config = require("games").config
+  return config and config.puzzles.max_entries or require("games.config").DEFAULT_PUZZLE_MAX_ENTRIES
+end
+
+---Imports args[1] into the puzzle set args[2], or one named after the file, keeping at most
+---args[3] entries, or the configured max_entries.
 ---@param args string[]
 local function import(args)
-  local path = args[1]
+  local path, name, max = args[1], args[2], args[3]
   if not path then
-    say("games: import takes a file: :Games import <file.csv|file.pgn> [set]", ERROR)
+    say("games: import takes a file: :Games import <file.csv|file.pgn> [set] [max]", ERROR)
     return
   end
-  puzzles.import(vim.fn.expand(path), args[2], function(err, result)
+  local max_entries = max == nil and puzzle_max_entries() or tonumber(max)
+  if not predicates.is_positive_integer(max_entries) then
+    say(("games: import: max %q is not a positive whole number"):format(max), ERROR)
+    return
+  end
+  local opts = {
+    name = name,
+    max_entries = max_entries,
+    on_progress = function(lines)
+      say(("games: import: read %d lines of %s"):format(lines, path))
+    end,
+  }
+  puzzles.import(vim.fn.expand(path), opts, function(err, result)
     if err then
       say("games: import: " .. err, ERROR)
       return
@@ -743,28 +767,29 @@ local function import(args)
   end)
 end
 
----Starts the next entry of the puzzle set args[1], or of the latest imported one, then moves the
----set past it; an entry the server refuses is reported and skipped.
----@type games.SubcommandRun
-local function puzzle(client, _, args)
-  puzzles.load(args[1], function(err, name, set)
+---Starts the next entry of the puzzle set name, or of the latest imported one, then moves the set
+---past it; an entry the server refuses is reported and skipped.
+---@param client games.Client
+---@param name string|nil
+function M.start_puzzle(client, name)
+  puzzles.load(name, function(err, set_name, set)
     if err then
       say("games: " .. err, ERROR)
       return
     end
-    ---@cast name string
+    ---@cast set_name string
     ---@cast set games.PuzzleSet
     local entry = set.entries[set.next]
     if not entry then
       say(
-        ("games: puzzle set %s is done, all %d played; :Games import it again to restart"):format(
-          name,
+        ("games: puzzle set %s is done, all %d played; restart it from :Games find puzzles"):format(
+          set_name,
           #set.entries
         )
       )
       return
     end
-    local label = ("%s %d/%d (%s)"):format(name, set.next, #set.entries, entry.id)
+    local label = ("%s %d/%d (%s)"):format(set_name, set.next, #set.entries, entry.id)
     client:game_start(
       { game = PUZZLE_GAME, options = puzzles.options(entry) },
       ---@param update games.GameUpdate|nil
@@ -776,11 +801,10 @@ local function puzzle(client, _, args)
         if not (start_err or update) then
           return
         end
-        puzzles.advance(name, set, function(save_err)
-          if save_err then
-            say(("games: puzzle set %s: %s"):format(name, save_err), ERROR)
-          end
-        end)
+        local save_err = puzzles.advance(set_name, entry)
+        if save_err then
+          say(("games: puzzle set %s: %s"):format(set_name, save_err), ERROR)
+        end
         if start_err then
           say(("games: skipped %s: %s"):format(label, start_err.message), ERROR)
           return
@@ -791,6 +815,25 @@ local function puzzle(client, _, args)
       end
     )
   end)
+end
+
+---Sends the puzzle set name back to its first entry once confirmed.
+---@param name string
+function M.restart_puzzles(name)
+  if not prompt.confirm(("Restart puzzle set %s from its first entry?"):format(name)) then
+    return
+  end
+  local err = puzzles.restart(name)
+  if err then
+    say(("games: puzzle set %s: %s"):format(name, err), ERROR)
+    return
+  end
+  say(("games: puzzle set %s starts again from its first entry"):format(name))
+end
+
+---@type games.SubcommandRun
+local function puzzle(client, _, args)
+  M.start_puzzle(client, args[1])
 end
 
 ---@param arg_lead string
@@ -825,7 +868,7 @@ local SUBCOMMANDS = {
   { name = "find", usage = "find [source]", run = find, arg_choices = always(sources.NAMES) },
   {
     name = "import",
-    usage = "import <file> [set]",
+    usage = "import <file> [set] [max]",
     run_offline = import,
     arg_choices = file_choices,
   },

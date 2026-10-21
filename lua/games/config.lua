@@ -16,6 +16,9 @@ local M = {}
 ---@class games.BoardConfig
 ---@field max_cell_height? integer lines per board cell at most; 1 draws glyphs only, nil no cap
 
+---@class games.PuzzlesConfig
+---@field max_entries integer a puzzle set keeps at most this many of an imported file's entries
+
 ---@class games.KeysConfig normal-mode global keys; each is mapped only when set
 ---@field dashboard? string
 ---@field find? string
@@ -33,6 +36,7 @@ local M = {}
 ---@field assets table<games.GameType, string> asset pack per game: a shipped name or a module name
 ---@field picker? games.PickerName the finder's picker; nil takes the first installed
 ---@field keys games.KeysConfig
+---@field puzzles games.PuzzlesConfig
 
 ---@class games.SetupOpts
 ---@field server? {host?: string, port?: integer}
@@ -47,6 +51,7 @@ local M = {}
 ---@field assets? table<games.GameType, string>
 ---@field picker? games.PickerName
 ---@field keys? games.KeysConfig
+---@field puzzles? {max_entries?: integer}
 
 local GLYPHS = { unicode = true, ascii = true }
 local PALETTES = { theme = true, vivid = true }
@@ -54,6 +59,7 @@ local KEY_NAMES = { dashboard = true, find = true }
 
 ---@type games.Glyphs
 M.DEFAULT_GLYPHS = "unicode"
+M.DEFAULT_PUZZLE_MAX_ENTRIES = 5000
 
 local DEFAULTS = {
   server = { host = "127.0.0.1", port = 7777 },
@@ -65,6 +71,7 @@ local DEFAULTS = {
   board = {},
   assets = {},
   keys = {},
+  puzzles = { max_entries = M.DEFAULT_PUZZLE_MAX_ENTRIES },
 }
 
 ---@param port any
@@ -162,6 +169,13 @@ function M.resolve(opts)
     return vim.tbl_contains(finder.PICKER_NAMES, picker)
   end, true, '"snacks", "telescope", "fzf" or "select"')
   vim.validate("keys", config.keys, valid_keys, "{ dashboard?: string, find?: string }")
+  vim.validate("puzzles", config.puzzles, "table")
+  vim.validate(
+    "puzzles.max_entries",
+    config.puzzles.max_entries,
+    predicates.is_positive_integer,
+    "positive integer"
+  )
   return config
 end
 

@@ -32,6 +32,7 @@ local ActionName = {
   LEADERBOARD = "leaderboard",
   CHALLENGE = "challenge",
   STATS = "stats",
+  RESTART = "restart",
 }
 
 ---@class games.SourceAction
@@ -60,12 +61,14 @@ local ActionName = {
 ---@field catalog games.GameInfo[]
 ---@field users games.UserPresence[]
 ---@field stats? games.StatsResult over every user, as stats.get without user returns it
+---@field puzzle_sets games.PuzzleSetSummary[]
 
 ---What the client cache does not hold, fetched by whoever builds the snapshot.
 ---@class games.SourceExtra
 ---@field finished? games.GameUpdate[] as game.list finished returns them
 ---@field users? games.UserPresence[]
 ---@field stats? games.StatsResult
+---@field puzzle_sets? games.PuzzleSetSummary[]
 
 local M = {}
 
@@ -206,6 +209,7 @@ function M.snapshot(client, me, extra)
     catalog = client:catalog_games(),
     users = extra.users or {},
     stats = extra.stats,
+    puzzle_sets = extra.puzzle_sets or {},
   }
 end
 
@@ -526,19 +530,54 @@ local function player_list(snapshot)
   }
 end
 
----Puzzle sets arrive with chess puzzles (§3.8); until then the source lists none.
+---@param set games.PuzzleSetSummary
+---@return string
+local function puzzle_progress(set)
+  if set.next > set.entries then
+    return ("all %d played"):format(set.entries)
+  end
+  return ("next %d of %d"):format(set.next, set.entries)
+end
+
+---@param snapshot games.SourceSnapshot
 ---@return games.Source
-local function puzzles()
+local function puzzle_sets(snapshot)
+  local client = snapshot.client
+  local name_width = text.max_display_width(vim.tbl_map(function(set)
+    return set.name
+  end, snapshot.puzzle_sets))
   return {
     name = SourceName.PUZZLES,
     title = "Puzzles",
-    items = {},
-    key = tostring,
-    format = tostring,
-    preview = function()
-      return nil
+    items = snapshot.puzzle_sets,
+    key = function(set)
+      return set.name
     end,
-    actions = {},
+    format = function(set)
+      return ("%s  %s"):format(text.pad_to_width(set.name, name_width), puzzle_progress(set))
+    end,
+    preview = function(set)
+      return kv_lines({
+        { "set", set.name },
+        { "entries", tostring(set.entries) },
+        { "progress", puzzle_progress(set) },
+      })
+    end,
+    actions = {
+      {
+        name = ActionName.START,
+        run = function(set)
+          commands().start_puzzle(client, set.name)
+        end,
+      },
+      {
+        name = ActionName.RESTART,
+        run = function(set)
+          commands().restart_puzzles(set.name)
+        end,
+      },
+    },
+    default_action = ActionName.START,
   }
 end
 
@@ -548,7 +587,7 @@ local BUILDERS = {
   [SourceName.GAMES] = games,
   [SourceName.TYPES] = game_types,
   [SourceName.PLAYERS] = player_list,
-  [SourceName.PUZZLES] = puzzles,
+  [SourceName.PUZZLES] = puzzle_sets,
 }
 
 ---@param name string

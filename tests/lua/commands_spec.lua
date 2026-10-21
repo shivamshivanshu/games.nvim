@@ -709,7 +709,7 @@ function T.puzzle_starts_each_entry_of_the_set_in_turn_skipping_one_the_server_r
       assert_eq({
         "games: puzzle mixed 1/2 (SCHOL)",
         "games: skipped mixed 2/2 (game 1): ply 3: illegal move: Ke3",
-        "games: puzzle set mixed is done, all 2 played; :Games import it again to restart",
+        "games: puzzle set mixed is done, all 2 played; restart it from :Games find puzzles",
       }, notices.notified)
       assert_eq(2, game_starts(conn))
     end)
@@ -745,6 +745,103 @@ function T.import_needs_no_server()
         vim.startswith(notices.notified[1], "games: imported 4 into puzzle set daily, 2 failed:")
       )
       assert_eq({ "daily" }, vim.fn.readfile(dir .. "/latest"))
+    end)
+  end)
+end
+
+function T.puzzle_keeps_its_place_when_the_start_fails_short_of_a_refusal()
+  with_puzzle_set(function(dir)
+    with_stub_client({ username = "alice", password = "pw" }, function(conn, notices)
+      conn:push("connected", LOGIN)
+      for _, err in ipairs({
+        { code = ErrorCode.DISCONNECTED, message = "connection lost" },
+        { code = ErrorCode.INTERNAL, message = "internal error" },
+      }) do
+        local starts = game_starts(conn)
+        commands.run({ "puzzle" })
+        helpers.wait_for(function()
+          return game_starts(conn) == starts + 1
+        end, "the puzzle's game.start")
+        conn.requests[#conn.requests].cb(err, nil)
+        helpers.wait_for(function()
+          return #notices.notified == starts + 1
+        end, "the error notice")
+        assert_eq(1, next_puzzle(dir))
+      end
+      assert_eq({ "games: connection lost", "games: internal error" }, notices.notified)
+    end)
+  end)
+end
+
+function T.a_set_imported_again_while_a_puzzle_starts_keeps_its_new_entries()
+  with_puzzle_set(function(dir)
+    with_stub_client({ username = "alice", password = "pw" }, function(conn, notices)
+      conn:push("connected", LOGIN)
+      helpers.with_overrides({ { shell, "open", function() end } }, function()
+        commands.run({ "puzzle" })
+        helpers.wait_for(function()
+          return game_starts(conn) == 1
+        end, "the puzzle's game.start")
+        local reimported = { entries = { PUZZLE_ENTRIES[2], PUZZLE_ENTRIES[1] }, next = 1 }
+        vim.fn.writefile({ vim.json.encode(reimported) }, dir .. "/mixed.json")
+        respond(
+          conn,
+          MessageType.GAME_START,
+          helpers.chess_update({ game_id = "p1", game = "chess_puzzle" })
+        )
+        helpers.wait_for(function()
+          return #notices.notified == 1
+        end, "the puzzle notice")
+      end)
+      assert_eq(
+        { entries = { PUZZLE_ENTRIES[2], PUZZLE_ENTRIES[1] }, next = 1 },
+        vim.json.decode(table.concat(vim.fn.readfile(dir .. "/mixed.json"), "\n"))
+      )
+    end)
+  end)
+end
+
+function T.the_puzzles_finder_lists_the_saved_sets()
+  with_puzzle_set(function()
+    with_stub_client(nil, function()
+      local opened
+      helpers.with_overrides({
+        {
+          require("games.ui.finder"),
+          "open",
+          function(source)
+            opened = source
+          end,
+        },
+      }, function()
+        commands.find(games.client, "alice", "puzzles")
+        helpers.wait_for(function()
+          return opened ~= nil
+        end, "the finder")
+      end)
+      assert_eq({ { name = "mixed", entries = 2, next = 1 } }, opened.items)
+    end)
+  end)
+end
+
+function T.import_takes_a_max_over_the_configured_one()
+  with_puzzle_set(function()
+    with_stub_client(nil, function(_, notices)
+      local csv = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h")
+        .. "/fixtures/puzzles/lichess.csv"
+      commands.run({ "import", csv, "daily", "none" })
+      commands.run({ "import", csv, "daily", "2" })
+      helpers.wait_for(function()
+        return #notices.notified == 2
+      end, "the import notices")
+      assert_eq('games: import: max "none" is not a positive whole number', notices.notified[1])
+      assert(
+        vim.startswith(
+          notices.notified[2],
+          "games: imported 2 into puzzle set daily, 2 more left out past the set's 2, 2 failed:"
+        ),
+        notices.notified[2]
+      )
     end)
   end)
 end

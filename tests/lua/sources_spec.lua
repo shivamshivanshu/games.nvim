@@ -131,13 +131,6 @@ function T.players_leave_out_me_and_rank_by_the_server_s_leaderboard()
   }, players.preview(players.items[1]))
 end
 
-function T.puzzles_list_nothing_until_puzzle_sets_exist()
-  local client = hub.client()
-  local puzzles = sources.build(SourceName.PUZZLES, hub.snapshot(client))
-  assert_eq({}, puzzles.items)
-  assert_eq({}, puzzles.actions)
-end
-
 function T.actions_send_through_the_client()
   local client, conn = hub.client()
   local snapshot = hub.snapshot(client)
@@ -256,6 +249,92 @@ function T.resign_declined_sends_nothing()
     run(games, "resign", hub.WAITING)
   end)
   assert_eq(false, hub.requested(conn, "game.control"))
+end
+
+---@type games.PuzzleEntry
+local DAILY_ENTRY = {
+  id = "SCHOL",
+  mode = "puzzle",
+  fen = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+  moves = "g8f6 h5f7",
+  player = "white",
+}
+
+---Runs fn with the puzzle sets in a temp dir holding set "daily" at its second entry.
+---@param fn fun(dir: string)
+local function with_daily_set(fn)
+  local puzzles = require("games.core.puzzles")
+  helpers.with_temp_dir(function(dir)
+    vim.fn.mkdir(dir, "p")
+    local set = { entries = { DAILY_ENTRY, DAILY_ENTRY, DAILY_ENTRY }, next = 2 }
+    vim.fn.writefile({ vim.json.encode(set) }, dir .. "/daily.json")
+    helpers.with_overrides({
+      {
+        puzzles,
+        "dir",
+        function()
+          return dir
+        end,
+      },
+    }, function()
+      fn(dir)
+    end)
+  end)
+end
+
+---@param dir string
+---@return integer
+local function daily_next(dir)
+  return vim.json.decode(table.concat(vim.fn.readfile(dir .. "/daily.json"), "\n")).next
+end
+
+function T.puzzles_list_the_saved_sets_and_start_or_restart_one()
+  local client, conn = hub.client()
+  local snapshot = hub.snapshot(client, {
+    puzzle_sets = {
+      { name = "daily", entries = 3, next = 2 },
+      { name = "done", entries = 2, next = 3 },
+    },
+  })
+  local puzzles = sources.build(SourceName.PUZZLES, snapshot)
+  assert_eq({ "daily  next 2 of 3", "done   all 2 played" }, formatted(puzzles))
+  assert_eq(
+    { "set      daily", "entries  3", "progress next 2 of 3" },
+    puzzles.preview(puzzles.items[1])
+  )
+  assert_eq("start", puzzles.default_action)
+  assert_eq({ "start", "restart" }, applicable_names(puzzles, puzzles.items[1]))
+
+  with_daily_set(function(dir)
+    run(puzzles, "start", puzzles.items[1])
+    helpers.wait_for(function()
+      return hub.requested(conn, "game.start")
+    end, "the puzzle's game.start")
+    assert_eq(
+      { game = "chess_puzzle", options = require("games.core.puzzles").options(DAILY_ENTRY) },
+      hub.sent(conn, "game.start")
+    )
+    confirming(2, function()
+      run(puzzles, "restart", puzzles.items[1])
+    end)
+    assert_eq(2, daily_next(dir))
+    local said = {}
+    helpers.with_overrides({
+      {
+        vim,
+        "notify",
+        function(message)
+          table.insert(said, message)
+        end,
+      },
+    }, function()
+      confirming(1, function()
+        run(puzzles, "restart", puzzles.items[1])
+      end)
+    end)
+    assert_eq(1, daily_next(dir))
+    assert_eq({ "games: puzzle set daily starts again from its first entry" }, said)
+  end)
 end
 
 return T
