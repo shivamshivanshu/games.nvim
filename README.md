@@ -30,6 +30,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Uno | 2–6 | [docs/games/uno.md](docs/games/uno.md) |
 | Hearts | 4 | [docs/games/hearts.md](docs/games/hearts.md) |
 | Battleship | 2 | [docs/games/battleship.md](docs/games/battleship.md) |
+| Chess960 | 2 | [docs/games/chess960.md](docs/games/chess960.md) |
 
 ## Requirements
 

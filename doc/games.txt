@@ -414,6 +414,8 @@ the current state are mapped; the footer lists them.
     <CR>    battleship: place the ship at the cursor, or fire at it
     f       battleship: place the rest of your fleet at random
     m       battleship: fire at a cell, `c5` is column c, row 5
+    m       chess960: a move as in chess; castle with `O-O`, `O-O-O` or
+            the king onto its own rook, e.g. `f1h1`
     ]g      next game waiting on your move
     q       close
 
