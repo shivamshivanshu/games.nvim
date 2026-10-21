@@ -283,7 +283,7 @@ local function find(state)
   local target = target_at_cursor(state)
   local name = target and target.source.name or SourceName.GAMES
   M.close()
-  require("games.core.commands").find(state.client, state.me, name)
+  require("games.core.commands.find").find(state.client, state.me, name)
 end
 
 ---@param state games.DashboardState

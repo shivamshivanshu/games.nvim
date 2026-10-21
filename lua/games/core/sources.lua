@@ -88,11 +88,6 @@ M.NAMES = {
   SourceName.PUZZLES,
 }
 
----Required on first use, because commands opens the finder over these sources.
-local function commands()
-  return require("games.core.commands")
-end
-
 ---@param pairs games.KvPair[]
 ---@return string[]
 local function kv_lines(pairs)
@@ -119,28 +114,6 @@ local function incoming_first(me)
     end
     return a.challenge_id < b.challenge_id
   end
-end
-
----@param a games.UserPresence
----@param b games.UserPresence
----@return boolean
-local function online_first(a, b)
-  if a.online ~= b.online then
-    return a.online
-  end
-  return a.user < b.user
-end
-
----users other than me, online ones first, each group by name.
----@param users games.UserPresence[]
----@param me games.UserID
----@return games.UserPresence[]
-function M.other_players(users, me)
-  local others = vim.tbl_filter(function(presence)
-    return presence.user ~= me
-  end, users)
-  table.sort(others, online_first)
-  return others
 end
 
 ---@param update games.GameUpdate
@@ -447,13 +420,13 @@ local function game_types(snapshot)
       {
         name = ActionName.START,
         run = function(info)
-          commands().start(client, me, info)
+          require("games.core.commands.solo").start(client, me, info)
         end,
       },
       {
         name = ActionName.LEADERBOARD,
         run = function(info)
-          commands().show_leaderboard(client, info.id)
+          require("games.core.commands.stats").show_leaderboard(client, info.id)
         end,
       },
     },
@@ -493,7 +466,7 @@ end
 ---@return games.Source
 local function player_list(snapshot)
   local me, client = snapshot.me, snapshot.client
-  local others = M.other_players(snapshot.users, me)
+  local others = players.other_players(snapshot.users, me)
   return {
     name = SourceName.PLAYERS,
     title = "Players",
@@ -513,13 +486,13 @@ local function player_list(snapshot)
       {
         name = ActionName.CHALLENGE,
         run = function(presence)
-          commands().challenge(client, me, nil, { presence.user })
+          require("games.core.commands.challenge").challenge(client, me, nil, { presence.user })
         end,
       },
       {
         name = ActionName.STATS,
         run = function(presence)
-          commands().show_stats(client, presence.user)
+          require("games.core.commands.stats").show_stats(client, presence.user)
         end,
       },
     },
@@ -564,13 +537,13 @@ local function puzzle_sets(snapshot)
       {
         name = ActionName.START,
         run = function(set)
-          commands().start_puzzle(client, set.name)
+          require("games.core.commands.puzzle").start_puzzle(client, set.name)
         end,
       },
       {
         name = ActionName.RESTART,
         run = function(set)
-          commands().restart_puzzles(set.name)
+          require("games.core.commands.puzzle").restart_puzzles(set.name)
         end,
       },
     },

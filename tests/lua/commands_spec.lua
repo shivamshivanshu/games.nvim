@@ -827,7 +827,7 @@ function T.the_puzzles_finder_lists_the_saved_sets()
           end,
         },
       }, function()
-        commands.find(games.client, "alice", "puzzles")
+        require("games.core.commands.find").find(games.client, "alice", "puzzles")
         helpers.wait_for(function()
           return opened ~= nil
         end, "the finder")

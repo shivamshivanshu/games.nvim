@@ -107,4 +107,26 @@ function M.can_start_solo(info)
   return info.players.min == 1
 end
 
+---@param a games.UserPresence
+---@param b games.UserPresence
+---@return boolean
+local function online_first(a, b)
+  if a.online ~= b.online then
+    return a.online
+  end
+  return a.user < b.user
+end
+
+---users other than me, online ones first, each group by name.
+---@param users games.UserPresence[]
+---@param me games.UserID
+---@return games.UserPresence[]
+function M.other_players(users, me)
+  local others = vim.tbl_filter(function(presence)
+    return presence.user ~= me
+  end, users)
+  table.sort(others, online_first)
+  return others
+end
+
 return M
