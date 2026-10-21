@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 const (
@@ -46,13 +47,13 @@ func TestChipsInPlayAndForfeitedStacksAlwaysTotalTheStartingChips(t *testing.T) 
 	for n := 3; n <= maxPlayers; n++ {
 		for seed := range uint64(randomGamesPerSize) {
 			rng := rand.New(rand.NewPCG(seed, uint64(n)))
-			players := users(n)
+			players := gametest.Users(n)
 			st, _, err := Rules{}.New(Opts{}, players[0], players[1:], rng)
 			if err != nil {
 				t.Fatal(err)
 			}
 			s, forfeited := st.(state), Chips(0)
-			for step := 0; !s.finished; step++ {
+			for step := 0; !s.Over(); step++ {
 				if step > maxGameSteps {
 					t.Fatalf("%d players seed %d: no finish within %d steps", n, seed, maxGameSteps)
 				}

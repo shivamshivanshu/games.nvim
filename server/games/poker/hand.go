@@ -114,7 +114,7 @@ func (s state) dealStreet(by game.Seat) (state, game.Event) {
 // streets, ends hands and deals new ones as the betting allows.
 func (s state) advance(by game.Seat, reason game.ResultReason) (state, []game.Event) {
 	var events []game.Event
-	for !s.finished {
+	for !s.Over() {
 		chips := s.hand.chips
 		if chips.contestants() > 1 {
 			if next, ok := chips.nextToAct(s.hand.toAct); ok {
@@ -164,8 +164,7 @@ func (s state) endHand(by game.Seat, reason game.ResultReason) (state, []game.Ev
 		}
 	}
 	if s.aliveCount() == 1 {
-		s.finished = true
-		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seatName(s.nextAlive(0))}, Reason: reason}
+		s.Ending = s.Concluded(game.WinFor(reason, seatName(s.nextAlive(0))))
 		return s, events
 	}
 	s, dealt := s.dealHand(by, s.hand.number+1, s.nextAlive(s.hand.button))

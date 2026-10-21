@@ -2,7 +2,6 @@ package poker
 
 import (
 	"encoding/json"
-	"errors"
 	"reflect"
 	"slices"
 	"testing"
@@ -24,7 +23,7 @@ func full(n int) []Chips {
 // limpPreflop calls round and checks the big blind's option.
 func limpPreflop(t *testing.T, s state) state {
 	t.Helper()
-	for s.hand.dealt == 0 && !s.finished {
+	for s.hand.dealt == 0 && !s.Over() {
 		i := s.hand.toAct
 		s, _ = play(t, s, i, "call")
 	}
@@ -400,7 +399,6 @@ func TestScoresAreZeroSumAfterASeatLeavesWithChips(t *testing.T) {
 
 func TestApplyRejectsIllegalActions(t *testing.T) {
 	s := table(t, 1, 0, full(2)...)
-	over, _ := s.Eliminate("p2", game.ReasonResign)
 	tests := []struct {
 		name   string
 		state  game.State[Action, View]
@@ -417,18 +415,12 @@ func TestApplyRejectsIllegalActions(t *testing.T) {
 		{"negative amount", s, "p1", Action{Kind: ActionAct, Text: "raise -40"}, `raise amount "-40"`},
 		{"bet preflop", s, "p1", Action{Kind: ActionAct, Text: "bet 100"}, "a bet is already open"},
 		{"check facing the big blind", s, "p1", Action{Kind: ActionAct, Text: "check"}, "cannot check: 10 to call"},
-		{"game over", over, "p1", Action{Kind: ActionAct, Text: "call"}, "game is over"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, _, err := tt.state.Apply(tt.seat, tt.action, nil)
 			wantIllegal(t, err, tt.want)
 		})
-	}
-	for _, seat := range []game.Seat{"p2", "p3", "x"} {
-		if _, _, err := s.Apply(seat, Action{Kind: ActionAct, Text: "call"}, nil); !errors.Is(err, game.ErrNotYourTurn) {
-			t.Errorf("%s: error %v, want not your turn", seat, err)
-		}
 	}
 }
 
@@ -460,17 +452,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 	}
 }
 
-func TestNewSeatsTwoToSixPlayers(t *testing.T) {
-	for _, n := range []int{1, 7} {
-		users := make([]game.UserID, n)
-		for i := range users {
-			users[i] = game.UserID(rune('a' + i))
-		}
-		_, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(1, 0))
-		if _, ok := errors.AsType[game.BadRequestError](err); !ok {
-			t.Errorf("%d players: error %v, want bad request", n, err)
-		}
-	}
+func TestNewSeatsClockwiseFromTheChallenger(t *testing.T) {
 	st, seats, err := Rules{}.New(Opts{}, "alice", []game.UserID{"bob", "carol"}, game.StepRNG(1, 0))
 	if err != nil {
 		t.Fatal(err)

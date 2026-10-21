@@ -8,6 +8,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 func parseCards(t testing.TB, text string) []cards.Card {
@@ -49,11 +50,7 @@ func withCards(t testing.TB, s state, holes map[int]string, board string) state 
 
 func play(t testing.TB, s state, seat int, text string) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(seatName(seat), Action{Kind: ActionAct, Text: text}, nil)
-	if err != nil {
-		t.Fatalf("p%d %q: %v", seat+1, text, err)
-	}
-	return next.(state), events
+	return gametest.MustApply(t, s, seatName(seat), Action{Kind: ActionAct, Text: text}, nil)
 }
 
 // playAll plays "p1:call p2:check" style moves in order.

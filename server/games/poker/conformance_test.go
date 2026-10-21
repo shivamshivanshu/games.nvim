@@ -4,24 +4,20 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const maxGameSteps = 20000
 
-func users(n int) []game.UserID {
-	return []game.UserID{"alice", "bob", "carol", "dave", "erin", "frank"}[:n]
-}
-
 // choose is a deterministic player that mixes folds, checks, calls, raises
 // and the odd all-in, and folds to big bets more often than not.
 func choose(v View, seat game.Seat) Action {
-	n, _ := strconv.Atoi(strings.TrimPrefix(string(seat), seatPrefix))
+	n := slices.Index(seatNames[:], seat) + 1
 	me := v.Seats[n-1]
 	key := (v.HandNo*7 + n*3 + len(v.Board)) % 11
 	canRaise := slices.ContainsFunc(v.Legal, raisesTo)
@@ -42,27 +38,19 @@ func choose(v View, seat game.Seat) Action {
 	return Action{Kind: ActionAct, Text: text}
 }
 
-// playToFinish plays choose for every seat with the rng each step gets in the
-// server, and returns the steps and every state from the first to the final one.
+// playToFinish plays choose for every seat of players from seed, and returns
+// the steps and every state from the first to the final one.
 func playToFinish(t *testing.T, players []game.UserID, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
+	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, players, seed, choose, maxGameSteps)
 	st, _, err := Rules{}.New(Opts{}, players[0], players[1:], game.StepRNG(seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var steps []gametest.Step[Action]
 	states := []state{st.(state)}
-	for seq := game.Seq(1); len(st.ToAct()) > 0; seq++ {
-		if seq > maxGameSteps {
-			t.Fatalf("%d players: no finish within %d steps", len(players), maxGameSteps)
-		}
-		seat := st.ToAct()[0]
-		action := choose(st.View(seat), seat)
-		if st, _, err = st.Apply(seat, action, game.StepRNG(seed, seq)); err != nil {
-			t.Fatalf("seq %d %s %q: %v", seq, seat, action.Text, err)
-		}
-		steps = append(steps, gametest.Step[Action]{Seat: seat, Action: action})
-		states = append(states, st.(state))
+	for i, step := range steps {
+		next, _ := gametest.MustApply(t, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
+		states = append(states, next)
 	}
 	return steps, states
 }
@@ -158,7 +146,7 @@ func TestConformance(t *testing.T) {
 	var scripts []gametest.Script[Opts, Action]
 	for n := minPlayers; n <= maxPlayers; n++ {
 		for _, seed := range []game.Seed{3, 8} {
-			players := users(n)
+			players := gametest.Users(n)
 			steps, states := playToFinish(t, players, seed)
 			first, _, _ := Rules{}.New(Opts{}, players[0], players[1:], game.StepRNG(seed, 0))
 			toAct := first.ToAct()[0]
@@ -184,13 +172,14 @@ func TestConformance(t *testing.T) {
 
 func TestFinishedGamesScoreChipDeltasThatSumToZero(t *testing.T) {
 	for n := minPlayers; n <= maxPlayers; n++ {
-		_, states := playToFinish(t, users(n), 5)
+		_, states := playToFinish(t, gametest.Users(n), 5)
 		final := states[len(states)-1]
 		var sum int64
 		for _, score := range final.Scores() {
 			sum += score
 		}
-		winner := final.result.Winners[0]
+		result, _ := final.Outcome()
+		winner := result.Winners[0]
 		if sum != 0 || final.Scores()[winner] != int64(n-1)*int64(startingStack) {
 			t.Errorf("%d players: scores %v sum to %d", n, final.Scores(), sum)
 		}
@@ -202,7 +191,7 @@ func TestFinishedGamesScoreChipDeltasThatSumToZero(t *testing.T) {
 // inside [MinRaiseTo, MaxRaiseTo], and every other seat is offered nothing.
 func TestViewLegalityIsWhatApplyAccepts(t *testing.T) {
 	for n := minPlayers; n <= maxPlayers; n++ {
-		_, states := playToFinish(t, users(n), 3)
+		_, states := playToFinish(t, gametest.Users(n), 3)
 		for _, s := range states[:len(states)-1] {
 			toAct := s.ToAct()[0]
 			for i := range s.n {
@@ -243,4 +232,46 @@ func offers(v View, m move) bool {
 		return listed && v.MinRaiseTo <= m.amount && m.amount <= v.MaxRaiseTo
 	}
 	return listed
+}
+
+// swappedHole trades one of owner's hole cards for a card of the deck that
+// this hand neither dealt nor will deal: owner alone may see the change.
+func swappedHole(st game.State[Action, View], owner game.Seat) (game.State[Action, View], []game.Seat) {
+	s := st.(state)
+	i, ok := s.seatIndex(owner)
+	if !ok || !s.hand.dealtIn[i] {
+		return st, nil
+	}
+	neverDealt := without(undealt(s), s.hand.board[:])
+	s.hand.holes[i][s.hand.number%holeCardsPerSeat] = neverDealt[s.hand.number%len(neverDealt)]
+	return s, []game.Seat{owner}
+}
+
+// showdownTellsEverySeat lets a step that shows hands down tell every seat.
+func showdownTellsEverySeat(st game.State[Action, View], step gametest.Step[Action], _ []game.Seat) []game.Seat {
+	s := st.(state)
+	if step.Kind != gametest.StepAction {
+		return nil
+	}
+	_, events, err := s.Apply(step.Seat, step.Action, nil)
+	if err != nil || !slices.ContainsFunc(events, func(e game.Event) bool { _, shown := e.(ShownEvent); return shown }) {
+		return nil
+	}
+	return seatNames[:s.n]
+}
+
+// TestAHoleCardReachesNoOtherSeat swaps a hole card for one never dealt and
+// requires what every other seat is sent to stay byte for byte the same
+// until a showdown reveals it.
+func TestAHoleCardReachesNoOtherSeat(t *testing.T) {
+	const seed game.Seed = 4
+	for n := minPlayers; n <= maxPlayers; n++ {
+		players := gametest.Users(n)
+		steps, _ := playToFinish(t, players, seed)
+		script := gametest.Script[Opts, Action]{Challenger: players[0], Invitees: players[1:], Seed: seed, Steps: steps}
+		probes := func(v View) []Action {
+			return xslices.Map(probeMoves(v), func(text string) Action { return Action{Kind: ActionAct, Text: text} })
+		}
+		gametest.NonInterference(t, Rules{}, script, gametest.Hidden[Action, View]{Perturb: swappedHole, Probes: probes, Reveals: showdownTellsEverySeat})
+	}
 }

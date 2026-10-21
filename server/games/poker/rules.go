@@ -1,7 +1,6 @@
 package poker
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -27,27 +26,18 @@ func (Rules) Info() game.Info {
 				Pattern:     movePattern,
 			},
 		}},
+		Events: []game.Event{
+			HandStartedEvent{}, PostedEvent{}, ActedEvent{}, BoardEvent{}, ShownEvent{},
+			ReturnedEvent{}, WonEvent{}, BustedEvent{}, LeftEvent{},
+		},
+		Reasons: []game.ResultReason{ReasonAllChips},
 	}
 }
-
-// EventTypes lists one value of each event a poker state emits.
-func (Rules) EventTypes() []game.Event {
-	return []game.Event{
-		HandStartedEvent{}, PostedEvent{}, ActedEvent{}, BoardEvent{}, ShownEvent{},
-		ReturnedEvent{}, WonEvent{}, BustedEvent{}, LeftEvent{},
-	}
-}
-
-// Reasons lists the result reason poker adds to the core's.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonAllChips} }
 
 // New seats the challenger as p1 and the invitees clockwise after, draws the
 // button and the sub-seed every hand's deck comes from, and deals hand 1.
 func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	users := append([]game.UserID{challenger}, invitees...)
-	if len(users) < minPlayers || len(users) > maxPlayers {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("poker needs %d to %d players, got %d", minPlayers, maxPlayers, len(users))}
-	}
+	users := game.Participants(challenger, invitees)
 	s := state{n: len(users), subseed: rng.Uint64()}
 	seats := make(map[game.UserID]game.Seat, len(users))
 	for i, user := range users {

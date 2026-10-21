@@ -13,6 +13,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/room"
@@ -176,7 +177,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 		seed           game.Seed = 11
 		before, resign           = 30, 10
 	)
-	players := users(4)
+	players := gametest.Users(4)
 	live := openRoom(t, players, seed)
 	for k := range before + resign {
 		user, action, ok := live.next(t)
@@ -237,7 +238,7 @@ func unrevealed(v View) []cards.Card {
 }
 
 func TestWireUpdateNeverCarriesAnotherSeatsHoleCards(t *testing.T) {
-	players := users(3)
+	players := gametest.Users(3)
 	r := openRoom(t, players, 4)
 	checked := 0
 	for {

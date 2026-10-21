@@ -1,10 +1,6 @@
 package poker
 
-import (
-	"fmt"
-
-	"github.com/shivamshivanshu/games.nvim/server/game"
-)
+import "github.com/shivamshivanshu/games.nvim/server/game"
 
 // betting is the chips of one hand: what each seat has behind and in front,
 // who still contests the pot, and the open betting round.
@@ -117,10 +113,10 @@ func (b betting) minRaiseTo() Chips { return b.currentBet + b.increment }
 // again only once the raises since then add up to a full raise.
 func (b betting) raiseBlocked(i int) error {
 	if !b.othersCanBet(i) {
-		return game.IllegalActionError{Msg: "everyone else is all-in: call or fold"}
+		return game.Illegalf("everyone else is all-in: call or fold")
 	}
 	if b.acted[i] && b.currentBet-b.actedAt[i] < b.increment {
-		return game.IllegalActionError{Msg: "betting was not reopened by a full raise: call or fold"}
+		return game.Illegalf("betting was not reopened by a full raise: call or fold")
 	}
 	return nil
 }
@@ -157,7 +153,7 @@ func (b betting) apply(i int, m move) (betting, MoveKind, error) {
 		b.contesting[i] = false
 	case MoveCheck:
 		if owed := b.toCall(i); owed > 0 {
-			return b, "", game.IllegalActionError{Msg: fmt.Sprintf("cannot check: %d to call", owed)}
+			return b, "", game.Illegalf("cannot check: %d to call", owed)
 		}
 	case MoveCall:
 		if b.toCall(i) == 0 {
@@ -166,12 +162,12 @@ func (b betting) apply(i int, m move) (betting, MoveKind, error) {
 		b = b.commit(i, b.toCall(i))
 	case MoveBet:
 		if b.currentBet > 0 {
-			return b, "", game.IllegalActionError{Msg: "a bet is already open: call, raise or fold"}
+			return b, "", game.Illegalf("a bet is already open: call, raise or fold")
 		}
 		b, err = b.fullRaise(i, m)
 	case MoveRaise:
 		if b.currentBet == 0 {
-			return b, "", game.IllegalActionError{Msg: "there is no bet to raise: bet instead"}
+			return b, "", game.Illegalf("there is no bet to raise: bet instead")
 		}
 		b, err = b.fullRaise(i, m)
 	case MoveAllIn:
@@ -189,13 +185,13 @@ func (b betting) fullRaise(i int, m move) (betting, error) {
 		return b, err
 	}
 	if most := b.allInTotal(i); m.amount > most {
-		return b, game.IllegalActionError{Msg: fmt.Sprintf("%s %d is more than your %d", m.kind, m.amount, most)}
+		return b, game.Illegalf("%s %d is more than your %d", m.kind, m.amount, most)
 	}
 	if most := b.matchable(i); m.amount > most {
-		return b, game.IllegalActionError{Msg: fmt.Sprintf("%s %d is more than any opponent can match: at most %d", m.kind, m.amount, most)}
+		return b, game.Illegalf("%s %d is more than any opponent can match: at most %d", m.kind, m.amount, most)
 	}
 	if least := b.minRaiseTo(); m.amount < least {
-		return b, game.IllegalActionError{Msg: fmt.Sprintf("the minimum %s is %d; allin for less", m.kind, least)}
+		return b, game.Illegalf("the minimum %s is %d; allin for less", m.kind, least)
 	}
 	return b.raiseTo(i, m.amount), nil
 }
