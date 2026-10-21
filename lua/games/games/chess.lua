@@ -191,14 +191,15 @@ local function marks_for(view)
   return marks
 end
 
+local M = {}
+
+---Whether the board shows black at the bottom: the viewer plays black, xor the board is flipped.
 ---@param update games.ChessUpdate
 ---@param ctx games.LayoutCtx
 ---@return boolean
-local function black_at_bottom(update, ctx)
+function M.black_at_bottom(update, ctx)
   return (players.seat_of_user(update, ctx.me) == BLACK) ~= ctx.flipped
 end
-
-local M = {}
 
 M.MOVELIST_WIDTH = MOVELIST_WIDTH
 
@@ -312,7 +313,7 @@ end
 ---@param ctx games.LayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
-  return M.board(update.view, ctx, black_at_bottom(update, ctx))
+  return M.board(update.view, ctx, M.black_at_bottom(update, ctx))
 end
 
 ---The move prompt; parse puts the typed text, for the server to read, in field.
