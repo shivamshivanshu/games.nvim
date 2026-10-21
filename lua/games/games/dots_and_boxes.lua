@@ -205,12 +205,12 @@ end
 ---Each player's glyph and boxes, after the clock on its header line.
 ---@param update games.DotsAndBoxesUpdate
 ---@param seat games.DotsAndBoxesSeat
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.TextNode[]
 function M.player_extra(update, seat, ctx)
   local boxes = update.view.scores[seat] or 0
   local score = ("%s %d box%s"):format(
-    art.glyph(ctx.art --[[@as games.ArtSet]], seat, ctx.ambiwidth),
+    art.glyph(ctx.art, seat, ctx.ambiwidth),
     boxes,
     boxes == 1 and "" or "es"
   )

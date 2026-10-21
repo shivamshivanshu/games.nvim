@@ -122,31 +122,31 @@ function M.pick_info(infos, prompt, on_info)
 end
 
 ---@param info games.GameInfo
----@param players integer
+---@param player_count integer
 ---@return boolean
-local function takes_players(info, players)
-  return info.players.min <= players and players <= info.players.max
+local function takes_players(info, player_count)
+  return info.players.min <= player_count and player_count <= info.players.max
 end
 
 ---@param client games.Client holding the catalog
 ---@param game_type games.GameType|nil picked interactively when nil
----@param players integer the challenger plus every opponent
+---@param player_count integer the challenger plus every opponent
 ---@param on_game fun(info: games.GameInfo)
-local function pick_game(client, game_type, players, on_game)
+local function pick_game(client, game_type, player_count, on_game)
   if not game_type then
     local playable = vim.tbl_filter(function(info)
-      return takes_players(info, players)
+      return takes_players(info, player_count)
     end, client:catalog_games())
     if #playable == 0 then
-      say(("no %d-player games available"):format(players), ERROR)
+      say(("no %d-player games available"):format(player_count), ERROR)
       return
     end
     M.pick_info(playable, "Game:", on_game)
     return
   end
   local info = client:game_info(game_type)
-  if not (info and takes_players(info, players)) then
-    say(("no %d-player game %q"):format(players, game_type), ERROR)
+  if not (info and takes_players(info, player_count)) then
+    say(("no %d-player game %q"):format(player_count, game_type), ERROR)
     return
   end
   on_game(info)

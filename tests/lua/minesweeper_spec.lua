@@ -1,4 +1,3 @@
-local describe = require("games.core.describe")
 local helpers = require("helpers")
 local minesweeper = require("games.games.minesweeper")
 local shell = require("games.ui.shell")
@@ -212,7 +211,7 @@ function T.events_name_the_cell_as_typed()
     },
   }
   for _, case in ipairs(cases) do
-    assert_eq(case[2], describe.events(update({ events = { case[1] } })))
+    assert_eq(case[2], helpers.described(update(), case[1]))
   end
 end
 

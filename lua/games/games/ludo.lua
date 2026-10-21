@@ -322,7 +322,7 @@ local function location_text(location, steps)
 end
 
 ---@param update games.LudoUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.KvPair[]
 local function panel_pairs(update, ctx)
   local view = update.view
@@ -333,7 +333,7 @@ local function panel_pairs(update, ctx)
   }
   local seat = players.seat_of_user(update, ctx.me)
   local mine = seat and view.locations[seat]
-  local mark = art.glyph(ctx.art --[[@as games.ArtSet]], MOVABLE_KEY, ctx.ambiwidth)
+  local mark = art.glyph(ctx.art, MOVABLE_KEY, ctx.ambiwidth)
   for token, location in ipairs(mine or {}) do
     local movable = vim.tbl_contains(view.movable, token) and mark or ""
     rows[#rows + 1] =
@@ -365,7 +365,7 @@ M.asset_keys = (function()
 end)()
 
 ---@param update games.LudoUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   return board({

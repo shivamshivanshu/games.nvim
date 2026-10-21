@@ -1,4 +1,5 @@
 local Signal = require("games.core.signal")
+local controls = require("games.core.controls")
 local notify = require("games.core.notify")
 local tables = require("games.core.tables")
 local types = require("games.types")
@@ -223,7 +224,7 @@ end
 function Client:finished_games(fn)
   self:game_list({ status = types.GameStatus.FINISHED }, function(err, result)
     if err then
-      notify.say(err.message, vim.log.levels.ERROR)
+      controls.report_message(err)
     elseif result then
       fn(result.games)
     end

@@ -1,4 +1,3 @@
-local describe = require("games.core.describe")
 local fifteen = require("games.games.fifteen")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -90,7 +89,7 @@ end
 
 function T.events_name_the_tile_and_its_way()
   local slid = { kind = "slid", by = "solver", tile = 8, direction = "left" }
-  assert_eq("alice slid 8 left", describe.events(update({ events = { slid } })))
+  assert_eq("alice slid 8 left", helpers.described(update(), slid))
 end
 
 return T

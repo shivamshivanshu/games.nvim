@@ -2,8 +2,10 @@ local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
+local keys = require("games.ui.keys")
 local kv = require("games.ui.widgets.kv")
 
+local Direction = keys.Direction
 local Group = highlights.Group
 
 ---@alias games.PacmanSeat "player"
@@ -81,7 +83,7 @@ local GHOST_HLS = {
   clyde = Group.GHOST_CLYDE,
 }
 ---@type games.Direction[]
-local DIRECTIONS = { "up", "down", "left", "right" }
+local DIRECTIONS = { Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT }
 
 ---@param direction games.Direction
 ---@return string
@@ -113,11 +115,7 @@ end
 local function occupants(view)
   local actors = vim.iter(view.ghosts):rev():totable()
   actors[#actors + 1] = view.pacman
-  return grid.cell_index(actors, function(actor)
-    return actor.row
-  end, function(actor)
-    return actor.col
-  end)
+  return grid.cell_index(actors)
 end
 
 ---@param view games.PacmanView

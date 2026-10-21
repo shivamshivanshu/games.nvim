@@ -103,7 +103,7 @@ local M = {}
 M.asset_keys = chess.asset_keys
 
 ---@param update games.ChessPuzzleUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   return chess.board(update.view, ctx, ctx.flip, {

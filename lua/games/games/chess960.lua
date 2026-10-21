@@ -14,7 +14,7 @@ local function start_panel(update)
 end
 
 ---@param update games.Chess960Update
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 local function layout(update, ctx)
   return chess.board(update.view, ctx, ctx.flip, {

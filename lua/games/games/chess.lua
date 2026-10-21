@@ -161,14 +161,14 @@ M.asset_keys = { "K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p", EMP
 ---The pieces seat is up, then its lead as +N when it is ahead.
 ---@param update games.ChessUpdate
 ---@param seat games.ChessSeat
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat, ctx)
   local side = update.view.material[seat]
   if #side.pieces == 0 then
     return nil
   end
-  local glyphs = art.glyph_line(ctx.art --[[@as games.ArtSet]], side.pieces, "", ctx.ambiwidth)
+  local glyphs = art.glyph_line(ctx.art, side.pieces, "", ctx.ambiwidth)
   local score = side.score > 0 and (" +%d"):format(side.score) or ""
   return { compose.text(glyphs .. score, MATERIAL_HL) }
 end
@@ -178,7 +178,7 @@ end
 
 ---The board of view, with the SAN legend and the move list beside it, then opts.panels.
 ---@param view games.ChessBoardView
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@param flip boolean whether black is at the bottom
 ---@param opts? games.ChessBoardOpts
 ---@return games.Node
@@ -200,7 +200,7 @@ function M.board(view, ctx, flip, opts)
     panels = vim.list_extend({
       {
         node = function()
-          return kv.panel(san_legend(ctx.art --[[@as games.ArtSet]], ctx.ambiwidth))
+          return kv.panel(san_legend(ctx.art, ctx.ambiwidth))
         end,
       },
       movelist.panel({
@@ -215,7 +215,7 @@ function M.board(view, ctx, flip, opts)
 end
 
 ---@param update games.ChessUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   return M.board(update.view, ctx, ctx.flip)

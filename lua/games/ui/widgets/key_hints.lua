@@ -1,5 +1,6 @@
 local compose = require("games.ui.compose")
 local highlights = require("games.ui.highlights")
+local text_util = require("games.ui.text")
 
 local Group = highlights.Group
 
@@ -108,7 +109,7 @@ end
 return function(hints, width)
   local entries = vim.tbl_map(function(group)
     local keys = key_text(group.keys)
-    local entry_width = vim.fn.strdisplaywidth(keys .. " " .. group.label)
+    local entry_width = text_util.width(keys .. " " .. group.label)
     return { keys = keys, label = group.label, width = entry_width }
   end, grouped(hints))
   return compose.col(vim.tbl_map(row_node, wrapped(entries, width)))

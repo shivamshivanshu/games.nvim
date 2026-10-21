@@ -1,4 +1,3 @@
-local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local wordle = require("games.games.wordle")
@@ -144,7 +143,7 @@ function T.events_name_the_player_and_the_word()
     word = "crane",
     feedback = { "miss", "miss", "miss", "miss", "hit" },
   }
-  assert_eq("sam guessed CRANE", describe.events(update({ events = { guessed } })))
+  assert_eq("sam guessed CRANE", helpers.described(update(), guessed))
 end
 
 return T

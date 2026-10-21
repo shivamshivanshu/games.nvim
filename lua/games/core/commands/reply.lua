@@ -1,4 +1,4 @@
-local notify = require("games.core.notify")
+local controls = require("games.core.controls")
 
 local M = {}
 
@@ -9,7 +9,7 @@ local M = {}
 function M.on_ok(on_result)
   return function(err, result)
     if err then
-      notify.say(err.message, vim.log.levels.ERROR)
+      controls.report_message(err)
       return
     end
     if on_result then

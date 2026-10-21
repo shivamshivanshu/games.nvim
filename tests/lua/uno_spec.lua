@@ -1,4 +1,3 @@
-local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local uno = require("games.games.uno")
@@ -246,8 +245,7 @@ function T.events_tell_each_step()
     },
     { { kind = "left", by = "p3" }, "carol left the game" },
   }) do
-    update.events = { case[1] }
-    assert_eq(case[2], describe.events(update))
+    assert_eq(case[2], helpers.described(update, case[1]))
   end
 end
 

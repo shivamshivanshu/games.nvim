@@ -1,4 +1,3 @@
-local describe = require("games.core.describe")
 local helpers = require("helpers")
 local mastermind = require("games.games.mastermind")
 local shell = require("games.ui.shell")
@@ -191,7 +190,7 @@ end
 
 function T.events_name_the_player_the_code_and_the_pegs()
   local guessed = { kind = "guessed", by = "solver", code = "rgby", black = 1, white = 2 }
-  assert_eq("sam guessed RGBY: 1 black, 2 white", describe.events(update({ events = { guessed } })))
+  assert_eq("sam guessed RGBY: 1 black, 2 white", helpers.described(update(), guessed))
 end
 
 return T
