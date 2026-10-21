@@ -176,7 +176,7 @@ Board cells stack highlight groups, so a background layer and a foreground layer
 | Role | Groups |
 |---|---|
 | background | `GamesSquareLight`, `GamesSquareDark`, `GamesLastMove`, `GamesLastMoveDark` (layered over `GamesLastMove` on dark squares), `GamesCheck`, `GamesWin`, `GamesHit`, `GamesPresent`, `GamesMiss`, `GamesMovable` |
-| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection`, `GamesGiven` (sudoku givens: the muted colour in bold), `GamesCardRed` (hearts and diamonds), `GamesPegRed`, `GamesPegGreen`, `GamesPegBlue`, `GamesPegYellow`, `GamesPegOrange`, `GamesPegPurple` (mastermind pegs) |
+| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection`, `GamesGiven` (sudoku givens: the muted colour in bold), `GamesCardRed` (hearts and diamonds), `GamesPegRed`, `GamesPegGreen`, `GamesPegBlue`, `GamesPegYellow`, `GamesPegOrange`, `GamesPegPurple` (mastermind pegs), `GamesCardYellow`, `GamesCardGreen`, `GamesCardBlue` (uno colours; red is `GamesCardRed`) |
 | ink (foreground) | `<background group>Ink` for each background group above, e.g. `GamesLastMoveInk`: dark or light text, whichever contrasts more with that background; stacked over it where text has no colour of its own (empty squares, the latest move in the move list) |
 | badge (both) | `GamesYourTurn` |
 

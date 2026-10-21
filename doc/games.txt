@@ -125,6 +125,8 @@ colour. Each group sets only the attribute of its role:
                     `GamesPegRed` `GamesPegGreen` `GamesPegBlue`
                     `GamesPegYellow` `GamesPegOrange` `GamesPegPurple`
                     (mastermind pegs)
+                    `GamesCardYellow` `GamesCardGreen` `GamesCardBlue`
+                    (uno colours; red is `GamesCardRed`)
     ink (fg)        `<background group>Ink`, e.g. `GamesLastMoveInk`
     badge (both)    `GamesYourTurn`
 

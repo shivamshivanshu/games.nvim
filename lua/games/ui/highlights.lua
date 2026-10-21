@@ -277,6 +277,24 @@ local GROUPS = {
     theme = { from("Statement"), from("Keyword") },
     vivid = { fg = "#cc79a7" },
   },
+  {
+    name = "GamesCardYellow",
+    role = Role.FOREGROUND,
+    theme = { from("DiagnosticWarn"), from("WarningMsg") },
+    vivid = { fg = "#e0a800" },
+  },
+  {
+    name = "GamesCardGreen",
+    role = Role.FOREGROUND,
+    theme = { from("DiagnosticOk"), from("String") },
+    vivid = { fg = "#2e7d32" },
+  },
+  {
+    name = "GamesCardBlue",
+    role = Role.FOREGROUND,
+    theme = { from("DiagnosticInfo"), from("Function") },
+    vivid = { fg = "#1565c0" },
+  },
 }
 
 ---@type games.HlGroupSpec[] background groups, each with an ink group for the text over it
