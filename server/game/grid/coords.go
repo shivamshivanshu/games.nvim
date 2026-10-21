@@ -24,8 +24,12 @@ func NewCoords(rows, cols int) Coords {
 	if rows < 1 || rows > maxCoordRows || cols < 1 || cols > maxCoordCols {
 		panic(fmt.Sprintf("grid: no coordinates for %dx%d, want 1-%d rows and 1-%d columns", rows, cols, maxCoordRows, maxCoordCols))
 	}
-	column := charRange('a', 'a'+rune(cols-1)) + charRange('A', 'A'+rune(cols-1))
-	return Coords{rows: rows, cols: cols, cell: regexp.MustCompile(`^\s*([` + column + `])(` + rowAlternatives(rows) + `)\s*$`)}
+	return Coords{rows: rows, cols: cols, cell: regexp.MustCompile(`^\s*([` + columnClass(cols) + `])(` + rowAlternatives(rows) + `)\s*$`)}
+}
+
+// columnClass is the class body of the letters naming cols columns, in either case.
+func columnClass(cols int) string {
+	return charRange('a', 'a'+rune(cols-1)) + charRange('A', 'A'+rune(cols-1))
 }
 
 // charRange is the class body from first to last: a single character when they are one.
