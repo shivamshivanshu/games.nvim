@@ -88,6 +88,7 @@ local Control = types.Control
 ---@field bindings table<string, games.KeyBinding> by key; each is mapped in the buffer
 ---@field text_area? games.Size the window space it was last fitted to, nil until shown
 ---@field dirty boolean holds an update it has not drawn
+---@field painted? games.Painted what its last paint drew; nil while one is underway or after one raised
 ---@field request_refit fun() refits it on the next tick, once however often it is asked
 ---@field seats integer players in its first update, which size the header for its whole life
 
@@ -590,7 +591,9 @@ render_board = function(board)
       ambiwidth = vim.o.ambiwidth,
       seats = board.seats,
     }, board.client:action_specs(board.update.game))
-  paint(board.buf, NAMESPACE, 0, -1, rendered)
+  local painted = board.painted
+  board.painted = nil
+  board.painted = paint.update(board.buf, NAMESPACE, painted, rendered)
   board.clocks = clocks
   board.dirty = false
   map_keys(board, bindings)

@@ -1,6 +1,7 @@
 local Client = require("games.core.client")
 local board_widget = require("games.ui.widgets.board")
 local text_util = require("games.ui.text")
+local paint = require("games.ui.paint")
 local shell = require("games.ui.shell")
 local chess = require("games.games.chess")
 local helpers = require("helpers")
@@ -794,7 +795,8 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
     local expected_marks = by_position(vim.tbl_filter(function(mark)
       return mark.row < height
     end, expected.extmarks))
-    local lines_changed, tick_done = {}, false
+    local lines_changed, tick_done, repainted = {}, false, false
+    local paint_update = paint.update
     vim.api.nvim_buf_attach(buf, false, {
       on_lines = function(_, _, _, first, old_last)
         if tick_done then
@@ -811,6 +813,14 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
           return update.clock.as_of_ms + elapsed_ms
         end,
       },
+      {
+        paint,
+        "update",
+        function(...)
+          repainted = true
+          paint_update(...)
+        end,
+      },
     }, function()
       helpers.wait_for(function()
         return vim.deep_equal(expected_lines, (painted_header(buf, height)))
@@ -824,8 +834,63 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
     local one_line_edits = vim.iter(lines_changed):all(function(count)
       return count == 1
     end)
-    assert_eq({ case, case.in_place }, { case, #lines_changed > 0 and one_line_edits })
+    assert_eq(
+      { case, case.in_place },
+      { case, #lines_changed > 0 and one_line_edits and not repainted }
+    )
   end
+end
+
+function T.an_update_after_a_clock_tick_repaints_the_clock_it_rewrote()
+  local as_of_ms = timer.unix_ms()
+  local function clocked(seq, at_ms)
+    return chess_update({
+      game_id = "tick10",
+      seq = seq,
+      clock = {
+        remaining_ms = { alice = 300000, bob = 600000 },
+        running = "alice",
+        as_of_ms = at_ms,
+      },
+    })
+  end
+  local client, conn = client_with("alice", { clocked(1, as_of_ms) })
+  local buf = assert(shell.open(client, "tick10"))
+  local _, height = shell.render(clocked(1, as_of_ms), chess, ASCII, "alice", 0)
+  local now_ms = as_of_ms + 1500
+  local paint_update = paint.update
+  local header_on_update
+  helpers.with_overrides({
+    {
+      timer,
+      "unix_ms",
+      function()
+        return now_ms
+      end,
+    },
+    {
+      paint,
+      "update",
+      function(...)
+        paint_update(...)
+        header_on_update = vim.api.nvim_buf_get_lines(buf, 0, height, false)
+      end,
+    },
+  }, function()
+    helpers.wait_for(function()
+      return table.concat(vim.api.nvim_buf_get_lines(buf, 0, height, false)):find("4:59", 1, true)
+        ~= nil
+    end, "a clock tick")
+    header_on_update = nil
+    conn:push("game.update", clocked(2, now_ms))
+    helpers.wait_for(function()
+      return header_on_update ~= nil
+    end, "the update painted")
+  end)
+  vim.api.nvim_buf_delete(buf, { force = true })
+
+  local expected = shell.render(clocked(2, now_ms), chess, ASCII, "alice", 0)
+  assert_eq(vim.list_slice(expected.lines, 1, height), header_on_update)
 end
 
 function T.an_act_entry_sends_the_action_its_view_options_build_and_binds_nothing_without_one()
