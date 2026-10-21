@@ -421,6 +421,20 @@ An action object always carries `kind`.
   - `last_reveal` is the last challenge `{round, bid, challenger, counted, loser, cups}`, or `null`.
 - Actions: `bid` (`bid`: `"QxF"`, e.g. `"3x5"`; the catalogue gives the pattern) and `dudo`. Ones are wild; the raise rules are in `docs/games/liars_dice.md`.
 
+### Uno
+
+- Seats `p1`-`p6` in invite order, clockwise; a random dealer, whose turned-up card acts as if they had played it.
+- Reasons: `went_out`.
+- Cards are colour then face: `R`, `Y`, `G`, `B` and `0`-`9`, `S` (skip), `R` (reverse), `+2`; wilds `W` and `W+4`.
+- Events: `started {by, dealer, top}`; `played {by, card, color}`, `color` the colour in play after it; `drew {by, seat, count}`, the cards drawn reaching only `seat`'s view; `passed {by}`, keeping the card drawn; `skipped {by, seat}`; `reversed {by, direction}`; `color {by, color}`, naming the colour for a Wild turned up; `challenged {by, seat, guilty}`; `reshuffled {by, cards}`, a new draw pile of `cards`; `left {by}`.
+- View `{top, color, direction, phase, draw_pile, seats, my_hand, legal, playable}`:
+  - `color` is `""` only while a Wild turned up waits to be named; `direction` is `clockwise` or `counterclockwise`;
+  - `phase` is `color`, `play`, `drawn` (play the card drawn or keep it) or `challenge` (challenge the Wild Draw Four or accept it);
+  - `seats` is every seat's `{seat, cards, out}`, `cards` the count it holds;
+  - `my_hand` holds the viewer's own cards only; no other seat's cards, nor the draw pile's, reach a view or event;
+  - `legal` (action kinds) and `playable` (cards) are the viewer's own, `[]` unless it is to act.
+- Actions: `play` (`card`: e.g. `"r5"`, or a wild and the colour it names, `"w g"`; the catalogue gives the pattern), `draw`, `pass`, `challenge`, `accept`, `color` (`color`: `R`, `Y`, `G` or `B`). The rulings are in `docs/games/uno.md`.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

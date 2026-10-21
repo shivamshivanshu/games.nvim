@@ -27,6 +27,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Mancala | 2 | [docs/games/mancala.md](docs/games/mancala.md) |
 | Yahtzee | 1–4 | [docs/games/yahtzee.md](docs/games/yahtzee.md) |
 | Liar's Dice | 2–6 | [docs/games/liars_dice.md](docs/games/liars_dice.md) |
+| Uno | 2–6 | [docs/games/uno.md](docs/games/uno.md) |
 
 ## Requirements
 

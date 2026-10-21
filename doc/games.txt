@@ -399,6 +399,13 @@ the current state are mapped; the footer lists them.
             of the boxes you may score now
     m       liars_dice: bid, `3x5` is at least three fives under all cups
     d       call dudo on the standing bid (liars_dice), on your turn
+    m       uno: play a card, `r5` or `g+2`; a wild with the colour it
+            names, `w g` or `w+4 b`
+    d       draw a card (uno), on your turn
+    k       keep the card you just drew (uno)
+    c       challenge the Wild Draw Four played on you (uno)
+    a       accept the Wild Draw Four played on you: draw four (uno)
+    r y g b name the colour for a Wild turned up to start (uno)
     ]g      next game waiting on your move
     q       close
 
