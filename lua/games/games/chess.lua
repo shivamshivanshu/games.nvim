@@ -173,7 +173,7 @@ end
 local function last_move_mark(square)
   local row, col = square_cell(square)
   local hl = grid.is_dark(row, col) and { LAST_MOVE_HL, LAST_MOVE_DARK_HL } or LAST_MOVE_HL
-  return { row = row, col = col, hl = hl }
+  return grid.mark(row, col, hl)
 end
 
 ---@param view games.ChessBoardView
@@ -186,7 +186,7 @@ local function marks_for(view)
   end
   if view.check_square then
     local row, col = square_cell(view.check_square)
-    marks[#marks + 1] = { row = row, col = col, hl = CHECK_HL }
+    marks[#marks + 1] = grid.mark(row, col, CHECK_HL)
   end
   return marks
 end
@@ -235,12 +235,9 @@ function M.player_extra(update, seat, ctx)
   if #side.pieces == 0 then
     return nil
   end
-  local set = assert(ctx.art, "chess draws from an asset pack")
-  local glyphs = vim.tbl_map(function(piece)
-    return art.glyph(set, piece, ctx.ambiwidth)
-  end, side.pieces)
+  local glyphs = art.glyph_line(ctx.art --[[@as games.ArtSet]], side.pieces, "", ctx.ambiwidth)
   local score = side.score > 0 and (" +%d"):format(side.score) or ""
-  return { compose.text(table.concat(glyphs) .. score, MATERIAL_HL) }
+  return { compose.text(glyphs .. score, MATERIAL_HL) }
 end
 
 ---How many plies a game starting from fen has behind it, read from its side to move and
@@ -268,7 +265,6 @@ end
 function M.board(view, ctx, flip, opts)
   opts = opts or {}
   local pieces = parse_placement(view.fen)
-  local set = assert(ctx.art, "chess draws from an asset pack")
   return board({
     grid = {
       rows = 8,
@@ -281,15 +277,10 @@ function M.board(view, ctx, flip, opts)
       end,
       marks = marks_for(view),
     },
-    art = set,
     panels = vim.list_extend({
       {
         node = function()
-          return kv({
-            pairs = san_legend(set, ctx.ambiwidth),
-            key_hl = "GamesKey",
-            value_hl = "GamesLabel",
-          })
+          return kv.panel(san_legend(ctx.art --[[@as games.ArtSet]], ctx.ambiwidth))
         end,
       },
       {

@@ -76,7 +76,7 @@ end
 ---@return games.Node
 local function status_panel(update, max_height)
   local rows = status_rows(update)
-  local status = kv({ pairs = rows, key_hl = "GamesKey", value_hl = "GamesLabel" })
+  local status = kv.panel(rows)
   local solution = update.view.solution
   if #solution == 0 then
     return status

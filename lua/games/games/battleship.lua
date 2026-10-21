@@ -1,6 +1,8 @@
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local cursor = require("games.ui.cursor")
+local grid = require("games.ui.widgets.grid")
+local notation = require("games.ui.notation")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
 
@@ -62,7 +64,6 @@ local text_util = require("games.ui.text")
 local SIZE = 10
 ---@type games.CursorBounds
 local BOUNDS = { rows = SIZE, cols = SIZE }
-local COLUMN_LETTERS = "abcdefghij"
 local TITLES = { "your fleet", "target" }
 local PLACE_KIND = { across = "place_across", down = "place_down" }
 local FIRE_KIND, RANDOM_KIND = "fire", "random"
@@ -83,13 +84,13 @@ local SHIP_COLUMN, STATE_COLUMN = 13, 9
 ---opponent's, which is never "unplaced"; its widest status line, "waiting for their fleet", fits.
 local PANEL_WIDTH = SHIP_COLUMN + STATE_COLUMN + #"theirs"
 
----@type string[]
-local ROW_LABELS = vim.tbl_map(tostring, vim.fn.range(1, SIZE))
+---@type games.GridLabels
+local LABELS = { cols = notation.letters(SIZE), rows = notation.numbers(SIZE) }
 
 ---@param cell games.GridPos
 ---@return string as typed, the column's letter then the row's number, e.g. c5
 local function cell_name(cell)
-  return COLUMN_LETTERS:sub(cell.col, cell.col) .. cell.row
+  return text_util.ALPHABET:sub(cell.col, cell.col) .. cell.row
 end
 
 ---@param update games.GameUpdate
@@ -162,7 +163,7 @@ local function mark(into, cell, key, hl)
     into.overlay[cell.row] = into.overlay[cell.row] or {}
     into.overlay[cell.row][cell.col] = key
   end
-  into.marks[#into.marks + 1] = { row = cell.row, col = cell.col, hl = hl }
+  into.marks[#into.marks + 1] = grid.mark(cell.row, cell.col, hl)
 end
 
 ---What each board draws over its tiles: the latest shot, then the ship being placed or the aim.
@@ -198,8 +199,7 @@ local function grid_of(tiles, drawn)
   return {
     rows = SIZE,
     cols = SIZE,
-    shade = "plain",
-    labels = { cols = COLUMN_LETTERS, rows = ROW_LABELS },
+    labels = LABELS,
     cell = cells(tiles, drawn.overlay),
     marks = drawn.marks,
   }
@@ -285,7 +285,6 @@ function M.layout(update, ctx)
     grid = grid_of(view.own, own),
     beside = { grid_of(view.target, target) },
     titles = TITLES,
-    art = ctx.art,
     panels = {
       {
         width = PANEL_WIDTH,

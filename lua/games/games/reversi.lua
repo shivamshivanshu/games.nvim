@@ -30,7 +30,7 @@ local COUNT_HL = "GamesLabel"
 local M = {}
 
 ---@type string[] keys every reversi asset pack draws
-M.asset_keys = vim.list_extend(discs.asset_keys(), { discs.Key.LEGAL })
+M.asset_keys = vim.list_extend(discs.asset_keys(), { discs.LEGAL_KEY })
 
 ---@param update games.ReversiUpdate
 ---@param ctx games.LayoutCtx

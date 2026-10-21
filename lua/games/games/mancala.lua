@@ -1,6 +1,11 @@
+local actions = require("games.ui.actions")
+local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
+local notation = require("games.ui.notation")
 local players = require("games.core.players")
+local tables = require("games.core.tables")
 local theme = require("games.ui.theme")
 
 ---@alias games.MancalaSeat "south"|"north"
@@ -39,7 +44,6 @@ local CELL_WIDTH = 4
 local BLANK_KEY = "blank"
 local SOW_KIND = "sow"
 local LEGAL_HL = "GamesMovable"
-local KEY_HL, VALUE_HL = "GamesKey", "GamesLabel"
 local TOP_ROW, BOTTOM_ROW = "top row, store on the left", "bottom row, store on the right"
 
 ---@enum games.MancalaKeyKind
@@ -47,15 +51,14 @@ local KeyKind = { PIT = "pit", LEGAL = "legal", STORE = "store" }
 
 ---Under the bottom row, the pits of the seat that sits there; the stores are unlabelled.
 ---@type string[]
-local COLUMN_LABELS =
-  vim.list_extend(vim.list_extend({ "" }, vim.tbl_map(tostring, vim.fn.range(1, PITS))), { "" })
+local COLUMN_LABELS = vim.list_extend(vim.list_extend({ "" }, notation.numbers(PITS)), { "" })
 local ROW_LABELS = { "", "" }
 
 ---@param kind games.MancalaKeyKind
 ---@param seeds integer
 ---@return string the asset key, e.g. "legal:4"
 local function key_for(kind, seeds)
-  return ("%s:%d"):format(kind, seeds)
+  return art.marked_key(seeds, kind)
 end
 
 ---The seat drawn at the bottom: the viewer's own, or south for anyone else.
@@ -70,13 +73,6 @@ local function sides(update, me)
   return "south", "north"
 end
 
----@param update games.MancalaUpdate
----@param seat games.MancalaSeat
----@return games.Hl
-local function seat_hl(update, seat)
-  return theme.seat_hl(assert(players.seat_index(update, seat)))
-end
-
 ---Counter-clockwise from the bottom left: the bottom seat's pits left to right into its store on
 ---the right, then the top seat's right to left into its store on the left.
 ---@param update games.MancalaUpdate
@@ -85,10 +81,7 @@ end
 local function cells(update, me)
   local view = update.view
   local bottom, top = sides(update, me)
-  local legal = {}
-  for _, pit in ipairs(view.legal_pits) do
-    legal[pit] = true
-  end
+  local legal = tables.set_of(view.legal_pits)
   return function(r, c)
     if (r == 1 and c == COLUMNS) or (r == 2 and c == 1) then
       return { BLANK_KEY }
@@ -97,10 +90,10 @@ local function cells(update, me)
     local pit = r == 1 and COLUMNS - c or c - 1
     local side = view[seat]
     if pit > PITS or pit < 1 then
-      return { key_for(KeyKind.STORE, side.store), seat_hl(update, seat) }
+      return { key_for(KeyKind.STORE, side.store), theme.seat_hl_of(update, seat) }
     end
     local kind = (seat == bottom and legal[pit]) and KeyKind.LEGAL or KeyKind.PIT
-    return { key_for(kind, side.pits[pit]), seat_hl(update, seat) }
+    return { key_for(kind, side.pits[pit]), theme.seat_hl_of(update, seat) }
   end
 end
 
@@ -108,21 +101,8 @@ end
 ---@return games.GridMark[] the viewer's legal pits, on the bottom row
 local function marks_for(view)
   return vim.tbl_map(function(pit)
-    return { row = 2, col = pit + 1, hl = LEGAL_HL }
+    return grid.mark(2, pit + 1, LEGAL_HL)
   end, view.legal_pits)
-end
-
----@param pit integer
----@return games.GameAction
-local function sow_action(pit)
-  return {
-    key = tostring(pit),
-    label = SOW_KIND,
-    action = { kind = SOW_KIND, pit = tostring(pit) },
-    available = function(update)
-      return vim.tbl_contains(update.view.legal_pits, pit)
-    end,
-  }
 end
 
 local M = {}
@@ -157,23 +137,17 @@ function M.layout(update, ctx)
     grid = {
       rows = 2,
       cols = COLUMNS,
-      shade = "plain",
       cell_width = CELL_WIDTH,
       labels = { cols = COLUMN_LABELS, rows = ROW_LABELS },
       cell = cells(update, ctx.me),
       marks = marks_for(update.view),
     },
-    art = assert(ctx.art, "mancala draws from an asset pack"),
     panels = {
       {
         node = function()
-          return kv({
-            pairs = {
-              { players.name_of_seat(update, top), TOP_ROW },
-              { players.name_of_seat(update, bottom), BOTTOM_ROW },
-            },
-            key_hl = KEY_HL,
-            value_hl = VALUE_HL,
+          return kv.panel({
+            { players.name_of_seat(update, top), TOP_ROW },
+            { players.name_of_seat(update, bottom), BOTTOM_ROW },
           })
         end,
       },
@@ -182,7 +156,14 @@ function M.layout(update, ctx)
 end
 
 ---@type games.GameAction[]
-M.actions = vim.tbl_map(sow_action, vim.fn.range(1, PITS))
+M.actions = actions.per_value({
+  kind = SOW_KIND,
+  field = "pit",
+  values = vim.fn.range(1, PITS),
+  legal = function(view)
+    return view.legal_pits
+  end,
+})
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {

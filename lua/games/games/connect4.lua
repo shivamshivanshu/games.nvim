@@ -1,14 +1,13 @@
+local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
-local players = require("games.core.players")
+local discs = require("games.ui.discs")
 local theme = require("games.ui.theme")
 
 ---@alias games.Connect4Seat "red"|"yellow"
 
----@class games.Connect4Cell
----@field row integer 1 at the top
----@field column integer 1 at the left
+---@class games.Connect4Cell: games.DiscCell
 
----@class games.Connect4View
+---@class games.Connect4View: games.DiscLast
 ---@field cells (games.Connect4Seat|"")[][] rows from the top; "" for an empty cell
 ---@field last? games.Connect4Cell where the latest disc came to rest
 ---@field winning_lines games.Connect4Cell[][] every winning run through the last disc, whole
@@ -28,8 +27,6 @@ local COLUMNS = 7
 local COLUMN_LABELS = "1234567"
 local EMPTY_KEY = "empty"
 local DROP_KIND = "drop"
-local WIN_HL = "GamesWin"
-local LAST_MOVE_HL = "GamesLastMove"
 
 ---Blank row labels: rows are never typed, only columns are.
 ---@type string[]
@@ -43,36 +40,7 @@ local function cell_for(update, seat)
   if seat == "" then
     return { EMPTY_KEY }
   end
-  return { seat, theme.seat_hl(assert(players.seat_index(update, seat))) }
-end
-
----The last disc, then the winning lines over it; a later mark on a cell replaces an earlier one.
----@param view games.Connect4View
----@return games.GridMark[]
-local function marks_for(view)
-  local marks = {}
-  if view.last then
-    marks[1] = { row = view.last.row, col = view.last.column, hl = LAST_MOVE_HL }
-  end
-  for _, line in ipairs(view.winning_lines) do
-    for _, cell in ipairs(line) do
-      marks[#marks + 1] = { row = cell.row, col = cell.column, hl = WIN_HL }
-    end
-  end
-  return marks
-end
-
----@param column integer
----@return games.GameAction
-local function drop_action(column)
-  return {
-    key = tostring(column),
-    label = DROP_KIND,
-    action = { kind = DROP_KIND, column = tostring(column) },
-    available = function(update)
-      return vim.tbl_contains(update.view.legal_columns, column)
-    end,
-  }
+  return { seat, theme.seat_hl_of(update, seat) }
 end
 
 local M = {}
@@ -89,19 +57,24 @@ function M.layout(update, ctx)
     grid = {
       rows = ROWS,
       cols = COLUMNS,
-      shade = "plain",
       labels = { cols = COLUMN_LABELS, rows = ROW_LABELS },
       cell = function(r, c)
         return cell_for(update, view.cells[r][c])
       end,
-      marks = marks_for(view),
+      marks = discs.marks(view, { winning_lines = view.winning_lines }),
     },
-    art = ctx.art,
   }, ctx)
 end
 
 ---@type games.GameAction[]
-M.actions = vim.iter(vim.fn.range(1, COLUMNS)):map(drop_action):totable()
+M.actions = actions.per_value({
+  kind = DROP_KIND,
+  field = "column",
+  values = vim.fn.range(1, COLUMNS),
+  legal = function(view)
+    return view.legal_columns
+  end,
+})
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {

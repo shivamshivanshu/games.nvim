@@ -11,11 +11,7 @@ local kv = require("games.ui.widgets.kv")
 ---@param update games.Chess960Update
 ---@return games.Node
 local function start_panel(update)
-  return kv({
-    pairs = { { "position", tostring(update.view.start_position) } },
-    key_hl = "GamesKey",
-    value_hl = "GamesLabel",
-  })
+  return kv.panel({ { "position", tostring(update.view.start_position) } })
 end
 
 local M = {}

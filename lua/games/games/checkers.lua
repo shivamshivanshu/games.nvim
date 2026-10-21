@@ -70,7 +70,7 @@ end
 ---@return games.GridMark
 local function mark_on(square, hl)
   local row, col = cell_of(square)
-  return { row = row, col = col, hl = hl }
+  return grid.mark(row, col, hl)
 end
 
 ---The last move's path, then the pieces the viewer may move.
@@ -152,7 +152,6 @@ function M.layout(update, ctx)
       end,
       marks = marks_for(view),
     },
-    art = ctx.art,
     panels = {
       {
         node = function()

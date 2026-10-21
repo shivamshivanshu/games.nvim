@@ -1,5 +1,8 @@
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
+local grid = require("games.ui.widgets.grid")
+local notation = require("games.ui.notation")
+local text = require("games.ui.text")
 
 ---@alias games.DiscSeat "black"|"white"
 
@@ -8,17 +11,21 @@ local compose = require("games.ui.compose")
 ---@field row integer 1 at the top
 ---@field column integer 1 at the left
 
----@class games.DiscView
----@field cells (games.DiscSeat|"")[][] rows from the top; "" for an empty cell
+---@class games.DiscLast
 ---@field last? games.DiscCell where the latest disc went
 
----@class games.DiscBoardProps
----@field size integer cells on a side
+---@class games.DiscView: games.DiscLast
+---@field cells (games.DiscSeat|"")[][] rows from the top; "" for an empty cell
+
+---@class games.DiscMarks what a board marks besides the last disc
 ---@field legal? games.DiscCell[] empty cells drawn as the viewer's moves; nil draws none
 ---@field winning_lines? games.DiscCell[][]
 
----@enum games.DiscKey asset keys besides the seats' own
-local Key = { EMPTY = "empty", LEGAL = "legal" }
+---@class games.DiscBoardProps: games.DiscMarks
+---@field size integer cells on a side
+
+local EMPTY_KEY = "empty"
+local LEGAL_KEY = "legal"
 
 ---@type table<games.DiscSeat, games.Hl>
 local SEAT_HL = { black = "GamesPieceBlack", white = "GamesPieceWhite" }
@@ -28,7 +35,6 @@ local LEGAL_HL = "GamesMovable"
 local NOTE_HL = "GamesLabel"
 local CELL_HL = "GamesKey"
 local PLACE_KIND = "place"
-local COLUMN_LETTERS = "abcdefghijklmnopqrstuvwxyz"
 ---Display columns the notes panel reserves: "line a15-o15".
 local NOTES_WIDTH = 12
 
@@ -36,19 +42,19 @@ local NOTES_WIDTH = 12
 ---lettered columns, numbered rows, and the cell typed at a prompt.
 local M = {}
 
-M.Key = Key
+M.LEGAL_KEY = LEGAL_KEY
 
 ---The asset keys every pack for these boards draws: both seats' discs and the empty cell. A game
----that passes legal cells adds Key.LEGAL.
+---that passes legal cells adds LEGAL_KEY.
 ---@return string[]
 function M.asset_keys()
-  return { "black", "white", Key.EMPTY }
+  return { "black", "white", EMPTY_KEY }
 end
 
 ---@param cell games.DiscCell
 ---@return string
 function M.cell_name(cell)
-  return COLUMN_LETTERS:sub(cell.column, cell.column) .. cell.row
+  return text.ALPHABET:sub(cell.column, cell.column) .. cell.row
 end
 
 ---The prompt that sends the typed cell to the server, which parses it.
@@ -64,33 +70,35 @@ function M.input(example)
   }
 end
 
----@param cells games.DiscCell[]
----@return table<integer, table<integer, true>> row -> column -> true
-local function cell_set(cells)
-  local set = {}
-  for _, cell in ipairs(cells) do
-    set[cell.row] = set[cell.row] or {}
-    set[cell.row][cell.column] = true
-  end
-  return set
+---@param cell games.DiscCell
+---@return integer
+local function row_of(cell)
+  return cell.row
 end
 
----Legal cells, then the last disc, then the winning lines over it; a later mark replaces an earlier one.
----@param view games.DiscView
----@param props games.DiscBoardProps
+---@param cell games.DiscCell
+---@return integer
+local function column_of(cell)
+  return cell.column
+end
+
+---Legal cells, then the last disc, then the winning lines over it; a later mark replaces an
+---earlier one.
+---@param view games.DiscLast
+---@param marked games.DiscMarks
 ---@return games.GridMark[]
-local function marks_for(view, props)
+function M.marks(view, marked)
   local marks = {}
   local function mark(cell, hl)
-    marks[#marks + 1] = { row = cell.row, col = cell.column, hl = hl }
+    marks[#marks + 1] = grid.mark(cell.row, cell.column, hl)
   end
-  for _, cell in ipairs(props.legal or {}) do
+  for _, cell in ipairs(marked.legal or {}) do
     mark(cell, LEGAL_HL)
   end
   if view.last then
     mark(view.last, LAST_MOVE_HL)
   end
-  for _, line in ipairs(props.winning_lines or {}) do
+  for _, line in ipairs(marked.winning_lines or {}) do
     for _, cell in ipairs(line) do
       mark(cell, WIN_HL)
     end
@@ -119,10 +127,7 @@ end
 ---@param size integer
 ---@return games.GridLabels
 local function labels(size)
-  return {
-    cols = COLUMN_LETTERS:sub(1, size),
-    rows = vim.tbl_map(tostring, vim.fn.range(1, size)),
-  }
+  return { cols = notation.letters(size), rows = notation.numbers(size) }
 end
 
 ---The board, with the notes beside it.
@@ -133,23 +138,21 @@ end
 function M.layout(update, ctx, props)
   ---@type games.DiscView
   local view = update.view
-  local legal = cell_set(props.legal or {})
+  local legal = grid.cell_index(props.legal or {}, row_of, column_of)
   return board({
     grid = {
       rows = props.size,
       cols = props.size,
-      shade = "plain",
       labels = labels(props.size),
       cell = function(r, c)
         local seat = view.cells[r][c]
         if seat ~= "" then
           return { seat, SEAT_HL[seat] }
         end
-        return { (legal[r] and legal[r][c]) and Key.LEGAL or Key.EMPTY }
+        return { (legal[r] and legal[r][c]) and LEGAL_KEY or EMPTY_KEY }
       end,
-      marks = marks_for(view, props),
+      marks = M.marks(view, props),
     },
-    art = ctx.art,
     panels = {
       {
         width = NOTES_WIDTH,

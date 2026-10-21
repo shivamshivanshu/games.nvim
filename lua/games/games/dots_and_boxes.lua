@@ -2,7 +2,8 @@ local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local cursor = require("games.ui.cursor")
-local players = require("games.core.players")
+local notation = require("games.ui.notation")
+local text = require("games.ui.text")
 local theme = require("games.ui.theme")
 
 ---@alias games.DotsAndBoxesSeat "p1"|"p2"
@@ -32,7 +33,6 @@ local theme = require("games.ui.theme")
 ---@field again boolean whether by moves again, having completed a box with the game still on
 
 local DRAW_KIND = "draw"
-local COLUMN_LETTERS = "abcdefgh"
 local ORIENTATION_SUFFIX = { across = "h", down = "v" }
 ---Display columns of a box one line tall: with its edges about as wide as it is tall on screen.
 local BOX_WIDTH = 3
@@ -68,7 +68,7 @@ end
 ---@param line games.DotsAndBoxesLine|games.GridCursor
 ---@return string as typed: the dot's column letter and row number, then h or v, e.g. b2h
 local function edge_name(line)
-  return COLUMN_LETTERS:sub(line.col, line.col) .. line.row .. ORIENTATION_SUFFIX[line.orientation]
+  return text.ALPHABET:sub(line.col, line.col) .. line.row .. ORIENTATION_SUFFIX[line.orientation]
 end
 
 ---@param line games.DotsAndBoxesLine|games.GridCursor|nil
@@ -120,7 +120,7 @@ local function box_cell(update, owner)
   if owner == "" then
     return { BOX_KEY }
   end
-  return { owner, theme.seat_hl(assert(players.seat_index(update, owner))) }
+  return { owner, theme.seat_hl_of(update, owner) }
 end
 
 ---@param update games.DotsAndBoxesUpdate
@@ -174,12 +174,8 @@ function M.layout(update, ctx)
     grid = {
       rows = n,
       cols = n,
-      shade = "plain",
       cell_width = BOX_WIDTH,
-      labels = {
-        cols = COLUMN_LETTERS:sub(1, n + 1),
-        rows = vim.tbl_map(tostring, vim.fn.range(1, n + 1)),
-      },
+      labels = { cols = notation.letters(n + 1), rows = notation.numbers(n + 1) },
       cell = function(r, c)
         return box_cell(update, view.boxes[r][c])
       end,
@@ -191,7 +187,6 @@ function M.layout(update, ctx)
         end,
       },
     },
-    art = ctx.art,
     panels = {
       {
         width = PANEL_WIDTH,
@@ -209,14 +204,13 @@ end
 ---@param ctx games.LayoutCtx
 ---@return games.TextNode[]
 function M.player_extra(update, seat, ctx)
-  local set = assert(ctx.art, "dots_and_boxes draws from an asset pack")
   local boxes = update.view.scores[seat] or 0
-  local text = ("%s %d box%s"):format(
-    art.glyph(set, seat, ctx.ambiwidth),
+  local score = ("%s %d box%s"):format(
+    art.glyph(ctx.art --[[@as games.ArtSet]], seat, ctx.ambiwidth),
     boxes,
     boxes == 1 and "" or "es"
   )
-  return { compose.text(text, theme.seat_hl(assert(players.seat_index(update, seat)))) }
+  return { compose.text(score, theme.seat_hl_of(update, seat)) }
 end
 
 ---@type games.GameAction[]

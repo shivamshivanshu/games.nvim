@@ -1,5 +1,7 @@
+local actions = require("games.ui.actions")
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local theme = require("games.ui.theme")
@@ -231,14 +233,6 @@ local function board_of(view)
   return { tokens = tokens, squares = squares }
 end
 
----@param update games.LudoUpdate
----@param seat? games.LudoSeat
----@return string|nil
-local function seat_hl(update, seat)
-  local index = seat and players.seat_index(update, seat)
-  return index and theme.seat_hl(index)
-end
-
 ---@param here table<games.LudoSeat, integer>
 ---@return integer
 local function total(here)
@@ -260,10 +254,10 @@ local function cells(update)
         return { "mixed" .. math.min(total(here), MAX_MIXED_COUNT) }
       end
       local seat = seats[1]
-      return { seat .. here[seat], seat_hl(update, seat) }
+      return { seat .. here[seat], theme.seat_hl_of(update, seat) }
     end
     local square = drawn.squares[id] or { key = "center" }
-    return { square.key, seat_hl(update, square.seat) }
+    return { square.key, square.seat and theme.seat_hl_of(update, square.seat) }
   end
 end
 
@@ -276,7 +270,7 @@ local function marks_for(update)
     if event.kind == "moved" and start then
       ---@cast event games.LudoMovedEvent
       local cell = cell_of(arm_at(start), event.token, event.to)
-      return { { row = cell[1], col = cell[2], hl = LAST_MOVE_HL } }
+      return { grid.mark(cell[1], cell[2], LAST_MOVE_HL) }
     end
   end
   return {}
@@ -307,7 +301,7 @@ local function panel_pairs(update, ctx)
   }
   local seat = players.seat_of_user(update, ctx.me)
   local mine = seat and view.locations[seat]
-  local mark = art.glyph(assert(ctx.art), MOVABLE_KEY, ctx.ambiwidth)
+  local mark = art.glyph(ctx.art --[[@as games.ArtSet]], MOVABLE_KEY, ctx.ambiwidth)
   for token, location in ipairs(mine or {}) do
     local movable = vim.tbl_contains(view.movable, token) and mark or ""
     rows[#rows + 1] =
@@ -343,54 +337,42 @@ function M.layout(update, ctx)
     grid = {
       rows = SIZE,
       cols = SIZE,
-      shade = "plain",
       cell_width = M.glyph_width,
       cell = cells(update),
       marks = marks_for(update),
     },
-    art = assert(ctx.art, "ludo draws from an asset pack"),
     panels = {
       {
         width = PANEL_WIDTH,
         node = function()
-          return kv({
-            pairs = panel_pairs(update, ctx),
-            key_hl = "GamesKey",
-            value_hl = "GamesLabel",
-          })
+          return kv.panel(panel_pairs(update, ctx))
         end,
       },
     },
   }, ctx)
 end
 
----@param token integer
----@return games.GameAction
-local function move_action(token)
-  return {
-    key = tostring(token),
-    label = "move",
-    action = { kind = "move", token = tostring(token) },
-    available = function(update)
-      return vim.tbl_contains(update.view.movable, token)
-    end,
-  }
-end
-
 ---@type games.GameAction[]
-M.actions = {
+M.actions = vim.list_extend(
   {
-    key = "r",
-    label = "roll",
-    action = { kind = "roll" },
-    available = function(update)
-      return update.view.can_roll
-    end,
+    {
+      key = "r",
+      label = "roll",
+      action = { kind = "roll" },
+      available = function(update)
+        return update.view.can_roll
+      end,
+    },
   },
-}
-for token = 1, TOKENS_PER_SEAT do
-  M.actions[#M.actions + 1] = move_action(token)
-end
+  actions.per_value({
+    kind = "move",
+    field = "token",
+    values = vim.fn.range(1, TOKENS_PER_SEAT),
+    legal = function(view)
+      return view.movable
+    end,
+  })
+)
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {
