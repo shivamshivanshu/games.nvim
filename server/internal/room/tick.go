@@ -21,13 +21,22 @@ func tickDue(state game.ErasedState, from time.Time) time.Time {
 
 // tickAfter is when next, which st took s to, is due its tick. A due tick
 // keeps its time across the steps players make, so input never holds the
-// game back.
+// game back. A tick counts the next one from when it was due, so a late tick
+// does not slow the game, unless it is a whole interval or more late: then
+// from when it ran, so a stall is not made up in a burst.
 func (s roomState) tickAfter(st step, next roomState) time.Time {
 	if next.finished() {
 		return time.Time{}
 	}
+	if st.kind == store.StepTick {
+		from := s.nextTickAt
+		if due := tickDue(next.game, from); !due.IsZero() && !due.After(st.at) {
+			from = st.at
+		}
+		return tickDue(next.game, from)
+	}
 	due := tickDue(next.game, st.at)
-	if st.kind != store.StepTick && s.ticking() && !due.IsZero() {
+	if s.ticking() && !due.IsZero() {
 		return s.nextTickAt
 	}
 	return due

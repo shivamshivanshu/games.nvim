@@ -87,6 +87,27 @@ func TestTickFiresAsARecordedStepAndRearms(t *testing.T) {
 	}
 }
 
+func TestLateTickCountsTheNextFromWhenItWasDue(t *testing.T) {
+	h := newMetronomeHarness(t)
+	start := h.clock.Now()
+	if u := h.advance(t, gametest.MetronomeInterval+gametest.MetronomeInterval/3); u.Seq != 1 {
+		t.Fatalf("seq %d after the late tick, want 1", u.Seq)
+	}
+	if diff := cmp.Diff([]time.Time{start.Add(2 * gametest.MetronomeInterval)}, h.clock.Armed()); diff != "" {
+		t.Fatalf("armed after a late tick (-want +got):\n%s", diff)
+	}
+}
+
+func TestStalledTickCountsTheNextFromWhenItRan(t *testing.T) {
+	h := newMetronomeHarness(t)
+	if u := h.advance(t, 3*gametest.MetronomeInterval+gametest.MetronomeInterval/2); u.Seq != 1 {
+		t.Fatalf("seq %d after the stall, want 1: no burst", u.Seq)
+	}
+	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(gametest.MetronomeInterval)}, h.clock.Armed()); diff != "" {
+		t.Fatalf("armed after the stalled tick (-want +got):\n%s", diff)
+	}
+}
+
 func TestPlayerStepKeepsTheDueTick(t *testing.T) {
 	h := newMetronomeHarness(t)
 	due := h.clock.Now().Add(gametest.MetronomeInterval)
