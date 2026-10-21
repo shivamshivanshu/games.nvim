@@ -8,6 +8,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 )
 
 const metronomeType game.GameType = "metronome"
@@ -21,13 +22,13 @@ func metronomeOf(t *testing.T, u protocol.GameUpdate) gametest.MetronomeView {
 	return view
 }
 
-func snapshotOf(t *testing.T, c *testClient, id game.GameID) protocol.GameUpdate {
+func snapshotOf(t *testing.T, c *prototest.Client, id game.GameID) protocol.GameUpdate {
 	t.Helper()
 	return call[protocol.GameUpdate](t, c, protocol.TypeGameSnapshot, protocol.GameSnapshotRequest{GameID: id})
 }
 
 // pausedSnapshot waits for the game to be paused, as a disconnect does from the session's own goroutine.
-func pausedSnapshot(t *testing.T, c *testClient, id game.GameID) protocol.GameUpdate {
+func pausedSnapshot(t *testing.T, c *prototest.Client, id game.GameID) protocol.GameUpdate {
 	t.Helper()
 	deadline := time.Now().Add(pushTimeout)
 	for {
@@ -53,12 +54,12 @@ func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {
 		t.Fatalf("tick update %+v, want one tick and its beat", u)
 	}
 	again := srv.login(t, alice)
-	_ = a.conn.Close()
+	_ = a.Close()
 	time.Sleep(10 * time.Millisecond)
 	if u := snapshotOf(t, again, id); metronomeOf(t, u).Paused {
 		t.Fatalf("paused while alice still has a session: %+v", u)
 	}
-	_ = again.conn.Close()
+	_ = again.Close()
 
 	b := srv.login(t, alice)
 	paused := pausedSnapshot(t, b, id)
@@ -83,7 +84,7 @@ func TestADisconnectPauseArrivingAfterTheUserIsBackIsDropped(t *testing.T) {
 	srv := e.start(t)
 	gone := srv.login(t, alice)
 	id := call[protocol.GameUpdate](t, gone, protocol.TypeGameStart, protocol.GameStartRequest{Game: metronomeType}).GameID
-	_ = gone.conn.Close()
+	_ = gone.Close()
 	back := srv.login(t, alice)
 	paused := pausedSnapshot(t, back, id)
 	call[protocol.SeqResult](t, back, protocol.TypeGameAct, protocol.GameActRequest{

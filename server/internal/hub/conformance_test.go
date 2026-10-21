@@ -1,12 +1,10 @@
 package hub_test
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
-	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -19,6 +17,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
@@ -102,7 +101,7 @@ func (r *replay) step(at string, line transcriptLine) {
 		r.recv(at, line.Client, decodeJSON(r.t, at, line.Recv))
 	case line.Close:
 		r.flush(line.Client)
-		_ = r.clients[line.Client].conn.Close()
+		_ = r.clients[line.Client].Close()
 		delete(r.clients, line.Client)
 	case line.AdvanceMS > 0:
 		r.clock.Advance(time.Duration(line.AdvanceMS) * time.Millisecond)
@@ -115,13 +114,7 @@ func (r *replay) client(name string) *rawClient {
 	if c, ok := r.clients[name]; ok {
 		return c
 	}
-	conn, err := net.Dial("tcp", r.addr)
-	if err != nil {
-		r.t.Fatal(err)
-	}
-	r.t.Cleanup(func() { _ = conn.Close() })
-	c := &rawClient{conn: conn, lines: make(chan []byte, pushBacklog), sent: map[string]protocol.MessageType{}}
-	go c.readLoop()
+	c := &rawClient{Client: prototest.Dial(r.t, r.addr), sent: map[string]protocol.MessageType{}}
 	r.clients[name] = c
 	return c
 }
@@ -132,7 +125,7 @@ func (r *replay) recv(at, name string, want any) {
 	if c == nil {
 		r.t.Fatalf("%s: %s is not connected", at, name)
 	}
-	deadline := time.After(recvTimeout)
+	deadline := time.Now().Add(recvTimeout)
 	for i := 0; ; i++ {
 		if i == len(c.backlog) && !r.receive(at, c, deadline) {
 			r.t.Fatalf("%s: %s did not receive\n%s\nbut\n%s", at, name, encodeJSON(want), encodeLines(c.backlog))
@@ -148,25 +141,21 @@ func (r *replay) recv(at, name string, want any) {
 
 // receive moves the client's next message into its backlog once it holds to
 // the schema, and reports false when none came by deadline.
-func (r *replay) receive(at string, c *rawClient, deadline <-chan time.Time) bool {
-	select {
-	case line, ok := <-c.lines:
-		if !ok {
-			return false
-		}
-		msg, ok := decodeJSON(r.t, at, line).(map[string]any)
-		if !ok {
-			r.t.Fatalf("%s: not an object: %s", at, line)
-		}
-		id, _ := msg["id"].(json.Number)
-		if err := r.wire.check(msg, c.sent[id.String()]); err != nil {
-			r.t.Fatalf("%s: %s breaks the schema: %v", at, line, err)
-		}
-		c.backlog = append(c.backlog, msg)
-		return true
-	case <-deadline:
+func (r *replay) receive(at string, c *rawClient, deadline time.Time) bool {
+	line, err := c.ReadLine(time.Until(deadline))
+	if err != nil {
 		return false
 	}
+	msg, ok := decodeJSON(r.t, at, line).(map[string]any)
+	if !ok {
+		r.t.Fatalf("%s: not an object: %s", at, line)
+	}
+	id, _ := msg["id"].(json.Number)
+	if err := r.wire.check(msg, c.sent[id.String()]); err != nil {
+		r.t.Fatalf("%s: %s breaks the schema: %v", at, line, err)
+	}
+	c.backlog = append(c.backlog, msg)
+	return true
 }
 
 // flush fails on any message the client got that the transcript did not expect.
@@ -267,22 +256,12 @@ func matches(want, got any, bound map[string]any) bool {
 	return reflect.DeepEqual(want, got)
 }
 
-// rawClient is one connection of a transcript; a background reader only
-// queues the lines the server sends.
+// rawClient is one connection of a transcript. It keeps the messages it got
+// that no recv has matched yet, and the type of each request it sent by id.
 type rawClient struct {
-	conn    net.Conn
-	lines   chan []byte
+	*prototest.Client
 	backlog []any
 	sent    map[string]protocol.MessageType
-}
-
-func (c *rawClient) readLoop() {
-	scanner := bufio.NewScanner(c.conn)
-	scanner.Buffer(nil, 1<<20)
-	for scanner.Scan() {
-		c.lines <- bytes.Clone(scanner.Bytes())
-	}
-	close(c.lines)
 }
 
 func (c *rawClient) send(t *testing.T, at string, msg any) {
@@ -297,7 +276,7 @@ func (c *rawClient) send(t *testing.T, at string, msg any) {
 	if err != nil {
 		t.Fatalf("%s: %v", at, err)
 	}
-	if _, err := c.conn.Write(append(line, '\n')); err != nil {
+	if err := c.WriteLine(line); err != nil {
 		t.Fatalf("%s: %v", at, err)
 	}
 }

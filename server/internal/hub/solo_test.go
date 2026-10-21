@@ -11,11 +11,12 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/archive"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 )
 
 const soloCounterType game.GameType = "solo_counter"
 
-func startSolo(t *testing.T, c *testClient, rawOpts string) protocol.GameUpdate {
+func startSolo(t *testing.T, c *prototest.Client, rawOpts string) protocol.GameUpdate {
 	t.Helper()
 	return call[protocol.GameUpdate](t, c, protocol.TypeGameStart,
 		protocol.GameStartRequest{Game: soloCounterType, Options: json.RawMessage(rawOpts)})
@@ -62,8 +63,7 @@ func TestSoloStartRejectsBadRequests(t *testing.T) {
 		"malformed options": {Game: soloCounterType, Options: json.RawMessage(`["step"]`)},
 	} {
 		_, err := a.Request(protocol.TypeGameStart, req)
-		var reply errorReply
-		if !errors.As(err, &reply) || reply.Code != protocol.CodeBadRequest {
+		if e, ok := errors.AsType[protocol.Error](err); !ok || e.Code != protocol.CodeBadRequest {
 			t.Errorf("%s: want %s, got %v", name, protocol.CodeBadRequest, err)
 		}
 	}

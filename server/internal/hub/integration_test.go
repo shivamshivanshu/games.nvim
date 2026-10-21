@@ -23,6 +23,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/hub"
 	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/session"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 	"github.com/shivamshivanshu/games.nvim/server/internal/storetest"
@@ -102,9 +103,9 @@ func (e *env) start(t *testing.T) server {
 	return server{addr: ln.Addr().String(), stop: stop, hub: h}
 }
 
-func (s server) login(t *testing.T, user game.UserID) *testClient {
+func (s server) login(t *testing.T, user game.UserID) *prototest.Client {
 	t.Helper()
-	c := dial(t, s.addr)
+	c := prototest.Dial(t, s.addr)
 	call[protocol.LoginResult](t, c, protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: user, Password: testPassword})
 	return c
 }
@@ -114,7 +115,7 @@ type chessOptions struct {
 	Color       chess.ColorChoice `json:"color,omitempty"`
 }
 
-func startGame(t *testing.T, challenger, opponent *testClient, opts chessOptions) game.GameID {
+func startGame(t *testing.T, challenger, opponent *prototest.Client, opts chessOptions) game.GameID {
 	t.Helper()
 	rawOpts, err := json.Marshal(opts)
 	if err != nil {
@@ -123,7 +124,7 @@ func startGame(t *testing.T, challenger, opponent *testClient, opts chessOptions
 	return startGameOf(t, challenger, opponent, bob, chessType, rawOpts)
 }
 
-func startGameOf(t *testing.T, challenger, opponent *testClient, to game.UserID, typ game.GameType, rawOpts json.RawMessage) game.GameID {
+func startGameOf(t *testing.T, challenger, opponent *prototest.Client, to game.UserID, typ game.GameType, rawOpts json.RawMessage) game.GameID {
 	t.Helper()
 	created := call[protocol.ChallengeCreateResult](t, challenger, protocol.TypeChallengeCreate,
 		protocol.ChallengeCreateRequest{To: []game.UserID{to}, Game: typ, Options: rawOpts})
@@ -138,7 +139,7 @@ func startGameOf(t *testing.T, challenger, opponent *testClient, to game.UserID,
 	return first.GameID
 }
 
-func waitUpdate(t *testing.T, c *testClient, seq game.Seq) protocol.GameUpdate {
+func waitUpdate(t *testing.T, c *prototest.Client, seq game.Seq) protocol.GameUpdate {
 	t.Helper()
 	for {
 		u := waitPush[protocol.GameUpdate](t, c, protocol.TypeGameUpdate)
@@ -151,7 +152,7 @@ func waitUpdate(t *testing.T, c *testClient, seq game.Seq) protocol.GameUpdate {
 	}
 }
 
-func move(t *testing.T, c *testClient, id game.GameID, seq game.Seq, san string) game.Seq {
+func move(t *testing.T, c *prototest.Client, id game.GameID, seq game.Seq, san string) game.Seq {
 	t.Helper()
 	action, err := json.Marshal(chess.Action{Kind: chess.ActionMove, Move: san})
 	if err != nil {
@@ -160,7 +161,7 @@ func move(t *testing.T, c *testClient, id game.GameID, seq game.Seq, san string)
 	return call[protocol.SeqResult](t, c, protocol.TypeGameAct, protocol.GameActRequest{GameID: id, Seq: seq, Action: action}).Seq
 }
 
-func ongoing(t *testing.T, c *testClient) []protocol.GameUpdate {
+func ongoing(t *testing.T, c *prototest.Client) []protocol.GameUpdate {
 	t.Helper()
 	return call[protocol.GameListResult](t, c, protocol.TypeGameList, protocol.GameListRequest{}).Games
 }
@@ -186,7 +187,7 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 	}
 
 	var finishing protocol.GameUpdate
-	for _, c := range []*testClient{a, b} {
+	for _, c := range []*prototest.Client{a, b} {
 		finishing = waitUpdate(t, c, seq)
 		if finishing.Result == nil || finishing.Result.Reason != chess.ReasonCheckmate || !slices.Equal(finishing.Result.Winners, []game.UserID{bob}) {
 			t.Fatalf("final result = %+v, want checkmate won by bob", finishing.Result)
@@ -363,37 +364,37 @@ func TestChallengeUnknownUser(t *testing.T) {
 	t.Parallel()
 	a := newEnv(t).start(t).login(t, alice)
 	_, err := a.Request(protocol.TypeChallengeCreate, protocol.ChallengeCreateRequest{To: []game.UserID{"mallory"}, Game: chessType})
-	wantCode(t, err, protocol.CodeBadRequest)
+	prototest.WantCode(t, err, protocol.CodeBadRequest)
 }
 
 func TestUnknownGameIsNotFound(t *testing.T) {
 	t.Parallel()
 	a := newEnv(t).start(t).login(t, alice)
 	_, err := a.Request(protocol.TypeGameSnapshot, protocol.GameSnapshotRequest{GameID: "nope"})
-	wantCode(t, err, protocol.CodeNotFound)
+	prototest.WantCode(t, err, protocol.CodeNotFound)
 	_, err = a.Request(protocol.TypeGameAct, protocol.GameActRequest{GameID: "nope"})
-	wantCode(t, err, protocol.CodeNotFound)
+	prototest.WantCode(t, err, protocol.CodeNotFound)
 }
 
 func TestWrongPasswordAndLockout(t *testing.T) {
 	t.Parallel()
-	c := dial(t, newEnv(t).start(t).addr)
+	c := prototest.Dial(t, newEnv(t).start(t).addr)
 	attempt := func(user game.UserID, password string) error {
 		_, err := c.Request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: user, Password: password})
 		return err
 	}
 
-	unknownUser := wantCode(t, attempt("mallory", testPassword), protocol.CodeAuthFailed)
-	wrongPassword := wantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
-	if unknownUser.Message != wrongPassword.Message {
-		t.Fatalf("unknown user says %q, wrong password says %q", unknownUser.Message, wrongPassword.Message)
+	unknownUser := prototest.WantCode(t, attempt("mallory", testPassword), protocol.CodeAuthFailed)
+	wrongPassword := prototest.WantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
+	if unknownUser != wrongPassword {
+		t.Fatalf("unknown user says %q, wrong password says %q", unknownUser, wrongPassword)
 	}
 	for range limits.Default().LockoutFailures - 2 {
-		wantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
+		prototest.WantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
 	}
-	locked := wantCode(t, attempt(alice, testPassword), protocol.CodeAuthFailed)
-	if !strings.Contains(locked.Message, lockedOutText) {
-		t.Fatalf("correct password while locked says %q, want %q", locked.Message, lockedOutText)
+	locked := prototest.WantCode(t, attempt(alice, testPassword), protocol.CodeAuthFailed)
+	if !strings.Contains(locked, lockedOutText) {
+		t.Fatalf("correct password while locked says %q, want %q", locked, lockedOutText)
 	}
 }
 
@@ -409,7 +410,7 @@ func TestStaleSeq(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = b.Request(protocol.TypeGameAct, protocol.GameActRequest{GameID: id, Seq: 0, Action: action})
-	wantCode(t, err, protocol.CodeStale)
+	prototest.WantCode(t, err, protocol.CodeStale)
 }
 
 func TestFreshUserListsEncodeEmptyArrays(t *testing.T) {

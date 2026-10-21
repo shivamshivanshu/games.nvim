@@ -13,6 +13,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/archive"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 )
 
 const (
@@ -20,7 +21,7 @@ const (
 	scoredCounterType game.GameType = "scored_counter"
 )
 
-func add(t *testing.T, c *testClient, id game.GameID, seq game.Seq, n int) game.Seq {
+func add(t *testing.T, c *prototest.Client, id game.GameID, seq game.Seq, n int) game.Seq {
 	t.Helper()
 	action := json.RawMessage(fmt.Sprintf(`{"Add":%d}`, n))
 	return call[protocol.SeqResult](t, c, protocol.TypeGameAct, protocol.GameActRequest{GameID: id, Seq: seq, Action: action}).Seq
@@ -28,7 +29,7 @@ func add(t *testing.T, c *testClient, id game.GameID, seq game.Seq, n int) game.
 
 // playCounter has the challenger add 5, the opponent 1, the challenger 5: the
 // challenger reaches the target and wins at seq 3.
-func playCounter(t *testing.T, typ game.GameType, challenger, opponent *testClient, to game.UserID) game.GameID {
+func playCounter(t *testing.T, typ game.GameType, challenger, opponent *prototest.Client, to game.UserID) game.GameID {
 	t.Helper()
 	id := startGameOf(t, challenger, opponent, to, typ, json.RawMessage(`{}`))
 	add(t, challenger, id, add(t, opponent, id, add(t, challenger, id, 0, 5), 1), 5)
@@ -95,7 +96,7 @@ func TestFinishSealsCanonicalSummaryAndDeletesSteps(t *testing.T) {
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}
-	for user, c := range map[game.UserID]*testClient{alice: a, bob: b} {
+	for user, c := range map[game.UserID]*prototest.Client{alice: a, bob: b} {
 		listed := call[protocol.GameListResult](t, c, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
 		if diff := cmp.Diff([]protocol.GameUpdate{laterRead(final)}, listed); diff != "" {
 			t.Errorf("%s's finished list (-want +listed):\n%s", user, diff)
@@ -110,7 +111,7 @@ func TestFinishingBroadcastAddsLastStepToEveryLaterRead(t *testing.T) {
 	a, b := srv.login(t, alice), srv.login(t, bob)
 	id := playCounter(t, counterType, a, b, bob)
 
-	for user, c := range map[game.UserID]*testClient{alice: a, bob: b} {
+	for user, c := range map[game.UserID]*prototest.Client{alice: a, bob: b} {
 		finishing := waitUpdate(t, c, 3)
 		e.requireSealed(t, finishing)
 		events := make([]string, 0, len(finishing.Events))
@@ -152,8 +153,8 @@ func TestVerifyAcceptsOnlyTheStoredSummary(t *testing.T) {
 		"unknown game":     strings.Replace(summary, string(id), "00000000-0000-4000-8000-000000000000", 1),
 		"ongoing game":     strings.Replace(summary, string(id), string(ongoing), 1),
 	} {
-		var reply errorReply
-		if err := verify(bad); !errors.As(err, &reply) || reply.Code != protocol.CodeSummaryMismatch {
+		err := verify(bad)
+		if e, ok := errors.AsType[protocol.Error](err); !ok || e.Code != protocol.CodeSummaryMismatch {
 			t.Errorf("%s: want %s, got %v", name, protocol.CodeSummaryMismatch, err)
 		}
 	}

@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	alice        game.UserID          = "alice"
 	testPassword                      = "secret"
 	typeEcho     protocol.MessageType = "test.echo"
 	replyTimeout                      = 2 * time.Second
@@ -89,79 +88,33 @@ func startServer(t *testing.T, lim limits.Limits, routes session.Router, hooks s
 	return server{addr: ln.Addr().String(), shutdown: shutdown}
 }
 
-type client struct {
-	t      *testing.T
-	conn   net.Conn
-	reader *protocol.Reader
-	nextID protocol.RequestID
-}
-
-func dial(t *testing.T, addr string) *client {
+func login(t *testing.T, c *prototest.Client) {
 	t.Helper()
-	conn, reader := prototest.Dial(t, addr)
-	return &client{t: t, conn: conn, reader: reader}
-}
-
-func (c *client) sendLine(line string) {
-	c.t.Helper()
-	if _, err := io.WriteString(c.conn, line+"\n"); err != nil {
-		c.t.Fatal(err)
+	if _, err := c.Request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: prototest.Alice, Password: testPassword}); err != nil {
+		t.Fatalf("login: %v", err)
 	}
 }
 
-func (c *client) send(typ protocol.MessageType, body any) protocol.RequestID {
-	c.t.Helper()
-	c.nextID++
-	id := c.nextID
-	if err := prototest.Send(c.conn, id, typ, body); err != nil {
-		c.t.Fatal(err)
-	}
-	return id
-}
-
-func (c *client) next() protocol.Envelope {
-	c.t.Helper()
-	_ = c.conn.SetReadDeadline(time.Now().Add(replyTimeout))
-	env, err := c.reader.Next()
+func next(t *testing.T, c *prototest.Client) protocol.Envelope {
+	t.Helper()
+	env, err := c.Next(replyTimeout)
 	if err != nil {
-		c.t.Fatalf("read: %v", err)
+		t.Fatalf("read: %v", err)
 	}
 	return env
 }
 
-func (c *client) request(typ protocol.MessageType, body any) protocol.Envelope {
-	c.t.Helper()
-	id := c.send(typ, body)
-	env := c.next()
-	if env.ID == nil || *env.ID != id {
-		c.t.Fatalf("reply %+v does not answer request %d", env, id)
-	}
-	return env
-}
-
-func (c *client) login() {
-	c.t.Helper()
-	env := c.request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: alice, Password: testPassword})
-	if env.Type != protocol.TypeOK {
-		c.t.Fatalf("login reply = %s %s", env.Type, env.Body)
-	}
-}
-
-func (c *client) expectClosedWithin(d time.Duration) {
-	c.t.Helper()
-	_ = c.conn.SetReadDeadline(time.Now().Add(d))
-	if env, err := c.reader.Next(); !errors.Is(err, io.EOF) {
-		c.t.Fatalf("want EOF within %v, got %+v, %v", d, env, err)
-	}
-}
-
-func expectError(t *testing.T, env protocol.Envelope, want protocol.ErrorCode) protocol.ErrorBody {
+func expectClosedWithin(t *testing.T, c *prototest.Client, d time.Duration) {
 	t.Helper()
-	var body protocol.ErrorBody
-	if env.Type != protocol.TypeError || json.Unmarshal(env.Body, &body) != nil || body.Code != want {
-		t.Fatalf("want %s error, got %s %s", want, env.Type, env.Body)
+	if line, err := c.ReadLine(d); !errors.Is(err, io.EOF) {
+		t.Fatalf("want EOF within %v, got %s, %v", d, line, err)
 	}
-	return body
+}
+
+func expectError(t *testing.T, env protocol.Envelope, want protocol.ErrorCode) string {
+	t.Helper()
+	_, err := prototest.ReplyOf(env)
+	return prototest.WantCode(t, err, want)
 }
 
 func TestLoginDeadlineClosesConnection(t *testing.T) {
@@ -169,27 +122,33 @@ func TestLoginDeadlineClosesConnection(t *testing.T) {
 	lim.LoginDeadline = 100 * time.Millisecond
 	srv := startServer(t, lim, nil, session.Hooks{})
 
-	dial(t, srv.addr).expectClosedWithin(300 * time.Millisecond)
+	expectClosedWithin(t, prototest.Dial(t, srv.addr), 300*time.Millisecond)
 }
 
 func TestRequestBeforeLoginUnauthenticated(t *testing.T) {
 	srv := startServer(t, testLimits(), nil, session.Hooks{})
-	c := dial(t, srv.addr)
+	c := prototest.Dial(t, srv.addr)
 
-	expectError(t, c.request(typeEcho, echoReq{Text: "hi"}), protocol.CodeUnauthenticated)
-	expectError(t, c.request(protocol.TypePing, protocol.Empty{}), protocol.CodeUnauthenticated)
-	c.login()
+	_, err := c.Request(typeEcho, echoReq{Text: "hi"})
+	prototest.WantCode(t, err, protocol.CodeUnauthenticated)
+	_, err = c.Request(protocol.TypePing, protocol.Empty{})
+	prototest.WantCode(t, err, protocol.CodeUnauthenticated)
+	login(t, c)
 }
 
 func TestLoginFailuresKeepConnectionUnauthenticated(t *testing.T) {
 	srv := startServer(t, testLimits(), nil, session.Hooks{})
-	c := dial(t, srv.addr)
+	c := prototest.Dial(t, srv.addr)
 
-	expectError(t, c.request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version + 1, Username: alice, Password: testPassword}), protocol.CodeVersionMismatch)
-	expectError(t, c.request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: alice, Password: "wrong"}), protocol.CodeAuthFailed)
-	expectError(t, c.request(typeEcho, echoReq{}), protocol.CodeUnauthenticated)
-	c.login()
-	expectError(t, c.request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: alice, Password: testPassword}), protocol.CodeBadRequest)
+	_, err := c.Request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version + 1, Username: prototest.Alice, Password: testPassword})
+	prototest.WantCode(t, err, protocol.CodeVersionMismatch)
+	_, err = c.Request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: prototest.Alice, Password: "wrong"})
+	prototest.WantCode(t, err, protocol.CodeAuthFailed)
+	_, err = c.Request(typeEcho, echoReq{})
+	prototest.WantCode(t, err, protocol.CodeUnauthenticated)
+	login(t, c)
+	_, err = c.Request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: prototest.Alice, Password: testPassword})
+	prototest.WantCode(t, err, protocol.CodeBadRequest)
 }
 
 func TestIdleTimeoutClosesAfterLogin(t *testing.T) {
@@ -198,17 +157,17 @@ func TestIdleTimeoutClosesAfterLogin(t *testing.T) {
 	srv := startServer(t, lim, nil, session.Hooks{})
 
 	t.Run("no pings", func(t *testing.T) {
-		c := dial(t, srv.addr)
-		c.login()
-		c.expectClosedWithin(600 * time.Millisecond)
+		c := prototest.Dial(t, srv.addr)
+		login(t, c)
+		expectClosedWithin(t, c, 600*time.Millisecond)
 	})
 	t.Run("pings every 50ms", func(t *testing.T) {
-		c := dial(t, srv.addr)
-		c.login()
+		c := prototest.Dial(t, srv.addr)
+		login(t, c)
 		for range 8 {
 			time.Sleep(50 * time.Millisecond)
-			if env := c.request(protocol.TypePing, protocol.Empty{}); env.Type != protocol.TypeOK || string(env.Body) != "{}" {
-				t.Fatalf("ping reply = %s %s", env.Type, env.Body)
+			if body, err := c.Request(protocol.TypePing, protocol.Empty{}); err != nil || string(body) != "{}" {
+				t.Fatalf("ping reply = %s, %v", body, err)
 			}
 		}
 	})
@@ -218,34 +177,36 @@ func TestConnectionCap(t *testing.T) {
 	lim := testLimits()
 	lim.MaxConnections = 1
 	srv := startServer(t, lim, nil, session.Hooks{})
-	dial(t, srv.addr).login()
+	login(t, prototest.Dial(t, srv.addr))
 
-	second := dial(t, srv.addr)
-	env := second.next()
+	second := prototest.Dial(t, srv.addr)
+	env := next(t, second)
 	if env.ID != nil {
 		t.Fatalf("rejection carries id %d", *env.ID)
 	}
-	if body := expectError(t, env, protocol.CodeInternal); body.Message != "server full" {
-		t.Fatalf("message = %q", body.Message)
+	if msg := expectError(t, env, protocol.CodeInternal); msg != "server full" {
+		t.Fatalf("message = %q", msg)
 	}
-	second.expectClosedWithin(replyTimeout)
+	expectClosedWithin(t, second, replyTimeout)
 }
 
 func TestHandleDecodesTypedBody(t *testing.T) {
 	srv := startServer(t, testLimits(), nil, session.Hooks{})
-	c := dial(t, srv.addr)
-	c.login()
+	c := prototest.Dial(t, srv.addr)
+	login(t, c)
 
-	env := c.request(typeEcho, echoReq{Text: "hi"})
+	body, err := c.Request(typeEcho, echoReq{Text: "hi"})
 	var resp echoResp
-	if env.Type != protocol.TypeOK || json.Unmarshal(env.Body, &resp) != nil || resp.Echo != "hi" {
-		t.Fatalf("echo reply = %s %s", env.Type, env.Body)
+	if err != nil || json.Unmarshal(body, &resp) != nil || resp.Echo != "hi" {
+		t.Fatalf("echo reply = %s, %v", body, err)
 	}
-	if env := c.request(typeEcho, nil); env.Type != protocol.TypeOK {
-		t.Fatalf("null body reply = %s %s", env.Type, env.Body)
+	if body, err := c.Request(typeEcho, nil); err != nil {
+		t.Fatalf("null body reply = %s, %v", body, err)
 	}
-	c.sendLine(`{"id":99,"type":"test.echo","body":{"text":5}}`)
-	if env := c.next(); env.ID == nil || *env.ID != 99 {
+	if err := c.WriteLine([]byte(`{"id":99,"type":"test.echo","body":{"text":5}}`)); err != nil {
+		t.Fatal(err)
+	}
+	if env := next(t, c); env.ID == nil || *env.ID != 99 {
 		t.Fatalf("malformed body reply = %+v", env)
 	} else {
 		expectError(t, env, protocol.CodeBadRequest)
@@ -276,32 +237,33 @@ func TestErrorsMapToCodes(t *testing.T) {
 		})
 	}
 	srv := startServer(t, testLimits(), routes, session.Hooks{})
-	c := dial(t, srv.addr)
-	c.login()
+	c := prototest.Dial(t, srv.addr)
+	login(t, c)
 
 	for i, tc := range cases {
-		body := expectError(t, c.request(protocol.MessageType(fmt.Sprint("fail.", i)), protocol.Empty{}), tc.want)
-		if tc.want == protocol.CodeInternal && strings.Contains(body.Message, tc.err.Error()) {
-			t.Errorf("internal error leaked: %q", body.Message)
+		_, err := c.Request(protocol.MessageType(fmt.Sprint("fail.", i)), protocol.Empty{})
+		if msg := prototest.WantCode(t, err, tc.want); tc.want == protocol.CodeInternal && strings.Contains(msg, tc.err.Error()) {
+			t.Errorf("internal error leaked: %q", msg)
 		}
 	}
-	expectError(t, c.request("no.such.route", protocol.Empty{}), protocol.CodeBadRequest)
+	_, err := c.Request("no.such.route", protocol.Empty{})
+	prototest.WantCode(t, err, protocol.CodeBadRequest)
 }
 
 func TestLineTooLongRepliesBadRequestAndCloses(t *testing.T) {
 	lim := testLimits()
 	srv := startServer(t, lim, nil, session.Hooks{})
-	c := dial(t, srv.addr)
+	c := prototest.Dial(t, srv.addr)
 
-	if _, err := io.WriteString(c.conn, strings.Repeat("x", lim.MaxLineBytes+1)); err != nil {
+	if _, err := io.WriteString(c, strings.Repeat("x", lim.MaxLineBytes+1)); err != nil {
 		t.Fatal(err)
 	}
-	env := c.next()
+	env := next(t, c)
 	if env.ID != nil {
 		t.Fatalf("line-too-long reply carries id %d", *env.ID)
 	}
 	expectError(t, env, protocol.CodeBadRequest)
-	c.expectClosedWithin(replyTimeout)
+	expectClosedWithin(t, c, replyTimeout)
 }
 
 func TestHooksFireOncePerAuthenticatedSession(t *testing.T) {
@@ -311,12 +273,12 @@ func TestHooksFireOncePerAuthenticatedSession(t *testing.T) {
 		OnAuthenticated: func(s *session.Session) { authenticated <- s },
 		OnClosed:        func(s *session.Session) { closed <- s },
 	})
-	dial(t, srv.addr)
-	c := dial(t, srv.addr)
-	c.login()
+	prototest.Dial(t, srv.addr)
+	c := prototest.Dial(t, srv.addr)
+	login(t, c)
 
 	s := <-authenticated
-	if s.User() != alice || !s.RemoteAddr().IsLoopback() {
+	if s.User() != prototest.Alice || !s.RemoteAddr().IsLoopback() {
 		t.Fatalf("session user %q addr %v", s.User(), s.RemoteAddr())
 	}
 	push, err := protocol.EncodeFrame(nil, protocol.TypeGameUpdate, protocol.Empty{})
@@ -326,10 +288,10 @@ func TestHooksFireOncePerAuthenticatedSession(t *testing.T) {
 	if !s.Push(push) {
 		t.Fatal("push to live session failed")
 	}
-	if env := c.next(); env.Type != protocol.TypeGameUpdate || env.ID != nil {
+	if env := next(t, c); env.Type != protocol.TypeGameUpdate || env.ID != nil {
 		t.Fatalf("push arrived as %+v", env)
 	}
-	_ = c.conn.Close()
+	_ = c.Close()
 	select {
 	case got := <-closed:
 		if got != s {
@@ -352,11 +314,11 @@ func TestHooksFireOncePerAuthenticatedSession(t *testing.T) {
 
 func TestServeShutdownClosesSessions(t *testing.T) {
 	srv := startServer(t, testLimits(), nil, session.Hooks{})
-	c := dial(t, srv.addr)
-	c.login()
+	c := prototest.Dial(t, srv.addr)
+	login(t, c)
 
 	if err := srv.shutdown(); err != nil {
 		t.Fatalf("Serve returned %v", err)
 	}
-	c.expectClosedWithin(replyTimeout)
+	expectClosedWithin(t, c, replyTimeout)
 }
