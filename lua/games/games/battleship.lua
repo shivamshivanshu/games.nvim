@@ -301,9 +301,6 @@ M.input = {
   kind = FIRE_KIND,
   prompt = "Fire at, e.g. c5: ",
   available = firing,
-  parse = function(text)
-    return { kind = FIRE_KIND, cell = text }
-  end,
 }
 
 ---@type games.GameAction[]

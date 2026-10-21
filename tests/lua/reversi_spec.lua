@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { place = true }
+local CATALOGUE = { place = { kind = "place", description = "", input = { field = "cell" } } }
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4
 ---Display columns before the first cell: the row label and its gap.
@@ -112,8 +112,7 @@ function T.the_last_disc_is_tinted_and_named()
   assert_eq("last d3", note(rendered, 1))
 end
 
-function T.m_types_a_cell_that_goes_to_the_server_as_text()
-  assert_eq({ kind = "place", cell = "d3" }, reversi.input.parse("d3"))
+function T.m_types_a_cell()
   local lines = render(start(), "alice").lines
   assert_eq(
     "R resign  D offer draw  A abort  m place, e.g. d3  ]g next game  q close",

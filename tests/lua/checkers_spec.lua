@@ -202,8 +202,4 @@ function T.describe_event_names_the_player_and_a_crowning()
   )
 end
 
-function T.typed_move_is_sent_raw_for_the_server_to_parse()
-  assert_eq({ kind = "move", text = "15x24x31" }, checkers.input.parse("15x24x31"))
-end
-
 return T

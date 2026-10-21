@@ -61,13 +61,7 @@ end
 ---@param example string a cell to show, e.g. "h8"
 ---@return games.GameInput
 function M.input(example)
-  return {
-    kind = PLACE_KIND,
-    prompt = ("Place, e.g. %s: "):format(example),
-    parse = function(text)
-      return { kind = PLACE_KIND, cell = text }
-    end,
-  }
+  return { kind = PLACE_KIND, prompt = ("Place, e.g. %s: "):format(example) }
 end
 
 ---@param cell games.DiscCell

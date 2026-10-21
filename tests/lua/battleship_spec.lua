@@ -6,7 +6,12 @@ local text_util = require("games.ui.text")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { place_across = true, place_down = true, random = true, fire = true }
+local CATALOGUED = {
+  place_across = true,
+  place_down = true,
+  random = true,
+  fire = { kind = "fire", description = "", input = { field = "cell" } },
+}
 local FIRST_BOARD_ROW = 6
 local TILE_CODES = { ["."] = "empty", ["#"] = "ship", o = "miss", x = "hit", ["*"] = "sunk" }
 local WATER = ("."):rep(10)
@@ -123,7 +128,7 @@ end
 
 ---@param state games.BattleshipUpdate
 ---@param view games.ViewOptions
----@param catalogued? table<string, true>
+---@param catalogued? table<string, games.ActionSpec|true>
 ---@return games.Rendered
 ---@return games.KeyBinding[]
 local function render(state, view, catalogued)
@@ -315,7 +320,6 @@ function T.enter_sends_the_cursors_cell_as_a_placement_lying_its_way_or_a_shot()
     sent(firing(), { row = 3, col = 2, orientation = "down" }, "<CR>")
   )
   assert_eq({ kind = "random" }, sent(placing(), nil, "f"))
-  assert_eq({ kind = "fire", cell = " d4" }, battleship.input.parse(" d4"))
 end
 
 function T.aiming_where_the_view_offers_no_shot_marks_it_blocked_and_enter_sends_nothing()

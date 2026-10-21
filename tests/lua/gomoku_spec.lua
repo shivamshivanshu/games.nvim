@@ -6,7 +6,7 @@ local shell = require("games.ui.shell")
 local assert_eq = helpers.assert_eq
 
 local SIZE = 15
-local CATALOGUE = { place = true }
+local CATALOGUE = { place = { kind = "place", description = "", input = { field = "cell" } } }
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4
 ---Display columns before the first cell: the widest row label, "15", and its gap.
@@ -143,8 +143,7 @@ function T.no_cell_is_marked_legal_though_the_mover_may_play_any_empty_one()
   assert(not rendered.lines[BOARD_TOP + 2]:find("+", 1, true), "no legal marker glyph")
 end
 
-function T.m_types_a_cell_that_goes_to_the_server_as_text_while_the_game_is_on()
-  assert_eq({ kind = "place", cell = "H8" }, gomoku.input.parse("H8"))
+function T.m_types_a_cell_while_the_game_is_on()
   local function footer(update)
     local lines = render(update).lines
     return lines[#lines]

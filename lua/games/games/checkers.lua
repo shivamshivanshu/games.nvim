@@ -139,13 +139,7 @@ function M.layout(update, ctx)
 end
 
 ---@type games.GameInput
-M.input = {
-  kind = "move",
-  prompt = "Move: ",
-  parse = function(text)
-    return { kind = "move", text = text }
-  end,
-}
+M.input = { kind = "move", prompt = "Move: " }
 
 ---@type games.Flippable
 M.flippable = { bottom_seat = "black" }
