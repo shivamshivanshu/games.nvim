@@ -45,51 +45,57 @@ local function index(row, col)
   return (row - 1) * SIZE + col
 end
 
----@param view games.SudokuView
----@param i integer
----@return integer|nil the solution's digit where it differs from the grid, once the game is over
-local function revealed(view, i)
-  local digit = view.solution[i]
-  if digit ~= nil and digit ~= view.grid[i] then
-    return digit
+---What one render of the board works out once, for every cell.
+---@class (private) games.SudokuShown
+---@field over boolean
+---@field corrected table<integer, integer> by cell index, the solution's digit where it differs from the grid
+---@field solver_hl games.Hl|nil the solver's seat colour, for the digits they entered
+
+---@param update games.SudokuUpdate
+---@return games.SudokuShown
+local function shown_of(update)
+  local view = update.view
+  local corrected = {}
+  for i, digit in ipairs(view.solution) do
+    if digit ~= view.grid[i] then
+      corrected[i] = digit
+    end
   end
-end
-
----@param digit integer
----@param marker? games.SudokuMarker
----@return string the asset key: the digit itself when unmarked, else "conflict:5" and so on
-local function key_for(digit, marker)
-  return art.marked_key(digit, marker)
+  return {
+    over = update.result ~= nil,
+    corrected = corrected,
+    solver_hl = theme.seat_hl_of(update, SOLVER),
+  }
 end
 
 ---@param view games.SudokuView
 ---@param i integer
----@param solver_hl games.Hl|nil the solver's seat colour, for the digits they entered
+---@param shown games.SudokuShown
 ---@return games.GridCell
-local function cell_for(view, i, solver_hl)
-  local correction = revealed(view, i)
+local function cell_for(view, i, shown)
+  local correction = shown.corrected[i]
   if correction then
-    return { key_for(correction, Marker.REVEALED), REVEALED_FG_HL }
+    return { art.marked_key(correction, Marker.REVEALED), REVEALED_FG_HL }
   end
   local digit = view.grid[i]
   if digit == 0 then
     return { EMPTY_KEY, EMPTY_HL }
   end
-  local marker = #view.solution == 0 and view.conflicts[i] and Marker.CONFLICT or nil
-  return { key_for(digit, marker), view.given[i] and GIVEN_HL or solver_hl }
+  local marker = not shown.over and view.conflicts[i] and Marker.CONFLICT or nil
+  return { art.marked_key(digit, marker), view.given[i] and GIVEN_HL or shown.solver_hl }
 end
 
 ---@param view games.SudokuView
+---@param shown games.SudokuShown
 ---@return games.GridMark[] while playing, the conflicting cells; once over, the cells the solution corrects
-local function marks_for(view)
-  local over = #view.solution > 0
+local function marks_for(view, shown)
   local marks = {}
   for row = 1, SIZE do
     for col = 1, SIZE do
       local i = index(row, col)
-      if over and revealed(view, i) then
+      if shown.over and shown.corrected[i] then
         marks[#marks + 1] = grid.mark(row, col, REVEALED_HL)
-      elseif not over and view.conflicts[i] then
+      elseif not shown.over and view.conflicts[i] then
         marks[#marks + 1] = grid.mark(row, col, CONFLICT_HL)
       end
     end
@@ -104,7 +110,11 @@ M.asset_keys = vim.list_extend(
   vim
     .iter(vim.fn.range(1, SIZE))
     :map(function(digit)
-      return { key_for(digit), key_for(digit, Marker.CONFLICT), key_for(digit, Marker.REVEALED) }
+      return {
+        art.marked_key(digit),
+        art.marked_key(digit, Marker.CONFLICT),
+        art.marked_key(digit, Marker.REVEALED),
+      }
     end)
     :flatten()
     :totable(),
@@ -118,7 +128,7 @@ M.glyph_width = CELL_WIDTH
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local solver_hl = theme.seat_hl_of(update, SOLVER)
+  local shown = shown_of(update)
   local labels = notation.numbers(SIZE)
   return board({
     grid = {
@@ -129,9 +139,9 @@ function M.layout(update, ctx)
       glyphs = ctx.glyphs,
       labels = { rows = labels, cols = labels },
       cell = function(r, c)
-        return cell_for(view, index(r, c), solver_hl)
+        return cell_for(view, index(r, c), shown)
       end,
-      marks = marks_for(view),
+      marks = marks_for(view, shown),
     },
   }, ctx)
 end

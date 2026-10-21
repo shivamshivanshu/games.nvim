@@ -64,7 +64,6 @@ local text_util = require("games.ui.text")
 ---@field seat games.Seat
 
 local STARTING_DICE = 5
-local NO_DIE_KEY = "none"
 local KEY_HL = "GamesKey"
 local MUTED_HL = "GamesMuted"
 local BID_KIND = "bid"
@@ -139,7 +138,7 @@ end
 local M = {}
 
 ---@type string[] keys every liar's dice asset pack draws: the six faces and an empty place in the cup
-M.asset_keys = vim.list_extend(dice.keys(), { NO_DIE_KEY })
+M.asset_keys = vim.list_extend(dice.keys(), { dice.NONE_KEY })
 
 ---Your own dice, with the table and the last reveal beside them.
 ---@param update games.LiarsDiceUpdate
@@ -153,8 +152,7 @@ function M.layout(update, ctx)
       rows = 1,
       cols = STARTING_DICE,
       cell = function(_, c)
-        local face = view.my_dice[c]
-        return { face and dice.key(face) or NO_DIE_KEY }
+        return dice.cell(view.my_dice[c])
       end,
     },
     panels = {

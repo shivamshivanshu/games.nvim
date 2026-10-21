@@ -119,10 +119,9 @@ function T.the_status_says_paused_or_over()
     "##############   game  paused: turn to go",
     render(update_with({ paused = true, can_pause = false })).lines[BOARD_TOP + 5]
   )
-  assert_eq(
-    "##############   game  over",
-    render(update_with({ can_turn = false, can_pause = false })).lines[BOARD_TOP + 5]
-  )
+  local over = update_with({ can_turn = false, can_pause = false })
+  over.result = { kind = "decisive", winners = {}, reason = "game_over" }
+  assert_eq("##############   game  over", render(over).lines[BOARD_TOP + 5])
 end
 
 function T.turn_keys_while_the_game_goes_on_and_pause_only_while_it_runs()

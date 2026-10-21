@@ -120,13 +120,13 @@ local function occupants(view)
   return by_cell
 end
 
----@param view games.PacmanView
+---@param update games.PacmanUpdate
 ---@return string
-local function state_text(view)
-  if not view.can_turn then
+local function state_text(update)
+  if update.result then
     return OVER_TEXT
   end
-  return view.paused and PAUSED_TEXT or RUNNING_TEXT
+  return update.view.paused and PAUSED_TEXT or RUNNING_TEXT
 end
 
 local M = {}
@@ -179,7 +179,7 @@ function M.layout(update, ctx)
             { "lives", tostring(view.lives) },
             { "level", ("%d/%d"):format(view.level, view.levels) },
             { "food", tostring(view.food_left) },
-            { "game", state_text(view) },
+            { "game", state_text(update) },
           })
         end,
       },

@@ -64,7 +64,7 @@ local DICE = vim.fn.range(1, DICE_COUNT)
 ---@type integer[]
 local NO_DICE = {}
 local DICE_ROW, HOLD_ROW = 1, 2
-local NO_DIE_KEY, HELD_KEY, FREE_KEY = "none", "held", "free"
+local HELD_KEY, FREE_KEY = "held", "free"
 local HELD_HL = "GamesMovable"
 local KEY_HL = "GamesKey"
 local LABEL_HL = "GamesLabel"
@@ -117,8 +117,7 @@ local function cell_for(view, row, col)
   if row == HOLD_ROW then
     return { view.held[col] and HELD_KEY or FREE_KEY }
   end
-  local face = view.dice[col]
-  return { face and dice.key(face) or NO_DIE_KEY }
+  return dice.cell(view.dice[col])
 end
 
 ---@param view games.YahtzeeView
@@ -205,7 +204,7 @@ local M = {}
 
 ---@type string[] keys every yahtzee asset pack draws: the six faces, a die not yet rolled, and the
 ---marks under a held die and a free one
-M.asset_keys = vim.list_extend(dice.keys(), { NO_DIE_KEY, HELD_KEY, FREE_KEY })
+M.asset_keys = vim.list_extend(dice.keys(), { dice.NONE_KEY, HELD_KEY, FREE_KEY })
 
 ---@param update games.YahtzeeUpdate
 ---@param ctx games.LayoutCtx

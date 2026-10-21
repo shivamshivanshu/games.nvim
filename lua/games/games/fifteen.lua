@@ -54,9 +54,9 @@ local function movable_tiles(view)
 end
 
 ---@param update games.FifteenUpdate
+---@param movable table<integer, true> the tiles that may slide
 ---@return games.GridMark[] the movable tiles while playing; every tile once solved
-local function marks_for(update)
-  local movable = movable_tiles(update.view)
+local function marks_for(update, movable)
   local solved = update.result and update.result.reason == SOLVED_REASON
   return grid.marks_where(update.view.tiles, function(tile)
     if solved and tile ~= BLANK then
@@ -97,7 +97,7 @@ function M.layout(update, ctx)
         local tile = view.tiles[r][c]
         return { tile == BLANK and BLANK_KEY or key_for(tile, movable[tile] == true) }
       end,
-      marks = marks_for(update),
+      marks = marks_for(update, movable),
     },
     panels = {
       {

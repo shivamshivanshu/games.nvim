@@ -91,9 +91,10 @@ local PLAY_KIND = "play"
 local PANEL_WIDTH = 36
 
 ---@type table<string, string> colour letter -> its name
-local COLOR_NAMES = { R = "red", Y = "yellow", G = "green", B = "blue" }
----@type string[] colour letters in key order
-local COLORS = { "R", "Y", "G", "B" }
+local COLOR_NAMES = {}
+for _, color in ipairs(cards.uno_colors) do
+  COLOR_NAMES[color.letter] = color.name
+end
 
 ---@type table<games.UnoPhase, string> what the seat to act does in each phase
 local PHASE_HINTS = {
@@ -261,11 +262,11 @@ M.actions = {
   simple("c", "challenge", "challenge"),
   simple("a", "accept", "accept"),
 }
-for _, color in ipairs(COLORS) do
+for _, color in ipairs(cards.uno_colors) do
   M.actions[#M.actions + 1] = {
-    key = color:lower(),
-    label = COLOR_NAMES[color],
-    action = { kind = "color", color = color },
+    key = color.letter:lower(),
+    label = color.name,
+    action = { kind = "color", color = color.letter },
     available = function(update)
       return legal(update, "color")
     end,
