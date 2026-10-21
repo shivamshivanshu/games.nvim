@@ -37,6 +37,7 @@ local text_util = require("games.ui.text")
 ---@field flip? boolean
 ---@field cell_width? integer display columns per cell, default 1
 ---@field cell_height? integer lines per cell, default 1; taller cells touch, with no gap
+---@field gap? integer display columns between cells one line tall, default 1; 0 makes them touch
 ---@field art? games.ArtSet resolves cell keys; without it a key is drawn as it is
 ---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
 ---@field blocks? integer positive: draw a thin separator after every this many rows and columns
@@ -256,7 +257,7 @@ local function geometry_of(props, row_labels)
   local cell_height = props.cell_height or 1
   return {
     cell = { w = props.cell_width or 1, h = cell_height },
-    gap = cell_height == 1 and #CELL_GAP or 0,
+    gap = cell_height == 1 and (props.gap or #CELL_GAP) or 0,
     prefix = row_labels and label_width + #LABEL_GAP or 0,
     label = label_width,
   }
@@ -279,7 +280,7 @@ local function render_cells(props, ambiwidth)
     if crosses_block(props.blocks, col_order[j - 1], col_order[j]) then
       return repeated(separators.col, cell_height, SEPARATOR_HL)
     end
-    return geometry.gap > 0 and repeated(CELL_GAP, cell_height) or nil
+    return geometry.gap > 0 and repeated(text_util.spaces(geometry.gap), cell_height) or nil
   end
 
   local lines = {}

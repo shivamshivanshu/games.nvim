@@ -101,6 +101,18 @@ return {
     assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, hl_at(rendered, 0, 4))
   end,
 
+  grid_gap_sets_the_columns_between_one_line_cells = function()
+    local touching = compose.render(small_grid({
+      gap = 0,
+      cell_width = 2,
+      cell = function()
+        return { "##" }
+      end,
+    }))
+    assert_eq({ "2 ####", "1 ####", "  a b " }, touching.lines)
+    assert_eq({ "2 x   x", "1 x   x", "  a   b" }, compose.render(small_grid({ gap = 3 })).lines)
+  end,
+
   grid_flip = function()
     local rendered = compose.render(small_grid({
       flip = true,
