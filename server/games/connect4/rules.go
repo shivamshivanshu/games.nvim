@@ -62,5 +62,5 @@ func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng 
 		first, second = second, first
 	}
 	seats := map[game.UserID]game.Seat{first: SeatRed, second: SeatYellow}
-	return state{toMove: SeatRed}, seats, nil
+	return state{toMove: SeatRed, winningLines: [][]Cell{}}, seats, nil
 }

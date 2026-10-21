@@ -62,6 +62,7 @@ Keys are buffer-local, in Normal mode, in the board buffer. Only keys that are v
 - **Rejections:**
   - `column must be 1 to 7, got "<text>"`;
   - `column <n> is full`;
+  - an action of any other kind: `unknown action: <kind>`;
   - out of turn: `not_your_turn`.
 
 ## Result and scoring

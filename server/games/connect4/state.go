@@ -87,7 +87,7 @@ func (s state) View(viewer game.Seat) View {
 	return View{
 		Cells:        s.board.cells(),
 		Last:         s.last,
-		WinningLines: append([][]Cell{}, s.winningLines...),
+		WinningLines: s.winningLines,
 		LegalColumns: legal,
 	}
 }
@@ -102,17 +102,15 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	if s.finished {
-		return s, nil
-	}
-	s.result, s.finished = game.ForfeitToRemaining([]game.Seat{SeatRed, SeatYellow}, seat, reason), true
-	return s, nil
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatRed, SeatYellow}, seat, reason)), nil
 }
 
-// Conclude takes a result the core imposed, so no seat is offered a drop.
+// Conclude keeps a result already reached; otherwise result ends the game, so no seat is
+// offered a drop.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if !s.finished {
-		s.result, s.finished = result, true
+	if s.finished {
+		return s
 	}
+	s.result, s.finished = result, true
 	return s
 }

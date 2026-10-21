@@ -35,25 +35,15 @@ local LAST_MOVE_HL = "GamesLastMove"
 ---@type string[]
 local ROW_LABELS = vim.fn["repeat"]({ "" }, ROWS)
 
----Each seat's colour, the one the header gives its player.
+---A disc takes the colour the header gives its player.
 ---@param update games.Connect4Update
----@return table<games.Connect4Seat, string>
-local function seat_colours(update)
-  local colours = {}
-  for i, player in ipairs(update.players) do
-    colours[player.seat] = theme.seat_hl(i)
-  end
-  return colours
-end
-
 ---@param seat games.Connect4Seat|""
----@param colours table<games.Connect4Seat, string>
 ---@return games.GridCell
-local function cell_for(seat, colours)
+local function cell_for(update, seat)
   if seat == "" then
     return { EMPTY_KEY }
   end
-  return { seat, colours[seat] }
+  return { seat, theme.seat_hl(assert(players.seat_index(update, seat))) }
 end
 
 ---The last disc, then the winning lines over it; a later mark on a cell replaces an earlier one.
@@ -95,7 +85,6 @@ M.asset_keys = { "red", "yellow", EMPTY_KEY }
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local colours = seat_colours(update)
   return board({
     grid = {
       rows = ROWS,
@@ -103,7 +92,7 @@ function M.layout(update, ctx)
       shade = "plain",
       labels = { cols = COLUMN_LABELS, rows = ROW_LABELS },
       cell = function(r, c)
-        return cell_for(view.cells[r][c], colours)
+        return cell_for(update, view.cells[r][c])
       end,
       marks = marks_for(view),
     },

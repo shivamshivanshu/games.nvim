@@ -2,6 +2,7 @@ local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local movelist = require("games.ui.widgets.movelist")
 local helpers = require("helpers")
+local key_hints = require("games.ui.widgets.key_hints")
 
 local assert_eq = helpers.assert_eq
 
@@ -258,5 +259,40 @@ return {
   grid_labels_split_by_character = function()
     local rendered = compose.render(small_grid({ labels = { cols = "①②", rows = "③④" } }))
     assert_eq({ "③ x x", "④ x x", "  ① ②" }, rendered.lines)
+  end,
+
+  key_hints_group_adjacent_hints_that_share_a_label = function()
+    local function hints(spec)
+      return vim.tbl_map(function(pair)
+        return { key = pair[1], label = pair[2] }
+      end, spec)
+    end
+    for _, case in ipairs({
+      {
+        name = "singletons",
+        hints = hints({ { "m", "move" }, { "q", "close" } }),
+        want = "m move  q close",
+      },
+      {
+        name = "a gap splits the run",
+        hints = hints({ { "1", "drop" }, { "3", "drop" }, { "4", "drop" }, { "5", "drop" } }),
+        want = "1,3-5 drop",
+      },
+      {
+        name = "multi-character keys never form a range",
+        hints = hints({ { "]g", "next" }, { "]h", "next" } }),
+        want = "]g,]h next",
+      },
+      {
+        name = "another label between splits the group",
+        hints = hints({ { "1", "drop" }, { "R", "resign" }, { "2", "drop" } }),
+        want = "1 drop  R resign  2 drop",
+      },
+    }) do
+      assert_eq(
+        { case.name, case.want },
+        { case.name, compose.render(key_hints(case.hints)).lines[1] }
+      )
+    end
   end,
 }
