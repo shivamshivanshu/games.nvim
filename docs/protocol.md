@@ -262,6 +262,18 @@ An action object always carries `kind`.
   - `answer` is absent until the game finishes, however it ends.
 - Actions: `guess` (`text`: five letters, any case; surrounding spaces are ignored). A word outside the list is an `illegal_action` and costs no guess.
 
+### Sudoku
+
+- Solo: one seat, `solver`; start it with `game.start`. Option `difficulty`: `easy`, `medium` (default), `hard`.
+- Reasons: `solved`.
+- Events: `cell_set {by: seat, row, col, digit}`, `row` and `col` 1-9 from the top left, `digit` 0 when cleared.
+- View `{grid, given, conflicts, solution}`:
+  - `grid` is always 81 integers in row-major order, cell `(row-1)*9 + col`, 0 when empty;
+  - `given` is 81 booleans, the puzzle's own cells;
+  - `conflicts` is 81 booleans, the filled cells whose digit repeats in their row, column or box;
+  - `solution` is `[]` until the game is over, then all 81 digits.
+- Actions: `set` (`text`: `"RC D"`, row, column and digit, e.g. `"53 7"`; `"53 0"` clears). The catalogue gives the pattern.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

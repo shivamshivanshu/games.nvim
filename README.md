@@ -14,6 +14,7 @@ Only chess exists today. The server owns all state and rules; Neovim renders wha
 | Checkers | 2 | [docs/games/checkers.md](docs/games/checkers.md) |
 | Ludo | 2–4 | [docs/games/ludo.md](docs/games/ludo.md) |
 | Wordle | 1 (solo) | [docs/games/wordle.md](docs/games/wordle.md) |
+| Sudoku | 1 (solo) | [docs/games/sudoku.md](docs/games/sudoku.md) |
 
 ## Requirements
 
@@ -271,6 +272,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `1`-`9` | place a mark on that free cell (tictactoe: phone layout, 1 top-left) |
 | `r` | roll the die (ludo), on your roll |
 | `1`-`4` | move that token by your roll (ludo), when it can move |
+| `m` (sudoku) | set a cell: `53 7` writes 7 at row 5, column 3; `53 0` clears it |
 | `]g` | next game waiting on your move |
 | `q` | close |
 

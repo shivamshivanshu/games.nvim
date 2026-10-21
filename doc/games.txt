@@ -336,6 +336,8 @@ the current state are mapped; the footer lists them.
     1-7     drop a disc into that column (connect4), on your move
     r       roll the die (ludo), on your roll
     1-4     move that token by your roll (ludo), when it can move
+    m       sudoku: set a cell, `53 7` writes 7 at row 5, column 3; `53 0`
+            clears it
     ]g      next game waiting on your move
     q       close
 
