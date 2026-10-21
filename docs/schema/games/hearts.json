@@ -1,0 +1,451 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "cards": {
+          "type": "string"
+        },
+        "card": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is a move. Pass takes Cards, the three cards to pass, e.g.\n\"2c Qs Ah\"; play takes Card, the card to play, e.g. \"Qs\". Ranks are\n2-9, T, J, Q, K, A and suits c, d, h, s, in any case."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "play"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "HandScore": {
+      "properties": {
+        "hand_no": {
+          "type": "integer"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/SeatPoints"
+          },
+          "type": "array"
+        },
+        "moon": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "hand_no",
+        "points",
+        "moon"
+      ],
+      "description": "HandScore is what each seat scored in a finished hand. Moon is the seat\nthat took every point, which scores 0 while every other seat scores 26."
+    },
+    "HandScoredEvent": {
+      "properties": {
+        "kind": {
+          "const": "hand_scored"
+        },
+        "by": {
+          "type": "string"
+        },
+        "score": {
+          "$ref": "#/$defs/HandScore"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "score"
+      ],
+      "description": "HandScoredEvent ends a hand with what each seat scored in it."
+    },
+    "HandStartedEvent": {
+      "properties": {
+        "kind": {
+          "const": "hand_started"
+        },
+        "by": {
+          "type": "string"
+        },
+        "hand_no": {
+          "type": "integer"
+        },
+        "pass": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "hand_no",
+        "pass"
+      ],
+      "description": "HandStartedEvent deals hand HandNo, whose passes go Pass."
+    },
+    "LeftEvent": {
+      "properties": {
+        "kind": {
+          "const": "left"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "LeftEvent is By leaving the game; its cards are played for it from then on."
+    },
+    "PassChosenEvent": {
+      "properties": {
+        "kind": {
+          "const": "pass_chosen"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat"
+      ],
+      "description": "PassChosenEvent is Seat choosing its three cards to pass, which only it and its receiver see."
+    },
+    "PassedEvent": {
+      "properties": {
+        "kind": {
+          "const": "passed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "pass": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "pass"
+      ],
+      "description": "PassedEvent hands every seat's chosen cards on, Pass."
+    },
+    "Play": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "card": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "card"
+      ],
+      "description": "Play is a card played to a trick."
+    },
+    "PlayedEvent": {
+      "properties": {
+        "kind": {
+          "const": "played"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        },
+        "card": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat",
+        "card"
+      ],
+      "description": "PlayedEvent is Seat playing Card to the trick."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "score_limit"
+      ],
+      "description": "The result reasons Hearts adds to the core's."
+    },
+    "SeatPoints": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "points": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "points"
+      ],
+      "description": "SeatPoints is a seat's points."
+    },
+    "SeatView": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "score": {
+          "type": "integer"
+        },
+        "taken": {
+          "type": "integer"
+        },
+        "pass_chosen": {
+          "type": "boolean"
+        },
+        "out": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "score",
+        "taken",
+        "pass_chosen",
+        "out"
+      ],
+      "description": "SeatView is one seat at the table, in play order. Score is its total from\nthe hands before this one, Taken the points it has taken this hand.\nPassChosen is whether it has chosen its pass. Out is a seat that left the\ngame, whose cards are played for it."
+    },
+    "TrickResult": {
+      "properties": {
+        "plays": {
+          "items": {
+            "$ref": "#/$defs/Play"
+          },
+          "type": "array"
+        },
+        "winner": {
+          "type": "string"
+        },
+        "points": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "plays",
+        "winner",
+        "points"
+      ],
+      "description": "TrickResult is a finished trick and who took it, for Points."
+    },
+    "TrickWonEvent": {
+      "properties": {
+        "kind": {
+          "const": "trick_won"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        },
+        "points": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat",
+        "points"
+      ],
+      "description": "TrickWonEvent is Seat taking the trick, and its Points."
+    },
+    "View": {
+      "properties": {
+        "hand_no": {
+          "type": "integer"
+        },
+        "pass": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "score_limit": {
+          "type": "integer"
+        },
+        "seats": {
+          "items": {
+            "$ref": "#/$defs/SeatView"
+          },
+          "type": "array"
+        },
+        "trick": {
+          "items": {
+            "$ref": "#/$defs/Play"
+          },
+          "type": "array"
+        },
+        "last_trick": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/TrickResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hearts_broken": {
+          "type": "boolean"
+        },
+        "my_hand": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "legal": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "must_pass": {
+          "type": "integer"
+        },
+        "pass_to": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "passed": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "received": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "last_hand": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/HandScore"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "hand_no",
+        "pass",
+        "phase",
+        "score_limit",
+        "seats",
+        "trick",
+        "last_trick",
+        "hearts_broken",
+        "my_hand",
+        "legal",
+        "must_pass",
+        "pass_to",
+        "passed",
+        "received",
+        "last_hand"
+      ],
+      "description": "View is the table as one seat sees it: its own hand and passes, and every\ntrick played.\n\nLegal is the viewer's own, the cards it may play now, empty unless it is\nto play. MustPass is the cards it must still choose to pass, 0 once\nchosen. Passed is what it passed, or chose to, this hand; Received is what\nwas passed to it."
+    }
+  },
+  "title": "Hearts",
+  "description": "The game-specific bodies inside a hearts game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "hand_scored": {
+      "$ref": "#/$defs/HandScoredEvent"
+    },
+    "hand_started": {
+      "$ref": "#/$defs/HandStartedEvent"
+    },
+    "left": {
+      "$ref": "#/$defs/LeftEvent"
+    },
+    "pass_chosen": {
+      "$ref": "#/$defs/PassChosenEvent"
+    },
+    "passed": {
+      "$ref": "#/$defs/PassedEvent"
+    },
+    "played": {
+      "$ref": "#/$defs/PlayedEvent"
+    },
+    "trick_won": {
+      "$ref": "#/$defs/TrickWonEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
