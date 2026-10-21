@@ -33,12 +33,21 @@ local function with_art(lines)
   end
 end
 
+---Art that several games' packs merge lives in assets/shared and is no game's pack.
+local SHARED_DIR = "shared"
+
 ---@return {game: string, name: string}[]
 local function shipped_packs()
   local paths = vim.fn.glob(REPO_ROOT .. "/lua/games/assets/*/*.lua", false, true)
-  return vim.tbl_map(function(path)
-    return { game = vim.fn.fnamemodify(path, ":h:t"), name = vim.fn.fnamemodify(path, ":t:r") }
-  end, paths)
+  return vim
+    .iter(paths)
+    :map(function(path)
+      return { game = vim.fn.fnamemodify(path, ":h:t"), name = vim.fn.fnamemodify(path, ":t:r") }
+    end)
+    :filter(function(shipped)
+      return shipped.game ~= SHARED_DIR
+    end)
+    :totable()
 end
 
 return {
