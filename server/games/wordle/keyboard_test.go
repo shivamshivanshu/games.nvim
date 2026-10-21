@@ -4,13 +4,15 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/shivamshivanshu/games.nvim/server/game/feedback"
 )
 
 func TestKeyboardKeepsEachLettersBestMark(t *testing.T) {
 	const (
-		h = MarkHit
-		p = MarkPresent
-		m = MarkMiss
+		h = feedback.Hit
+		p = feedback.Present
+		m = feedback.Miss
 	)
 	tests := []struct {
 		name    string

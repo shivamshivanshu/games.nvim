@@ -1,4 +1,4 @@
-# Wordle word lists
+# Word lists
 
 - `allowed.txt`: every 5-letter word of ENABLE (Enhanced North American Benchmark Lexicon),
   which is in the public domain. Source: <https://norvig.com/ngrams/enable1.txt>

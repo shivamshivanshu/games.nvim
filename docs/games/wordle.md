@@ -65,7 +65,7 @@ Feedback never rests on colour alone:
 Solo scoring: solved +1, failed or given up -1, abort 0. Solo games are left out of the all-games leaderboard; the per-game board keeps them.
 
 ## Word lists
-`server/games/wordle/words/`: `allowed.txt` is the five-letter words of ENABLE (public domain), `answers.txt` the curated answers; the README there gives the source URL, checksum and filter.
+`server/games/words/` (shared with Hangman): `allowed.txt` is the five-letter words of ENABLE (public domain), `answers.txt` the curated answers; the README there gives the source URL, checksum and filter.
 
 ## Known limits
 - One answer list, English only; no daily word or shared seed.

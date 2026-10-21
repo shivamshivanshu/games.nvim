@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/games/words"
 )
 
 const guessField = "text"
@@ -48,7 +49,7 @@ func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *ra
 	if len(invitees) != 0 {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("wordle is solo, got %d opponents", len(invitees))}
 	}
-	answers := answerWords()
-	answer := answers.at(rng.IntN(answers.len()))
+	answers := words.Answers()
+	answer := answers.At(rng.IntN(answers.Len()))
 	return state{answer: answer}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
 }

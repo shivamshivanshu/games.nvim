@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/feedback"
+	"github.com/shivamshivanshu/games.nvim/server/games/words"
 )
 
 type state struct {
@@ -27,7 +29,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	if err != nil {
 		return nil, nil, err
 	}
-	latest := Guess{Word: word, Feedback: score(word, s.answer)}
+	latest := Guess{Word: word, Feedback: Feedback(feedback.Score(word, s.answer))}
 	return s.with(latest), []game.Event{GuessedEvent{By: seat, Word: latest.Word, Feedback: latest.Feedback}}, nil
 }
 
@@ -40,7 +42,7 @@ func parseGuess(text string) (string, error) {
 		return "", game.IllegalActionError{Msg: fmt.Sprintf("a guess is %d letters a-z, got %q", WordLength, text)}
 	}
 	word := strings.ToLower(trimmed)
-	if !allowedWords().contains(word) {
+	if !words.Allowed().Contains(word) {
 		return "", game.IllegalActionError{Msg: "not in word list: " + word}
 	}
 	return word, nil

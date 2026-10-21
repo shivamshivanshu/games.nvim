@@ -9,6 +9,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/feedback"
+	"github.com/shivamshivanshu/games.nvim/server/games/words"
 )
 
 const solver game.UserID = "sam"
@@ -29,8 +31,8 @@ func guess(text string) Action { return Action{Kind: ActionGuess, Text: text} }
 
 // wrongGuesses returns n valid guesses that are not answer.
 func wrongGuesses(answer string, n int) []string {
-	words := slices.DeleteFunc([]string{"fight", "plumb", "crane", "shock", "gravy", "jumbo", "wordy"}, func(w string) bool { return w == answer })
-	return words[:n]
+	wrong := slices.DeleteFunc([]string{"fight", "plumb", "crane", "shock", "gravy", "jumbo", "wordy"}, func(w string) bool { return w == answer })
+	return wrong[:n]
 }
 
 func play(t *testing.T, st game.State[Action, View], texts ...string) game.State[Action, View] {
@@ -78,7 +80,7 @@ func TestGuessIgnoresCaseAndSurroundingSpace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantGuess := Guess{Word: "fight", Feedback: score("fight", st.answer)}
+	wantGuess := Guess{Word: "fight", Feedback: Feedback(feedback.Score("fight", st.answer))}
 	if diff := cmp.Diff([]Guess{wantGuess}, next.View(SeatSolver).Guesses); diff != "" {
 		t.Errorf("guesses (-want +got):\n%s", diff)
 	}
@@ -124,15 +126,15 @@ func TestApplyLeavesEarlierStatesUnchanged(t *testing.T) {
 	branchPoint := play(t, st, misses[:3]...)
 	left := play(t, branchPoint, misses[3])
 	play(t, branchPoint, misses[4])
-	if got := words(branchPoint.View(SeatSolver)); !slices.Equal(got, misses[:3]) {
+	if got := guessedWords(branchPoint.View(SeatSolver)); !slices.Equal(got, misses[:3]) {
 		t.Errorf("branch point now has %v, want %v", got, misses[:3])
 	}
-	if got, want := words(left.View(SeatSolver)), misses[:4]; !slices.Equal(got, want) {
+	if got, want := guessedWords(left.View(SeatSolver)), misses[:4]; !slices.Equal(got, want) {
 		t.Errorf("sibling branch now has %v, want %v", got, want)
 	}
 }
 
-func words(v View) []string {
+func guessedWords(v View) []string {
 	out := make([]string, len(v.Guesses))
 	for i, g := range v.Guesses {
 		out[i] = g.Word
@@ -156,7 +158,7 @@ func TestAnswerIsDrawnFromSeed(t *testing.T) {
 		t.Errorf("seeds 1 and 2 both drew %q", first)
 	}
 	for _, answer := range []string{first, other} {
-		if !answerWords().contains(answer) {
+		if !words.Answers().Contains(answer) {
 			t.Errorf("answer %q is not from the answer list", answer)
 		}
 	}
@@ -203,10 +205,10 @@ func TestViewKeyboardHoldsEveryGuessedLetter(t *testing.T) {
 
 func TestEveryAnswerCanBeDrawn(t *testing.T) {
 	const maxSeeds = 100_000
-	answers := answerWords()
-	unseen := make(map[string]bool, answers.len())
-	for i := range answers.len() {
-		unseen[answers.at(i)] = true
+	answers := words.Answers()
+	unseen := make(map[string]bool, answers.Len())
+	for i := range answers.Len() {
+		unseen[answers.At(i)] = true
 	}
 	for seed := game.Seed(0); seed < maxSeeds && len(unseen) > 0; seed++ {
 		delete(unseen, newState(t, seed).answer)

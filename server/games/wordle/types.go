@@ -1,6 +1,10 @@
 package wordle
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/feedback"
+	"github.com/shivamshivanshu/games.nvim/server/games/words"
+)
 
 // TypeWordle is the game type on the wire.
 const TypeWordle game.GameType = "wordle"
@@ -9,7 +13,7 @@ const TypeWordle game.GameType = "wordle"
 const SeatSolver game.Seat = "solver"
 
 // WordLength is the number of letters in every word.
-const WordLength = 5
+const WordLength = words.Length
 
 // MaxGuesses is how many valid guesses a game allows.
 const MaxGuesses = 6
@@ -33,14 +37,7 @@ type Action struct {
 }
 
 // Mark is the feedback for one letter of a guess.
-type Mark string
-
-// The marks, from best to worst.
-const (
-	MarkHit     Mark = "hit"
-	MarkPresent Mark = "present"
-	MarkMiss    Mark = "miss"
-)
+type Mark = feedback.Mark
 
 // Feedback holds one Mark per letter of a guess, in order.
 type Feedback [WordLength]Mark
