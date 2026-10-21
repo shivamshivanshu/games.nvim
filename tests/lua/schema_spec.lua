@@ -83,6 +83,11 @@ local GAME_CLASS = {
     RevealedEvent = "games.ChessPuzzleRevealedEvent",
     View = "games.ChessPuzzleView",
   },
+  mastermind = {
+    Guess = "games.MastermindGuess",
+    GuessedEvent = "games.MastermindGuessedEvent",
+    View = "games.MastermindView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
