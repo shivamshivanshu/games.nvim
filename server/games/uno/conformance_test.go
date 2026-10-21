@@ -23,12 +23,7 @@ var playerRange = Rules{}.Info().Players
 func playToFinish(t *testing.T, n int, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
 	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, gametest.Users(n), seed, func(v View, _ game.Seat) Action { return choose(v) }, maxGameSteps)
-	states := []state{newGame(t, n, seed)}
-	for i, step := range steps {
-		next, _ := gametest.MustApply(t, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
-		states = append(states, next)
-	}
-	return steps, states
+	return steps, gametest.Replay(t, newGame(t, n, seed), steps, seed)
 }
 
 func TestConformance(t *testing.T) {

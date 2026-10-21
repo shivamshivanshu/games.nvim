@@ -64,3 +64,16 @@ func PlayToFinish[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, A
 	}
 	return steps
 }
+
+// Replay is first and every state after it as steps, such as PlayToFinish's,
+// are applied in turn through MustApply, each with the rng the core gives that
+// step of a game from seed.
+func Replay[S game.State[Action, View], Action, View any](t testing.TB, first S, steps []Step[Action], seed game.Seed) []S {
+	t.Helper()
+	states := []S{first}
+	for i, step := range steps {
+		next, _ := MustApply(t, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
+		states = append(states, next)
+	}
+	return states
+}

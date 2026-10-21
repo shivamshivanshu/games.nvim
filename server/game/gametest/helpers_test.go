@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 func TestPlayToFinishPlaysAScriptRunAccepts(t *testing.T) {
@@ -18,6 +19,21 @@ func TestPlayToFinishPlaysAScriptRunAccepts(t *testing.T) {
 	}})
 	if len(steps) != 2 {
 		t.Errorf("played %d steps, want 2", len(steps))
+	}
+}
+
+func TestReplayGivesEveryStateToTheFinish(t *testing.T) {
+	addFive := func(CounterView, game.Seat) CounterAction { return adding(5) }
+	opts := CounterOpts{Step: "1"}
+	users := Users(2)
+	start, _ := newCounter(opts, users[0], users[1:])
+	states := Replay(t, start, PlayToFinish(t, CounterRules{}, opts, users, 1, addFive, CounterTarget), 1)
+	totals := xslices.Map(states, func(s counterState) int { return s.View("a").Total })
+	if !slices.Equal(totals, []int{0, 5, 10}) {
+		t.Errorf("totals %v, want [0 5 10]", totals)
+	}
+	if _, finished := states[len(states)-1].Outcome(); !finished {
+		t.Error("the last state is not finished")
 	}
 }
 
