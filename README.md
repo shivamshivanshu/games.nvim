@@ -175,7 +175,7 @@ Every glyph and sprite a game draws comes from an asset pack, `lua/games/assets/
 }
 ```
 
-Each entry is `h` lines of exactly `w` display columns. Art lines hold only spaces and U+2580-259F, uncoloured: colour comes from the board's highlight groups. Every key the game needs (chess: `K Q R B N P k q r b n p empty`) needs a one-line glyph in both glyph modes, as wide as the game's one-line cell (1 for chess); ascii glyphs must be printable ASCII, and one stands in for any unicode glyph that would widen under the current `ambiwidth`. `art` is optional per key, drawn under `glyphs = "unicode"` only. A pack that fails these checks, or raises an error while they run, is replaced by `"default"` with one notice.
+Each entry is `h` lines of exactly `w` display columns. Art lines hold only spaces and U+2580-259F, uncoloured: colour comes from the board's highlight groups. Every key the game needs (chess: `K Q R B N P k q r b n p empty`) needs a one-line glyph in both glyph modes, as wide as the game's one-line cell (1 for chess); ascii glyphs must be printable ASCII, and one stands in for any unicode glyph that would widen under the current `ambiwidth`. `art` is optional per key, drawn under `glyphs = "unicode"` only. A game may also need pictures, drawn whole beside the board (hangman: the gallows `gallows:0`-`gallows:6`): each is one glyph-mode entry of any size, and the ascii one stands in for a unicode one that would widen. A pack that fails these checks, or raises an error while they run, is replaced by `"default"` with one notice.
 
 ## Commands
 

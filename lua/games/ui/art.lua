@@ -11,6 +11,8 @@ local AMBIWIDTH_DOUBLE = "double"
 
 local M = {}
 
+M.PRINTABLE_ASCII = "^[ -~]*$"
+
 ---@type table<games.Ambiwidth, table<games.ArtEntry, boolean>> ambiwidth -> entry -> drawable
 local drawable_by_ambiwidth = vim.defaulttable(function()
   return setmetatable({}, { __mode = "k" })
@@ -27,15 +29,24 @@ local function renders_at_declared_size(entry)
   end)
 end
 
+---@param entry games.ArtEntry
+---@return boolean
+local function is_ascii(entry)
+  return vim.iter(entry.lines):all(function(line)
+    return line:find(M.PRINTABLE_ASCII) ~= nil
+  end)
+end
+
 ---Whether entry draws at its declared size under ambiwidth, which must be the 'ambiwidth' in
----effect. Multi-line art is never drawn under "double", where U+2580-258F render two cells wide.
+---effect. Multi-line entries other than ascii pictures are never drawn under "double", where
+---U+2580-258F render two cells wide.
 ---@param entry games.ArtEntry
 ---@param ambiwidth games.Ambiwidth
 ---@return boolean
 function M.drawable(entry, ambiwidth)
   local cache = drawable_by_ambiwidth[ambiwidth]
   if cache[entry] == nil then
-    cache[entry] = (entry.h == 1 or ambiwidth ~= AMBIWIDTH_DOUBLE)
+    cache[entry] = (entry.h == 1 or ambiwidth ~= AMBIWIDTH_DOUBLE or is_ascii(entry))
       and renders_at_declared_size(entry)
   end
   return cache[entry]
@@ -90,6 +101,23 @@ function M.pick(set, key, box, ambiwidth)
     end
   end
   return best or glyph_entry(entries, key, ambiwidth)
+end
+
+---The picture of key: its first drawable entry, so a unicode picture that does not draw under
+---ambiwidth gives way to its ascii stand-in.
+---@param set games.ArtSet
+---@param key string
+---@param ambiwidth games.Ambiwidth
+---@return string[] its lines
+function M.picture(set, key, ambiwidth)
+  local entries = entries_of(set, key)
+  local picture = vim.iter(entries):find(function(entry)
+    return M.drawable(entry, ambiwidth)
+  end)
+  if not picture then
+    error(("art: no picture of key %q draws under ambiwidth=%s"):format(key, ambiwidth), 2)
+  end
+  return picture.lines
 end
 
 ---The one-line glyph of key.

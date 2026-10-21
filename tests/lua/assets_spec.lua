@@ -33,6 +33,17 @@ local function with_art(lines)
   end
 end
 
+---@param cases {[1]: table, [2]: string|nil}[] a pack, and the start of its problem or nil
+---@param spec games.AssetSpec
+local function assert_problems(cases, spec)
+  for _, case in ipairs(cases) do
+    local problem = assets.problem(case[1], spec)
+    local matches = case[2] == nil and problem == nil
+      or (problem ~= nil and case[2] ~= nil and vim.startswith(problem, case[2]))
+    assert(matches, vim.inspect({ expected = case[2], actual = problem }))
+  end
+end
+
 ---Art that several games' packs merge lives in assets/shared and is no game's pack.
 local SHARED_DIR = "shared"
 
@@ -56,7 +67,8 @@ return {
     assert(#packs > 0, "no shipped packs found")
     for _, shipped in ipairs(packs) do
       local module = assert(registry.game_module(shipped.game), shipped.game)
-      local spec = { keys = assert(module.asset_keys), glyph_width = module.glyph_width or 1 }
+      assert(module.asset_keys, shipped.game)
+      local spec = assets.spec_of(module)
       local loaded = require(("games.assets.%s.%s"):format(shipped.game, shipped.name))
       local problem = assets.problem(loaded, spec)
       assert(not problem, ("%s/%s: %s"):format(shipped.game, shipped.name, problem))
@@ -67,6 +79,11 @@ return {
             for _, key in ipairs(spec.keys) do
               local glyph = art.glyph(set, key, ambiwidth)
               assert_eq(spec.glyph_width, vim.fn.strdisplaywidth(glyph))
+            end
+            for _, key in ipairs(spec.pictures or {}) do
+              local lines = art.picture(set, key, ambiwidth)
+              local widths = vim.tbl_map(vim.fn.strdisplaywidth, lines)
+              assert_eq(vim.fn["repeat"]({ widths[1] }, #lines), widths)
             end
           end
         end)
@@ -117,12 +134,44 @@ return {
         "art: must be a table",
       },
     }
-    for _, case in ipairs(cases) do
-      local problem = assets.problem(case[1], SPEC)
-      local matches = case[2] == nil and problem == nil
-        or (problem ~= nil and case[2] ~= nil and vim.startswith(problem, case[2]))
-      assert(matches, vim.inspect({ expected = case[2], actual = problem }))
+    assert_problems(cases, SPEC)
+  end,
+
+  problem_checks_pictures_as_whole_entries_of_any_size = function()
+    local spec = { keys = { "x" }, glyph_width = 1, pictures = { "scene" } }
+    ---@param unicode string[]
+    ---@param ascii string[]
+    ---@return table
+    local function with_scene(unicode, ascii)
+      return pack(function(edited)
+        edited.glyphs.unicode.scene = { { h = #unicode, w = 3, lines = unicode } }
+        edited.glyphs.ascii.scene = { { h = #ascii, w = 3, lines = ascii } }
+      end)
     end
+    local cases = {
+      { with_scene({ "┌─┐", "└─┘" }, { "+-+", "+-+" }), nil },
+      { pack(), "glyphs.unicode.scene: no glyph" },
+      {
+        with_scene({ "┌─┐", "└┘" }, { "+-+", "+-+" }),
+        "glyphs.unicode.scene[1]: line 2 is not w = 3",
+      },
+      {
+        with_scene({ "┌─┐", "└─┘" }, { "+-+", "└─┘" }),
+        'glyphs.ascii.scene[1]: "└─┘" is not printable',
+      },
+      {
+        with_scene({ "┌─┐" }, { "+-+", "+-" }),
+        "glyphs.ascii.scene[1]: line 2 is not w = 3",
+      },
+    }
+    assert_problems(cases, spec)
+    assert(
+      vim.startswith(
+        assets.problem(with_scene({ "┌─┐" }, { "+-+" }), SPEC) or "",
+        'glyphs.unicode."scene": not a key'
+      ),
+      "a picture the spec does not list is unknown"
+    )
   end,
 
   bad_user_packs_fall_back_to_default_with_one_notice_each = function()

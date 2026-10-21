@@ -1,3 +1,4 @@
+local art = require("games.ui.art")
 local notify = require("games.core.notify")
 local predicates = require("games.core.predicates")
 
@@ -10,6 +11,8 @@ local predicates = require("games.core.predicates")
 ---@class games.AssetSpec what a game needs of its packs
 ---@field keys string[]
 ---@field glyph_width integer display columns of every one-line glyph: the game's cell_width at h = 1
+---@field pictures? string[] keys drawn whole beside the board, not in a cell: each glyph mode draws
+---them as one entry of any size, the ascii one printable
 
 local M = {}
 
@@ -18,7 +21,7 @@ M.DEFAULT_PACK = "default"
 ---@type games.Glyphs[]
 local GLYPH_MODES = { "unicode", "ascii" }
 local BLOCK_ELEMENT = "\226\150[\128-\159]" -- U+2580-259F in UTF-8
-local PRINTABLE_ASCII = "^[ -~]*$"
+local PRINTABLE_ASCII = art.PRINTABLE_ASCII
 
 ---@type table<string, games.AssetPack> "<game>/<pack>" -> the pack it resolved to
 local loaded = {}
@@ -66,7 +69,7 @@ end
 ---@param path string where set sits in the pack, e.g. "glyphs.ascii"
 ---@param set any
 ---@param keys table<string, true>
----@param check_entry fun(entry: games.ArtEntry): string|nil
+---@param check_entry fun(entry: games.ArtEntry, key: string): string|nil
 ---@return string|nil problem
 local function set_problem(path, set, keys, check_entry)
   if type(set) ~= "table" then
@@ -80,7 +83,7 @@ local function set_problem(path, set, keys, check_entry)
       return ("%s.%s: must be a list of entries"):format(path, key)
     end
     for i, entry in ipairs(entries) do
-      local problem = shape_problem(entry) or check_entry(entry)
+      local problem = shape_problem(entry) or check_entry(entry, key)
       if problem then
         return ("%s.%s[%d]: %s"):format(path, key, i, problem)
       end
@@ -101,17 +104,46 @@ local function glyph_check(glyph_width)
   end
 end
 
----An ascii glyph draws under any 'ambiwidth', so it can stand in for a unicode one.
----@param glyph_width integer
----@return fun(entry: games.ArtEntry): string|nil
-local function ascii_check(glyph_width)
-  local check_glyph = glyph_check(glyph_width)
-  return function(entry)
-    local line = entry.lines[1]
-    local printable = line:find(PRINTABLE_ASCII) ~= nil and #line == entry.w
-    return check_glyph(entry)
-      or (not printable and ("%q is not printable ascii"):format(line) or nil)
+---@param entry games.ArtEntry
+---@return string|nil problem
+local function picture_check(entry)
+  for i, line in ipairs(entry.lines) do
+    if vim.fn.strchars(line) ~= entry.w then
+      return ("line %d is not w = %d wide"):format(i, entry.w)
+    end
   end
+end
+
+---An ascii glyph or picture draws under any 'ambiwidth', so it can stand in for a unicode one.
+---@param check_shape fun(entry: games.ArtEntry): string|nil
+---@return fun(entry: games.ArtEntry): string|nil
+local function ascii_check(check_shape)
+  return function(entry)
+    local unprintable = vim.iter(entry.lines):find(function(line)
+      return line:find(PRINTABLE_ASCII) == nil or #line ~= entry.w
+    end)
+    return check_shape(entry)
+      or (unprintable and ("%q is not printable ascii"):format(unprintable) or nil)
+  end
+end
+
+---@param picture_keys table<string, true>
+---@param check_glyph fun(entry: games.ArtEntry): string|nil
+---@param check_picture fun(entry: games.ArtEntry): string|nil
+---@return fun(entry: games.ArtEntry, key: string): string|nil
+local function by_kind(picture_keys, check_glyph, check_picture)
+  return function(entry, key)
+    return (picture_keys[key] and check_picture or check_glyph)(entry)
+  end
+end
+
+---@param keys string[]
+---@return table<string, true>
+local function key_set_of(keys)
+  return vim.iter(keys):fold({}, function(acc, key)
+    acc[key] = true
+    return acc
+  end)
 end
 
 ---@param path string
@@ -134,15 +166,19 @@ function M.problem(pack, spec)
   if type(pack) ~= "table" or type(pack.glyphs) ~= "table" then
     return "a pack is a table with glyphs"
   end
-  local key_set = vim.iter(spec.keys):fold({}, function(acc, key)
-    acc[key] = true
-    return acc
-  end)
-  local checks = { unicode = glyph_check(spec.glyph_width), ascii = ascii_check(spec.glyph_width) }
+  local pictures = spec.pictures or {}
+  local picture_keys = key_set_of(pictures)
+  local key_set = key_set_of(vim.list_extend(vim.list_extend({}, spec.keys), pictures))
+  local check_glyph = glyph_check(spec.glyph_width)
+  local checks = {
+    unicode = by_kind(picture_keys, check_glyph, picture_check),
+    ascii = by_kind(picture_keys, ascii_check(check_glyph), ascii_check(picture_check)),
+  }
   for _, mode in ipairs(GLYPH_MODES) do
     local path, set = "glyphs." .. mode, pack.glyphs[mode]
     local problem = set_problem(path, set, key_set, checks[mode])
       or missing_glyph(path, set, spec.keys)
+      or missing_glyph(path, set, pictures)
     if problem then
       return problem
     end
@@ -225,6 +261,17 @@ function M.art_set(pack, glyphs)
   end)
 end
 
+---What module needs of its packs.
+---@param module games.GameModule with asset_keys
+---@return games.AssetSpec
+function M.spec_of(module)
+  return {
+    keys = module.asset_keys,
+    glyph_width = module.glyph_width or 1,
+    pictures = module.picture_keys,
+  }
+end
+
 ---What module draws for game under opts: its chosen pack in opts' glyph mode.
 ---@param game games.GameType
 ---@param module games.GameModule
@@ -235,7 +282,7 @@ function M.module_art(game, module, opts)
     return nil
   end
   local pack_name = (opts.assets or {})[game] or M.DEFAULT_PACK
-  local spec = { keys = module.asset_keys, glyph_width = module.glyph_width or 1 }
+  local spec = M.spec_of(module)
   return M.art_set(M.load(game, pack_name, spec), opts.glyphs)
 end
 

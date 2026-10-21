@@ -35,6 +35,20 @@ return {
     end)
   end,
 
+  picture_draws_unicode_unless_it_widens_then_its_ascii_stand_in = function()
+    local box = { h = 2, w = 3, lines = { "┌─┐", "└─┘" } }
+    local plain = { h = 2, w = 3, lines = { "+-+", "+-+" } }
+    local set = { scene = { box, plain } }
+    with_ambiwidth("single", function()
+      assert_eq(box.lines, art.picture(set, "scene", "single"))
+    end)
+    with_ambiwidth("double", function()
+      assert_eq(plain.lines, art.picture(set, "scene", "double"))
+      local ok, err = pcall(art.picture, { scene = { box } }, "scene", "double")
+      assert(not ok and err:find('no picture of key "scene" draws', 1, true), err)
+    end)
+  end,
+
   a_key_with_no_drawable_glyph_is_an_error_not_a_misdrawn_board = function()
     with_ambiwidth("double", function()
       local ok, err = pcall(

@@ -55,6 +55,7 @@ local Control = types.Control
 ---@field describe_event? fun(event: games.Event, update: games.GameUpdate, ctx: games.DescribeCtx): string|nil
 ---@field asset_keys? string[] keys every asset pack of the game must draw
 ---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
+---@field picture_keys? string[] keys its packs draw as whole pictures beside the board
 ---@field player_extra? fun(update: games.GameUpdate, seat: games.Seat, ctx: games.LayoutCtx): games.TextNode[]|nil what the header shows after the clock on seat's line
 
 ---@class games.OpenOptions
