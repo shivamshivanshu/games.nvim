@@ -362,7 +362,7 @@ local function start_named_solo(client, catalog, game_type)
     say(("games: no game %q"):format(game_type), ERROR)
     return
   end
-  if not players.is_solo_game(info) then
+  if not players.can_start_solo(info) then
     say(
       ("games: %s is not a solo game; challenge someone with :Games challenge %s"):format(
         game_type,
@@ -388,7 +388,7 @@ local function solo(client, _, args)
           start_named_solo(client, catalog, game_type)
           return
         end
-        local solo_games = vim.tbl_filter(players.is_solo_game, catalog.games)
+        local solo_games = vim.tbl_filter(players.can_start_solo, catalog.games)
         if #solo_games == 0 then
           say("games: no solo games available", ERROR)
           return
@@ -410,7 +410,7 @@ end
 ---@return games.GameType[]
 local function solo_game_types()
   local client = require("games").client
-  local solo_games = client and vim.tbl_filter(players.is_solo_game, client:catalog_games()) or {}
+  local solo_games = client and vim.tbl_filter(players.can_start_solo, client:catalog_games()) or {}
   return vim.tbl_map(function(info)
     return info.id
   end, solo_games)

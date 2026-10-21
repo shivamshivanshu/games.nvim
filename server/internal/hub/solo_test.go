@@ -39,18 +39,27 @@ func TestSoloStartCreatesOnePlayerGame(t *testing.T) {
 	}
 }
 
+func TestSoloStartSeatsAloneAGameThatAlsoTakesOpponents(t *testing.T) {
+	t.Parallel()
+	a := newEnv(t).start(t).login(t, alice)
+
+	first := call[protocol.GameUpdate](t, a, protocol.TypeGameStart, protocol.GameStartRequest{Game: counterType})
+	if !cmp.Equal(first.Players, []game.Player{{User: alice, Seat: "a"}}) || !cmp.Equal(first.ToAct, []game.UserID{alice}) {
+		t.Fatalf("first update = %+v, want alice alone to move", first)
+	}
+}
+
 func TestSoloStartRejectsBadRequests(t *testing.T) {
 	t.Parallel()
 	a := newEnv(t).start(t).login(t, alice)
 	for name, req := range map[string]protocol.GameStartRequest{
-		"two-player counter": {Game: counterType},
-		"chess":              {Game: chessType},
-		"unknown game":       {Game: "nope"},
-		"unknown option":     {Game: soloCounterType, Options: json.RawMessage(`{"bogus":"1"}`)},
-		"invalid enum":       {Game: soloCounterType, Options: json.RawMessage(`{"step":"9"}`)},
-		"oversized text":     {Game: soloCounterType, Options: json.RawMessage(`{"note":"123456789"}`)},
-		"control text":       {Game: soloCounterType, Options: json.RawMessage(`{"note":"a\u0000"}`)},
-		"malformed options":  {Game: soloCounterType, Options: json.RawMessage(`["step"]`)},
+		"chess":             {Game: chessType},
+		"unknown game":      {Game: "nope"},
+		"unknown option":    {Game: soloCounterType, Options: json.RawMessage(`{"bogus":"1"}`)},
+		"invalid enum":      {Game: soloCounterType, Options: json.RawMessage(`{"step":"9"}`)},
+		"oversized text":    {Game: soloCounterType, Options: json.RawMessage(`{"note":"123456789"}`)},
+		"control text":      {Game: soloCounterType, Options: json.RawMessage(`{"note":"a\u0000"}`)},
+		"malformed options": {Game: soloCounterType, Options: json.RawMessage(`["step"]`)},
 	} {
 		_, err := a.Request(protocol.TypeGameStart, req)
 		var reply errorReply

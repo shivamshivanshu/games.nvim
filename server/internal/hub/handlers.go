@@ -100,7 +100,7 @@ func (h *Hub) startSolo(_ context.Context, s *session.Session, req protocol.Game
 	if err != nil {
 		return protocol.GameUpdate{}, err
 	}
-	if !g.Info().Players.Solo() {
+	if !g.Info().Players.AllowsSolo() {
 		return protocol.GameUpdate{}, protocol.BadRequestf("%s is not a solo game: challenge an opponent", req.Game)
 	}
 	opts, err := g.ResolveOptions(req.Options)
@@ -165,7 +165,7 @@ func (h *Hub) control(ctx context.Context, s *session.Session, req protocol.Game
 }
 
 func (h *Hub) stats(ctx context.Context, _ *session.Session, req protocol.StatsRequest) (protocol.StatsResult, error) {
-	stats, err := h.deps.Store.Stats(ctx, req.User, h.soloTypes)
+	stats, err := h.deps.Store.Stats(ctx, req.User)
 	if err != nil {
 		return protocol.StatsResult{}, err
 	}

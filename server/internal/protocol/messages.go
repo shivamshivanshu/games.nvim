@@ -302,7 +302,7 @@ type LeaderboardEntry struct {
 }
 
 // StatsResult is ranked by the server: Records by game, then rank within it;
-// Leaderboard by rank over every user and every game but solo ones. A rank orders most wins,
+// Leaderboard by rank over every user and every game but those played alone. A rank orders most wins,
 // then fewest losses, then most draws, then user.
 type StatsResult struct {
 	Records     []StatsRecord      `json:"records"`

@@ -55,4 +55,11 @@ function M.is_solo_game(info)
   return info.players.max == 1
 end
 
+---Whether info's game may seat one player alone, though it may also take opponents.
+---@param info games.GameInfo
+---@return boolean
+function M.can_start_solo(info)
+  return info.players.min == 1
+end
+
 return M

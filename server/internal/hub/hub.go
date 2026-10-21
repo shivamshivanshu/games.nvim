@@ -35,7 +35,6 @@ type Hub struct {
 	ctx        context.Context
 	deps       Deps
 	gameTypes  map[game.GameType]game.Game
-	soloTypes  []game.GameType
 	challenges *challenge.Registry
 
 	mu       sync.Mutex
@@ -57,9 +56,6 @@ func New(ctx context.Context, d Deps) (*Hub, error) {
 			return nil, fmt.Errorf("hub: %w", err)
 		}
 		h.gameTypes[g.Info().Type] = g
-		if g.Info().Players.Solo() {
-			h.soloTypes = append(h.soloTypes, g.Info().Type)
-		}
 	}
 	h.challenges = challenge.NewRegistry(d.Limits.ChallengeTTL, d.Time, h.challengeChanged, h.startChallenge)
 	if err := h.restoreOngoing(ctx); err != nil {

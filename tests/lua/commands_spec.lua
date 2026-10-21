@@ -253,7 +253,9 @@ local PUZZLE = {
   actions = {},
 }
 
-local SOLO_CATALOG = { games = vim.list_extend({ PUZZLE }, CATALOG.games) }
+local SOLO_CATALOG = {
+  games = vim.list_extend({ PUZZLE }, vim.list_extend({ game_info("dice", 1, 4) }, CATALOG.games)),
+}
 
 ---@class games.test.InputPrompt
 ---@field prompt string
@@ -323,8 +325,22 @@ function T.solo_without_a_game_offers_only_the_solo_games()
     with_select_answers({}, function(prompts)
       commands.run({ "solo" })
       respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
-      assert_eq({ { prompt = "Solo game:", labels = { "Puzzle", "sudoku" } } }, prompts)
+      assert_eq({ { prompt = "Solo game:", labels = { "Puzzle", "dice", "sudoku" } } }, prompts)
     end)
+  end)
+end
+
+function T.solo_starts_a_game_that_also_takes_opponents()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    commands.run({ "solo", "dice" })
+    respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+    assert_eq(
+      { game = "dice", options = {} },
+      vim.iter(conn.requests):rev():find(function(request)
+        return request.type == MessageType.GAME_START
+      end).body
+    )
   end)
 end
 
@@ -379,7 +395,7 @@ function T.solo_completes_the_catalogues_solo_games()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
     respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
-    assert_eq({ "puzzle", "sudoku" }, commands.complete("", "Games solo ", 11))
+    assert_eq({ "puzzle", "dice", "sudoku" }, commands.complete("", "Games solo ", 11))
     assert_eq({ "sudoku" }, commands.complete("s", "Games solo s", 12))
   end)
 end

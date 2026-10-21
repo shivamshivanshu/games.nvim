@@ -236,8 +236,9 @@ same `dir` can both append the same events to `events.jsonl`.
 :Games solo [game]                                              *:Games-solo*
                         Start a one-player game and open its board.
                         Without a game, prompts for one of the server's
-                        solo games, then for options. A game for more
-                        players is refused: challenge someone instead.
+                        games that seat one player, then for options. A
+                        game for two or more players is refused: challenge
+                        someone instead.
 
 :Games list [ongoing|finished]
                         Pick a game and open its board. Default `ongoing`.
@@ -246,8 +247,8 @@ same `dir` can both append the same events to `events.jsonl`.
 
 :Games leaderboard [game]
                         Leaderboard float, optionally for one game type.
-                        The all-games total leaves solo games out; a solo
-                        game's own board still ranks them.
+                        The all-games total leaves games played alone out;
+                        that game's own board still ranks them.
 
 :Games next             Open the next game waiting on your move.
 

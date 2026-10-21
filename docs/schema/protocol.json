@@ -865,7 +865,7 @@
         "head_to_head",
         "leaderboard"
       ],
-      "description": "StatsResult is ranked by the server: Records by game, then rank within it;\nLeaderboard by rank over every user and every game but solo ones. A rank orders most wins,\nthen fewest losses, then most draws, then user."
+      "description": "StatsResult is ranked by the server: Records by game, then rank within it;\nLeaderboard by rank over every user and every game but those played alone. A rank orders most wins,\nthen fewest losses, then most draws, then user."
     },
     "UserListResult": {
       "properties": {

@@ -80,7 +80,7 @@ is defined in [Game updates](#game-updates).
 | `game.snapshot` | `{game_id}` | `GameUpdate` | The game as the user sees it now. Players only; others get `not_found`. |
 | `game.act` | `{game_id, seq, action}` | `{seq}` | `action` is the game's own; see `x-action` and the [Action catalogue](#action-catalogue). |
 | `game.control` | `{game_id, seq, control}` | `{seq}` | `control` is one of the update's `controls`. |
-| `game.start` | `{game, options}` | `GameUpdate` (seq 0) | Solo games only (`players.max == 1`). The first update is also pushed. |
+| `game.start` | `{game, options}` | `GameUpdate` (seq 0) | Games that seat one player (`players.min == 1`), solo-only or not; the game is played alone. The first update is also pushed. |
 | `stats.get` | `{user?}` | `StatsResult` | See [Stats](#stats). |
 | `game.verify` | `{summary}` | `{}` | Checks an archived summary; see [Finished games](#finished-games). |
 
@@ -95,7 +95,7 @@ is defined in [Game updates](#game-updates).
 
 | Code | When |
 |---|---|
-| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that is not solo, an unknown or already resolved challenge, a challenge the user may not resolve, an action the game cannot parse, a second `auth.login`. |
+| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that cannot seat one player, an unknown or already resolved challenge, a challenge the user may not resolve, an action the game cannot parse, a second `auth.login`. |
 | `version_mismatch` | `auth.login` with another protocol version. |
 | `unauthenticated` | Any request but `auth.login` before login. |
 | `auth_failed` | Wrong credentials, or the IP is locked out. |
@@ -403,7 +403,7 @@ by the server.
 - A rank orders most wins, then fewest losses, then most draws, then user name.
 - `records`: `[{user, game, wins, losses, draws}]`, grouped by game, ranked within each game.
 - `head_to_head`: `[{user, opponent, game, wins, losses, draws}]`, by user, opponent, game.
-- `leaderboard`: `[{user, wins, losses, draws}]`, totals over every game but solo ones (`players.max == 1`), ranked; a solo game counts only in its own `records`.
+- `leaderboard`: `[{user, wins, losses, draws}]`, totals over every game but those played alone, ranked; a game played alone counts only in its own `records`.
 - `user` limits `records` and `head_to_head` to that user; a user with no finished games gets them empty. `leaderboard` is never filtered.
 
 ## Times

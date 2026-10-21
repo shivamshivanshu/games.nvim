@@ -188,7 +188,7 @@
 ---@field user? games.UserID limits records and head_to_head to this user
 
 ---Ranked by the server: records by game, then rank; leaderboard by rank over every user and every
----game but solo ones.
+---game but those played alone.
 ---A rank orders most wins, then fewest losses, then most draws, then user.
 ---@class games.StatsResult
 ---@field records games.StatsRecord[]
