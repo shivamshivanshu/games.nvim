@@ -29,10 +29,10 @@ type Summary struct {
 	StartedAt  protocol.UnixMS   `json:"started_at"`
 	FinishedAt protocol.UnixMS   `json:"finished_at"`
 	Reason     game.ResultReason `json:"reason"`
-	Outcomes   []Outcome         `json:"outcomes"`
+	Outcomes   []Standing        `json:"outcomes"`
 }
 
-type Outcome struct {
+type Standing struct {
 	User  game.UserID `json:"user"`
 	Score int64       `json:"score"`
 }
@@ -61,10 +61,10 @@ func FinishedOf(rec store.GameRecord) (Finished, error) {
 }
 
 func (f Finished) Summary() Summary {
-	outcomes := xslices.Map(f.Players, func(p game.Player) Outcome {
-		return Outcome{User: p.User, Score: f.Finish.Standings[p.User].Score}
+	outcomes := xslices.Map(f.Players, func(p game.Player) Standing {
+		return Standing{User: p.User, Score: f.Finish.Standings[p.User].Score}
 	})
-	slices.SortFunc(outcomes, func(a, b Outcome) int { return cmp.Compare(a.User, b.User) })
+	slices.SortFunc(outcomes, func(a, b Standing) int { return cmp.Compare(a.User, b.User) })
 	return Summary{
 		GameID:     f.ID,
 		Game:       f.Type,

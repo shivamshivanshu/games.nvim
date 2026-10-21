@@ -111,7 +111,7 @@ func TestSoloGiveUpSealsLossWithNoWinner(t *testing.T) {
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}
-	if want := []archive.Outcome{{User: alice, Score: -1}}; !cmp.Equal(want, summaryOutcomes(t, final)) {
+	if want := []archive.Standing{{User: alice, Score: -1}}; !cmp.Equal(want, summaryOutcomes(t, final)) {
 		t.Errorf("outcomes %+v, want %+v", summaryOutcomes(t, final), want)
 	}
 	stats := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.Empty{})

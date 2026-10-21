@@ -63,7 +63,7 @@ func laterRead(finishing protocol.GameUpdate) protocol.GameUpdate {
 	return u
 }
 
-func summaryOutcomes(t *testing.T, u protocol.GameUpdate) []archive.Outcome {
+func summaryOutcomes(t *testing.T, u protocol.GameUpdate) []archive.Standing {
 	t.Helper()
 	var s archive.Summary
 	if err := json.Unmarshal([]byte(*u.Summary), &s); err != nil {
@@ -169,7 +169,7 @@ func TestScorerReplacesDefaultScores(t *testing.T) {
 	final := waitUpdate(t, a, 3)
 	e.requireSealed(t, final)
 	outcomes := summaryOutcomes(t, final)
-	if want := []archive.Outcome{{User: alice, Score: 9}, {User: bob, Score: -9}}; !cmp.Equal(want, outcomes) {
+	if want := []archive.Standing{{User: alice, Score: 9}, {User: bob, Score: -9}}; !cmp.Equal(want, outcomes) {
 		t.Fatalf("scores %+v, want the scorer's zero-sum %+v", outcomes, want)
 	}
 	stats := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.Empty{})
