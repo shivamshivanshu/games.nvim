@@ -179,7 +179,7 @@ local function layout(node)
     if node.hl and #str > 0 then
       extmarks[1] = { row = 0, col = 0, end_col = #str, hl = node.hl }
     end
-    local width = vim.fn.strdisplaywidth(str)
+    local width = text_util.width(str)
     return { lines = { str }, extmarks = extmarks, widths = { width }, width = width }
   end
 
@@ -254,7 +254,7 @@ end
 ---@return games.Size
 function M.measure(node)
   if node.kind == "text" then
-    return { w = vim.fn.strdisplaywidth(node.str or ""), h = 1 }
+    return { w = text_util.width(node.str or ""), h = 1 }
   end
   if node.kind == "pad" then
     local child = M.measure(node.child)
@@ -263,14 +263,19 @@ function M.measure(node)
   if node.kind == "box" then
     return { w = node.w, h = node.h }
   end
-  local sizes = vim.tbl_map(M.measure, node.children)
-  local stacked = node.kind == "col"
-  return vim.iter(sizes):fold({ w = 0, h = 0 }, function(total, size)
-    return {
-      w = stacked and math.max(total.w, size.w) or total.w + size.w,
-      h = stacked and total.h + size.h or math.max(total.h, size.h),
-    }
-  end)
+  local w, h = 0, 0
+  if node.kind == "col" then
+    for _, child in ipairs(node.children) do
+      local size = M.measure(child)
+      w, h = math.max(w, size.w), h + size.h
+    end
+  else
+    for _, child in ipairs(node.children) do
+      local size = M.measure(child)
+      w, h = w + size.w, math.max(h, size.h)
+    end
+  end
+  return { w = w, h = h }
 end
 
 ---@param size games.Size

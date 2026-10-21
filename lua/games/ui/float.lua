@@ -23,7 +23,7 @@ function M.open(title, node)
   paint(buf, NAMESPACE, 0, -1, rendered)
   vim.bo[buf].bufhidden = "wipe"
 
-  local width = math.max(text.max_display_width(rendered.lines), vim.fn.strdisplaywidth(title))
+  local width = math.max(text.max_display_width(rendered.lines), text.width(title))
   local height = #rendered.lines
   local win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",

@@ -1,3 +1,4 @@
+local text = require("games.ui.text")
 local types = require("games.types")
 
 ---@class games.ArtEntry
@@ -25,7 +26,7 @@ local function renders_at_declared_size(entry)
     return false
   end
   return vim.iter(entry.lines):all(function(line)
-    return vim.fn.strdisplaywidth(line) == entry.w
+    return text.width(line) == entry.w
   end)
 end
 
