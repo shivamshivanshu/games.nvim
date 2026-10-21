@@ -46,6 +46,7 @@ var passwordHash = sync.OnceValues(func() ([]byte, error) { return auth.HashPass
 type env struct {
 	store *store.Store
 	clock *clocktest.FakeClock
+	seeds func() game.Seed
 }
 
 func newEnv(t *testing.T) *env {
@@ -73,6 +74,7 @@ func (e *env) start(t *testing.T) server {
 		Limits:  lim,
 		Time:    e.clock,
 		Lockout: auth.NewLockout(lim, e.clock),
+		Seeds:   e.seeds,
 	})
 	if err != nil {
 		cancel()

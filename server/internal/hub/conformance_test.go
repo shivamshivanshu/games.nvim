@@ -10,11 +10,13 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
+	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
@@ -31,8 +33,11 @@ const (
 
 // transcriptLine is one line of a docs/conformance transcript: a comment,
 // one client sending, receiving, or closing its connection, or the server's
-// clock moving on by AdvanceMS, which fires the timers that come due.
+// clock moving on by AdvanceMS, which fires the timers that come due. A
+// transcript may open with a header line of Seeds, which its games take in
+// order of creation.
 type transcriptLine struct {
+	Seeds     []game.Seed     `json:"seeds"`
 	Comment   string          `json:"comment"`
 	Client    string          `json:"client"`
 	Send      json.RawMessage `json:"send"`
@@ -50,15 +55,38 @@ func TestConformanceTranscripts(t *testing.T) {
 	for _, path := range paths {
 		t.Run(strings.TrimSuffix(filepath.Base(path), ".ndjson"), func(t *testing.T) {
 			t.Parallel()
+			lines := readTranscript(t, path)
 			e := newEnv(t)
+			first := 0
+			if header := lines[0]; header.Seeds != nil {
+				e.seeds = seedQueue(header.Seeds, func() { t.Error("the transcript's games outnumber its seeds") })
+				first = 1
+			}
 			r := &replay{t: t, addr: e.start(t).addr, clock: e.clock, wire: sharedWireSchema(t), clients: map[string]*rawClient{}, bound: map[string]any{}}
-			for n, line := range readTranscript(t, path) {
-				r.step(fmt.Sprintf("%s:%d", filepath.Base(path), n+1), line)
+			for n := first; n < len(lines); n++ {
+				r.step(fmt.Sprintf("%s:%d", filepath.Base(path), n+1), lines[n])
 			}
 			for _, name := range slices.Sorted(maps.Keys(r.clients)) {
 				r.flush(name)
 			}
 		})
+	}
+}
+
+// seedQueue hands out seeds in order and calls exhausted for each draw past
+// the last. The hub draws from its own goroutines.
+func seedQueue(seeds []game.Seed, exhausted func()) func() game.Seed {
+	var mu sync.Mutex
+	return func() game.Seed {
+		mu.Lock()
+		defer mu.Unlock()
+		if len(seeds) == 0 {
+			exhausted()
+			return 0
+		}
+		seed := seeds[0]
+		seeds = seeds[1:]
+		return seed
 	}
 }
 
@@ -317,5 +345,17 @@ func TestPlaceholdersBindOnceAndDollarDollarIsLiteral(t *testing.T) {
 		if got := matches(tc.want, tc.got, map[string]any{}); got != tc.matches {
 			t.Errorf("%s: matches %t, want %t", tc.name, got, tc.matches)
 		}
+	}
+}
+
+func TestSeedQueueFailsOnceItRunsOut(t *testing.T) {
+	draws := 0
+	next := seedQueue([]game.Seed{7, 9}, func() { draws++ })
+	if got := []game.Seed{next(), next()}; !slices.Equal(got, []game.Seed{7, 9}) || draws != 0 {
+		t.Fatalf("drew %v with %d exhausted, want [7 9] with none", got, draws)
+	}
+	next()
+	if draws != 1 {
+		t.Errorf("a third draw from two seeds reported %d exhaustions, want 1", draws)
 	}
 }

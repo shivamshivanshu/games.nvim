@@ -18,12 +18,15 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
+// Deps is what a Hub runs on. Seeds draws each new game's seed; nil draws
+// from crypto/rand.
 type Deps struct {
 	Store   *store.Store
 	Games   []game.Game
 	Limits  limits.Limits
 	Time    clock.Clock
 	Lockout *auth.Lockout
+	Seeds   func() game.Seed
 }
 
 type sessionSet map[*session.Session]struct{}
@@ -43,6 +46,9 @@ type Hub struct {
 
 // New restores every ongoing game from the store. Cancelling ctx stops all rooms.
 func New(ctx context.Context, d Deps) (*Hub, error) {
+	if d.Seeds == nil {
+		d.Seeds = newSeed
+	}
 	h := &Hub{
 		ctx:       ctx,
 		deps:      d,

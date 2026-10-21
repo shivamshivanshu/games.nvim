@@ -49,7 +49,7 @@ func (h *Hub) prepareGame(typ game.GameType, opts game.Options, challenger game.
 	if err != nil {
 		return room.Setup{}, nil, err
 	}
-	seed := newSeed()
+	seed := h.deps.Seeds()
 	state, seats, err := g.New(opts, challenger, invitees, game.StepRNG(seed, 0))
 	if err != nil {
 		return room.Setup{}, nil, err
