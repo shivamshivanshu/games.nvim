@@ -86,6 +86,7 @@ func conform[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action
 	if diff := cmp.Diff(first, second); diff != "" {
 		t.Errorf("replay is not deterministic (-first +second):\n%s", diff)
 	}
+	checkRestoredPlay(t, rules, script, first)
 	for i, obs := range first.Observed {
 		checkSecrecy(t, script, obs, "observation "+strconv.Itoa(i))
 		checkEventsCatalogued(t, info, obs.Events, "observation "+strconv.Itoa(i))

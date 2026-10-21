@@ -94,6 +94,7 @@ func TestRunRejectsNonconformingGames(t *testing.T) {
 		{"eliminating rewrites a result reached by elimination", 2, 2, eliminateRewritesFinished, "after eliminating s1: Eliminate(s2) on a finished game must be a no-op"},
 		{"eliminating rewrites a result reached by play", 2, 2, eliminateRewritesPlayedResult, "after the script: Eliminate(s1) on a finished game must be a no-op"},
 		{"an imposed ending leaves the game playing", 2, 2, concludeKeepsPlaying, "fresh from New: Conclude"},
+		{"a view that changes what a restore deals", 2, 2, viewSortsDeck, "restored blind to persisted step 1: a restored game sends otherwise than play did"},
 		{"an event kind its Info does not list", 2, 2, uncataloguedEvent, `observation 1: event 1 of kind "shrugged" is not in Info.Events`},
 		{"a clock without a time control", 2, 2, clockWithoutTimeControl, `Info: game table: the "clock" capability`},
 	}
@@ -105,6 +106,15 @@ func TestRunRejectsNonconformingGames(t *testing.T) {
 				t.Errorf("want a failure containing %q, got %q", tt.want, failures)
 			}
 		})
+	}
+}
+
+func TestRunRejectsAGameARestoreWouldNotReproduce(t *testing.T) {
+	script := tableScript(2)
+	script.Steps[0].Action.Aside = " psst"
+	failures := recordFailures(func(tb testing.TB) { conform(tb, tableRules{max: 2}, script) })
+	if want := "replayed to persisted step 1: a restored game sends otherwise than play did"; !slices.ContainsFunc(failures, func(f string) bool { return strings.HasPrefix(f, want) }) {
+		t.Errorf("want a failure starting %q, got %q", want, failures)
 	}
 }
 

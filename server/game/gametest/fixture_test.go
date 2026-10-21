@@ -27,6 +27,7 @@ const (
 	concludeKeepsPlaying
 	uncataloguedEvent
 	clockWithoutTimeControl
+	viewSortsDeck
 )
 
 const (
@@ -48,9 +49,11 @@ type tableOpts struct{}
 
 const tableSay game.ActionKind = "say"
 
+// tableAction's Aside is said along with the hand, but never sent.
 type tableAction struct {
 	Kind   game.ActionKind `json:"kind"`
 	Finish bool
+	Aside  string `json:"-"`
 }
 
 type tableView struct {
@@ -94,7 +97,7 @@ func (r tableRules) New(_ tableOpts, challenger game.UserID, invitees []game.Use
 		all[i] = game.Seat(fmt.Sprintf("s%d", i+1))
 		seats[u] = all[i]
 	}
-	return tableState{flaw: r.flaw, seats: all, alive: all}, seats, nil
+	return tableState{flaw: r.flaw, seats: all, alive: all, deck: []string{"c", "a", "b"}}, seats, nil
 }
 
 type tableState struct {
@@ -103,13 +106,20 @@ type tableState struct {
 	seats     []game.Seat
 	alive     []game.Seat
 	round     int
+	deck      []string
 	playedOut bool
 }
 
 func privateHands(s tableState, seat game.Seat) []string { return []string{handOf(seat, s.round)} }
 
 func (s tableState) Apply(seat game.Seat, a tableAction, _ *rand.Rand) (game.State[tableAction, tableView], []game.Event, error) {
-	events := []game.Event{s.showdown(seat)}
+	said := s.showdown(seat)
+	said.Text += a.Aside
+	if s.flaw == viewSortsDeck {
+		said.Text += " drew " + s.deck[0]
+		s.deck = s.deck[1:]
+	}
+	events := []game.Event{said}
 	s.round++
 	switch s.flaw {
 	case leakPrivateInEventKind:
@@ -135,6 +145,9 @@ func (s tableState) showdown(seat game.Seat) saidEvent {
 }
 
 func (s tableState) View(seat game.Seat) tableView {
+	if s.flaw == viewSortsDeck {
+		slices.Sort(s.deck)
+	}
 	v := tableView{Hand: handOf(seat, s.round)}
 	switch {
 	case s.Over() || s.flaw == leakSecretInView:
