@@ -3,6 +3,7 @@ local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local dice = require("games.ui.dice")
 local kv = require("games.ui.widgets.kv")
+local players = require("games.core.players")
 local text_util = require("games.ui.text")
 
 ---@class games.LiarsDiceBid
@@ -67,8 +68,6 @@ local NO_DIE_KEY = "none"
 local KEY_HL = "GamesKey"
 local MUTED_HL = "GamesMuted"
 local BID_KIND = "bid"
----Display columns a user name may take in the reveal lines.
-local NAME_WIDTH = 10
 ---Display columns the table panel reserves: "Round 1: carol called dudo on 30 x ⚅", with room for a
 ---longer name.
 local PANEL_WIDTH = 40
@@ -131,8 +130,7 @@ local function reveal_lines(reveal, talk)
     ),
   }
   for _, cup in ipairs(reveal.cups) do
-    local name =
-      text_util.pad_to_width(vim.fn.strcharpart(talk.name(cup.seat), 0, NAME_WIDTH), NAME_WIDTH)
+    local name = text_util.fit_to_width(talk.name(cup.seat), text_util.NAME_WIDTH)
     lines[#lines + 1] = compose.text(name .. " " .. talk.faces(cup.dice))
   end
   return lines
@@ -154,13 +152,11 @@ function M.layout(update, ctx)
     grid = {
       rows = 1,
       cols = STARTING_DICE,
-      shade = "plain",
       cell = function(_, c)
         local face = view.my_dice[c]
         return { face and dice.key(face) or NO_DIE_KEY }
       end,
     },
-    art = ctx.art,
     panels = {
       {
         width = PANEL_WIDTH,
@@ -178,9 +174,7 @@ end
 ---@param seat games.Seat
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat)
-  local entry = vim.iter(update.view.seats):find(function(s)
-    return s.seat == seat
-  end)
+  local entry = players.entry_of_seat(update.view.seats, seat)
   if not entry then
     return nil
   end

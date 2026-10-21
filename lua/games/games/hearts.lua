@@ -2,8 +2,10 @@ local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
+local tables = require("games.core.tables")
 local text_util = require("games.ui.text")
 
 ---@alias games.HeartsPass "left"|"right"|"across"|"hold"
@@ -103,8 +105,6 @@ local HOLD = "hold"
 local SEATS = 4
 ---Display columns the table panel reserves: a full hand of 13 cards on one line.
 local PANEL_WIDTH = 38
----Display columns a user name may take in the last-hand lines.
-local NAME_WIDTH = 10
 
 ---Where each seat sits round the trick, by its offset clockwise from the viewer, who sits at
 ---the bottom: the next seat is on its left.
@@ -117,9 +117,9 @@ local PLACES = {
 }
 ---@type table<games.HeartsPass, integer> each pass direction's offset clockwise
 local PASS_OFFSETS = { left = 1, across = 2, right = 3 }
-local PLACE_WIDTH = text_util.max_display_width(vim.tbl_map(function(place)
+local PLACE_WIDTH = text_util.widest(vim.tbl_values(PLACES), function(place)
   return place.name
-end, vim.tbl_values(PLACES)))
+end)
 
 ---@param n integer
 ---@return string
@@ -187,7 +187,7 @@ local function trick_cells(update, me)
     local card = played[seat_at(update, me, offset)]
     cells[place.row][place.col] = card and { card, cards.hl(card) } or { EMPTY_KEY, MUTED_HL }
     if card then
-      marks[#marks + 1] = { row = place.row, col = place.col, hl = CARD_HL }
+      marks[#marks + 1] = grid.mark(place.row, place.col, CARD_HL)
     end
   end
   return cells, marks
@@ -256,17 +256,13 @@ local function hand_lines(view, ctx)
   if #view.my_hand == 0 then
     return {}
   end
-  local marked = {}
-  for _, card in ipairs(view.legal) do
-    marked[card] = true
-  end
   local lines = { compose.text(""), compose.text("Your hand", KEY_HL) }
   return vim.list_extend(
     lines,
     cards.hand({
       set = assert(ctx.art, "hearts draws from an asset pack"),
       cards = view.my_hand,
-      marked = marked,
+      marked = tables.set_of(view.legal),
       glyph_width = GLYPH_WIDTH,
       width = PANEL_WIDTH,
       ambiwidth = ctx.ambiwidth,
@@ -283,8 +279,7 @@ local function last_hand_lines(last, talk)
   end
   local lines = { compose.text(""), compose.text(("Last hand %d"):format(last.hand_no), KEY_HL) }
   for _, entry in ipairs(last.points) do
-    local name =
-      text_util.pad_to_width(vim.fn.strcharpart(talk.name(entry.seat), 0, NAME_WIDTH), NAME_WIDTH)
+    local name = text_util.fit_to_width(talk.name(entry.seat), text_util.NAME_WIDTH)
     lines[#lines + 1] = compose.text(("%s +%d"):format(name, entry.points))
   end
   if last.moon then
@@ -314,14 +309,12 @@ function M.layout(update, ctx)
     grid = {
       rows = 3,
       cols = 3,
-      shade = "plain",
       cell_width = GLYPH_WIDTH,
       cell = function(r, c)
         return cells[r][c] or { BLANK_KEY }
       end,
       marks = marks,
     },
-    art = ctx.art,
     panels = {
       {
         width = PANEL_WIDTH,
@@ -333,22 +326,6 @@ function M.layout(update, ctx)
       },
     },
   }, ctx)
-end
-
----@param view games.HeartsView
----@param seat games.Seat
----@return games.HeartsSeatView|nil
-local function seat_view(view, seat)
-  return vim.iter(view.seats):find(function(entry)
-    return entry.seat == seat
-  end)
-end
-
----@param seats games.HeartsSeatView[]
----@param field fun(seat: games.HeartsSeatView): string
----@return integer
-local function widest(seats, field)
-  return text_util.max_display_width(vim.tbl_map(field, seats))
 end
 
 ---@param seat games.HeartsSeatView
@@ -365,14 +342,14 @@ end
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat, ctx)
   local view = update.view
-  local entry = seat_view(view, seat)
+  local entry = players.entry_of_seat(view.seats, seat)
   if not entry then
     return nil
   end
-  local score_width = widest(view.seats, function(s)
+  local score_width = text_util.widest(view.seats, function(s)
     return tostring(s.score)
   end)
-  local taken_width = widest(view.seats, taken_text)
+  local taken_width = text_util.widest(view.seats, taken_text)
   local status = entry.out and "out"
     or (view.phase == "pass" and entry.pass_chosen and "passed")
     or ""

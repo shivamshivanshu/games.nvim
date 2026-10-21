@@ -1,8 +1,10 @@
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
+local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
+local text = require("games.ui.text")
 
 ---@alias games.WordleMark "hit"|"present"|"miss"
 
@@ -25,7 +27,6 @@ local kv = require("games.ui.widgets.kv")
 ---@field word string
 ---@field feedback games.WordleMark[]
 
-local LETTERS = "abcdefghijklmnopqrstuvwxyz"
 local WORD_LENGTH = 5
 local CELL_WIDTH = 3
 local EMPTY_KEY = "empty"
@@ -47,22 +48,19 @@ local FRAMED_MARKS = { "hit", "present" }
 ---@param mark? games.WordleMark
 ---@return string
 local function key_for(letter, mark)
-  if mark and vim.tbl_contains(FRAMED_MARKS, mark) then
-    return ("%s:%s"):format(mark, letter)
-  end
-  return letter
+  local framed = mark and vim.tbl_contains(FRAMED_MARKS, mark)
+  return art.marked_key(letter, framed and mark or nil)
 end
 
 ---@param view games.WordleView
 ---@return games.GridMark[]
 local function marks_for(view)
-  local marks = {}
-  for row, guess in ipairs(view.guesses) do
-    for col, mark in ipairs(guess.feedback) do
-      marks[#marks + 1] = { row = row, col = col, hl = MARK_HL[mark] }
-    end
-  end
-  return marks
+  local feedback = vim.tbl_map(function(guess)
+    return guess.feedback
+  end, view.guesses)
+  return grid.marks_where(feedback, function(mark)
+    return MARK_HL[mark]
+  end)
 end
 
 ---@param view games.WordleView
@@ -89,7 +87,7 @@ local function keyboard(view, ctx)
         local mark = view.keyboard[letter]
         local glyph = art.glyph(set, key_for(letter, mark), ctx.ambiwidth)
         return compose.text(glyph, highlights.with_ink(MARK_HL[mark]))
-      end, vim.split(letters, ""))
+      end, text.chars(letters))
       return compose.pad(i - 1, compose.row(keys))
     end)
     :totable())
@@ -109,7 +107,7 @@ local M = {}
 ---@type string[] keys every wordle asset pack draws: each letter plain, framed per mark, and an empty tile
 M.asset_keys = vim.list_extend(
   vim
-    .iter(vim.split(LETTERS, ""))
+    .iter(text.chars(text.ALPHABET))
     :map(function(letter)
       return { letter, key_for(letter, "hit"), key_for(letter, "present") }
     end)
@@ -129,14 +127,12 @@ function M.layout(update, ctx)
     grid = {
       rows = #view.guesses + view.remaining,
       cols = WORD_LENGTH,
-      shade = "plain",
       cell_width = CELL_WIDTH,
       cell = function(r, c)
         return cell_for(view, r, c)
       end,
       marks = marks_for(view),
     },
-    art = assert(ctx.art, "wordle draws from an asset pack"),
     panels = {
       {
         width = PANEL_WIDTH,
@@ -144,7 +140,7 @@ function M.layout(update, ctx)
           return compose.col({
             keyboard(view, ctx),
             compose.text(""),
-            kv({ pairs = status_pairs(view), key_hl = "GamesKey", value_hl = "GamesLabel" }),
+            kv.panel(status_pairs(view)),
           })
         end,
       },

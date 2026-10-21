@@ -1,6 +1,7 @@
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 
 ---@alias games.MastermindColour "r"|"g"|"b"|"y"|"o"|"p"
@@ -42,6 +43,7 @@ local Key = {
   NO_KEY = "none",
   GAP = "gap",
 }
+local PEG_MARKER = "peg"
 local SOLVED_HL = "GamesWin"
 local SOLVED_REASON = "solved"
 
@@ -58,7 +60,7 @@ local PEG_HL = {
 ---@param colour string
 ---@return string
 local function peg_key(colour)
-  return "peg:" .. colour
+  return art.marked_key(colour, PEG_MARKER)
 end
 
 ---@param colour string
@@ -123,7 +125,7 @@ local function marks_for(update)
   return vim
     .iter(vim.fn.range(1, view.code_length))
     :map(function(col)
-      return { row = SECRET_ROWS + #view.guesses, col = col, hl = SOLVED_HL }
+      return grid.mark(SECRET_ROWS + #view.guesses, col, SOLVED_HL)
     end)
     :totable()
 end
@@ -148,11 +150,7 @@ local function panel(view, ctx)
     compose.text(glyph(Key.BLACK) .. " right colour, right place", "GamesLabel"),
     compose.text(glyph(Key.WHITE) .. " right colour, wrong place", "GamesLabel"),
     compose.text(""),
-    kv({
-      pairs = { { "guesses left", tostring(view.remaining) } },
-      key_hl = "GamesKey",
-      value_hl = "GamesLabel",
-    }),
+    kv.panel({ { "guesses left", tostring(view.remaining) } }),
   })
 end
 
@@ -176,14 +174,12 @@ function M.layout(update, ctx)
     grid = {
       rows = SECRET_ROWS + #view.guesses + view.remaining,
       cols = view.code_length + GAP_COLS + view.code_length,
-      shade = "plain",
       cell_width = CELL_WIDTH,
       cell = function(r, c)
         return cell_for(view, r, c)
       end,
       marks = marks_for(update),
     },
-    art = assert(ctx.art, "mastermind draws from an asset pack"),
     panels = {
       {
         node = function()

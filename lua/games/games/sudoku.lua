@@ -1,4 +1,7 @@
+local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
+local grid = require("games.ui.widgets.grid")
+local notation = require("games.ui.notation")
 local theme = require("games.ui.theme")
 
 ---@alias games.SudokuSeat "solver"
@@ -22,12 +25,12 @@ local theme = require("games.ui.theme")
 local SIZE = 9
 local CELL_WIDTH = 3
 local BOX_SIZE = 3
-local LABELS = "123456789"
 local EMPTY_KEY = "empty"
 ---@enum games.SudokuMarker drawn into the glyph, so a cell's state never rests on colour alone
 local Marker = { CONFLICT = "conflict", REVEALED = "revealed" }
 local SET_KIND = "set"
-local SOLVER_SEAT_INDEX = 1
+---@type games.SudokuSeat
+local SOLVER = "solver"
 
 local GIVEN_HL = "GamesGiven"
 local REVEALED_FG_HL = "GamesMuted"
@@ -56,13 +59,14 @@ end
 ---@param marker? games.SudokuMarker
 ---@return string the asset key: the digit itself when unmarked, else "conflict:5" and so on
 local function key_for(digit, marker)
-  return marker and ("%s:%d"):format(marker, digit) or tostring(digit)
+  return art.marked_key(digit, marker)
 end
 
 ---@param view games.SudokuView
 ---@param i integer
+---@param solver_hl games.Hl|nil the solver's seat colour, for the digits they entered
 ---@return games.GridCell
-local function cell_for(view, i)
+local function cell_for(view, i, solver_hl)
   local correction = revealed(view, i)
   if correction then
     return { key_for(correction, Marker.REVEALED), REVEALED_FG_HL }
@@ -72,7 +76,7 @@ local function cell_for(view, i)
     return { EMPTY_KEY, EMPTY_HL }
   end
   local marker = #view.solution == 0 and view.conflicts[i] and Marker.CONFLICT or nil
-  return { key_for(digit, marker), view.given[i] and GIVEN_HL or theme.seat_hl(SOLVER_SEAT_INDEX) }
+  return { key_for(digit, marker), view.given[i] and GIVEN_HL or solver_hl }
 end
 
 ---@param view games.SudokuView
@@ -84,9 +88,9 @@ local function marks_for(view)
     for col = 1, SIZE do
       local i = index(row, col)
       if over and revealed(view, i) then
-        marks[#marks + 1] = { row = row, col = col, hl = REVEALED_HL }
+        marks[#marks + 1] = grid.mark(row, col, REVEALED_HL)
       elseif not over and view.conflicts[i] then
-        marks[#marks + 1] = { row = row, col = col, hl = CONFLICT_HL }
+        marks[#marks + 1] = grid.mark(row, col, CONFLICT_HL)
       end
     end
   end
@@ -114,21 +118,21 @@ M.glyph_width = CELL_WIDTH
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
+  local solver_hl = theme.seat_hl_of(update, SOLVER)
+  local labels = notation.numbers(SIZE)
   return board({
     grid = {
       rows = SIZE,
       cols = SIZE,
-      shade = "plain",
       blocks = BOX_SIZE,
       cell_width = CELL_WIDTH,
       glyphs = ctx.glyphs,
-      labels = { rows = LABELS, cols = LABELS },
+      labels = { rows = labels, cols = labels },
       cell = function(r, c)
-        return cell_for(view, index(r, c))
+        return cell_for(view, index(r, c), solver_hl)
       end,
       marks = marks_for(view),
     },
-    art = assert(ctx.art, "sudoku draws from an asset pack"),
   }, ctx)
 end
 

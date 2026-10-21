@@ -1,5 +1,8 @@
 local board = require("games.ui.widgets.board")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
+local notation = require("games.ui.notation")
+local text = require("games.ui.text")
 
 ---@alias games.MinesweeperSeat "solver"
 
@@ -42,14 +45,11 @@ local kv = require("games.ui.widgets.kv")
 ---@field opened integer cells the chord opened
 
 local CELL_WIDTH = 2
-local ROW_LETTERS = "abcdefghijklmnop"
-local MAX_COLUMNS = 30
 local REVEAL_KIND, FLAG_KIND, CHORD_KIND = "reveal", "flag", "chord"
 local EXPLODED_KEY = "exploded"
 local HIDDEN_HL = "GamesMuted"
 local FLAG_HL = "GamesCardRed"
 local EXPLODED_HL = "GamesCheck"
-local KEY_HL, VALUE_HL = "GamesKey", "GamesLabel"
 local MINES_LEFT_LABEL = "mines left"
 ---Display columns the status panel reserves: its widest label, a space, and a count such as -99.
 local PANEL_WIDTH = #MINES_LEFT_LABEL + 1 + 3
@@ -57,28 +57,19 @@ local PANEL_WIDTH = #MINES_LEFT_LABEL + 1 + 3
 ---@type table<games.MinesweeperCell, games.Hl>
 local CELL_HL = { hidden = HIDDEN_HL, flag = FLAG_HL, flagged_mine = FLAG_HL, wrong_flag = FLAG_HL }
 
----@type string[]
-local COLUMN_LABELS = vim.tbl_map(tostring, vim.fn.range(1, MAX_COLUMNS))
-
 ---@param row integer
 ---@param col integer
 ---@return string the cell as typed, e.g. "c12"
 local function address(row, col)
-  return ROW_LETTERS:sub(row, row) .. col
+  return text.ALPHABET:sub(row, row) .. col
 end
 
 ---@param view games.MinesweeperView
 ---@return games.GridMark[] the exploded mine, tinted on top of its own glyph
 local function marks_for(view)
-  local marks = {}
-  for row, cells in ipairs(view.cells) do
-    for col, cell in ipairs(cells) do
-      if cell == EXPLODED_KEY then
-        marks[#marks + 1] = { row = row, col = col, hl = EXPLODED_HL }
-      end
-    end
-  end
-  return marks
+  return grid.marks_where(view.cells, function(cell)
+    return cell == EXPLODED_KEY and EXPLODED_HL or nil
+  end)
 end
 
 ---@param event games.MinesweeperRevealedEvent|games.MinesweeperChordedEvent
@@ -110,27 +101,21 @@ function M.layout(update, ctx)
     grid = {
       rows = rows,
       cols = cols,
-      shade = "plain",
       cell_width = CELL_WIDTH,
-      labels = { rows = ROW_LETTERS:sub(1, rows), cols = vim.list_slice(COLUMN_LABELS, 1, cols) },
+      labels = { rows = notation.letters(rows), cols = notation.numbers(cols) },
       cell = function(r, c)
         local cell = view.cells[r][c]
         return { cell, CELL_HL[cell] }
       end,
       marks = marks_for(view),
     },
-    art = assert(ctx.art, "minesweeper draws from an asset pack"),
     panels = {
       {
         width = PANEL_WIDTH,
         node = function()
-          return kv({
-            pairs = {
-              { "flags", tostring(view.flags) },
-              { MINES_LEFT_LABEL, tostring(view.remaining) },
-            },
-            key_hl = KEY_HL,
-            value_hl = VALUE_HL,
+          return kv.panel({
+            { "flags", tostring(view.flags) },
+            { MINES_LEFT_LABEL, tostring(view.remaining) },
           })
         end,
       },

@@ -2,6 +2,7 @@ local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local kv = require("games.ui.widgets.kv")
+local text = require("games.ui.text")
 
 ---@class games.HangmanLetterGuess
 ---@field letter string
@@ -24,11 +25,10 @@ local kv = require("games.ui.widgets.kv")
 ---@field guess string a letter or a whole word
 ---@field hit boolean
 
-local LETTERS = "abcdefghijklmnopqrstuvwxyz"
 local CELL_WIDTH = 3
 local HIDDEN_KEY = "hidden"
-local UNFOUND_PREFIX = "unfound:"
-local GALLOWS_PREFIX = "gallows:"
+local UNFOUND_MARKER = "unfound"
+local GALLOWS_MARKER = "gallows"
 ---The gallows drawn after 0 to this many misses.
 local GALLOWS_STAGES = 6
 local UNFOUND_HL = "GamesLost"
@@ -42,13 +42,13 @@ local STATUS_WIDTH = #MISSES_LEFT_LABEL + 1 + 2 * GALLOWS_STAGES - 1
 ---@param letter string
 ---@return string
 local function unfound_key(letter)
-  return UNFOUND_PREFIX .. letter
+  return art.marked_key(letter, UNFOUND_MARKER)
 end
 
 ---@param misses integer
 ---@return string
 local function gallows_key(misses)
-  return GALLOWS_PREFIX .. misses
+  return art.marked_key(misses, GALLOWS_MARKER)
 end
 
 ---A found letter as itself; a hidden one blank, or once the game is over the word's letter,
@@ -122,7 +122,7 @@ local M = {}
 ---end, and a hidden letter
 M.asset_keys = vim.list_extend(
   vim
-    .iter(vim.split(LETTERS, ""))
+    .iter(text.chars(text.ALPHABET))
     :map(function(letter)
       return { letter, unfound_key(letter) }
     end)
@@ -145,13 +145,11 @@ function M.layout(update, ctx)
     grid = {
       rows = 1,
       cols = #view.pattern,
-      shade = "plain",
       cell_width = CELL_WIDTH,
       cell = function(_, c)
         return cell_for(view, c)
       end,
     },
-    art = assert(ctx.art, "hangman draws from an asset pack"),
     panels = {
       {
         node = function()
@@ -161,7 +159,7 @@ function M.layout(update, ctx)
       {
         width = STATUS_WIDTH,
         node = function()
-          return kv({ pairs = status_pairs(view), key_hl = "GamesKey", value_hl = "GamesLabel" })
+          return kv.panel(status_pairs(view))
         end,
       },
     },

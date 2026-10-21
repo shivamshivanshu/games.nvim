@@ -1,5 +1,8 @@
+local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
+local tables = require("games.core.tables")
 
 ---@alias games.FifteenSeat "solver"
 
@@ -29,10 +32,10 @@ local MAX_TILE = 15
 local BLANK = 0
 local BLANK_KEY = "blank"
 local SLIDE_KIND, MOVE_KIND = "slide", "move"
+local MOVABLE_MARKER = "movable"
 local MOVABLE_HL = "GamesMovable"
 local SOLVED_HL = "GamesWin"
 local SOLVED_REASON = "solved"
-local KEY_HL, VALUE_HL = "GamesKey", "GamesLabel"
 local MOVES_LABEL = "moves"
 ---Display columns the status panel reserves: the label, a space, and up to 5 digits.
 local PANEL_WIDTH = #MOVES_LABEL + 1 + 5
@@ -53,35 +56,28 @@ local DIRECTION_KEYS = {
 ---@param movable boolean
 ---@return string the asset key: the number, or "movable:7" for a tile that may slide
 local function key_for(tile, movable)
-  return movable and ("movable:%d"):format(tile) or tostring(tile)
+  return art.marked_key(tile, movable and MOVABLE_MARKER or nil)
 end
 
 ---@param view games.FifteenView
 ---@return table<integer, true>
 local function movable_tiles(view)
-  local tiles = {}
-  for _, entry in ipairs(view.movable) do
-    tiles[entry.tile] = true
-  end
-  return tiles
+  return tables.set_of(view.movable, function(entry)
+    return entry.tile
+  end)
 end
 
 ---@param update games.FifteenUpdate
 ---@return games.GridMark[] the movable tiles while playing; every tile once solved
 local function marks_for(update)
-  local view, movable = update.view, movable_tiles(update.view)
+  local movable = movable_tiles(update.view)
   local solved = update.result and update.result.reason == SOLVED_REASON
-  local marks = {}
-  for row, tiles in ipairs(view.tiles) do
-    for col, tile in ipairs(tiles) do
-      if solved and tile ~= BLANK then
-        marks[#marks + 1] = { row = row, col = col, hl = SOLVED_HL }
-      elseif movable[tile] then
-        marks[#marks + 1] = { row = row, col = col, hl = MOVABLE_HL }
-      end
+  return grid.marks_where(update.view.tiles, function(tile)
+    if solved and tile ~= BLANK then
+      return SOLVED_HL
     end
-  end
-  return marks
+    return movable[tile] and MOVABLE_HL or nil
+  end)
 end
 
 ---@param entry games.FifteenDirectionKey
@@ -125,7 +121,6 @@ function M.layout(update, ctx)
     grid = {
       rows = #view.tiles,
       cols = #view.tiles[1],
-      shade = "plain",
       cell_width = CELL_WIDTH,
       cell = function(r, c)
         local tile = view.tiles[r][c]
@@ -133,16 +128,11 @@ function M.layout(update, ctx)
       end,
       marks = marks_for(update),
     },
-    art = assert(ctx.art, "fifteen draws from an asset pack"),
     panels = {
       {
         width = PANEL_WIDTH,
         node = function()
-          return kv({
-            pairs = { { MOVES_LABEL, tostring(view.moves) } },
-            key_hl = KEY_HL,
-            value_hl = VALUE_HL,
-          })
+          return kv.panel({ { MOVES_LABEL, tostring(view.moves) } })
         end,
       },
     },

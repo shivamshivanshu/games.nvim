@@ -1,7 +1,10 @@
 local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
+local players = require("games.core.players")
+local tables = require("games.core.tables")
 
 ---@alias games.UnoColor "R"|"Y"|"G"|"B"|"" none only before the colour of a Wild turned up is named
 ---@alias games.UnoPhase "color"|"play"|"drawn"|"challenge"
@@ -157,17 +160,13 @@ local function hand_lines(view, ctx)
   if #view.my_hand == 0 then
     return {}
   end
-  local marked = {}
-  for _, card in ipairs(view.playable) do
-    marked[card] = true
-  end
   local lines = { compose.text(""), compose.text("Your hand", KEY_HL) }
   return vim.list_extend(
     lines,
     cards.hand({
       set = assert(ctx.art, "uno draws from an asset pack"),
       cards = view.my_hand,
-      marked = marked,
+      marked = tables.set_of(view.playable),
       glyph_width = GLYPH_WIDTH,
       width = PANEL_WIDTH,
       ambiwidth = ctx.ambiwidth,
@@ -194,7 +193,6 @@ function M.layout(update, ctx)
     grid = {
       rows = 1,
       cols = 2,
-      shade = "plain",
       cell_width = GLYPH_WIDTH,
       cell = function(_, c)
         if c == 1 then
@@ -202,9 +200,8 @@ function M.layout(update, ctx)
         end
         return { DECK_KEY, MUTED_HL }
       end,
-      marks = { { row = 1, col = 1, hl = CARD_HL }, { row = 1, col = 2, hl = CARD_HL } },
+      marks = { grid.mark(1, 1, CARD_HL), grid.mark(1, 2, CARD_HL) },
     },
-    art = ctx.art,
     panels = {
       {
         width = PANEL_WIDTH,
@@ -222,9 +219,7 @@ end
 ---@param seat games.Seat
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat)
-  local entry = vim.iter(update.view.seats):find(function(s)
-    return s.seat == seat
-  end)
+  local entry = players.entry_of_seat(update.view.seats, seat)
   if not entry then
     return nil
   end

@@ -57,7 +57,6 @@ local kv = require("games.ui.widgets.kv")
 
 local CELL_WIDTH = 2
 local TURN_KIND, PAUSE_KIND = "turn", "pause"
-local KEY_HL, VALUE_HL = "GamesKey", "GamesLabel"
 local PACMAN_HL, WALL_HL, DOOR_HL = "GamesPacman", "GamesPacmanWall", "GamesMuted"
 local FRIGHTENED_HL, EYES_HL = "GamesGhostFrightened", "GamesMuted"
 local PAUSED_TEXT, RUNNING_TEXT, OVER_TEXT = "paused: turn to go", "running", "over"
@@ -188,7 +187,6 @@ function M.layout(update, ctx)
     grid = {
       rows = #view.maze,
       cols = #view.maze[1],
-      shade = "plain",
       cell_width = CELL_WIDTH,
       gap = 0,
       cell = function(r, c)
@@ -200,21 +198,16 @@ function M.layout(update, ctx)
         return { key, TILE_HLS[key] }
       end,
     },
-    art = assert(ctx.art, "pacman draws from an asset pack"),
     panels = {
       {
         width = PANEL_WIDTH,
         node = function()
-          return kv({
-            pairs = {
-              { "score", tostring(view.score) },
-              { "lives", tostring(view.lives) },
-              { "level", ("%d/%d"):format(view.level, view.levels) },
-              { "food", tostring(view.food_left) },
-              { "game", state_text(view) },
-            },
-            key_hl = KEY_HL,
-            value_hl = VALUE_HL,
+          return kv.panel({
+            { "score", tostring(view.score) },
+            { "lives", tostring(view.lives) },
+            { "level", ("%d/%d"):format(view.level, view.levels) },
+            { "food", tostring(view.food_left) },
+            { "game", state_text(view) },
           })
         end,
       },

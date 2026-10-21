@@ -1,4 +1,5 @@
 local board = require("games.ui.widgets.board")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 
 ---@alias games.G2048Seat "solver"
@@ -39,7 +40,6 @@ local MAX_EXPONENT = 17
 local GOAL = 2048
 local MOVE_KIND = "move"
 local GOAL_HL = "GamesWin"
-local KEY_HL, VALUE_HL = "GamesKey", "GamesLabel"
 local SCORE_LABEL, GOAL_LABEL = "score", tostring(GOAL)
 local REACHED, NOT_YET = "reached", "not yet"
 ---Display columns the status panel reserves: the longer label, a space, and the widest value.
@@ -65,15 +65,9 @@ local DIRECTION_KEYS = {
 ---@param view games.G2048View
 ---@return games.GridMark[] every tile of the goal or above
 local function marks_for(view)
-  local marks = {}
-  for row, values in ipairs(view.cells) do
-    for col, value in ipairs(values) do
-      if value >= GOAL then
-        marks[#marks + 1] = { row = row, col = col, hl = GOAL_HL }
-      end
-    end
-  end
-  return marks
+  return grid.marks_where(view.cells, function(value)
+    return value >= GOAL and GOAL_HL or nil
+  end)
 end
 
 ---@param entry games.G2048DirectionKey
@@ -120,18 +114,13 @@ function M.layout(update, ctx)
       end,
       marks = marks_for(view),
     },
-    art = assert(ctx.art, "g2048 draws from an asset pack"),
     panels = {
       {
         width = PANEL_WIDTH,
         node = function()
-          return kv({
-            pairs = {
-              { SCORE_LABEL, tostring(view.score) },
-              { GOAL_LABEL, view.reached and REACHED or NOT_YET },
-            },
-            key_hl = KEY_HL,
-            value_hl = VALUE_HL,
+          return kv.panel({
+            { SCORE_LABEL, tostring(view.score) },
+            { GOAL_LABEL, view.reached and REACHED or NOT_YET },
           })
         end,
       },

@@ -2,6 +2,7 @@ local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
@@ -123,8 +124,6 @@ local KEY_HL = "GamesKey"
 local MUTED_HL = "GamesMuted"
 ---Display columns the table panel reserves: "Moves    fold call raise allin".
 local PANEL_WIDTH = 32
----Display columns a user name may take in the last-hand lines.
-local NAME_WIDTH = 10
 
 ---What each move reads as in an event; an amount is the seat's total for the street.
 ---@type table<games.PokerMove, string>
@@ -167,7 +166,7 @@ local function card_marks(view)
   for row = BOARD_ROW, HAND_ROW do
     for col = 1, BOARD_SIZE do
       if card_at(view, row, col) then
-        marks[#marks + 1] = { row = row, col = col, hl = CARD_HL }
+        marks[#marks + 1] = grid.mark(row, col, CARD_HL)
       end
     end
   end
@@ -178,7 +177,7 @@ end
 ---@param seat games.Seat
 ---@return string
 local function name_of(update, seat)
-  return vim.fn.strcharpart(players.name_of_seat(update, seat), 0, NAME_WIDTH)
+  return vim.fn.strcharpart(players.name_of_seat(update, seat), 0, text_util.NAME_WIDTH)
 end
 
 ---@param pots games.PokerPot[]
@@ -238,7 +237,8 @@ local function last_hand_lines(update, set, ambiwidth)
   ---@type games.Node[]
   local lines = { compose.text(""), compose.text(("Last hand %d"):format(last.hand_no), KEY_HL) }
   for _, shown in ipairs(last.shown) do
-    local name = text_util.pad_to_width(name_of(update, shown.seat), NAME_WIDTH)
+    local name =
+      text_util.fit_to_width(players.name_of_seat(update, shown.seat), text_util.NAME_WIDTH)
     local parts = { compose.text(name .. " ") }
     vim.list_extend(parts, cards.nodes(set, shown.cards, ambiwidth))
     parts[#parts + 1] = compose.text("  " .. text_util.humanize(shown.category))
@@ -248,13 +248,6 @@ local function last_hand_lines(update, set, ambiwidth)
     lines[#lines + 1] = compose.text(award_text(update, award), MUTED_HL)
   end
   return lines
-end
-
----@param seats games.PokerSeatView[]
----@param field fun(seat: games.PokerSeatView): string
----@return integer
-local function widest(seats, field)
-  return text_util.max_display_width(vim.tbl_map(field, seats))
 end
 
 ---@param seat games.PokerSeatView
@@ -273,15 +266,6 @@ local function status_text(seat)
     return "folded"
   end
   return seat.allin and "all-in" or ""
-end
-
----@param view games.PokerView
----@param seat games.Seat
----@return games.PokerSeatView|nil
-local function seat_view(view, seat)
-  return vim.iter(view.seats):find(function(entry)
-    return entry.seat == seat
-  end)
 end
 
 ---@param view games.PokerView
@@ -309,14 +293,14 @@ M.glyph_width = GLYPH_WIDTH
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat, ctx)
   local view = update.view
-  local entry = seat_view(view, seat)
+  local entry = players.entry_of_seat(view.seats, seat)
   if not entry then
     return nil
   end
-  local stack_width = widest(view.seats, function(s)
+  local stack_width = text_util.widest(view.seats, function(s)
     return tostring(s.stack)
   end)
-  local bet_width = widest(view.seats, bet_text)
+  local bet_width = text_util.widest(view.seats, bet_text)
   return {
     compose.text(button_mark(view, seat, ctx), KEY_HL),
     compose.text(" " .. text_util.align_right(tostring(entry.stack), stack_width)),
@@ -335,14 +319,12 @@ function M.layout(update, ctx)
     grid = {
       rows = HAND_ROW,
       cols = BOARD_SIZE,
-      shade = "plain",
       cell_width = GLYPH_WIDTH,
       cell = function(r, c)
         return cell_for(view, r, c)
       end,
       marks = card_marks(view),
     },
-    art = set,
     panels = {
       {
         width = PANEL_WIDTH,

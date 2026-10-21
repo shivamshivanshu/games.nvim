@@ -1,6 +1,8 @@
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local dice = require("games.ui.dice")
+local grid = require("games.ui.widgets.grid")
+local notation = require("games.ui.notation")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
 
@@ -119,7 +121,7 @@ end
 local function held_marks(view)
   local marks = {}
   for col = 1, #view.dice do
-    marks[#marks + 1] = view.held[col] and { row = DICE_ROW, col = col, hl = HELD_HL } or nil
+    marks[#marks + 1] = view.held[col] and grid.mark(DICE_ROW, col, HELD_HL) or nil
   end
   return marks
 end
@@ -209,14 +211,12 @@ function M.layout(update, ctx)
     grid = {
       rows = HOLD_ROW,
       cols = DICE_COUNT,
-      shade = "plain",
-      labels = { cols = table.concat(vim.fn.range(1, DICE_COUNT)), rows = { "", "" } },
+      labels = { cols = notation.numbers(DICE_COUNT), rows = { "", "" } },
       cell = function(r, c)
         return cell_for(view, r, c)
       end,
       marks = held_marks(view),
     },
-    art = ctx.art,
     panels = {
       {
         width = KEY_WIDTH + LABEL_WIDTH + #view.cards * SEAT_WIDTH + NOW_WIDTH,
@@ -233,9 +233,7 @@ end
 ---@param seat games.Seat
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat)
-  local card = vim.iter(update.view.cards):find(function(c)
-    return c.seat == seat
-  end)
+  local card = players.entry_of_seat(update.view.cards, seat)
   if not card then
     return nil
   end
