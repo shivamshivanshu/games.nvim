@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "tile": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is typed input: Tile is the tile's number as text, Direction one of the Directions."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "slide",
+        "move"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Movable": {
+      "properties": {
+        "tile": {
+          "type": "integer"
+        },
+        "direction": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "tile",
+        "direction"
+      ],
+      "description": "Movable is a tile next to the blank and the way it would move."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "solved"
+      ],
+      "description": "The result reasons 15-puzzle adds to the core's."
+    },
+    "SlidEvent": {
+      "properties": {
+        "kind": {
+          "const": "slid"
+        },
+        "by": {
+          "type": "string"
+        },
+        "tile": {
+          "type": "integer"
+        },
+        "direction": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "tile",
+        "direction"
+      ],
+      "description": "SlidEvent reports a tile slid into the blank and the way it moved."
+    },
+    "View": {
+      "properties": {
+        "tiles": {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "moves": {
+          "type": "integer"
+        },
+        "movable": {
+          "items": {
+            "$ref": "#/$defs/Movable"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "tiles",
+        "moves",
+        "movable"
+      ],
+      "description": "View holds Tiles[row][col], rows from the top, with Blank for the empty square. Moves counts\nthe slides so far and is the score. Movable lists the tiles that may slide now, empty once\nthe game is over."
+    }
+  },
+  "title": "15-puzzle",
+  "description": "The game-specific bodies inside a fifteen game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "slid": {
+      "$ref": "#/$defs/SlidEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
