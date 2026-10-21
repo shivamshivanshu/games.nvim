@@ -62,10 +62,9 @@ func play(t *testing.T, cells ...string) game.State[discs.Action, View] {
 	return st
 }
 
-// fullBoardDraw fills the board with no five anywhere: black takes each cell whose
-// row plus half its column is even, 113 of them, and white the other 112, black last.
-func fullBoardDraw() []string {
-	var black, white []string
+// drawPattern splits the board with no five anywhere: black takes each cell whose row
+// plus half its column is even, 113 of them, and white the other 112.
+func drawPattern() (black, white []string) {
 	for row := range boardSize {
 		for col := range boardSize {
 			name := coords().Name(grid.Point{Row: row, Col: col})
@@ -76,7 +75,12 @@ func fullBoardDraw() []string {
 			}
 		}
 	}
-	cells := make([]string, 0, boardSize*boardSize)
+	return black, white
+}
+
+// alternate interleaves the seats' cells, black first and last.
+func alternate(black, white []string) []string {
+	cells := make([]string, 0, len(black)+len(white))
 	for i, b := range black {
 		cells = append(cells, b)
 		if i < len(white) {
@@ -84,6 +88,21 @@ func fullBoardDraw() []string {
 		}
 	}
 	return cells
+}
+
+func fullBoardDraw() []string { return alternate(drawPattern()) }
+
+// fullBoardFiveOnLastStone fills the board as fullBoardDraw does, except that black holds a8
+// to e8 and gives j1, h12 and a13 to white, so its last stone, e8, the 225th on the board,
+// makes the only five.
+func fullBoardFiveOnLastStone() []string {
+	black, white := drawPattern()
+	five := []string{"a8", "b8", "c8", "d8", "e8"}
+	given := []string{"j1", "h12", "a13"}
+	isMoved := func(cell string) bool { return slices.Contains(five, cell) || slices.Contains(given, cell) }
+	black = append(slices.DeleteFunc(black, isMoved), five...)
+	white = append(slices.DeleteFunc(white, isMoved), given...)
+	return alternate(black, white)
 }
 
 func cells(names ...string) []discs.Cell {
@@ -151,6 +170,8 @@ func TestOutcome(t *testing.T) {
 		{"two lines at once", []string{"d8", "a1", "e8", "a2", "f8", "a3", "g8", "a4", "h4", "o1", "h5", "o2", "h6", "o3", "h7", "o4", "h8"}, blackWins,
 			[][]discs.Cell{cells("d8", "e8", "f8", "g8", "h8"), cells("h4", "h5", "h6", "h7", "h8")}},
 		{"a full board without five is a draw", fullBoardDraw(), &game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull}, nil},
+		{"five with the 225th stone wins, not a full-board draw", fullBoardFiveOnLastStone(), blackWins,
+			[][]discs.Cell{cells("a8", "b8", "c8", "d8", "e8")}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
