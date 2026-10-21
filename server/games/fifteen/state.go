@@ -10,10 +10,9 @@ import (
 )
 
 type state struct {
-	board    board
-	moves    int
-	result   game.Result
-	finished bool
+	game.Ending
+	board board
+	moves int
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -23,10 +22,9 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	}
 	next := state{board: s.board.slid(move.Tile), moves: s.moves + 1}
 	if next.board.solved() {
-		next.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
-		next.finished = true
+		next.Ending = next.Concluded(game.WinFor(ReasonSolved, game.SeatSolo))
 	}
-	return next, []game.Event{SlidEvent{By: SeatSolver, Tile: move.Tile, Direction: move.Direction}}, nil
+	return next, []game.Event{SlidEvent{By: game.SeatSolo, Tile: move.Tile, Direction: move.Direction}}, nil
 }
 
 // chosen is the movable tile action names.
@@ -63,30 +61,25 @@ func (s state) View(game.Seat) View {
 	for row := range view.Tiles {
 		view.Tiles[row] = slices.Clone(s.board.tiles[row*side : (row+1)*side])
 	}
-	if !s.finished {
+	if !s.Over() {
 		view.Movable = s.board.movable()
 	}
 	return view
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
-	return []game.Seat{SeatSolver}
+	return []game.Seat{game.SeatSolo}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game and no tile is movable.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }

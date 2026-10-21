@@ -9,10 +9,9 @@ import (
 )
 
 type state struct {
-	secret   Code
-	guesses  []Guess
-	result   game.Result
-	finished bool
+	game.Ending
+	secret  Code
+	guesses []Guess
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -31,10 +30,9 @@ func (s state) with(latest Guess) state {
 	next := state{secret: s.secret, guesses: append(slices.Clip(s.guesses), latest)}
 	switch {
 	case latest.Black == CodeLength:
-		next.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
-		next.finished = true
+		next.Ending = next.Concluded(game.WinFor(ReasonSolved, game.SeatSolo))
 	case len(next.guesses) == MaxGuesses:
-		next.result, next.finished = game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, ReasonOutOfGuesses), true
+		next.Ending = next.Concluded(game.LossBy(ReasonOutOfGuesses))
 	}
 	return next
 }
@@ -46,30 +44,25 @@ func (s state) View(game.Seat) View {
 		Guesses:    append([]Guess{}, s.guesses...),
 		Remaining:  MaxGuesses - len(s.guesses),
 	}
-	if s.finished {
+	if s.Over() {
 		view.Secret = s.secret
 	}
 	return view
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
-	return []game.Seat{SeatSolver}
+	return []game.Seat{game.SeatSolo}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game and reveals the secret.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }

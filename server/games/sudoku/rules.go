@@ -49,5 +49,5 @@ func (Rules) New(opts Opts, challenger game.UserID, _ []game.UserID, rng *rand.R
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown difficulty %q", opts.Difficulty)}
 	}
 	puzzle, solution := generate(givens, rng)
-	return state{puzzle: puzzle, grid: puzzle, solution: solution}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return state{puzzle: puzzle, grid: puzzle, solution: solution}, game.SoloSeat(challenger), nil
 }

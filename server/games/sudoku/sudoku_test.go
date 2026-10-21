@@ -22,7 +22,7 @@ func set(text string) Action { return Action{Kind: ActionSet, Text: text} }
 
 func mustApply(t *testing.T, s state, action Action) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(SeatSolver, action, nil)
+	next, events, err := s.Apply(game.SeatSolo, action, nil)
 	if err != nil {
 		t.Fatalf("Apply(%+v): %v", action, err)
 	}
@@ -61,10 +61,10 @@ func TestSetWritesAndClearsCells(t *testing.T) {
 		wantCell  Digit
 		wantEvent CellSetEvent
 	}{
-		{"set an empty cell", nil, "13 4", 4, CellSetEvent{By: SeatSolver, Row: 1, Col: 3, Digit: 4}},
-		{"a wrong digit is accepted", nil, "13 9", 9, CellSetEvent{By: SeatSolver, Row: 1, Col: 3, Digit: 9}},
-		{"overwrite a set cell", []string{"13 9"}, "13 4", 4, CellSetEvent{By: SeatSolver, Row: 1, Col: 3, Digit: 4}},
-		{"clear a set cell", []string{"13 4"}, "13 0", Empty, CellSetEvent{By: SeatSolver, Row: 1, Col: 3, Digit: Empty}},
+		{"set an empty cell", nil, "13 4", 4, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 4}},
+		{"a wrong digit is accepted", nil, "13 9", 9, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 9}},
+		{"overwrite a set cell", []string{"13 9"}, "13 4", 4, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 4}},
+		{"clear a set cell", []string{"13 4"}, "13 0", Empty, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: Empty}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestSetWritesAndClearsCells(t *testing.T) {
 			if diff := cmp.Diff([]game.Event{tt.wantEvent}, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
-			view := next.View(SeatSolver)
+			view := next.View(game.SeatSolo)
 			if got := view.Grid[cellIndex(1, 3)]; got != tt.wantCell {
 				t.Errorf("cell 1,3 = %d, want %d", got, tt.wantCell)
 			}
@@ -104,7 +104,7 @@ func TestIllegalSets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := tt.state.Apply(SeatSolver, tt.action, nil)
+			_, _, err := tt.state.Apply(game.SeatSolo, tt.action, nil)
 			if !errors.As(err, new(game.IllegalActionError)) || err.Error() != tt.wantMsg {
 				t.Errorf("got %v, want illegal action %q", err, tt.wantMsg)
 			}
@@ -123,14 +123,14 @@ func lastCellOpen(t *testing.T) state {
 func TestMatchingTheSolutionSolvesAndRevealsIt(t *testing.T) {
 	next, _ := mustApply(t, lastCellOpen(t), set("91 3"))
 	result, finished := next.Outcome()
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	want := game.WinFor(ReasonSolved, game.SeatSolo)
 	if diff := cmp.Diff(want, result); !finished || diff != "" {
 		t.Errorf("finished=%t, result (-want +got):\n%s", finished, diff)
 	}
 	if len(next.ToAct()) != 0 {
 		t.Errorf("ToAct = %v after solving, want none", next.ToAct())
 	}
-	if diff := cmp.Diff(next.solution[:], next.View(SeatSolver).Solution); diff != "" {
+	if diff := cmp.Diff(next.solution[:], next.View(game.SeatSolo).Solution); diff != "" {
 		t.Errorf("solution after finishing (-want +got):\n%s", diff)
 	}
 }
@@ -146,13 +146,13 @@ func TestAFullGridThatDiffersFromTheSolutionPlaysOn(t *testing.T) {
 }
 
 func TestGivingUpLosesAndRevealsTheSolution(t *testing.T) {
-	st, events := wikipedia(t).Eliminate(SeatSolver, game.ReasonResign)
+	st, events := wikipedia(t).Eliminate(game.SeatSolo, game.ReasonResign)
 	result, finished := st.Outcome()
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: game.ReasonResign}
+	want := game.LossBy(game.ReasonResign)
 	if diff := cmp.Diff(want, result); !finished || len(events) != 0 || diff != "" {
 		t.Errorf("finished=%t events=%v, result (-want +got):\n%s", finished, events, diff)
 	}
-	if got := st.View(SeatSolver).Solution; len(got) != CellCount {
+	if got := st.View(game.SeatSolo).Solution; len(got) != CellCount {
 		t.Errorf("solution after giving up = %v, want all %d cells", got, CellCount)
 	}
 }
@@ -165,13 +165,13 @@ func TestApplyAndEliminateLeaveTheEarlierStateUnchanged(t *testing.T) {
 	}{
 		{"set", wikipedia(t), func(s state) { mustApply(t, s, set("13 4")) }},
 		{"solving set", lastCellOpen(t), func(s state) { mustApply(t, s, set("91 3")) }},
-		{"eliminate", wikipedia(t), func(s state) { s.Eliminate(SeatSolver, game.ReasonResign) }},
+		{"eliminate", wikipedia(t), func(s state) { s.Eliminate(game.SeatSolo, game.ReasonResign) }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			before := tt.s
 			tt.step(tt.s)
-			if diff := cmp.Diff(before, tt.s, cmp.AllowUnexported(state{})); diff != "" {
+			if diff := cmp.Diff(before, tt.s, cmp.AllowUnexported(state{}, game.Ending{})); diff != "" {
 				t.Errorf("earlier state changed (-before +after):\n%s", diff)
 			}
 		})
@@ -205,10 +205,10 @@ func TestEveryDifficultyReachesTheGeneratorThroughTheAdapter(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if diff := cmp.Diff(map[game.UserID]game.Seat{solo: SeatSolver}, seats); diff != "" {
+			if diff := cmp.Diff(map[game.UserID]game.Seat{solo: game.SeatSolo}, seats); diff != "" {
 				t.Errorf("seats (-want +got):\n%s", diff)
 			}
-			raw, err := st.View(SeatSolver)
+			raw, err := st.View(game.SeatSolo)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -255,13 +255,13 @@ func TestConflictsMarkEveryCellWhoseDigitRepeatsInAUnit(t *testing.T) {
 
 func TestViewMarksAnEntryThatRepeatsAGiven(t *testing.T) {
 	next, _ := mustApply(t, wikipedia(t), set("13 5"))
-	view := next.View(SeatSolver)
+	view := next.View(game.SeatSolo)
 	var want [CellCount]bool
 	want[cellIndex(1, 1)], want[cellIndex(1, 3)] = true, true
 	if diff := cmp.Diff(want, view.Conflicts); diff != "" {
 		t.Errorf("conflicts (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([CellCount]bool{}, wikipedia(t).View(SeatSolver).Conflicts); diff != "" {
+	if diff := cmp.Diff([CellCount]bool{}, wikipedia(t).View(game.SeatSolo).Conflicts); diff != "" {
 		t.Errorf("the puzzle alone has conflicts (-want +got):\n%s", diff)
 	}
 }
@@ -272,7 +272,7 @@ func TestConcludeEndsAnUnfinishedGameAndKeepsAReachedResult(t *testing.T) {
 	if result, finished := st.Outcome(); !finished || !cmp.Equal(aborted, result) || len(st.ToAct()) != 0 {
 		t.Errorf("finished=%t result=%+v to_act=%v; want the imposed abort with nobody to act", finished, result, st.ToAct())
 	}
-	if got := st.View(SeatSolver).Solution; len(got) != CellCount {
+	if got := st.View(game.SeatSolo).Solution; len(got) != CellCount {
 		t.Errorf("solution after an imposed end = %v, want all %d cells", got, CellCount)
 	}
 	solved, _ := mustApply(t, lastCellOpen(t), set("91 3"))
@@ -287,7 +287,7 @@ func TestViewMarksExactlyThePuzzlesCellsAsGiven(t *testing.T) {
 		want[cell] = char != '.'
 	}
 	filled, _ := mustApply(t, wikipedia(t), set("13 4"))
-	if diff := cmp.Diff(want, filled.View(SeatSolver).Given); diff != "" {
+	if diff := cmp.Diff(want, filled.View(game.SeatSolo).Given); diff != "" {
 		t.Errorf("given (-want +got):\n%s", diff)
 	}
 }

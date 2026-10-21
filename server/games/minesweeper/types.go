@@ -5,9 +5,6 @@ import "github.com/shivamshivanshu/games.nvim/server/game"
 // TypeMinesweeper is the game type on the wire.
 const TypeMinesweeper game.GameType = "minesweeper"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // The ways a game ends other than giving up.
 const (
 	ReasonMine    game.ResultReason = "mine"

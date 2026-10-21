@@ -47,6 +47,7 @@ type round struct {
 }
 
 type state struct {
+	game.Ending
 	maze   maze
 	pacman pacman
 	ghosts [4]ghost
@@ -55,8 +56,6 @@ type state struct {
 	tick                int
 	score, lives, level int
 	paused              bool
-	result              game.Result
-	finished            bool
 }
 
 // newState is level 1's start, paused until the first turn.
@@ -95,7 +94,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 
 // NextTick implements game.Ticking: one tick of the level's interval, until paused or over.
 func (s state) NextTick() (time.Duration, bool) {
-	return levelOf(s.level).interval, !s.finished && !s.paused
+	return levelOf(s.level).interval, !s.Over() && !s.paused
 }
 
 // Pause implements game.Ticking.
@@ -179,7 +178,7 @@ func (s state) caughtBy(g ghost) (state, game.Event) {
 	s.lives--
 	event := CaughtEvent{By: SeatPlayer, Ghost: g.name, LivesLeft: s.lives}
 	if s.lives == 0 {
-		return s.over(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonGameOver}), event
+		return s.over(game.LossBy(ReasonGameOver)), event
 	}
 	s.paused = true
 	return s.newRound(), event
@@ -190,7 +189,7 @@ func (s state) caughtBy(g ghost) (state, game.Event) {
 func (s state) cleared(events []game.Event) (game.State[Action, View], []game.Event) {
 	events = append(events, LevelClearedEvent{By: SeatPlayer, Level: s.level})
 	if s.level == Levels {
-		return s.over(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatPlayer}, Reason: ReasonCleared}), events
+		return s.over(game.WinFor(ReasonCleared, SeatPlayer)), events
 	}
 	s.level++
 	s.maze, s.tick, s.paused = classic(), 0, true
@@ -198,7 +197,7 @@ func (s state) cleared(events []game.Event) (game.State[Action, View], []game.Ev
 }
 
 func (s state) over(result game.Result) state {
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }
 
@@ -309,28 +308,21 @@ func (s state) View(game.Seat) View {
 		FoodLeft:    s.maze.food(),
 		FrightTicks: s.round.frightLeft,
 		Paused:      s.paused,
-		CanTurn:     !s.finished,
-		CanPause:    !s.finished && !s.paused,
+		CanTurn:     !s.Over(),
+		CanPause:    !s.Over() && !s.paused,
 	}
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return []game.Seat{}
 	}
 	return []game.Seat{SeatPlayer}
 }
-
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatPlayer}, seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game, and no action is open.
-func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	return s.over(result)
-}
+func (s state) Conclude(result game.Result) game.State[Action, View] { return s.over(result) }

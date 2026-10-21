@@ -48,5 +48,5 @@ func (Rules) Info() game.Info {
 func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	answers := words.Answers()
 	answer := answers.At(rng.IntN(answers.Len()))
-	return state{answer: answer}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return state{answer: answer}, game.SoloSeat(challenger), nil
 }

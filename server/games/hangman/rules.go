@@ -44,5 +44,5 @@ func (Rules) Info() game.Info {
 // New seats the challenger alone and draws the word from the answer list with rng.
 func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	answers := words.Answers()
-	return state{word: answers.At(rng.IntN(answers.Len()))}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return state{word: answers.At(rng.IntN(answers.Len()))}, game.SoloSeat(challenger), nil
 }

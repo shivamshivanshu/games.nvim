@@ -42,5 +42,5 @@ func (Rules) Info() game.Info {
 func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	first, _ := board{}.spawned(rng)
 	second, _ := first.spawned(rng)
-	return state{board: second}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return state{board: second}, game.SoloSeat(challenger), nil
 }

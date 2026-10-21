@@ -33,7 +33,7 @@ func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, action := range actions {
-		next, emitted, err := s.Apply(SeatSolver, action, nil)
+		next, emitted, err := s.Apply(game.SeatSolo, action, nil)
 		if err != nil {
 			t.Fatalf("Apply(%+v): %v", action, err)
 		}
@@ -138,15 +138,15 @@ func TestSlideAndMoveShiftATileIntoTheBlank(t *testing.T) {
 		wantTiles [][]int
 		wantEvent SlidEvent
 	}{
-		{"slide by number", slide(5), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: SeatSolver, Tile: 5, Direction: grid.Down}},
-		{"slide with spaces", Action{Kind: ActionSlide, Tile: " 7 "}, [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: SeatSolver, Tile: 7, Direction: grid.Right}},
-		{"move down", move(grid.Down), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: SeatSolver, Tile: 5, Direction: grid.Down}},
-		{"move right", move(grid.Right), [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: SeatSolver, Tile: 7, Direction: grid.Right}},
+		{"slide by number", slide(5), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: game.SeatSolo, Tile: 5, Direction: grid.Down}},
+		{"slide with spaces", Action{Kind: ActionSlide, Tile: " 7 "}, [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: game.SeatSolo, Tile: 7, Direction: grid.Right}},
+		{"move down", move(grid.Down), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: game.SeatSolo, Tile: 5, Direction: grid.Down}},
+		{"move right", move(grid.Right), [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: game.SeatSolo, Tile: 7, Direction: grid.Right}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			next, events := mustApply(t, nearlySolved(), tt.action)
-			view := next.View(SeatSolver)
+			view := next.View(game.SeatSolo)
 			if diff := cmp.Diff(tt.wantTiles, view.Tiles); diff != "" {
 				t.Errorf("tiles (-want +got):\n%s", diff)
 			}
@@ -162,32 +162,32 @@ func TestSlideAndMoveShiftATileIntoTheBlank(t *testing.T) {
 
 func TestViewListsTheMovableTilesUntilTheEnd(t *testing.T) {
 	want := []Movable{{Tile: 5, Direction: grid.Down}, {Tile: 7, Direction: grid.Right}, {Tile: 8, Direction: grid.Left}}
-	if diff := cmp.Diff(want, nearlySolved().View(SeatSolver).Movable); diff != "" {
+	if diff := cmp.Diff(want, nearlySolved().View(game.SeatSolo).Movable); diff != "" {
 		t.Errorf("movable (-want +got):\n%s", diff)
 	}
 	corner := fixture(Blank, 1, 2, 3, 4, 5, 6, 7, 8)
 	want = []Movable{{Tile: 1, Direction: grid.Left}, {Tile: 3, Direction: grid.Up}}
-	if diff := cmp.Diff(want, corner.View(SeatSolver).Movable); diff != "" {
+	if diff := cmp.Diff(want, corner.View(game.SeatSolo).Movable); diff != "" {
 		t.Errorf("corner movable (-want +got):\n%s", diff)
 	}
-	over := nearlySolved().Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, game.ReasonResign))
-	if got := over.View(SeatSolver).Movable; got == nil || len(got) != 0 || len(over.ToAct()) != 0 {
+	over := nearlySolved().Conclude(game.LossBy(game.ReasonResign))
+	if got := over.View(game.SeatSolo).Movable; got == nil || len(got) != 0 || len(over.ToAct()) != 0 {
 		t.Errorf("after giving up: movable %v, to act %v; want [] and none", got, over.ToAct())
 	}
 }
 
 func TestSolvingWinsAndCountsTheMoves(t *testing.T) {
 	s, _ := mustApply(t, nearlySolved(), slide(5), slide(5), move(grid.Left))
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	want := game.WinFor(ReasonSolved, game.SeatSolo)
 	if got, finished := s.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
 	}
-	view := s.View(SeatSolver)
+	view := s.View(game.SeatSolo)
 	if view.Moves != 3 || len(view.Movable) != 0 || len(s.ToAct()) != 0 {
 		t.Errorf("moves %d, movable %v, to act %v; want 3 and none", view.Moves, view.Movable, s.ToAct())
 	}
-	if again := s.Conclude(game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}); !cmp.Equal(again.(state).result, want) {
-		t.Errorf("Conclude replaced the reached result with %+v", again.(state).result)
+	if again, _ := s.Conclude(game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}).Outcome(); !cmp.Equal(again, want) {
+		t.Errorf("Conclude replaced the reached result with %+v", again)
 	}
 }
 
@@ -206,7 +206,7 @@ func TestIllegalActionsAreRefusedWithAReason(t *testing.T) {
 		{Action{Kind: "jump"}, "unknown action: jump"},
 	}
 	for _, tt := range tests {
-		_, _, err := nearlySolved().Apply(SeatSolver, tt.action, nil)
+		_, _, err := nearlySolved().Apply(game.SeatSolo, tt.action, nil)
 		if !errors.As(err, new(game.IllegalActionError)) || err.Error() != tt.want {
 			t.Errorf("%+v: got %v, want illegal action %q", tt.action, err, tt.want)
 		}
@@ -217,7 +217,7 @@ func TestNewSeatsOneAndRefusesUnknownSizes(t *testing.T) {
 	for _, size := range sizes() {
 		st, seats, err := Rules{}.New(Opts{Size: size}, solo, nil, game.StepRNG(1, 0))
 		side, _ := size.side()
-		if err != nil || len(st.View(SeatSolver).Tiles) != side || !cmp.Equal(seats, map[game.UserID]game.Seat{solo: SeatSolver}) {
+		if err != nil || len(st.View(game.SeatSolo).Tiles) != side || !cmp.Equal(seats, map[game.UserID]game.Seat{solo: game.SeatSolo}) {
 			t.Errorf("%s: err %v, seats %v", size, err, seats)
 		}
 	}

@@ -5,9 +5,6 @@ import "github.com/shivamshivanshu/games.nvim/server/game"
 // TypeMastermind is the game type on the wire.
 const TypeMastermind game.GameType = "mastermind"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // Palette is the colours a peg may take, one lowercase letter each: red, green, blue, yellow,
 // orange and purple.
 const Palette = "rgbyop"

@@ -47,5 +47,5 @@ func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand
 	for i := range secret {
 		secret[i] = Palette[rng.IntN(len(Palette))]
 	}
-	return state{secret: Code(secret)}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return state{secret: Code(secret)}, game.SoloSeat(challenger), nil
 }

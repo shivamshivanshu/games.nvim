@@ -13,18 +13,18 @@ import (
 func guessSteps(codes ...string) []gametest.Step[Action] {
 	steps := make([]gametest.Step[Action], len(codes))
 	for i, code := range codes {
-		steps[i] = gametest.Step[Action]{Seat: SeatSolver, Action: guess(code)}
+		steps[i] = gametest.Step[Action]{Seat: game.SeatSolo, Action: guess(code)}
 	}
 	return steps
 }
 
 func rejectedStep(code string) gametest.Step[Action] {
-	return gametest.Step[Action]{Seat: SeatSolver, Action: guess(code), WantErr: true}
+	return gametest.Step[Action]{Seat: game.SeatSolo, Action: guess(code), WantErr: true}
 }
 
 func TestConformance(t *testing.T) {
-	solved := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
-	failed := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonOutOfGuesses}
+	solved := game.WinFor(ReasonSolved, game.SeatSolo)
+	failed := game.LossBy(ReasonOutOfGuesses)
 	script := func(name string, seed game.Seed, want *game.Result, steps func(secret Code) []gametest.Step[Action]) gametest.Script[Opts, Action] {
 		secret := newState(t, seed).secret
 		return gametest.Script[Opts, Action]{
@@ -44,7 +44,7 @@ func TestConformance(t *testing.T) {
 			steps := append([]gametest.Step[Action]{rejectedStep("rgbw"), rejectedStep("rgb")}, guessSteps(misses[:5]...)...)
 			steps = append(steps, rejectedStep("rgbyo"))
 			steps = append(steps, guessSteps(misses[5:]...)...)
-			return append(steps, gametest.Step[Action]{Seat: SeatSolver, Action: guess(string(secret)), WantErr: true})
+			return append(steps, gametest.Step[Action]{Seat: game.SeatSolo, Action: guess(string(secret)), WantErr: true})
 		}),
 		script("unfinished", 4, nil, func(secret Code) []gametest.Step[Action] {
 			return guessSteps(wrongCodes(secret, 3)...)
@@ -86,7 +86,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		steps = append(steps, persistedStep{seat: SeatSolver, action: raw})
+		steps = append(steps, persistedStep{seat: game.SeatSolo, action: raw})
 	}
 
 	original := start()
@@ -107,7 +107,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 			t.Fatalf("seq %d: restored view differs (-original +restored):\n%s", seq, diff)
 		}
 	}
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	want := game.WinFor(ReasonSolved, game.SeatSolo)
 	if got, finished := restored.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("restored outcome = %+v, %t; want %+v", got, finished, want)
 	}
@@ -115,7 +115,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 
 func viewJSON(t *testing.T, st game.ErasedState) string {
 	t.Helper()
-	raw, err := st.View(SeatSolver)
+	raw, err := st.View(game.SeatSolo)
 	if err != nil {
 		t.Fatal(err)
 	}

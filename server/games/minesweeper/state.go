@@ -13,13 +13,12 @@ const noCell = -1
 
 // state indexes cells row-major. mines is nil until the first reveal places them.
 type state struct {
+	game.Ending
 	lvl      level
 	mines    []bool
 	open     []bool
 	flags    []bool
 	exploded int
-	result   game.Result
-	finished bool
 }
 
 func newState(lvl level) state {
@@ -59,7 +58,7 @@ func (s state) reveal(cell int, rng *rand.Rand) (state, game.Event, error) {
 	}
 	opened := next.uncover(cell)
 	at := square(s.lvl.point(cell))
-	return next, RevealedEvent{By: SeatSolver, Row: at.Row, Col: at.Col, Opened: opened}, nil
+	return next, RevealedEvent{By: game.SeatSolo, Row: at.Row, Col: at.Col, Opened: opened}, nil
 }
 
 func (s state) toggleFlag(cell int, _ *rand.Rand) (state, game.Event, error) {
@@ -69,7 +68,7 @@ func (s state) toggleFlag(cell int, _ *rand.Rand) (state, game.Event, error) {
 	next := s.cloned()
 	next.flags[cell] = !s.flags[cell]
 	at := square(s.lvl.point(cell))
-	return next, FlaggedEvent{By: SeatSolver, Row: at.Row, Col: at.Col, Flagged: next.flags[cell]}, nil
+	return next, FlaggedEvent{By: game.SeatSolo, Row: at.Row, Col: at.Col, Flagged: next.flags[cell]}, nil
 }
 
 func (s state) chord(cell int, _ *rand.Rand) (state, game.Event, error) {
@@ -82,7 +81,7 @@ func (s state) chord(cell int, _ *rand.Rand) (state, game.Event, error) {
 		opened += next.uncover(n)
 	}
 	at := square(s.lvl.point(cell))
-	return next, ChordedEvent{By: SeatSolver, Row: at.Row, Col: at.Col, Opened: opened}, nil
+	return next, ChordedEvent{By: game.SeatSolo, Row: at.Row, Col: at.Col, Opened: opened}, nil
 }
 
 func (s state) illegal(cell int, why string) error {
@@ -98,10 +97,9 @@ func (s state) cloned() state {
 func (s state) settled() state {
 	switch {
 	case s.exploded != noCell:
-		s.result, s.finished = game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, ReasonMine), true
+		s.Ending = s.Concluded(game.LossBy(ReasonMine))
 	case s.mines != nil && countSet(s.open) == s.lvl.cells()-s.lvl.mines:
-		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonCleared}
-		s.finished = true
+		s.Ending = s.Concluded(game.WinFor(ReasonCleared, game.SeatSolo))
 	}
 	return s
 }
@@ -114,7 +112,7 @@ func (s state) View(game.Seat) View {
 	for cell := range s.lvl.cells() {
 		p := s.lvl.point(cell)
 		view.Cells[p.Row][p.Col] = s.cellView(cell)
-		if !s.finished && s.unchordable(cell) == "" {
+		if !s.Over() && s.unchordable(cell) == "" {
 			view.Chordable = append(view.Chordable, square(p))
 		}
 	}
@@ -125,13 +123,13 @@ func (s state) View(game.Seat) View {
 
 func (s state) cellView(cell int) Cell {
 	switch {
-	case s.finished && cell == s.exploded:
+	case s.Over() && cell == s.exploded:
 		return CellExploded
-	case s.finished && s.isMine(cell) && s.flags[cell]:
+	case s.Over() && s.isMine(cell) && s.flags[cell]:
 		return CellFlaggedMine
-	case s.finished && s.isMine(cell):
+	case s.Over() && s.isMine(cell):
 		return CellMine
-	case s.finished && s.mines != nil && s.flags[cell]:
+	case s.Over() && s.mines != nil && s.flags[cell]:
 		return CellWrongFlag
 	case s.open[cell]:
 		return Cell(strconv.Itoa(s.minesAround(cell)))
@@ -156,23 +154,18 @@ func (s state) unchordable(cell int) string {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
-	return []game.Seat{SeatSolver}
+	return []game.Seat{game.SeatSolo}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game and the view shows every mine.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }

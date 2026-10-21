@@ -21,7 +21,7 @@ func newState(t *testing.T, seed game.Seed) state {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := map[game.UserID]game.Seat{solver: SeatSolver}; !cmp.Equal(seats, want) {
+	if want := map[game.UserID]game.Seat{solver: game.SeatSolo}; !cmp.Equal(seats, want) {
 		t.Fatalf("seats = %v, want %v", seats, want)
 	}
 	return st.(state)
@@ -69,7 +69,7 @@ func wordsNot(word string, n int) []string {
 func play(t *testing.T, st game.State[Action, View], texts ...string) game.State[Action, View] {
 	t.Helper()
 	for _, text := range texts {
-		next, _, err := st.Apply(SeatSolver, guess(text), nil)
+		next, _, err := st.Apply(game.SeatSolo, guess(text), nil)
 		if err != nil {
 			t.Fatalf("guess %q: %v", text, err)
 		}
@@ -105,7 +105,7 @@ func TestRejectedActions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := played.Apply(SeatSolver, tt.action, nil)
+			_, _, err := played.Apply(game.SeatSolo, tt.action, nil)
 			if !errors.Is(err, tt.want) {
 				t.Errorf("got %v, want %v", err, tt.want)
 			}
@@ -122,18 +122,18 @@ func TestALetterRevealsEveryCopyAndAMissIsCounted(t *testing.T) {
 		}
 	}
 	missed := lettersNotIn(st.word, 1)[0]
-	next, events, err := st.Apply(SeatSolver, guess(strings.ToUpper(repeated)), nil)
+	next, events, err := st.Apply(game.SeatSolo, guess(strings.ToUpper(repeated)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []game.Event{GuessedEvent{By: SeatSolver, Guess: repeated, Hit: true}}; !cmp.Equal(events, want) {
+	if want := []game.Event{GuessedEvent{By: game.SeatSolo, Guess: repeated, Hit: true}}; !cmp.Equal(events, want) {
 		t.Errorf("events = %+v, want %+v", events, want)
 	}
-	next, events, err = next.Apply(SeatSolver, guess(missed), nil)
+	next, events, err = next.Apply(game.SeatSolo, guess(missed), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []game.Event{GuessedEvent{By: SeatSolver, Guess: missed, Hit: false}}; !cmp.Equal(events, want) {
+	if want := []game.Event{GuessedEvent{By: game.SeatSolo, Guess: missed, Hit: false}}; !cmp.Equal(events, want) {
 		t.Errorf("events = %+v, want %+v", events, want)
 	}
 	wantPattern := make([]string, len(st.word))
@@ -149,7 +149,7 @@ func TestALetterRevealsEveryCopyAndAMissIsCounted(t *testing.T) {
 		Misses:      1,
 		Remaining:   MaxMisses - 1,
 	}
-	if got := next.View(SeatSolver); !cmp.Equal(got, want) {
+	if got := next.View(game.SeatSolo); !cmp.Equal(got, want) {
 		t.Errorf("view of %q = %+v, want %+v", st.word, got, want)
 	}
 }
@@ -158,8 +158,8 @@ func TestFindingEveryLetterSolves(t *testing.T) {
 	st := newState(t, 2)
 	letters := lettersOf(st.word)
 	almost := play(t, st, append(lettersNotIn(st.word, MaxMisses-1), letters[:len(letters)-1]...)...)
-	if _, finished := almost.Outcome(); finished || almost.View(SeatSolver).Word != "" {
-		t.Fatalf("finished before the last letter: %+v", almost.View(SeatSolver))
+	if _, finished := almost.Outcome(); finished || almost.View(game.SeatSolo).Word != "" {
+		t.Fatalf("finished before the last letter: %+v", almost.View(game.SeatSolo))
 	}
 	end := play(t, almost, letters[len(letters)-1])
 	assertSolved(t, end, st.word)
@@ -169,7 +169,7 @@ func TestTheWholeWordSolvesAndAWrongWordIsOneMiss(t *testing.T) {
 	st := newState(t, 3)
 	missedWords := wordsNot(st.word, 2)
 	almost := play(t, st, append(missedWords, lettersNotIn(st.word, MaxMisses-3)...)...)
-	if view := almost.View(SeatSolver); view.Misses != MaxMisses-1 || view.Remaining != 1 || !cmp.Equal(view.MissedWords, missedWords) {
+	if view := almost.View(game.SeatSolo); view.Misses != MaxMisses-1 || view.Remaining != 1 || !cmp.Equal(view.MissedWords, missedWords) {
 		t.Fatalf("view = %+v, want %d misses, 1 remaining and missed words %v", view, MaxMisses-1, missedWords)
 	}
 	assertSolved(t, play(t, almost, strings.ToUpper(st.word)), st.word)
@@ -177,11 +177,11 @@ func TestTheWholeWordSolvesAndAWrongWordIsOneMiss(t *testing.T) {
 
 func assertSolved(t *testing.T, end game.State[Action, View], word string) {
 	t.Helper()
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	want := game.WinFor(ReasonSolved, game.SeatSolo)
 	if got, finished := end.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
 	}
-	if view := end.View(SeatSolver); view.Word != word || strings.Join(view.Pattern, "") != word {
+	if view := end.View(game.SeatSolo); view.Word != word || strings.Join(view.Pattern, "") != word {
 		t.Errorf("view = %+v, want the word %q revealed in full", view, word)
 	}
 }
@@ -194,11 +194,11 @@ func TestSixMissesHang(t *testing.T) {
 		t.Fatalf("hanged after %d misses", MaxMisses-1)
 	}
 	end := play(t, almost, misses[MaxMisses-1])
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonHanged}
+	want := game.LossBy(ReasonHanged)
 	if got, finished := end.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
 	}
-	view := end.View(SeatSolver)
+	view := end.View(game.SeatSolo)
 	if view.Word != st.word || view.Misses != MaxMisses || view.Remaining != 0 || strings.Join(view.Pattern, "") == st.word {
 		t.Errorf("view = %+v; want the word %q, %d misses, none left, and only the found letters in the pattern", view, st.word, MaxMisses)
 	}
@@ -208,9 +208,9 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 	st := newState(t, 5)
 	first := lettersNotIn(st.word, 2)
 	branchPoint := play(t, st, first[0], wordsNot(st.word, 1)[0])
-	before := branchPoint.View(SeatSolver)
+	before := branchPoint.View(game.SeatSolo)
 	play(t, branchPoint, first[1], wordsNot(st.word, 2)[1])
-	if after := branchPoint.View(SeatSolver); !cmp.Equal(after, before) {
+	if after := branchPoint.View(game.SeatSolo); !cmp.Equal(after, before) {
 		t.Errorf("branch point changed from %+v to %+v", before, after)
 	}
 }
@@ -231,15 +231,15 @@ func TestWordIsDrawnFromSeedAndTheAnswerList(t *testing.T) {
 }
 
 func eliminated(st game.State[Action, View]) game.State[Action, View] {
-	next, _ := st.Eliminate(SeatSolver, game.ReasonResign)
+	next, _ := st.Eliminate(game.SeatSolo, game.ReasonResign)
 	return next
 }
 
 func TestImposedEndingsRevealTheWordAndKeepAReachedResult(t *testing.T) {
 	st := newState(t, 1)
 	aborted := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
-	solvedResult := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
-	gaveUp := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: game.ReasonResign}
+	solvedResult := game.WinFor(ReasonSolved, game.SeatSolo)
+	gaveUp := game.LossBy(game.ReasonResign)
 	solved := play(t, st, st.word)
 	tests := []struct {
 		name  string
@@ -257,7 +257,7 @@ func TestImposedEndingsRevealTheWordAndKeepAReachedResult(t *testing.T) {
 			if !finished || !cmp.Equal(got, tt.want) {
 				t.Errorf("outcome = %+v, %t; want %+v", got, finished, tt.want)
 			}
-			if view := tt.state.View(SeatSolver); view.Word != st.word || len(tt.state.ToAct()) != 0 {
+			if view := tt.state.View(game.SeatSolo); view.Word != st.word || len(tt.state.ToAct()) != 0 {
 				t.Errorf("view %+v, to act %v; want the word %q and nobody to act", view, tt.state.ToAct(), st.word)
 			}
 		})

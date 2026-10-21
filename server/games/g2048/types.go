@@ -9,9 +9,6 @@ import (
 // TypeG2048 is the game type on the wire.
 const TypeG2048 game.GameType = "g2048"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // ReasonNoMoves ends a game whose board no move can change.
 const ReasonNoMoves game.ResultReason = "no_moves"
 

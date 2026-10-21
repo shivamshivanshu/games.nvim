@@ -5,9 +5,6 @@ import "github.com/shivamshivanshu/games.nvim/server/game"
 // TypeHangman is the game type on the wire.
 const TypeHangman game.GameType = "hangman"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // MaxMisses is how many wrong guesses hang the solver.
 const MaxMisses = 6
 

@@ -17,7 +17,7 @@ func playedOut(t *testing.T, seed game.Seed, limit int) ([]grid.Direction, state
 	t.Helper()
 	s := newState(t, seed)
 	var moves []grid.Direction
-	for !s.finished && len(moves) < limit {
+	for !s.Over() && len(moves) < limit {
 		d := s.board.movable()[0]
 		s, _ = apply(t, s, move(string(d)), seed, game.Seq(len(moves)+1))
 		moves = append(moves, d)
@@ -28,17 +28,17 @@ func playedOut(t *testing.T, seed game.Seed, limit int) ([]grid.Direction, state
 func moveSteps(moves []grid.Direction) []gametest.Step[Action] {
 	steps := make([]gametest.Step[Action], len(moves))
 	for i, d := range moves {
-		steps[i] = gametest.Step[Action]{Seat: SeatSolver, Action: move(string(d))}
+		steps[i] = gametest.Step[Action]{Seat: game.SeatSolo, Action: move(string(d))}
 	}
 	return steps
 }
 
 func rejected(action Action) gametest.Step[Action] {
-	return gametest.Step[Action]{Seat: SeatSolver, Action: action, WantErr: true}
+	return gametest.Step[Action]{Seat: game.SeatSolo, Action: action, WantErr: true}
 }
 
 func TestConformance(t *testing.T) {
-	lost := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonNoMoves}
+	lost := game.LossBy(ReasonNoMoves)
 	const unlimited = 10000
 	stuckMoves, _ := playedOut(t, 1, unlimited)
 	withRejections := func(seed game.Seed) []gametest.Step[Action] {
@@ -97,7 +97,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		steps = append(steps, persistedStep{seat: SeatSolver, action: raw})
+		steps = append(steps, persistedStep{seat: game.SeatSolo, action: raw})
 	}
 
 	original := start()
@@ -126,7 +126,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 
 func viewJSON(t *testing.T, st game.ErasedState) string {
 	t.Helper()
-	raw, err := st.View(SeatSolver)
+	raw, err := st.View(game.SeatSolo)
 	if err != nil {
 		t.Fatal(err)
 	}

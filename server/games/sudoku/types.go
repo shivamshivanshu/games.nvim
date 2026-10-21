@@ -5,9 +5,6 @@ import "github.com/shivamshivanshu/games.nvim/server/game"
 // TypeSudoku is the game type on the wire.
 const TypeSudoku game.GameType = "sudoku"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // ReasonSolved ends a game whose grid equals the solution.
 const ReasonSolved game.ResultReason = "solved"
 

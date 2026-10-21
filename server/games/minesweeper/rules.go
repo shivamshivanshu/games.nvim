@@ -55,5 +55,5 @@ func (Rules) New(opts Opts, challenger game.UserID, _ []game.UserID, _ *rand.Ran
 	if !ok {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown difficulty %q", opts.Difficulty)}
 	}
-	return newState(lvl), map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return newState(lvl), game.SoloSeat(challenger), nil
 }

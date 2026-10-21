@@ -43,19 +43,19 @@ func solvingActions(t *testing.T, size Size, seed game.Seed) []Action {
 func steps(actions []Action) []gametest.Step[Action] {
 	out := make([]gametest.Step[Action], len(actions))
 	for i, action := range actions {
-		out[i] = gametest.Step[Action]{Seat: SeatSolver, Action: action}
+		out[i] = gametest.Step[Action]{Seat: game.SeatSolo, Action: action}
 	}
 	return out
 }
 
 func refused(action Action) gametest.Step[Action] {
-	return gametest.Step[Action]{Seat: SeatSolver, Action: action, WantErr: true}
+	return gametest.Step[Action]{Seat: game.SeatSolo, Action: action, WantErr: true}
 }
 
 const conformanceSeed game.Seed = 4
 
 func TestConformance(t *testing.T) {
-	solved := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	solved := game.WinFor(ReasonSolved, game.SeatSolo)
 	var scripts []gametest.Script[Opts, Action]
 	for _, size := range sizes() {
 		s := newGame(t, size, conformanceSeed)
@@ -108,7 +108,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		plan = append(plan, persistedStep{seat: SeatSolver, action: raw})
+		plan = append(plan, persistedStep{seat: game.SeatSolo, action: raw})
 	}
 
 	live := start()
@@ -121,8 +121,8 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 	}
 	for i, step := range plan[restoreAt:] {
 		seq := game.Seq(restoreAt+i) + 1
-		liveView, _ := live.View(SeatSolver)
-		restoredView, _ := restored.View(SeatSolver)
+		liveView, _ := live.View(game.SeatSolo)
+		restoredView, _ := restored.View(game.SeatSolo)
 		if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
 			t.Fatalf("seq %d: restored view differs (-live +restored):\n%s", seq, diff)
 		}
@@ -133,7 +133,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
 		}
 	}
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	want := game.WinFor(ReasonSolved, game.SeatSolo)
 	if got, finished := restored.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("restored outcome = %+v, %t; want %+v", got, finished, want)
 	}

@@ -21,7 +21,7 @@ func newState(t *testing.T, seed game.Seed) state {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := map[game.UserID]game.Seat{solver: SeatSolver}; !cmp.Equal(seats, want) {
+	if want := map[game.UserID]game.Seat{solver: game.SeatSolo}; !cmp.Equal(seats, want) {
 		t.Fatalf("seats = %v, want %v", seats, want)
 	}
 	return st.(state)
@@ -38,7 +38,7 @@ func wrongGuesses(answer string, n int) []string {
 func play(t *testing.T, st game.State[Action, View], texts ...string) game.State[Action, View] {
 	t.Helper()
 	for _, text := range texts {
-		next, _, err := st.Apply(SeatSolver, guess(text), nil)
+		next, _, err := st.Apply(game.SeatSolo, guess(text), nil)
 		if err != nil {
 			t.Fatalf("guess %q: %v", text, err)
 		}
@@ -64,7 +64,7 @@ func TestRejectedActions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := st.Apply(SeatSolver, tt.action, nil)
+			_, _, err := st.Apply(game.SeatSolo, tt.action, nil)
 			if !errors.Is(err, tt.want) {
 				t.Errorf("got %v, want %v", err, tt.want)
 			}
@@ -74,15 +74,15 @@ func TestRejectedActions(t *testing.T) {
 
 func TestGuessIgnoresCaseAndSurroundingSpace(t *testing.T) {
 	st := newState(t, 1)
-	next, events, err := st.Apply(SeatSolver, guess(" FiGhT "), nil)
+	next, events, err := st.Apply(game.SeatSolo, guess(" FiGhT "), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantGuess := Guess{Word: "fight", Feedback: Feedback(feedback.Score("fight", st.answer))}
-	if diff := cmp.Diff([]Guess{wantGuess}, next.View(SeatSolver).Guesses); diff != "" {
+	if diff := cmp.Diff([]Guess{wantGuess}, next.View(game.SeatSolo).Guesses); diff != "" {
 		t.Errorf("guesses (-want +got):\n%s", diff)
 	}
-	wantEvents := []game.Event{GuessedEvent{By: SeatSolver, Word: wantGuess.Word, Feedback: wantGuess.Feedback}}
+	wantEvents := []game.Event{GuessedEvent{By: game.SeatSolo, Word: wantGuess.Word, Feedback: wantGuess.Feedback}}
 	if diff := cmp.Diff(wantEvents, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
@@ -105,7 +105,7 @@ func TestViewHidesAnswerUntilFinished(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.state.View(SeatSolver)
+			got := tt.state.View(game.SeatSolo)
 			if got.Remaining != tt.wantRemaining || got.Answer != tt.wantAnswer || got.Guesses == nil {
 				t.Errorf("view = %+v, want remaining %d, answer %q and non-nil guesses", got, tt.wantRemaining, tt.wantAnswer)
 			}
@@ -114,7 +114,7 @@ func TestViewHidesAnswerUntilFinished(t *testing.T) {
 }
 
 func eliminated(st state) game.State[Action, View] {
-	next, _ := st.Eliminate(SeatSolver, game.ReasonResign)
+	next, _ := st.Eliminate(game.SeatSolo, game.ReasonResign)
 	return next
 }
 
@@ -124,10 +124,10 @@ func TestApplyLeavesEarlierStatesUnchanged(t *testing.T) {
 	branchPoint := play(t, st, misses[:3]...)
 	left := play(t, branchPoint, misses[3])
 	play(t, branchPoint, misses[4])
-	if got := guessedWords(branchPoint.View(SeatSolver)); !slices.Equal(got, misses[:3]) {
+	if got := guessedWords(branchPoint.View(game.SeatSolo)); !slices.Equal(got, misses[:3]) {
 		t.Errorf("branch point now has %v, want %v", got, misses[:3])
 	}
-	if got, want := guessedWords(left.View(SeatSolver)), misses[:4]; !slices.Equal(got, want) {
+	if got, want := guessedWords(left.View(game.SeatSolo)), misses[:4]; !slices.Equal(got, want) {
 		t.Errorf("sibling branch now has %v, want %v", got, want)
 	}
 }
@@ -158,8 +158,8 @@ func TestAnswerIsDrawnFromSeed(t *testing.T) {
 func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
 	st := newState(t, 1)
 	aborted := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
-	solvedResult := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
-	gaveUp := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: game.ReasonResign}
+	solvedResult := game.WinFor(ReasonSolved, game.SeatSolo)
+	gaveUp := game.LossBy(game.ReasonResign)
 	solved := play(t, st, st.answer)
 	tests := []struct {
 		name  string
@@ -177,7 +177,7 @@ func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
 			if !finished || !cmp.Equal(got, tt.want) {
 				t.Errorf("outcome = %+v, %t; want %+v", got, finished, tt.want)
 			}
-			if view := tt.state.View(SeatSolver); view.Answer != st.answer || len(tt.state.ToAct()) != 0 {
+			if view := tt.state.View(game.SeatSolo); view.Answer != st.answer || len(tt.state.ToAct()) != 0 {
 				t.Errorf("view %+v, to act %v; want the answer %q and nobody to act", view, tt.state.ToAct(), st.answer)
 			}
 		})
@@ -187,7 +187,7 @@ func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
 func TestViewKeyboardHoldsEveryGuessedLetter(t *testing.T) {
 	st := newState(t, 1)
 	misses := wrongGuesses(st.answer, 2)
-	keyboard := play(t, st, misses...).View(SeatSolver).Keyboard
+	keyboard := play(t, st, misses...).View(game.SeatSolo).Keyboard
 	letters := slices.Sorted(maps.Keys(keyboard))
 	if want := []string{"b", "f", "g", "h", "i", "l", "m", "p", "t", "u"}; !slices.Equal(letters, want) {
 		t.Errorf("keyboard after %v has letters %v, want %v", misses, letters, want)

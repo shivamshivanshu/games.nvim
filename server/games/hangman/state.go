@@ -9,11 +9,10 @@ import (
 )
 
 type state struct {
+	game.Ending
 	word        string
 	guessed     []LetterGuess
 	missedWords []string
-	result      game.Result
-	finished    bool
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -53,10 +52,9 @@ func (s state) with(guess string) (state, bool) {
 	}
 	switch {
 	case solved:
-		next.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
-		next.finished = true
+		next.Ending = next.Concluded(game.WinFor(ReasonSolved, game.SeatSolo))
 	case next.misses() == MaxMisses:
-		next.result, next.finished = game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, ReasonHanged), true
+		next.Ending = next.Concluded(game.LossBy(ReasonHanged))
 	}
 	return next, hit
 }
@@ -81,7 +79,8 @@ func (s state) misses() int {
 
 // pattern shows each letter of the word the solver has found, and the whole word once solved.
 func (s state) pattern() []string {
-	solved := s.finished && s.result.Reason == ReasonSolved
+	result, over := s.Outcome()
+	solved := over && result.Reason == ReasonSolved
 	pattern := make([]string, len(s.word))
 	for i, letter := range s.word {
 		if solved || s.found(letter) {
@@ -99,30 +98,25 @@ func (s state) View(game.Seat) View {
 		Misses:      s.misses(),
 		Remaining:   MaxMisses - s.misses(),
 	}
-	if s.finished {
+	if s.Over() {
 		view.Word = s.word
 	}
 	return view
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
-	return []game.Seat{SeatSolver}
+	return []game.Seat{game.SeatSolo}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game and reveals the word.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }

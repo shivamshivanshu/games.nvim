@@ -8,9 +8,8 @@ import (
 )
 
 type state struct {
+	game.Ending
 	puzzle, grid, solution Grid
-	result                 game.Result
-	finished               bool
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -36,10 +35,9 @@ func (s state) applySet(set cellSet) (game.State[Action, View], []game.Event, er
 	}
 	s.grid[cell] = set.digit
 	if s.grid == s.solution {
-		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
-		s.finished = true
+		s.Ending = s.Concluded(game.WinFor(ReasonSolved, game.SeatSolo))
 	}
-	return s, []game.Event{CellSetEvent{By: SeatSolver, Row: set.row, Col: set.col, Digit: set.digit}}, nil
+	return s, []game.Event{CellSetEvent{By: game.SeatSolo, Row: set.row, Col: set.col, Digit: set.digit}}, nil
 }
 
 func (s state) View(game.Seat) View {
@@ -47,30 +45,25 @@ func (s state) View(game.Seat) View {
 	for cell, d := range s.puzzle {
 		view.Given[cell] = d != Empty
 	}
-	if s.finished {
+	if s.Over() {
 		view.Solution = s.solution[:]
 	}
 	return view
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
-	return []game.Seat{SeatSolver}
+	return []game.Seat{game.SeatSolo}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game and the view reveals the solution.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }

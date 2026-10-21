@@ -9,9 +9,6 @@ import (
 // TypeWordle is the game type on the wire.
 const TypeWordle game.GameType = "wordle"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // WordLength is the number of letters in every word.
 const WordLength = words.Length
 

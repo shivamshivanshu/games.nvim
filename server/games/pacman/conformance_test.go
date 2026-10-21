@@ -15,12 +15,14 @@ import (
 const unlimited = 100_000
 
 func TestConformance(t *testing.T) {
-	lost := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonGameOver}
-	won := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatPlayer}, Reason: ReasonCleared}
+	lost := game.LossBy(ReasonGameOver)
+	won := game.WinFor(ReasonCleared, SeatPlayer)
 	lostSteps, lostEnd := autoplay(t, 0, unlimited)
 	wonSteps, wonEnd := autoplay(t, 3, unlimited)
-	if lostEnd.result.Reason != ReasonGameOver || wonEnd.result.Reason != ReasonCleared {
-		t.Fatalf("seed 0 ends %+v and seed 3 %+v; want a loss and a win", lostEnd.result, wonEnd.result)
+	lostResult, _ := lostEnd.Outcome()
+	wonResult, _ := wonEnd.Outcome()
+	if lostResult.Reason != ReasonGameOver || wonResult.Reason != ReasonCleared {
+		t.Fatalf("seed 0 ends %+v and seed 3 %+v; want a loss and a win", lostResult, wonResult)
 	}
 	tick := gametest.Step[Action]{Kind: gametest.StepTick}
 	rejected := func(a Action) gametest.Step[Action] {

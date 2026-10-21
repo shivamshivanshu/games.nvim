@@ -54,22 +54,22 @@ func solvingScript(t *testing.T, d Difficulty, seed game.Seed) gametest.Script[O
 	given := slices.IndexFunc(s.puzzle[:], func(d Digit) bool { return d != Empty })
 	open := slices.Index(s.puzzle[:], Empty)
 	steps := []gametest.Step[Action]{
-		{Seat: SeatSolver, Action: set(setText(given, Empty)), WantErr: true},
-		{Seat: SeatSolver, Action: set("00 1"), WantErr: true},
-		{Seat: SeatSolver, Action: set(setText(open, s.solution[open]%Size+1))},
-		{Seat: SeatSolver, Action: set(setText(open, Empty))},
+		{Seat: game.SeatSolo, Action: set(setText(given, Empty)), WantErr: true},
+		{Seat: game.SeatSolo, Action: set("00 1"), WantErr: true},
+		{Seat: game.SeatSolo, Action: set(setText(open, s.solution[open]%Size+1))},
+		{Seat: game.SeatSolo, Action: set(setText(open, Empty))},
 	}
 	for _, text := range solvingSets(s) {
-		steps = append(steps, gametest.Step[Action]{Seat: SeatSolver, Action: set(text)})
+		steps = append(steps, gametest.Step[Action]{Seat: game.SeatSolo, Action: set(text)})
 	}
-	steps = append(steps, gametest.Step[Action]{Seat: SeatSolver, Action: set(setText(open, Empty)), WantErr: true})
+	steps = append(steps, gametest.Step[Action]{Seat: game.SeatSolo, Action: set(setText(open, Empty)), WantErr: true})
 	return gametest.Script[Opts, Action]{
 		Name:       string(d),
 		Opts:       opts,
 		Challenger: solo,
 		Seed:       seed,
 		Steps:      steps,
-		WantResult: &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved},
+		WantResult: new(game.WinFor(ReasonSolved, game.SeatSolo)),
 		Secrets:    []string{digitsOf(s.solution)},
 	}
 }
@@ -96,7 +96,7 @@ func TestSolutionStaysHiddenAtEveryUnfinishedStep(t *testing.T) {
 			if len(st.ToAct()) == 0 {
 				break
 			}
-			if got := st.View(SeatSolver).Solution; len(got) != 0 {
+			if got := st.View(game.SeatSolo).Solution; len(got) != 0 {
 				t.Fatalf("%s before step %d: unfinished view shows solution %v", d, i, got)
 			}
 			next, _, err := st.Apply(step.Seat, step.Action, nil)
@@ -146,7 +146,7 @@ func TestReplayFromSeedAndPersistedStepsPlaysOnIdentically(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		plan = append(plan, persistedStep{seat: SeatSolver, action: raw})
+		plan = append(plan, persistedStep{seat: game.SeatSolo, action: raw})
 	}
 
 	live := start()
@@ -160,8 +160,8 @@ func TestReplayFromSeedAndPersistedStepsPlaysOnIdentically(t *testing.T) {
 
 	for i, step := range plan[restoreAt:] {
 		seq := game.Seq(restoreAt+i) + 1
-		liveView, _ := live.View(SeatSolver)
-		restoredView, _ := restored.View(SeatSolver)
+		liveView, _ := live.View(game.SeatSolo)
+		restoredView, _ := restored.View(game.SeatSolo)
 		if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
 			t.Fatalf("seq %d: restored view differs (-live +restored):\n%s", seq, diff)
 		}

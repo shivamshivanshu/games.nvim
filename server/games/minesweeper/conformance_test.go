@@ -33,16 +33,16 @@ func newPlanner(t *testing.T, d Difficulty, seed game.Seed) *planner {
 
 func (p *planner) play(action Action) {
 	p.t.Helper()
-	next, _, err := p.state.Apply(SeatSolver, action, game.StepRNG(p.seed, game.Seq(p.applied()+1)))
+	next, _, err := p.state.Apply(game.SeatSolo, action, game.StepRNG(p.seed, game.Seq(p.applied()+1)))
 	if err != nil {
 		p.t.Fatalf("plan %+v: %v", action, err)
 	}
 	p.state = next.(state)
-	p.steps = append(p.steps, gametest.Step[Action]{Seat: SeatSolver, Action: action})
+	p.steps = append(p.steps, gametest.Step[Action]{Seat: game.SeatSolo, Action: action})
 }
 
 func (p *planner) refuse(action Action) {
-	p.steps = append(p.steps, gametest.Step[Action]{Seat: SeatSolver, Action: action, WantErr: true})
+	p.steps = append(p.steps, gametest.Step[Action]{Seat: game.SeatSolo, Action: action, WantErr: true})
 }
 
 func (p *planner) applied() int {
@@ -135,7 +135,7 @@ func clearingScript(t *testing.T, d Difficulty, seed game.Seed) gametest.Script[
 	p.chordOnce()
 	p.clearTheRest()
 	p.refuse(reveal("a1"))
-	cleared := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonCleared}
+	cleared := game.WinFor(ReasonCleared, game.SeatSolo)
 	return p.script("clears "+string(d), &cleared)
 }
 
@@ -147,7 +147,7 @@ func TestConformance(t *testing.T) {
 	lost := newPlanner(t, DifficultyEasy, 8)
 	lost.play(reveal("e5"))
 	lost.play(reveal(lost.at(lost.firstMine())))
-	mine := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonMine}
+	mine := game.LossBy(ReasonMine)
 	scripts = append(scripts, lost.script("reveals a mine", &mine))
 	unfinished := newPlanner(t, DifficultyMedium, 9)
 	unfinished.play(reveal("h8"))
@@ -205,8 +205,8 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 	}
 	for i, step := range plan[restoreAt:] {
 		seq := game.Seq(restoreAt+i) + 1
-		liveView, _ := live.View(SeatSolver)
-		restoredView, _ := restored.View(SeatSolver)
+		liveView, _ := live.View(game.SeatSolo)
+		restoredView, _ := restored.View(game.SeatSolo)
 		if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
 			t.Fatalf("seq %d: restored view differs (-live +restored):\n%s", seq, diff)
 		}
@@ -217,7 +217,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
 		}
 	}
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonCleared}
+	want := game.WinFor(ReasonCleared, game.SeatSolo)
 	if got, finished := restored.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("restored outcome = %+v, %t; want %+v", got, finished, want)
 	}

@@ -46,7 +46,7 @@ func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, action := range actions {
-		next, emitted, err := s.Apply(SeatSolver, action, game.StepRNG(1, 1))
+		next, emitted, err := s.Apply(game.SeatSolo, action, game.StepRNG(1, 1))
 		if err != nil {
 			t.Fatalf("Apply(%+v): %v", action, err)
 		}
@@ -126,7 +126,7 @@ func TestDifficultiesSetTheBoardAndMines(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		view := st.View(SeatSolver)
+		view := st.View(game.SeatSolo)
 		if len(view.Cells) != tt.rows || len(view.Cells[0]) != tt.cols || view.Remaining != tt.mines || view.Flags != 0 {
 			t.Errorf("%s: %d rows by %d columns, remaining %d, flags %d; want %d by %d, remaining %d",
 				tt.d, len(view.Cells), len(view.Cells[0]), view.Remaining, view.Flags, tt.rows, tt.cols, tt.mines)
@@ -147,15 +147,15 @@ func TestFirstRevealAlwaysOpensAZeroWithTheMinesPlacedAfterIt(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				next, _, err := st.Apply(SeatSolver, reveal(address(lvl.point(first))), game.StepRNG(seed, 1))
+				next, _, err := st.Apply(game.SeatSolo, reveal(address(lvl.point(first))), game.StepRNG(seed, 1))
 				if err != nil {
 					t.Fatal(err)
 				}
 				s := next.(state)
 				p := lvl.point(first)
-				if got := s.View(SeatSolver).Cells[p.Row][p.Col]; got != "0" || countSet(s.mines) != lvl.mines || s.finished {
+				if got := s.View(game.SeatSolo).Cells[p.Row][p.Col]; got != "0" || countSet(s.mines) != lvl.mines || s.Over() {
 					t.Errorf("%s seed %d reveal %s: cell %q, %d mines, finished %t; want \"0\", %d mines, playing",
-						d, seed, address(p), got, countSet(s.mines), s.finished, lvl.mines)
+						d, seed, address(p), got, countSet(s.mines), s.Over(), lvl.mines)
 				}
 				layouts[string(d)+fmtMines(s)] = true
 			}
@@ -206,11 +206,11 @@ func TestRevealFloodsZerosToTheNumbersAroundThemAndStopsAtFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s, _ := mustApply(t, oneMine(), tt.before...)
 			next, events := mustApply(t, s, tt.action)
-			if diff := cmp.Diff(tt.wantCells, drawn(next.View(SeatSolver))); diff != "" {
+			if diff := cmp.Diff(tt.wantCells, drawn(next.View(game.SeatSolo))); diff != "" {
 				t.Errorf("cells (-want +got):\n%s", diff)
 			}
 			p := next.lvl.point(mustParse(t, next.lvl, tt.action.Cell))
-			want := []game.Event{RevealedEvent{By: SeatSolver, Row: p.Row + 1, Col: p.Col + 1, Opened: tt.wantOpened}}
+			want := []game.Event{RevealedEvent{By: game.SeatSolo, Row: p.Row + 1, Col: p.Col + 1, Opened: tt.wantOpened}}
 			if diff := cmp.Diff(want, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
@@ -236,11 +236,11 @@ func TestOpeningEverySafeCellWins(t *testing.T) {
 		t.Fatal("finished with d5 still hidden")
 	}
 	s, _ = mustApply(t, s, reveal("d5"))
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonCleared}
+	want := game.WinFor(ReasonCleared, game.SeatSolo)
 	if got, finished := s.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
 	}
-	view := s.View(SeatSolver)
+	view := s.View(game.SeatSolo)
 	if diff := cmp.Diff([]string{"00000", "00111", "001M1", "00111"}, drawn(view)); diff != "" {
 		t.Errorf("final cells (-want +got):\n%s", diff)
 	}
@@ -258,14 +258,14 @@ func TestRevealingAMineLosesAndShowsEveryMineFlaggedOrNotAndWrongFlags(t *testin
 	)
 	s, _ = mustApply(t, s, reveal("d1"), flag("b5"), flag("a1"))
 	s, events := mustApply(t, s, reveal("c4"))
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonMine}
+	want := game.LossBy(ReasonMine)
 	if got, finished := s.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
 	}
-	if diff := cmp.Diff([]game.Event{RevealedEvent{By: SeatSolver, Row: 3, Col: 4}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{RevealedEvent{By: game.SeatSolo, Row: 3, Col: 4}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]string{"M####", "111#!", "001X#", "001##"}, drawn(s.View(SeatSolver))); diff != "" {
+	if diff := cmp.Diff([]string{"M####", "111#!", "001X#", "001##"}, drawn(s.View(game.SeatSolo))); diff != "" {
 		t.Errorf("final cells (-want +got):\n%s", diff)
 	}
 }
@@ -283,28 +283,28 @@ func TestAChordOnTwoWrongFlagsExplodesTheFirstMineItReaches(t *testing.T) {
 	if want := mustParse(t, s.lvl, "a1"); s.exploded != want {
 		t.Errorf("exploded cell %s, want a1, the first mine in the chord's row-major order", address(s.lvl.point(s.exploded)))
 	}
-	if diff := cmp.Diff([]string{"X2*", "!2!", "000"}, drawn(s.View(SeatSolver))); diff != "" {
+	if diff := cmp.Diff([]string{"X2*", "!2!", "000"}, drawn(s.View(game.SeatSolo))); diff != "" {
 		t.Errorf("final cells (-want +got):\n%s", diff)
 	}
 }
 
 func TestFlagTogglesAndCountsAgainstTheMines(t *testing.T) {
 	s, events := mustApply(t, oneMine(), flag("a1"))
-	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: SeatSolver, Row: 1, Col: 1, Flagged: true}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Row: 1, Col: 1, Flagged: true}}, events); diff != "" {
 		t.Errorf("flag events (-want +got):\n%s", diff)
 	}
-	if v := s.View(SeatSolver); v.Flags != 1 || v.Remaining != 0 || v.Cells[0][0] != CellFlag {
+	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Remaining != 0 || v.Cells[0][0] != CellFlag {
 		t.Errorf("after one flag: flags %d, remaining %d, a1 %q", v.Flags, v.Remaining, v.Cells[0][0])
 	}
 	s, _ = mustApply(t, s, flag("b2"))
-	if v := s.View(SeatSolver); v.Flags != 2 || v.Remaining != -1 {
+	if v := s.View(game.SeatSolo); v.Flags != 2 || v.Remaining != -1 {
 		t.Errorf("more flags than mines: flags %d, remaining %d; want 2, -1", v.Flags, v.Remaining)
 	}
 	s, events = mustApply(t, s, flag("a1"))
-	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: SeatSolver, Row: 1, Col: 1}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Row: 1, Col: 1}}, events); diff != "" {
 		t.Errorf("unflag events (-want +got):\n%s", diff)
 	}
-	if v := s.View(SeatSolver); v.Flags != 1 || v.Cells[0][0] != CellHidden {
+	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Cells[0][0] != CellHidden {
 		t.Errorf("after unflagging a1: flags %d, a1 %q", v.Flags, v.Cells[0][0])
 	}
 }
@@ -312,14 +312,14 @@ func TestFlagTogglesAndCountsAgainstTheMines(t *testing.T) {
 func TestChordRevealsTheUnflaggedNeighboursOfASatisfiedNumber(t *testing.T) {
 	s, _ := mustApply(t, oneMine(), reveal("a1"), flag("c4"))
 	wantChordable := []Square{{2, 4}, {2, 5}, {3, 3}, {4, 3}}
-	if diff := cmp.Diff(wantChordable, s.View(SeatSolver).Chordable); diff != "" {
+	if diff := cmp.Diff(wantChordable, s.View(game.SeatSolo).Chordable); diff != "" {
 		t.Errorf("chordable (-want +got):\n%s", diff)
 	}
 	s, events := mustApply(t, s, chord("b5"))
-	if diff := cmp.Diff([]game.Event{ChordedEvent{By: SeatSolver, Row: 2, Col: 5, Opened: 1}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{ChordedEvent{By: game.SeatSolo, Row: 2, Col: 5, Opened: 1}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]string{"00000", "00111", "001F1", "001##"}, drawn(s.View(SeatSolver))); diff != "" {
+	if diff := cmp.Diff([]string{"00000", "00111", "001F1", "001##"}, drawn(s.View(game.SeatSolo))); diff != "" {
 		t.Errorf("cells (-want +got):\n%s", diff)
 	}
 	s, _ = mustApply(t, s, chord("d3"), chord("c5"))
@@ -333,7 +333,7 @@ func TestChordOnAWrongFlagRevealsTheMineAndLoses(t *testing.T) {
 	if got, finished := s.Outcome(); !finished || got.Reason != ReasonMine {
 		t.Fatalf("outcome = %+v, %t; want a loss to a mine", got, finished)
 	}
-	if diff := cmp.Diff([]string{"00000", "00111", "001X!", "001##"}, drawn(s.View(SeatSolver))); diff != "" {
+	if diff := cmp.Diff([]string{"00000", "00111", "001X!", "001##"}, drawn(s.View(game.SeatSolo))); diff != "" {
 		t.Errorf("final cells (-want +got):\n%s", diff)
 	}
 }
@@ -358,7 +358,7 @@ func TestIllegalActionsAreRefusedWithAReason(t *testing.T) {
 	}
 	for _, tt := range tests {
 		s, _ := mustApply(t, oneMine(), tt.before...)
-		_, _, err := s.Apply(SeatSolver, tt.action, nil)
+		_, _, err := s.Apply(game.SeatSolo, tt.action, nil)
 		if !errors.As(err, new(game.IllegalActionError)) || err.Error() != tt.want {
 			t.Errorf("%+v after %+v: got %v, want illegal action %q", tt.action, tt.before, err, tt.want)
 		}
@@ -369,7 +369,7 @@ func TestUnfinishedViewsHideEveryMine(t *testing.T) {
 	s, _ := mustApply(t, oneMine(), reveal("a1"), flag("c4"), flag("d5"))
 	for i, mine := range s.mines {
 		p := s.lvl.point(i)
-		if got := s.View(SeatSolver).Cells[p.Row][p.Col]; mine && got != CellHidden && got != CellFlag {
+		if got := s.View(game.SeatSolo).Cells[p.Row][p.Col]; mine && got != CellHidden && got != CellFlag {
 			t.Errorf("mine %s shows as %q before the end", address(p), got)
 		}
 	}
@@ -377,30 +377,30 @@ func TestUnfinishedViewsHideEveryMine(t *testing.T) {
 
 func TestGivingUpShowsTheMinesAndOffersNoMoreChords(t *testing.T) {
 	s, _ := mustApply(t, oneMine(), reveal("a1"), flag("c4"), flag("d5"))
-	resigned := game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, game.ReasonResign)
+	resigned := game.LossBy(game.ReasonResign)
 	over := s.Conclude(resigned)
-	view := over.View(SeatSolver)
+	view := over.View(game.SeatSolo)
 	if diff := cmp.Diff([]string{"00000", "00111", "001M#", "001#!"}, drawn(view)); diff != "" {
 		t.Errorf("cells (-want +got):\n%s", diff)
 	}
 	if got, finished := over.Outcome(); !finished || !cmp.Equal(got, resigned) || len(view.Chordable) != 0 || len(over.ToAct()) != 0 {
 		t.Errorf("outcome %+v, %t; chordable %v; to act %v", got, finished, view.Chordable, over.ToAct())
 	}
-	if again := over.(state).Conclude(game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}); !cmp.Equal(again.(state).result, resigned) {
-		t.Errorf("a second Conclude replaced the result with %+v", again.(state).result)
+	if again, _ := over.(state).Conclude(game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}).Outcome(); !cmp.Equal(again, resigned) {
+		t.Errorf("a second Conclude replaced the result with %+v", again)
 	}
 }
 
 func TestGivingUpBeforeTheFirstRevealHasNoMinesToShow(t *testing.T) {
 	s, _ := mustApply(t, newState(level{rows: 2, cols: 2, mines: 1}), flag("a1"))
-	over := s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, game.ReasonResign))
-	if diff := cmp.Diff([]string{"F#", "##"}, drawn(over.View(SeatSolver))); diff != "" {
+	over := s.Conclude(game.LossBy(game.ReasonResign))
+	if diff := cmp.Diff([]string{"F#", "##"}, drawn(over.View(game.SeatSolo))); diff != "" {
 		t.Errorf("cells (-want +got):\n%s", diff)
 	}
 }
 
 func TestViewArraysAreNeverNull(t *testing.T) {
-	view := newState(level{rows: 2, cols: 2, mines: 1}).View(SeatSolver)
+	view := newState(level{rows: 2, cols: 2, mines: 1}).View(game.SeatSolo)
 	if view.Chordable == nil {
 		t.Error("chordable is nil, which encodes as null")
 	}

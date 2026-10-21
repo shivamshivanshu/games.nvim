@@ -22,7 +22,7 @@ func newState(t *testing.T, seed game.Seed) state {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := cmp.Diff(map[game.UserID]game.Seat{solver: SeatSolver}, seats); diff != "" {
+	if diff := cmp.Diff(map[game.UserID]game.Seat{solver: game.SeatSolo}, seats); diff != "" {
 		t.Fatalf("seats (-want +got):\n%s", diff)
 	}
 	return st.(state)
@@ -30,7 +30,7 @@ func newState(t *testing.T, seed game.Seed) state {
 
 func apply(t *testing.T, s state, action Action, seed game.Seed, seq game.Seq) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(SeatSolver, action, game.StepRNG(seed, seq))
+	next, events, err := s.Apply(game.SeatSolo, action, game.StepRNG(seed, seq))
 	if err != nil {
 		t.Fatalf("%+v: %v", action, err)
 	}
@@ -171,7 +171,7 @@ func TestApplySlidesSpawnsAndScores(t *testing.T) {
 	next, events := apply(t, s, move("left"), seed, 1)
 	slid := board{{4, 8}}
 	moved := events[0].(MovedEvent)
-	if len(events) != 1 || moved.By != SeatSolver || moved.Direction != grid.Left || moved.Gained != 12 {
+	if len(events) != 1 || moved.By != game.SeatSolo || moved.Direction != grid.Left || moved.Gained != 12 {
 		t.Fatalf("events %+v, want one moved left gaining 12", events)
 	}
 	at := moved.Spawned
@@ -204,7 +204,7 @@ func TestRejectedActions(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, _, err := state{board: board{{2}}}.Apply(SeatSolver, tc.action, game.StepRNG(1, 1))
+			_, _, err := state{board: board{{2}}}.Apply(game.SeatSolo, tc.action, game.StepRNG(1, 1))
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got %v, want %v", err, tc.wantErr)
 			}
@@ -225,13 +225,13 @@ func lastMove(row0 [side]int) board {
 func TestReachingTheGoalIsMarkedOnceAndPlayGoesOn(t *testing.T) {
 	s := state{board: board{{1024, 1024}, {2048}}}
 	next, events := apply(t, s, move("left"), 1, 1)
-	if !next.reached || next.finished {
-		t.Fatalf("reached %t finished %t, want reached and playing on", next.reached, next.finished)
+	if !next.reached || next.Over() {
+		t.Fatalf("reached %t finished %t, want reached and playing on", next.reached, next.Over())
 	}
-	if len(events) != 2 || events[1] != (ReachedEvent{By: SeatSolver, Tile: Goal}) {
+	if len(events) != 2 || events[1] != (ReachedEvent{By: game.SeatSolo, Tile: Goal}) {
 		t.Errorf("events %+v, want moved then reached %d", events, Goal)
 	}
-	if !next.View(SeatSolver).Reached {
+	if !next.View(game.SeatSolo).Reached {
 		t.Error("view does not mark the goal reached")
 	}
 	again, events := apply(t, next, move("up"), 1, 2)
@@ -239,7 +239,7 @@ func TestReachingTheGoalIsMarkedOnceAndPlayGoesOn(t *testing.T) {
 		t.Errorf("a move after the goal: events %+v, reached %t; want one moved event and still reached", events, again.reached)
 	}
 	before, _ := apply(t, state{board: board{{512, 512}}}, move("left"), 1, 1)
-	if before.reached || before.View(SeatSolver).Reached {
+	if before.reached || before.View(game.SeatSolo).Reached {
 		t.Error("a 1024 marks the goal reached")
 	}
 }
@@ -254,18 +254,18 @@ func TestNoMovesEndsTheGame(t *testing.T) {
 		{
 			name:  "without the goal it is a loss",
 			state: state{board: lastMove([side]int{32, 64, 8, 8})},
-			want:  game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonNoMoves},
+			want:  game.LossBy(ReasonNoMoves),
 		},
 		{
 			name:    "the move that reaches the goal can also end it, a win",
 			state:   state{board: lastMove([side]int{32, 64, 1024, 1024})},
-			want:    game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonNoMoves},
+			want:    game.WinFor(ReasonNoMoves, game.SeatSolo),
 			reached: true,
 		},
 		{
 			name:    "a goal reached earlier wins",
 			state:   state{board: lastMove([side]int{32, 2048, 8, 8}), reached: true},
-			want:    game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonNoMoves},
+			want:    game.WinFor(ReasonNoMoves, game.SeatSolo),
 			reached: true,
 		},
 	}
@@ -277,7 +277,7 @@ func TestNoMovesEndsTheGame(t *testing.T) {
 				if diff := cmp.Diff(tc.want, got); !finished || diff != "" {
 					t.Fatalf("seq %d: finished %t, result (-want +got):\n%s", seq, finished, diff)
 				}
-				view := next.View(SeatSolver)
+				view := next.View(game.SeatSolo)
 				if len(view.Movable) != 0 || view.Reached != tc.reached || len(next.ToAct()) != 0 {
 					t.Errorf("seq %d: view %+v, to act %v; want no moves, reached %t", seq, view, next.ToAct(), tc.reached)
 				}
@@ -288,22 +288,22 @@ func TestNoMovesEndsTheGame(t *testing.T) {
 
 func TestConcludeStopsOfferingMovesAndKeepsAReachedResult(t *testing.T) {
 	playing := state{board: board{{2}}, reached: true}
-	resigned := game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, game.ReasonResign)
+	resigned := game.LossBy(game.ReasonResign)
 	concluded := playing.Conclude(resigned)
 	if got, finished := concluded.Outcome(); !finished || !cmp.Equal(got, resigned) {
 		t.Errorf("concluded outcome %+v %t, want %+v", got, finished, resigned)
 	}
-	if view := concluded.View(SeatSolver); len(view.Movable) != 0 || !view.Reached {
+	if view := concluded.View(game.SeatSolo); len(view.Movable) != 0 || !view.Reached {
 		t.Errorf("concluded view %+v, want no moves and the goal still marked", view)
 	}
-	ended := state{board: stuck(), result: noMovesResult(true), finished: true}
+	ended := state{Ending: game.Ending{}.Concluded(noMovesResult(true)), board: stuck()}
 	if got, _ := ended.Conclude(resigned).Outcome(); !cmp.Equal(got, noMovesResult(true)) {
 		t.Errorf("Conclude replaced a reached result with %+v", got)
 	}
 }
 
 func TestViewWire(t *testing.T) {
-	raw, err := json.Marshal(state{board: board{{2, 0, 0, 4}}, score: 8}.View(SeatSolver))
+	raw, err := json.Marshal(state{board: board{{2, 0, 0, 4}}, score: 8}.View(game.SeatSolo))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func TestViewWire(t *testing.T) {
 	if string(raw) != want {
 		t.Errorf("view\n got %s\nwant %s", raw, want)
 	}
-	over, err := json.Marshal(state{board: stuck(), finished: true}.View(SeatSolver))
+	over, err := json.Marshal(state{Ending: game.Ending{}.Concluded(game.LossBy(ReasonNoMoves)), board: stuck()}.View(game.SeatSolo))
 	if err != nil {
 		t.Fatal(err)
 	}

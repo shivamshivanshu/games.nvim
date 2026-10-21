@@ -344,7 +344,7 @@ func TestACaughtPacmanLosesALifeAndTheRoundRestartsPaused(t *testing.T) {
 	if diff := cmp.Diff([]game.Event{CaughtEvent{By: SeatPlayer, Ghost: Blinky, LivesLeft: 2}}, events); diff != "" {
 		t.Fatalf("events (-want +got):\n%s", diff)
 	}
-	if s.lives != 2 || !s.paused || s.pacman.at != pacmanStart() || s.ghosts[0].at != houseExit() || s.score != 120 || s.finished {
+	if s.lives != 2 || !s.paused || s.pacman.at != pacmanStart() || s.ghosts[0].at != houseExit() || s.score != 120 || s.Over() {
 		t.Fatalf("after being caught: %+v", s)
 	}
 	if s.maze.at(pt(5, 6)) != TileOpen {
@@ -356,7 +356,7 @@ func TestACaughtPacmanLosesALifeAndTheRoundRestartsPaused(t *testing.T) {
 	s.ghosts[0] = ghost{name: Blinky, at: pt(5, 7), facing: grid.Left, activity: roaming}
 	s.tick = 1
 	s, _ = tickOnce(s, 2)
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: ReasonGameOver}
+	want := game.LossBy(ReasonGameOver)
 	if got, done := s.Outcome(); !done || !cmp.Equal(got, want) || s.lives != 0 {
 		t.Fatalf("caught on the last life: %+v, %t, lives %d; want %+v", got, done, s.lives, want)
 	}
@@ -386,7 +386,7 @@ func TestClearingALevelSpeedsUpAndTheLastWins(t *testing.T) {
 	s.level = Levels
 	s = alone(emptied(s, pt(23, 12)))
 	next, _ = s.Tick(game.StepRNG(1, 2))
-	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatPlayer}, Reason: ReasonCleared}
+	want := game.WinFor(ReasonCleared, SeatPlayer)
 	if got, done := next.Outcome(); !done || !cmp.Equal(got, want) {
 		t.Fatalf("clearing the last level: %+v, %t; want %+v", got, done, want)
 	}
@@ -460,7 +460,7 @@ func TestPauseTurnAndTheirLegality(t *testing.T) {
 
 func TestConcludeClosesEveryAction(t *testing.T) {
 	s := running()
-	done := s.Conclude(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: game.ReasonResign})
+	done := s.Conclude(game.LossBy(game.ReasonResign))
 	v := done.View(SeatPlayer)
 	if v.CanTurn || v.CanPause || len(done.ToAct()) != 0 {
 		t.Errorf("after an imposed result: %+v, to act %v", v, done.ToAct())
@@ -468,7 +468,7 @@ func TestConcludeClosesEveryAction(t *testing.T) {
 	if _, due := done.(state).NextTick(); due {
 		t.Error("a concluded game wants a tick")
 	}
-	won := s.over(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatPlayer}, Reason: ReasonCleared})
+	won := s.over(game.WinFor(ReasonCleared, SeatPlayer))
 	if kept, _ := won.Conclude(game.Result{Kind: game.ResultAborted}).Outcome(); kept.Reason != ReasonCleared {
 		t.Errorf("Conclude replaced a result already reached with %s", kept.Reason)
 	}

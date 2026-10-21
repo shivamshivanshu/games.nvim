@@ -9,9 +9,6 @@ import (
 // TypeFifteen is the game type on the wire.
 const TypeFifteen game.GameType = "fifteen"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // ReasonSolved ends a game whose tiles are in order.
 const ReasonSolved game.ResultReason = "solved"
 
