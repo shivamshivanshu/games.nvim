@@ -26,7 +26,6 @@ local FINISHED_CACHE_SIZE = 32
 ---@field conn games.Conn
 ---@field package user? games.UserID
 ---@field private updates table<games.GameID, games.GameUpdate>
----@field private finished_ids games.GameID[] the cached finished games, oldest stored first
 ---@field private challenges table<games.ChallengeID, games.Challenge> pending only
 ---@field package resolved_challenges table<games.ChallengeID, true> this connection's, which only its own lists can race
 ---@field package catalog? games.CatalogResult static per server process, so refetched per connection
@@ -237,7 +236,6 @@ function Client.new(conn)
   local self = setmetatable({
     conn = conn,
     updates = {},
-    finished_ids = {},
     challenges = {},
     resolved_challenges = {},
     update_signal = Signal.new(),
@@ -313,6 +311,31 @@ function Client:on_connection(fn)
   return self.connection_signal.connect(fn)
 end
 
+---Newest first; no finished_at counts as oldest and a tie keeps the higher game_id, so the
+---games kept never depend on the order they arrived in.
+---@param a games.GameUpdate
+---@param b games.GameUpdate
+---@return boolean
+local function finished_later(a, b)
+  local a_at, b_at = a.finished_at or 0, b.finished_at or 0
+  if a_at ~= b_at then
+    return a_at > b_at
+  end
+  return a.game_id > b.game_id
+end
+
+---Evicts the oldest finished games beyond FINISHED_CACHE_SIZE.
+---@param updates table<games.GameID, games.GameUpdate>
+local function evict_oldest_finished(updates)
+  local finished = vim.tbl_filter(function(update)
+    return update.result ~= nil
+  end, vim.tbl_values(updates))
+  table.sort(finished, finished_later)
+  for i = FINISHED_CACHE_SIZE + 1, #finished do
+    updates[finished[i].game_id] = nil
+  end
+end
+
 ---Caches update unless the cache already holds this seq or a later one; a finished one is
 ---handled first and then counted against the finished games the cache keeps.
 ---@package
@@ -325,22 +348,8 @@ function Client:store(update)
   self.updates[update.game_id] = update
   emit(self.update_signal, update, cached == nil, "update for game " .. update.game_id)
   if update.result then
-    self:keep_finished(update.game_id)
+    evict_oldest_finished(self.updates)
   end
-end
-
----Evicts the oldest stored finished games beyond FINISHED_CACHE_SIZE.
----@private
----@param game_id games.GameID just stored finished
-function Client:keep_finished(game_id)
-  local kept = vim.tbl_filter(function(id)
-    return id ~= game_id
-  end, self.finished_ids)
-  kept[#kept + 1] = game_id
-  while #kept > FINISHED_CACHE_SIZE do
-    self.updates[table.remove(kept, 1)] = nil
-  end
-  self.finished_ids = kept
 end
 
 ---A push that skips a seq means we missed steps, so the snapshot (not the push) becomes the truth.

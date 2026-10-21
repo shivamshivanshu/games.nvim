@@ -79,6 +79,69 @@ function T.finished_games_beyond_the_cache_size_are_evicted_after_their_handlers
   assert(client:game("done02") and client:game("done33") and client:game("ongoing"))
 end
 
+---@param game_id games.GameID
+---@param finished_at? integer
+---@return games.GameUpdate
+local function finished(game_id, finished_at)
+  return helpers.chess_update({
+    game_id = game_id,
+    seq = 1,
+    result = { kind = "draw", winners = {}, reason = "draw_agreed" },
+    finished_at = finished_at,
+  })
+end
+
+---@param client games.Client
+---@param conn table
+---@param games games.GameUpdate[]
+local function list_finished(client, conn, games)
+  client:game_list({ status = "finished" })
+  conn.requests[#conn.requests].cb(nil, { games = games })
+end
+
+---@param client games.Client
+---@param ids games.GameID[]
+---@return games.GameID[]
+local function cached(client, ids)
+  return vim.tbl_filter(function(id)
+    return client:game(id) ~= nil
+  end, ids)
+end
+
+function T.the_cache_keeps_the_newest_finished_games_whatever_order_they_arrive_in()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  local listed, ids = {}, {}
+  for i = 1, 40 do
+    local n = i * 7 % 40 + 1
+    ids[n] = ("done%02d"):format(n)
+    listed[i] = finished(ids[n], 1000 + n)
+  end
+  list_finished(client, conn, listed)
+
+  helpers.assert_eq(vim.list_slice(ids, 9, 40), cached(client, ids))
+end
+
+function T.finished_ties_evict_the_lower_game_id_and_a_missing_finished_at_counts_as_oldest()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  local ids = { "undated" }
+  for i = 1, 32 do
+    ids[i + 1] = ("done%02d"):format(i)
+  end
+  ids[34] = "done99"
+  local listed = {}
+  for i = 33, 2, -1 do
+    listed[#listed + 1] = finished(ids[i], i <= 3 and 500 or 1000 + i)
+  end
+  listed[#listed + 1] = finished("undated")
+  list_finished(client, conn, listed)
+  helpers.assert_eq(vim.list_slice(ids, 2, 33), cached(client, ids))
+
+  list_finished(client, conn, { finished("done99", 500) })
+  helpers.assert_eq(vim.list_slice(ids, 3, 34), cached(client, ids))
+end
+
 function T.connected_resyncs_games_challenges_and_the_catalog()
   local conn = stub_conn()
   Client.new(conn --[[@as games.Conn]])
