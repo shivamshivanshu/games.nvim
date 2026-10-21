@@ -43,7 +43,6 @@ local Control = types.Control
 ---@class games.GameInput
 ---@field kind games.ActionKind
 ---@field prompt string
----@field parse? fun(text: string): games.Action builds the action itself, in place of the catalogue's field
 ---@field available? fun(update: games.GameUpdate): boolean whether it applies now; default always
 
 ---@class games.Flippable
@@ -54,7 +53,7 @@ local Control = types.Control
 ---@field aliases? string[] more keys that do the same, mapped but left out of the footer, e.g. the arrows beside `hjkl`
 ---@field label string|fun(update: games.GameUpdate): string a function reads the label off the update, e.g. "call 40"
 ---@field action? games.Action
----@field input? games.GameInput prompts for text and sends the action it parses, in place of action
+---@field input? games.GameInput prompts for text and sends it as its action, in place of action
 ---@field act? fun(update: games.GameUpdate, view: games.ViewOptions): games.Action|nil builds the action from the board's view options, such as its cursor, in place of action; nil binds nothing
 ---@field available? fun(update: games.GameUpdate): boolean whether the entry applies now; default always
 ---@field local_fn? fun(view: games.ViewOptions, update: games.GameUpdate): games.ViewOptions changes only the board's view options, which may follow the board's latest update
@@ -307,15 +306,12 @@ local function act(board, game_action)
   )
 end
 
----What input sends for text: what its parse builds or, without one, the catalogued action with
----text in the field the catalogue names, which a parse-less input's action must have.
+---What input sends for text: the catalogued action with text in the field the catalogue names,
+---which input's action must have.
 ---@param input games.GameInput
 ---@param spec games.ActionSpec input's action in the catalogue
 ---@return fun(text: string): games.Action
 local function text_action(input, spec)
-  if input.parse then
-    return input.parse
-  end
   local field = assert(spec.input, ("action %q takes no text"):format(input.kind)).field
   return function(text)
     return { kind = input.kind, [field] = text }

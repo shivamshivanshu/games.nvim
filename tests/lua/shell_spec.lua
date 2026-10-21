@@ -266,7 +266,7 @@ function T.game_actions_stay_unbound_until_the_catalog_arrives_then_every_board_
   vim.api.nvim_buf_delete(buf, { force = true })
 end
 
-function T.an_action_with_input_prompts_and_sends_what_it_parses_while_catalogued_and_available()
+function T.an_action_with_input_prompts_and_sends_its_text_while_catalogued_and_available()
   ---@type games.GameModule
   local module = {
     layout = function()
@@ -279,9 +279,6 @@ function T.an_action_with_input_prompts_and_sends_what_it_parses_while_catalogue
         input = {
           kind = "flag",
           prompt = "Flag: ",
-          parse = function(text)
-            return { kind = "flag", cell = text }
-          end,
         },
         available = function(update)
           return update.view.flaggable
@@ -298,15 +295,16 @@ function T.an_action_with_input_prompts_and_sends_what_it_parses_while_catalogue
     return binding
   end
   local flaggable = chess_update({ game_id = "flag01", seq = 4, view = { flaggable = true } })
+  local catalogued = { flag = { kind = "flag", description = "flag", input = { field = "cell" } } }
 
   assert(not flag_binding(flaggable, { move = true }), "bound without the catalogue listing it")
-  assert(not flag_binding(chess_update({ view = { flaggable = false } }), { flag = true }))
+  assert(not flag_binding(chess_update({ view = { flaggable = false } }), catalogued))
   assert(not flag_binding(
     chess_update({
       view = { flaggable = true },
       result = { kind = "aborted", winners = {}, reason = "aborted" },
     }),
-    { flag = true }
+    catalogued
   ), "bound on a finished game")
   local acted = {}
   local board = {
@@ -318,7 +316,7 @@ function T.an_action_with_input_prompts_and_sends_what_it_parses_while_catalogue
     },
   }
   helpers.with_input_answers({ "c5" }, function(prompts)
-    flag_binding(flaggable, { flag = true }).run(board)
+    flag_binding(flaggable, catalogued).run(board)
     assert_eq({ { prompt = "Flag: " } }, prompts)
   end)
   assert_eq({ { game_id = "flag01", seq = 4, action = { kind = "flag", cell = "c5" } } }, acted)
@@ -1033,9 +1031,6 @@ function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
       available = function(update)
         return update.view.open
       end,
-      parse = function(text)
-        return { kind = "go", cell = text }
-      end,
     },
     actions = {
       {
@@ -1058,7 +1053,7 @@ function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
       "alice",
       0,
       nil,
-      { go = true }
+      { go = { kind = "go", description = "go", input = { field = "cell" } } }
     )
     return rendered.lines[#rendered.lines]
   end
