@@ -310,6 +310,24 @@ func TestConcludeClearsOffersAndRevealsTheFleets(t *testing.T) {
 	}
 }
 
+func TestResigningWhilePlacingHandsTheOpponentTheWinAndRevealsBothFleets(t *testing.T) {
+	setup := playFrom(t, newGame(t), 1, move{p1, across("a1")}, move{p2, down("j1")})
+	resigned, events := setup.Eliminate(p1, game.ReasonResign)
+	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{p2}, Reason: game.ReasonResign}
+	if got, finished := resigned.Outcome(); !finished || !cmp.Equal(want, got) || len(events) != 0 {
+		t.Fatalf("resign while placing: %+v %t %v", got, finished, events)
+	}
+	alice, bob := resigned.View(p1), resigned.View(p2)
+	if alice.Target[0][9] != TileShip || bob.Target[0][0] != TileShip {
+		t.Errorf("once over alice sees j1 %s and bob sees a1 %s", alice.Target[0][9], bob.Target[0][0])
+	}
+	for seat, v := range map[game.Seat]View{p1: alice, p2: bob} {
+		if v.Phase != PhaseOver || v.Next != nil || len(v.Anchors.Across)+len(v.Anchors.Down) != 0 {
+			t.Errorf("%s is still offered a placement: %+v", seat, v)
+		}
+	}
+}
+
 func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 	for _, m := range []move{{p1, across("a1")}, {p1, random()}} {
 		before := newGame(t)

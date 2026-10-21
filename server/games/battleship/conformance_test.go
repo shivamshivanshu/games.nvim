@@ -2,6 +2,7 @@ package battleship
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -125,7 +126,8 @@ func TestConformance(t *testing.T) {
 
 // TestTheOpponentsUnhitShipsNeverReachTheOtherSeat plays one game twice with
 // p1's submarine and destroyer in different places that no shot reaches, and
-// requires every view of p2's and every event to be the same in both.
+// requires every view of p2's, every event and every refusal of p2's to be the
+// same in both.
 func TestTheOpponentsUnhitShipsNeverReachTheOtherSeat(t *testing.T) {
 	fleets := [][]Action{
 		rowsFleet(),
@@ -137,9 +139,22 @@ func TestTheOpponentsUnhitShipsNeverReachTheOtherSeat(t *testing.T) {
 		{p1, fire("b5")}, {p2, fire("e1")}, {p1, fire("h8")}, {p2, fire("b3")},
 		{p1, fire("a2")}, {p2, fire("e7")},
 	}
+	type step struct {
+		move
+		refused bool
+	}
+	steps := func(refused bool, ms ...move) []step {
+		out := make([]step, len(ms))
+		for i, m := range ms {
+			out[i] = step{m, refused}
+		}
+		return out
+	}
+	p2Refusals := func(actions ...Action) []step { return steps(true, moves(p2, actions...)...) }
 	type seen struct {
-		Views  []View
-		Events [][]json.RawMessage
+		Views   []View
+		Events  [][]json.RawMessage
+		Refused []string
 	}
 	play := func(fleet []Action) seen {
 		g := game.Adapt(Rules{})
@@ -151,19 +166,34 @@ func TestTheOpponentsUnhitShipsNeverReachTheOtherSeat(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ms := append(append(moves(p2, columnsFleet()[:2]...), moves(p1, fleet...)...), moves(p2, columnsFleet()[2:]...)...)
-		ms = append(ms, shots...)
+		script := slices.Concat(
+			steps(false, moves(p2, columnsFleet()[:2]...)...),
+			steps(false, moves(p1, fleet...)...),
+			p2Refusals(fire("a1"), across("a1")),
+			steps(false, moves(p2, columnsFleet()[2:]...)...),
+			steps(false, shots[:3]...),
+			p2Refusals(fire("a1"), across("b2")),
+			steps(false, shots[3:]...),
+		)
 		var out seen
-		for i, m := range ms {
+		var seq game.Seq
+		for i, m := range script {
 			raw, err := json.Marshal(m.action)
 			if err != nil {
 				t.Fatal(err)
 			}
-			next, events, err := st.Apply(m.seat, raw, game.StepRNG(1, game.Seq(i+1)))
-			if err != nil {
-				t.Fatalf("move %d %+v: %v", i, m, err)
+			next, events, err := st.Apply(m.seat, raw, game.StepRNG(1, seq+1))
+			if m.refused {
+				if err == nil {
+					t.Fatalf("step %d %+v was accepted", i, m)
+				}
+				out.Refused = append(out.Refused, err.Error())
+				continue
 			}
-			st = next
+			if err != nil {
+				t.Fatalf("step %d %+v: %v", i, m, err)
+			}
+			st, seq = next, seq+1
 			rawView, err := st.View(p2)
 			if err != nil {
 				t.Fatal(err)
