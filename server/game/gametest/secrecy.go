@@ -45,11 +45,7 @@ func checkAbsent(t testing.TB, encoded []string, forbidden []string, where strin
 
 func viewStrings(t testing.TB, view any) []string {
 	t.Helper()
-	raw, err := json.Marshal(view)
-	if err != nil {
-		t.Fatalf("encode view %T: %v", view, err)
-	}
-	return jsonStrings(t, raw)
+	return jsonStrings(t, []byte(ViewJSON(t, view)))
 }
 
 func eventStrings(t testing.TB, events []game.Event) []string {
