@@ -448,6 +448,21 @@ An action object always carries `kind`.
   - `legal` is `[]` unless the viewer is to play, `must_pass` 0 once it has chosen, `pass_to` `null` in a hand without passing.
 - Actions: `pass` (`cards`: three cards apart, e.g. `"2c qs ah"`) and `play` (`card`: e.g. `"qs"`); the catalogue gives the patterns. The rules are in `docs/games/hearts.md`.
 
+### Battleship
+
+- Seats `p1` and `p2`; `p1` fires first, and the `first` option picks who is `p1`. Both seats place at once: `to_act` holds every seat whose fleet is incomplete, then the seat to fire.
+- Squares are `{row, col}`, 1-based from the top left; actions name them as text, the column's letter then the row's number (`"c5"`), with the catalogue's pattern.
+- Reasons: `fleet_sunk`.
+- Events: `ready {by}`, a fleet complete; `shot {by, cell, outcome, ship?}`, `outcome` one of `miss`, `hit`, `sunk`, with `ship` naming the ship sunk. A placement that leaves a fleet incomplete has no event.
+- View `{phase, own, target, fleet, enemy, next, anchors, targets, last}`:
+  - `phase` is `setup`, `battle` or `over`;
+  - `own` and `target` are rows of tiles, `empty`, `ship`, `miss`, `hit` or `sunk`: `own` is the viewer's waters with the opponent's shots, `target` the opponent's as the viewer's shots found them. No square of the opponent's fleet reaches a view, event or error before it is hit; once the game is over `target` shows its unhit ships as `ship`;
+  - `fleet` and `enemy` are `[{name, size, state}]` in placing order, `state` one of `unplaced`, `afloat`, `sunk`; the opponent's ships are only `afloat` or `sunk`;
+  - `next` is the viewer's ship to place, `{name, size}`, else `null`; `anchors` is `{across, down}`, the squares its left or top end may go on, empty unless placing;
+  - `targets` is the squares the viewer may fire at, `[]` unless it is to fire;
+  - `last` is the latest shot `{by, cell, outcome, ship?}`, or `null`.
+- Actions: `place_across` and `place_down` (`cell`) place the next ship from that square rightward or downward; `random` places the rest of the fleet from the server's seeded rng; `fire` (`cell`). The fleet and its order are in `docs/games/battleship.md`.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

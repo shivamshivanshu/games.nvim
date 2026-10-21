@@ -408,6 +408,12 @@ the current state are mapped; the footer lists them.
     r y g b name the colour for a Wild turned up to start (uno)
     m       hearts: play a card to the trick, `qs` is the queen of spades
     p       hearts: pass three cards, e.g. `2c qs ah`, before the hand's play
+    h j k l battleship: move the cursor, over your fleet while you place
+            it, over the target while you fire
+    r       battleship: turn the ship you place across or down
+    <CR>    battleship: place the ship at the cursor, or fire at it
+    f       battleship: place the rest of your fleet at random
+    m       battleship: fire at a cell, `c5` is column c, row 5
     ]g      next game waiting on your move
     q       close
 
