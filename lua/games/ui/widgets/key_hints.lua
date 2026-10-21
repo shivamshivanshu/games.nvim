@@ -1,7 +1,8 @@
 local compose = require("games.ui.compose")
+local highlights = require("games.ui.highlights")
 
-local KEY_HL = "GamesKey"
-local LABEL_HL = "GamesLabel"
+local Group = highlights.Group
+
 local GAP = "  "
 
 ---@class games.KeyHint
@@ -92,9 +93,9 @@ local function row_node(row)
     if i > 1 then
       parts[#parts + 1] = compose.text(GAP)
     end
-    parts[#parts + 1] = compose.text(entry.keys, KEY_HL)
+    parts[#parts + 1] = compose.text(entry.keys, Group.KEY)
     parts[#parts + 1] = compose.text(" ")
-    parts[#parts + 1] = compose.text(entry.label, LABEL_HL)
+    parts[#parts + 1] = compose.text(entry.label, Group.LABEL)
   end
   return compose.row(parts)
 end

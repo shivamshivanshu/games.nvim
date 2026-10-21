@@ -7,6 +7,7 @@ local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:
 ---A quoted group name, unless it is the prefix of a concatenation such as "GamesSeat" .. i.
 local GROUP_LITERAL = '"(Games%u%w*)"()'
 local CONCATENATION = "^%s*%.%."
+local HIGHLIGHTS_FILE = "lua/games/ui/highlights.lua"
 
 ---Each "Games*" literal in lines that names no group, as "<where>:<line> <name>".
 ---@param lines string[]
@@ -42,6 +43,28 @@ function T.every_group_name_the_plugin_spells_out_is_defined()
     vim.list_extend(unknown, unknown_groups(vim.fn.readfile(file), file:sub(#REPO_ROOT + 2)))
   end
   assert_eq({}, unknown)
+end
+
+function T.only_the_group_enum_spells_group_names()
+  local spelt = {}
+  for _, file in ipairs(vim.fn.globpath(REPO_ROOT .. "/lua", "**/*.lua", false, true)) do
+    local where = file:sub(#REPO_ROOT + 2)
+    if where ~= HIGHLIGHTS_FILE then
+      for number, line in ipairs(vim.fn.readfile(file)) do
+        for name in line:gmatch(GROUP_LITERAL) do
+          spelt[#spelt + 1] = ("%s:%d %s"):format(where, number, name)
+        end
+      end
+    end
+  end
+  assert_eq({}, spelt)
+end
+
+function T.every_group_in_the_enum_is_defined()
+  local undefined = vim.tbl_filter(function(name)
+    return not highlights.ROLES[name]
+  end, vim.tbl_values(highlights.Group))
+  assert_eq({}, undefined)
 end
 
 return T

@@ -5,6 +5,8 @@ local predicates = require("games.core.predicates")
 local text_util = require("games.ui.text")
 local types = require("games.types")
 
+local Group = highlights.Group
+
 ---@class games.GridCell
 ---@field [1] string key into GridProps.art, or the glyph itself without art
 ---@field [2]? games.Hl foreground layered last, over shade and mark; without it the cell takes the ink of its background
@@ -48,8 +50,8 @@ local types = require("games.types")
 ---@field glyphs? games.Glyphs separator characters, default "unicode"
 ---@field edges? games.GridEdges draws the cells' edges and corners in place of the gaps between cells; labels then name the dots, rows + 1 and cols + 1 of them; not with flip or blocks
 
-local LIGHT_SQUARE_HL = "GamesSquareLight"
-local DARK_SQUARE_HL = "GamesSquareDark"
+local LIGHT_SQUARE_HL = Group.SQUARE_LIGHT
+local DARK_SQUARE_HL = Group.SQUARE_DARK
 local CELL_GAP = " "
 local LABEL_GAP = " "
 
@@ -63,7 +65,7 @@ local BLOCK_SEPARATORS = {
   unicode = { col = "│", row = "─", crossing = "┼" },
   ascii = { col = "|", row = "-", crossing = "+" },
 }
-local SEPARATOR_HL = "GamesMuted"
+local SEPARATOR_HL = Group.MUTED
 ---@type games.ArtEntry[]
 local UNICODE_SEPARATOR_GLYPHS = vim.tbl_map(function(separator)
   return { h = 1, w = 1, lines = { separator } }

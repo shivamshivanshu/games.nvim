@@ -2,9 +2,12 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local cursor = require("games.ui.cursor")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@alias games.BattleshipSeat "p1"|"p2"
 
@@ -70,15 +73,15 @@ local FIRE_KIND, RANDOM_KIND = "fire", "random"
 local BERTH_KEY, BLOCKED_KEY, AIM_KEY = "berth", "blocked", "aim"
 ---@type table<games.BattleshipTile, games.Hl>
 local TILE_HL = {
-  empty = "GamesMuted",
-  ship = "GamesLabel",
-  miss = "GamesMuted",
-  hit = "GamesCardRed",
-  sunk = "GamesCardRed",
+  empty = Group.MUTED,
+  ship = Group.LABEL,
+  miss = Group.MUTED,
+  hit = Group.CARD_RED,
+  sunk = Group.CARD_RED,
 }
 local BERTH_HL, BLOCKED_HL, AIM_HL, LAST_HL =
-  "GamesMovable", "GamesCheck", "GamesMovable", "GamesLastMove"
-local KEY_HL, VALUE_HL, MUTED_HL = "GamesKey", "GamesLabel", "GamesMuted"
+  Group.MOVABLE, Group.CHECK, Group.MOVABLE, Group.LAST_MOVE
+local VALUE_HL = Group.LABEL
 local SHIP_COLUMN, STATE_COLUMN = 13, 9
 ---Display columns the panel reserves: a ship's name and size, the viewer's state of it and the
 ---opponent's, which is never "unplaced"; its widest status line, "waiting for their fleet", fits.
@@ -255,16 +258,16 @@ local function panel(update, ctx)
   end
   local status = status_lines(update, ctx)
   local lines = {
-    compose.text(status[1], KEY_HL),
+    compose.text(status[1], Group.KEY),
     compose.text(status[2], VALUE_HL),
-    row("ship", "yours", "theirs", MUTED_HL),
+    row("ship", "yours", "theirs", Group.MUTED),
   }
   for i, ship in ipairs(view.fleet) do
     local name = ("%s %d"):format(ship.name, ship.size)
     lines[#lines + 1] = row(name, ship.state, view.enemy[i].state, VALUE_HL)
   end
   for _, line in ipairs(last_lines(update, ctx)) do
-    lines[#lines + 1] = compose.text(line, MUTED_HL)
+    lines[#lines + 1] = compose.text(line, Group.MUTED)
   end
   return compose.col(lines)
 end

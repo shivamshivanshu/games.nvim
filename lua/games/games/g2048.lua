@@ -1,7 +1,10 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
+
+local Group = highlights.Group
 
 ---@alias games.G2048Seat "solver"
 
@@ -38,7 +41,7 @@ local EMPTY_KEY = "empty"
 ---2^17, the largest tile a 4x4 board can hold.
 local MAX_EXPONENT = 17
 local MOVE_KIND = "move"
-local GOAL_HL = "GamesWin"
+local GOAL_HL = Group.WIN
 local SCORE_LABEL = "score"
 local REACHED, NOT_YET = "reached", "not yet"
 ---Display columns the status panel reserves: the longer label, a space, and the widest value.

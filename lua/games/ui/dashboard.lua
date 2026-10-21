@@ -3,6 +3,7 @@ local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local finder = require("games.ui.finder")
 local float = require("games.ui.float")
+local highlights = require("games.ui.highlights")
 local key_hints = require("games.ui.widgets.key_hints")
 local kv = require("games.ui.widgets.kv")
 local notify = require("games.core.notify")
@@ -15,6 +16,7 @@ local timer = require("games.core.timer")
 local windows = require("games.ui.windows")
 
 local ActionName = sources.ActionName
+local Group = highlights.Group
 local ConnectionState = Client.ConnectionState
 local SourceName = sources.SourceName
 
@@ -25,9 +27,8 @@ local ITEM_INDENT = 2
 local MIN_WIDTH = 40
 local CLOCK_TICK_MS = 1000
 local TITLE = " games "
-local SECTION_HL = "GamesDashSection"
-local EMPTY_HL = "GamesMuted"
-local KEY_HL = "GamesKey"
+local SECTION_HL = Group.DASH_SECTION
+local EMPTY_HL = Group.MUTED
 local RECONNECTING = "reconnecting…"
 local NAMESPACE = vim.api.nvim_create_namespace("games.dashboard")
 local AUGROUP_NAME = "games.dashboard"
@@ -99,7 +100,7 @@ local function start_row(source)
   return function(info, index)
     local key = index <= START_KEYS and tostring(index) or " "
     return compose.row({
-      compose.text(key, KEY_HL),
+      compose.text(key, Group.KEY),
       compose.text(" "),
       compose.text(source.format(info)),
     })
@@ -169,7 +170,7 @@ function M.view(snapshot, options)
     end, KEYS)
     nodes[#nodes + 1] = kv({
       pairs = vim.list_extend(key_pairs, UNLISTED_KEYS),
-      key_hl = KEY_HL,
+      key_hl = Group.KEY,
     })
   else
     nodes[#nodes + 1] = key_hints(vim.tbl_filter(function(spec)

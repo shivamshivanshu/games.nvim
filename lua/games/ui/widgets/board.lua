@@ -1,11 +1,14 @@
 local art = require("games.ui.art")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local text_util = require("games.ui.text")
+
+local Group = highlights.Group
 
 local PANEL_GAP = 3
 local GRID_GAP = 3
-local TITLE_HL = "GamesLabel"
+local TITLE_HL = Group.LABEL
 
 ---@class games.BoardPanel
 ---@field node fun(max_height: integer): games.Node drawn beside the board, at most max_height lines

@@ -1,7 +1,10 @@
 local chess = require("games.games.chess")
 local compose = require("games.ui.compose")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
+
+local Group = highlights.Group
 
 ---@alias games.ChessPuzzleMode "puzzle"|"study"
 ---@alias games.ChessPuzzleSeat "solver"
@@ -84,7 +87,7 @@ local function status_panel(update, max_height)
   return compose.col({
     status,
     compose.text(""),
-    compose.text("solution", "GamesKey"),
+    compose.text("solution", Group.KEY),
     movelist({
       items = solution,
       columns = 2,

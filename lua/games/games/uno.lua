@@ -2,9 +2,12 @@ local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local tables = require("games.core.tables")
+
+local Group = highlights.Group
 
 ---@alias games.UnoColor "R"|"Y"|"G"|"B"|"" none only before the colour of a Wild turned up is named
 ---@alias games.UnoPhase "color"|"play"|"drawn"|"challenge"
@@ -84,9 +87,7 @@ local tables = require("games.core.tables")
 ---@field by games.Seat
 
 local DECK_KEY = "deck"
-local CARD_HL = "GamesSquareLight"
-local KEY_HL = "GamesKey"
-local MUTED_HL = "GamesMuted"
+local CARD_HL = Group.SQUARE_LIGHT
 local PLAY_KIND = "play"
 ---Display columns the table panel reserves: nine cards to a line of the hand.
 local PANEL_WIDTH = 36
@@ -149,7 +150,7 @@ local function hand_lines(view, ctx)
   if #view.my_hand == 0 then
     return {}
   end
-  local lines = { compose.text(""), compose.text("Your hand", KEY_HL) }
+  local lines = { compose.text(""), compose.text("Your hand", Group.KEY) }
   return vim.list_extend(
     lines,
     cards.hand({
@@ -187,7 +188,7 @@ function M.layout(update, ctx)
         if c == 1 then
           return { view.top, cards.uno_hl(view.color) }
         end
-        return { DECK_KEY, MUTED_HL }
+        return { DECK_KEY, Group.MUTED }
       end,
       marks = { grid.mark(1, 1, CARD_HL), grid.mark(1, 2, CARD_HL) },
     },
@@ -195,7 +196,7 @@ function M.layout(update, ctx)
       {
         width = PANEL_WIDTH,
         node = function()
-          local nodes = { kv({ pairs = table_pairs(view), key_hl = KEY_HL }) }
+          local nodes = { kv({ pairs = table_pairs(view), key_hl = Group.KEY }) }
           return compose.col(vim.list_extend(nodes, hand_lines(view, ctx)))
         end,
       },
@@ -213,11 +214,11 @@ function M.player_extra(update, seat)
     return nil
   end
   if entry.out then
-    return { compose.text("out", MUTED_HL) }
+    return { compose.text("out", Group.MUTED) }
   end
-  local nodes = { compose.text(card_count(entry.cards), KEY_HL) }
+  local nodes = { compose.text(card_count(entry.cards), Group.KEY) }
   if entry.cards == 1 then
-    nodes[#nodes + 1] = compose.text(" UNO", KEY_HL)
+    nodes[#nodes + 1] = compose.text(" UNO", Group.KEY)
   end
   return nodes
 end

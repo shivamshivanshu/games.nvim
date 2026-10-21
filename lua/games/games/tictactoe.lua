@@ -1,8 +1,11 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
 local theme = require("games.ui.theme")
+
+local Group = highlights.Group
 
 ---@alias games.TicTacToeSeat "x"|"o"
 
@@ -26,9 +29,7 @@ local CELL_WIDTH = 3
 local PLACE_KIND = "place"
 local SEAT_KEYS = { "x", "o" }
 
-local EMPTY_HL = "GamesMuted"
-local LAST_MOVE_HL = "GamesLastMove"
-local WIN_HL = "GamesWin"
+local EMPTY_HL = Group.MUTED
 
 ---@param row integer
 ---@param col integer
@@ -54,10 +55,10 @@ end
 local function marks_for(view)
   local marks = {}
   if view.last then
-    marks[1] = grid.mark(view.last.row, view.last.col, LAST_MOVE_HL)
+    marks[1] = grid.mark(view.last.row, view.last.col, Group.LAST_MOVE)
   end
   for _, line in ipairs(view.winning_lines) do
-    vim.list_extend(marks, grid.cell_marks(line, WIN_HL))
+    vim.list_extend(marks, grid.cell_marks(line, Group.WIN))
   end
   return marks
 end

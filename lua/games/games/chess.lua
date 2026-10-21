@@ -2,8 +2,11 @@ local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
+
+local Group = highlights.Group
 
 ---@class games.ChessSquares
 ---@field from string
@@ -48,15 +51,12 @@ local RANKS = "87654321"
 local EMPTY_KEY = "empty"
 local MOVE_KIND = "move"
 
-local WHITE_PIECE_HL = "GamesPieceWhite"
-local BLACK_PIECE_HL = "GamesPieceBlack"
-local LAST_MOVE_HL = "GamesLastMove"
-local LAST_MOVE_DARK_HL = "GamesLastMoveDark"
-local CHECK_HL = "GamesCheck"
+local WHITE_PIECE_HL = Group.PIECE_WHITE
+local BLACK_PIECE_HL = Group.PIECE_BLACK
 ---@type games.MoveAnnotation
-local CHECK_ANNOTATION = { pattern = "[+#]$", hl = "GamesCheckSign" }
+local CHECK_ANNOTATION = { pattern = "[+#]$", hl = Group.CHECK_SIGN }
 
-local MATERIAL_HL = "GamesMuted"
+local MATERIAL_HL = Group.MUTED
 
 ---Display columns the move list reserves: "999. exd8=Q+ exd1=Q#".
 local MOVELIST_WIDTH = 20
@@ -134,7 +134,7 @@ end
 ---@return games.GridMark
 local function last_move_mark(square)
   local row, col = square_cell(square)
-  local hl = grid.is_dark(row, col) and { LAST_MOVE_HL, LAST_MOVE_DARK_HL } or LAST_MOVE_HL
+  local hl = grid.is_dark(row, col) and { Group.LAST_MOVE, Group.LAST_MOVE_DARK } or Group.LAST_MOVE
   return grid.mark(row, col, hl)
 end
 
@@ -148,7 +148,7 @@ local function marks_for(view)
   end
   if view.check_square then
     local row, col = square_cell(view.check_square)
-    marks[#marks + 1] = grid.mark(row, col, CHECK_HL)
+    marks[#marks + 1] = grid.mark(row, col, Group.CHECK)
   end
   return marks
 end

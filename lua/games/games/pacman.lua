@@ -1,7 +1,10 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
+
+local Group = highlights.Group
 
 ---@alias games.PacmanSeat "player"
 
@@ -57,8 +60,8 @@ local kv = require("games.ui.widgets.kv")
 
 local CELL_WIDTH = 2
 local TURN_KIND, PAUSE_KIND = "turn", "pause"
-local PACMAN_HL, WALL_HL, DOOR_HL = "GamesPacman", "GamesPacmanWall", "GamesMuted"
-local FRIGHTENED_HL, EYES_HL = "GamesGhostFrightened", "GamesMuted"
+local WALL_HL, DOOR_HL = Group.PACMAN_WALL, Group.MUTED
+local FRIGHTENED_HL, EYES_HL = Group.GHOST_FRIGHTENED, Group.MUTED
 local PAUSED_TEXT, RUNNING_TEXT, OVER_TEXT = "paused: turn to go", "running", "over"
 ---Display columns the status panel reserves: the longest label, a space, and the widest value.
 local PANEL_WIDTH = #"lives" + 1 + #PAUSED_TEXT
@@ -72,10 +75,10 @@ local TILE_HLS = { wall = WALL_HL, door = DOOR_HL }
 local GHOST_NAMES = { "blinky", "pinky", "inky", "clyde" }
 ---@type table<games.PacmanGhostName, games.Hl>
 local GHOST_HLS = {
-  blinky = "GamesGhostBlinky",
-  pinky = "GamesGhostPinky",
-  inky = "GamesGhostInky",
-  clyde = "GamesGhostClyde",
+  blinky = Group.GHOST_BLINKY,
+  pinky = Group.GHOST_PINKY,
+  inky = Group.GHOST_INKY,
+  clyde = Group.GHOST_CLYDE,
 }
 ---@type games.Direction[]
 local DIRECTIONS = { "up", "down", "left", "right" }
@@ -122,7 +125,7 @@ end
 ---@return games.GridCell
 local function actor_cell(view, actor)
   if actor == view.pacman then
-    return { pacman_key(view.pacman.facing), PACMAN_HL }
+    return { pacman_key(view.pacman.facing), Group.PACMAN }
   end
   ---@cast actor games.PacmanGhost
   return { ghost_key(actor), ghost_hl(actor) }

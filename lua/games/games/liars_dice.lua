@@ -2,9 +2,12 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local dice = require("games.ui.dice")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@class games.LiarsDiceBid
 ---@field by games.Seat
@@ -64,8 +67,6 @@ local text_util = require("games.ui.text")
 ---@field seat games.Seat
 
 local STARTING_DICE = 5
-local KEY_HL = "GamesKey"
-local MUTED_HL = "GamesMuted"
 local BID_KIND = "bid"
 ---Display columns the table panel reserves: "Round 1: carol called dudo on 30 x ⚅", with room for a
 ---longer name.
@@ -121,11 +122,11 @@ local function reveal_lines(reveal, talk)
         talk.name(reveal.challenger),
         bid_text(talk, reveal.bid)
       ),
-      KEY_HL
+      Group.KEY
     ),
     compose.text(
       ("%d counted, %s lost a die"):format(reveal.counted, talk.name(reveal.loser)),
-      MUTED_HL
+      Group.MUTED
     ),
   }
   for _, cup in ipairs(reveal.cups) do
@@ -159,7 +160,7 @@ function M.layout(update, ctx)
       {
         width = PANEL_WIDTH,
         node = function()
-          local nodes = { kv({ pairs = table_pairs(view, talk), key_hl = KEY_HL }) }
+          local nodes = { kv({ pairs = table_pairs(view, talk), key_hl = Group.KEY }) }
           return compose.col(vim.list_extend(nodes, reveal_lines(view.last_reveal, talk)))
         end,
       },
@@ -177,9 +178,9 @@ function M.player_extra(update, seat)
     return nil
   end
   if entry.out then
-    return { compose.text("out", MUTED_HL) }
+    return { compose.text("out", Group.MUTED) }
   end
-  return { compose.text(dice_count(entry.dice), KEY_HL) }
+  return { compose.text(dice_count(entry.dice), Group.KEY) }
 end
 
 ---@type games.GameInput

@@ -1,9 +1,12 @@
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
+local highlights = require("games.ui.highlights")
 local paint = require("games.ui.paint")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
 local theme = require("games.ui.theme")
+
+local Group = highlights.Group
 
 ---Where the header draws each player's clock, which a clock tick rewrites in place. Clock text is
 ---ASCII, so its bytes are its display columns.
@@ -16,7 +19,7 @@ local theme = require("games.ui.theme")
 ---@field hl? games.Hl
 
 local LOW_CLOCK_MS = 10000
-local LOW_CLOCK_HL = "GamesClockLow"
+local LOW_CLOCK_HL = Group.CLOCK_LOW
 local HEADER_COLUMN_GAP = 2
 
 local M = {}
@@ -30,9 +33,9 @@ local function turn_marker(update, user, me)
     return compose.text("")
   end
   if user == me then
-    return compose.row({ compose.text("← "), compose.text(" your move ", "GamesYourTurn") })
+    return compose.row({ compose.text("← "), compose.text(" your move ", Group.YOUR_TURN) })
   end
-  return compose.text("← to move", "GamesMuted")
+  return compose.text("← to move", Group.MUTED)
 end
 
 ---@param update games.GameUpdate with a clock
@@ -115,7 +118,7 @@ function M.render(update, me, elapsed_ms, extras)
     compose.pad(
       HEADER_COLUMN_GAP,
       column(function(player)
-        return compose.text(player.seat, "GamesMuted")
+        return compose.text(player.seat, Group.MUTED)
       end)
     ),
   }

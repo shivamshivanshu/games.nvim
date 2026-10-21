@@ -2,11 +2,14 @@ local actions = require("games.ui.actions")
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local notation = require("games.ui.notation")
 local players = require("games.core.players")
 local tables = require("games.core.tables")
 local theme = require("games.ui.theme")
+
+local Group = highlights.Group
 
 ---@alias games.MancalaSeat "south"|"north"
 
@@ -43,7 +46,7 @@ local COLUMNS = PITS + 2
 local CELL_WIDTH = 4
 local BLANK_KEY = "blank"
 local SOW_KIND = "sow"
-local LEGAL_HL = "GamesMovable"
+local LEGAL_HL = Group.MOVABLE
 local TOP_ROW, BOTTOM_ROW = "top row, store on the left", "bottom row, store on the right"
 
 ---@enum games.MancalaKeyKind

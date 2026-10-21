@@ -3,9 +3,12 @@ local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@alias games.PokerCard games.CardKey
 ---@alias games.PokerMove "fold"|"check"|"call"|"bet"|"raise"|"allin"
@@ -118,9 +121,7 @@ local BOARD_ROW, HAND_ROW = 1, 2
 local EMPTY_KEY = "empty"
 local BLANK_KEY = "blank"
 local BUTTON_KEY = "button"
-local CARD_HL = "GamesSquareLight"
-local KEY_HL = "GamesKey"
-local MUTED_HL = "GamesMuted"
+local CARD_HL = Group.SQUARE_LIGHT
 ---Display columns the table panel reserves: "Moves    fold call raise allin".
 local PANEL_WIDTH = 32
 
@@ -213,7 +214,7 @@ local function table_node(view)
     { "Hand", ("%d  blinds %d/%d"):format(view.hand_no, view.blinds.small, view.blinds.big) },
     { "Pot", pots_text(view.pots) },
   }
-  return kv({ pairs = vim.list_extend(pairs, betting_pairs(view)), key_hl = KEY_HL })
+  return kv({ pairs = vim.list_extend(pairs, betting_pairs(view)), key_hl = Group.KEY })
 end
 
 ---@param update games.PokerUpdate
@@ -234,7 +235,7 @@ local function last_hand_lines(update, set, ambiwidth)
     return {}
   end
   ---@type games.Node[]
-  local lines = { compose.text(""), compose.text(("Last hand %d"):format(last.hand_no), KEY_HL) }
+  local lines = { compose.text(""), compose.text(("Last hand %d"):format(last.hand_no), Group.KEY) }
   for _, shown in ipairs(last.shown) do
     local name =
       text_util.fit_to_width(players.name_of_seat(update, shown.seat), text_util.NAME_WIDTH)
@@ -244,7 +245,7 @@ local function last_hand_lines(update, set, ambiwidth)
     lines[#lines + 1] = compose.row(parts)
   end
   for _, award in ipairs(last.awards) do
-    lines[#lines + 1] = compose.text(award_text(update, award), MUTED_HL)
+    lines[#lines + 1] = compose.text(award_text(update, award), Group.MUTED)
   end
   return lines
 end
@@ -301,10 +302,10 @@ function M.player_extra(update, seat, ctx)
   end)
   local bet_width = text_util.widest(view.seats, bet_text)
   return {
-    compose.text(button_mark(view, seat, ctx), KEY_HL),
+    compose.text(button_mark(view, seat, ctx), Group.KEY),
     compose.text(" " .. text_util.align_right(tostring(entry.stack), stack_width)),
     compose.text(" " .. text_util.pad_to_width(bet_text(entry), bet_width)),
-    compose.text(" " .. status_text(entry), MUTED_HL),
+    compose.text(" " .. status_text(entry), Group.MUTED),
   }
 end
 

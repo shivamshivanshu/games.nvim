@@ -2,8 +2,11 @@ local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local types = require("games.types")
+
+local Group = highlights.Group
 
 ---@alias games.MastermindColour "r"|"g"|"b"|"y"|"o"|"p"
 
@@ -45,16 +48,16 @@ local Key = {
   GAP = "gap",
 }
 local PEG_MARKER = "peg"
-local SOLVED_HL = "GamesWin"
+local SOLVED_HL = Group.WIN
 
 ---@type table<games.MastermindColour, string>
 local PEG_HL = {
-  r = "GamesPegRed",
-  g = "GamesPegGreen",
-  b = "GamesPegBlue",
-  y = "GamesPegYellow",
-  o = "GamesPegOrange",
-  p = "GamesPegPurple",
+  r = Group.PEG_RED,
+  g = Group.PEG_GREEN,
+  b = Group.PEG_BLUE,
+  y = Group.PEG_YELLOW,
+  o = Group.PEG_ORANGE,
+  p = Group.PEG_PURPLE,
 }
 
 ---@param colour string
@@ -147,8 +150,8 @@ local function panel(view, ctx)
   end
   return compose.col({
     compose.row(legend),
-    compose.text(glyph(Key.BLACK) .. " right colour, right place", "GamesLabel"),
-    compose.text(glyph(Key.WHITE) .. " right colour, wrong place", "GamesLabel"),
+    compose.text(glyph(Key.BLACK) .. " right colour, right place", Group.LABEL),
+    compose.text(glyph(Key.WHITE) .. " right colour, wrong place", Group.LABEL),
     compose.text(""),
     kv.panel({ { "guesses left", tostring(view.remaining) } }),
   })

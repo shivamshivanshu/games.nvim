@@ -1,8 +1,11 @@
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
 local theme = require("games.ui.theme")
+
+local Group = highlights.Group
 
 ---@alias games.SudokuSeat "solver"
 
@@ -32,11 +35,10 @@ local SET_KIND = "set"
 ---@type games.SudokuSeat
 local SOLVER = "solver"
 
-local GIVEN_HL = "GamesGiven"
-local REVEALED_FG_HL = "GamesMuted"
-local EMPTY_HL = "GamesMuted"
-local CONFLICT_HL = "GamesCheck"
-local REVEALED_HL = "GamesMiss"
+local REVEALED_FG_HL = Group.MUTED
+local EMPTY_HL = Group.MUTED
+local CONFLICT_HL = Group.CHECK
+local REVEALED_HL = Group.MISS
 
 ---@param row integer
 ---@param col integer
@@ -82,7 +84,7 @@ local function cell_for(view, i, shown)
     return { EMPTY_KEY, EMPTY_HL }
   end
   local marker = not shown.over and view.conflicts[i] and Marker.CONFLICT or nil
-  return { art.marked_key(digit, marker), view.given[i] and GIVEN_HL or shown.solver_hl }
+  return { art.marked_key(digit, marker), view.given[i] and Group.GIVEN or shown.solver_hl }
 end
 
 ---@param view games.SudokuView

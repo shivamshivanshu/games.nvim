@@ -3,10 +3,13 @@ local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local tables = require("games.core.tables")
 local text_util = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@alias games.HeartsPass "left"|"right"|"across"|"hold"
 ---@alias games.HeartsPhase "pass"|"play"
@@ -98,9 +101,7 @@ local text_util = require("games.ui.text")
 
 local EMPTY_KEY = "empty"
 local BLANK_KEY = "blank"
-local CARD_HL = "GamesSquareLight"
-local KEY_HL = "GamesKey"
-local MUTED_HL = "GamesMuted"
+local CARD_HL = Group.SQUARE_LIGHT
 local PLAY_KIND = "play"
 local PASS_KIND = "pass"
 local HOLD = "hold"
@@ -195,7 +196,7 @@ local function trick_cells(update, me)
   for offset = 0, SEATS - 1 do
     local place = PLACES[offset]
     local card = played[seat_at(update, me, offset)]
-    cells[place.row][place.col] = card and { card, cards.hl(card) } or { EMPTY_KEY, MUTED_HL }
+    cells[place.row][place.col] = card and { card, cards.hl(card) } or { EMPTY_KEY, Group.MUTED }
     if card then
       marks[#marks + 1] = grid.mark(place.row, place.col, CARD_HL)
     end
@@ -261,7 +262,7 @@ local function hand_lines(view, ctx)
   if #view.my_hand == 0 then
     return {}
   end
-  local lines = { compose.text(""), compose.text("Your hand", KEY_HL) }
+  local lines = { compose.text(""), compose.text("Your hand", Group.KEY) }
   return vim.list_extend(
     lines,
     cards.hand({
@@ -282,13 +283,13 @@ local function last_hand_lines(last, talk)
   if not last then
     return {}
   end
-  local lines = { compose.text(""), compose.text(("Last hand %d"):format(last.hand_no), KEY_HL) }
+  local lines = { compose.text(""), compose.text(("Last hand %d"):format(last.hand_no), Group.KEY) }
   for _, entry in ipairs(last.points) do
     local name = text_util.fit_to_width(talk.name(entry.seat), text_util.NAME_WIDTH)
     lines[#lines + 1] = compose.text(("%s +%d"):format(name, entry.points))
   end
   if last.moon then
-    lines[#lines + 1] = compose.text(("%s shot the moon"):format(talk.name(last.moon)), MUTED_HL)
+    lines[#lines + 1] = compose.text(("%s shot the moon"):format(talk.name(last.moon)), Group.MUTED)
   end
   return lines
 end
@@ -324,7 +325,7 @@ function M.layout(update, ctx)
       {
         width = PANEL_WIDTH,
         node = function()
-          local nodes = { kv({ pairs = table_pairs(update, talk), key_hl = KEY_HL }) }
+          local nodes = { kv({ pairs = table_pairs(update, talk), key_hl = Group.KEY }) }
           vim.list_extend(nodes, hand_lines(view, ctx))
           return compose.col(vim.list_extend(nodes, last_hand_lines(view.last_hand, talk)))
         end,
@@ -359,15 +360,15 @@ function M.player_extra(update, seat, ctx)
     or (view.phase == "pass" and entry.pass_chosen and "passed")
     or ""
   local nodes = {
-    compose.text(text_util.align_right(tostring(entry.score), score_width) .. " pts", KEY_HL),
+    compose.text(text_util.align_right(tostring(entry.score), score_width) .. " pts", Group.KEY),
     compose.text(" " .. text_util.pad_to_width(taken_text(entry), taken_width)),
     compose.text(
       " " .. text_util.pad_to_width(PLACES[offset_of(update, ctx.me, seat)].name, PLACE_WIDTH),
-      MUTED_HL
+      Group.MUTED
     ),
   }
   if status ~= "" then
-    nodes[#nodes + 1] = compose.text(" " .. status, MUTED_HL)
+    nodes[#nodes + 1] = compose.text(" " .. status, Group.MUTED)
   end
   return nodes
 end

@@ -1,8 +1,11 @@
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
 local text = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@alias games.DiscSeat "black"|"white"
 
@@ -23,12 +26,10 @@ local EMPTY_KEY = "empty"
 local LEGAL_KEY = "legal"
 
 ---@type table<games.DiscSeat, games.Hl>
-local SEAT_HL = { black = "GamesPieceBlack", white = "GamesPieceWhite" }
-local LAST_MOVE_HL = "GamesLastMove"
-local WIN_HL = "GamesWin"
-local LEGAL_HL = "GamesMovable"
-local NOTE_HL = "GamesLabel"
-local CELL_HL = "GamesKey"
+local SEAT_HL = { black = Group.PIECE_BLACK, white = Group.PIECE_WHITE }
+local LEGAL_HL = Group.MOVABLE
+local NOTE_HL = Group.LABEL
+local CELL_HL = Group.KEY
 local PLACE_KIND = "place"
 ---Display columns the notes panel reserves: "line a15-o15".
 local NOTES_WIDTH = 12
@@ -68,10 +69,10 @@ end
 function M.marks(view, marked)
   local marks = grid.cell_marks(marked.legal or {}, LEGAL_HL)
   if view.last then
-    marks[#marks + 1] = grid.mark(view.last.row, view.last.col, LAST_MOVE_HL)
+    marks[#marks + 1] = grid.mark(view.last.row, view.last.col, Group.LAST_MOVE)
   end
   for _, line in ipairs(marked.winning_lines or {}) do
-    vim.list_extend(marks, grid.cell_marks(line, WIN_HL))
+    vim.list_extend(marks, grid.cell_marks(line, Group.WIN))
   end
   return marks
 end

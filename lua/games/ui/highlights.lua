@@ -5,6 +5,56 @@ local colour = require("games.ui.colour")
 ---@enum games.HlRole
 local Role = { BACKGROUND = "bg", FOREGROUND = "fg", BADGE = "badge" }
 
+---Every group the plugin defines; each background group also has an ink group, its name
+---with "Ink" added, for text drawn over it.
+---@enum games.HlGroup
+local Group = {
+  SQUARE_LIGHT = "GamesSquareLight",
+  SQUARE_DARK = "GamesSquareDark",
+  LAST_MOVE = "GamesLastMove",
+  LAST_MOVE_DARK = "GamesLastMoveDark",
+  CHECK = "GamesCheck",
+  WIN = "GamesWin",
+  HIT = "GamesHit",
+  PRESENT = "GamesPresent",
+  MISS = "GamesMiss",
+  PIECE_WHITE = "GamesPieceWhite",
+  PIECE_BLACK = "GamesPieceBlack",
+  SEAT_1 = "GamesSeat1",
+  SEAT_2 = "GamesSeat2",
+  SEAT_3 = "GamesSeat3",
+  SEAT_4 = "GamesSeat4",
+  KEY = "GamesKey",
+  LABEL = "GamesLabel",
+  MUTED = "GamesMuted",
+  WON = "GamesWon",
+  LOST = "GamesLost",
+  DRAWN = "GamesDrawn",
+  CLOCK_LOW = "GamesClockLow",
+  CHECK_SIGN = "GamesCheckSign",
+  DASH_SECTION = "GamesDashSection",
+  YOUR_TURN = "GamesYourTurn",
+  MOVABLE = "GamesMovable",
+  GIVEN = "GamesGiven",
+  CARD_RED = "GamesCardRed",
+  PEG_RED = "GamesPegRed",
+  PEG_GREEN = "GamesPegGreen",
+  PEG_BLUE = "GamesPegBlue",
+  PEG_YELLOW = "GamesPegYellow",
+  PEG_ORANGE = "GamesPegOrange",
+  PEG_PURPLE = "GamesPegPurple",
+  CARD_YELLOW = "GamesCardYellow",
+  CARD_GREEN = "GamesCardGreen",
+  CARD_BLUE = "GamesCardBlue",
+  PACMAN = "GamesPacman",
+  PACMAN_WALL = "GamesPacmanWall",
+  GHOST_BLINKY = "GamesGhostBlinky",
+  GHOST_PINKY = "GamesGhostPinky",
+  GHOST_INKY = "GamesGhostInky",
+  GHOST_CLYDE = "GamesGhostClyde",
+  GHOST_FRIGHTENED = "GamesGhostFrightened",
+}
+
 ---@alias games.HlAttr "fg"|"bg"
 
 ---@class games.HlSource
@@ -12,12 +62,12 @@ local Role = { BACKGROUND = "bg", FOREGROUND = "fg", BADGE = "badge" }
 ---@field attr? games.HlAttr attribute to read, by default the one the role sets
 
 ---@class games.HlGroupSpec
----@field name string
+---@field name games.HlGroup
 ---@field role games.HlRole
 ---@field theme games.HlSource[] tried in order under the theme palette; none leaves the layer blank
 ---@field theme_style? vim.api.keyset.highlight attributes added under the theme palette
 ---@field vivid vim.api.keyset.highlight the whole definition under the vivid palette
----@field layered_over? string group this one is always stacked over, whose background shows where it sets none
+---@field layered_over? games.HlGroup group this one is always stacked over, whose background shows where it sets none
 
 ---@alias games.HlDefinitions table<string, vim.api.keyset.highlight> group -> nvim_set_hl attributes
 
@@ -40,7 +90,6 @@ local SETTING_KEYS = { default = true, force = true }
 local TOP_LEVEL_SKIPS = vim.tbl_extend("error", SETTING_KEYS, { cterm = true })
 local OPPOSITE_ATTR = { fg = "bg", bg = "fg" }
 local INK_SUFFIX = "Ink"
-local LIGHT_SQUARE, DARK_SQUARE = "GamesSquareLight", "GamesSquareDark"
 
 ---@class (private) games.Ink
 ---@field gui integer
@@ -63,275 +112,275 @@ end
 ---@type games.HlGroupSpec[]
 local GROUPS = {
   {
-    name = "GamesSquareLight",
+    name = Group.SQUARE_LIGHT,
     role = Role.BACKGROUND,
     theme = { from("CursorLine"), from("Pmenu") },
     vivid = { bg = "#f0d9b5" },
   },
   {
-    name = "GamesSquareDark",
+    name = Group.SQUARE_DARK,
     role = Role.BACKGROUND,
     theme = { from("ColorColumn"), from("StatusLine") },
     vivid = { bg = "#b58863" },
   },
   {
-    name = "GamesLastMove",
+    name = Group.LAST_MOVE,
     role = Role.BACKGROUND,
     theme = { from("Search"), from("CurSearch"), from("Visual") },
     vivid = { bg = "#cdd26a" },
   },
   {
-    name = "GamesLastMoveDark",
+    name = Group.LAST_MOVE_DARK,
     role = Role.BACKGROUND,
     theme = {},
     vivid = { bg = "#aaa23a" },
-    layered_over = "GamesLastMove",
+    layered_over = Group.LAST_MOVE,
   },
   {
-    name = "GamesCheck",
+    name = Group.CHECK,
     role = Role.BACKGROUND,
     theme = { from("DiagnosticError", "fg"), from("ErrorMsg", "fg"), from("DiffDelete") },
     vivid = { bg = "#e05050" },
   },
   {
-    name = "GamesWin",
+    name = Group.WIN,
     role = Role.BACKGROUND,
     theme = { from("IncSearch"), from("CurSearch"), from("Search") },
     vivid = { bg = "#629924" },
   },
   {
-    name = "GamesHit",
+    name = Group.HIT,
     role = Role.BACKGROUND,
     theme = { from("DiffAdd"), from("DiagnosticOk", "fg") },
     vivid = { bg = "#6aaa64" },
   },
   {
-    name = "GamesPresent",
+    name = Group.PRESENT,
     role = Role.BACKGROUND,
     theme = { from("DiffText"), from("DiagnosticWarn", "fg") },
     vivid = { bg = "#c9b458" },
   },
   {
-    name = "GamesMiss",
+    name = Group.MISS,
     role = Role.BACKGROUND,
     theme = { from("DiffChange"), from("Visual") },
     vivid = { bg = "#787c7e" },
   },
   {
-    name = "GamesPieceWhite",
+    name = Group.PIECE_WHITE,
     role = Role.FOREGROUND,
     theme = { from("Normal") },
     vivid = { fg = "#1b1b1b" },
   },
   {
-    name = "GamesPieceBlack",
+    name = Group.PIECE_BLACK,
     role = Role.FOREGROUND,
     theme = { from("Identifier"), from("Special") },
     vivid = { fg = "#1b1b1b" },
   },
   {
-    name = "GamesSeat1",
+    name = Group.SEAT_1,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticInfo") },
     vivid = { fg = "#56b4e9" },
   },
   {
-    name = "GamesSeat2",
+    name = Group.SEAT_2,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticWarn") },
     vivid = { fg = "#e69f00" },
   },
   {
-    name = "GamesSeat3",
+    name = Group.SEAT_3,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticError") },
     vivid = { fg = "#d55e00" },
   },
   {
-    name = "GamesSeat4",
+    name = Group.SEAT_4,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticOk") },
     vivid = { fg = "#009e73" },
   },
   {
-    name = "GamesKey",
+    name = Group.KEY,
     role = Role.FOREGROUND,
     theme = { from("Special"), from("Statement") },
     theme_style = { bold = true },
     vivid = { fg = "#e69f00", bold = true },
   },
   {
-    name = "GamesLabel",
+    name = Group.LABEL,
     role = Role.FOREGROUND,
     theme = { from("Comment") },
     vivid = { fg = "#a0a0a0" },
   },
   {
-    name = "GamesMuted",
+    name = Group.MUTED,
     role = Role.FOREGROUND,
     theme = { from("Comment") },
     vivid = { fg = "#808080" },
   },
   {
-    name = "GamesWon",
+    name = Group.WON,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticOk") },
     theme_style = { bold = true },
     vivid = { fg = "#629924", bold = true },
   },
   {
-    name = "GamesLost",
+    name = Group.LOST,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticError") },
     theme_style = { bold = true },
     vivid = { fg = "#e05050", bold = true },
   },
   {
-    name = "GamesDrawn",
+    name = Group.DRAWN,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticWarn") },
     theme_style = { bold = true },
     vivid = { fg = "#c9b458", bold = true },
   },
   {
-    name = "GamesClockLow",
+    name = Group.CLOCK_LOW,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticError") },
     theme_style = { bold = true },
     vivid = { fg = "#e05050", bold = true },
   },
   {
-    name = "GamesCheckSign",
+    name = Group.CHECK_SIGN,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticError") },
     vivid = { fg = "#e05050" },
   },
   {
-    name = "GamesDashSection",
+    name = Group.DASH_SECTION,
     role = Role.FOREGROUND,
     theme = { from("Title"), from("Statement") },
     theme_style = { bold = true },
     vivid = { fg = "#56b4e9", bold = true },
   },
   {
-    name = "GamesYourTurn",
+    name = Group.YOUR_TURN,
     role = Role.BADGE,
     theme = { from("DiagnosticOk") },
     theme_style = { reverse = true, bold = true },
     vivid = { fg = "#ffffff", bg = "#629924", bold = true },
   },
   {
-    name = "GamesMovable",
+    name = Group.MOVABLE,
     role = Role.BACKGROUND,
     theme = { from("PmenuSel"), from("Visual") },
     vivid = { bg = "#829769" },
   },
   {
-    name = "GamesGiven",
+    name = Group.GIVEN,
     role = Role.FOREGROUND,
     theme = { from("Comment") },
     theme_style = { bold = true },
     vivid = { fg = "#808080", bold = true },
   },
   {
-    name = "GamesCardRed",
+    name = Group.CARD_RED,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticError"), from("ErrorMsg") },
     vivid = { fg = "#c62828" },
   },
   {
-    name = "GamesPegRed",
+    name = Group.PEG_RED,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticError"), from("ErrorMsg") },
     vivid = { fg = "#e05050" },
   },
   {
-    name = "GamesPegGreen",
+    name = Group.PEG_GREEN,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticOk"), from("String") },
     vivid = { fg = "#009e73" },
   },
   {
-    name = "GamesPegBlue",
+    name = Group.PEG_BLUE,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticInfo"), from("Function") },
     vivid = { fg = "#56b4e9" },
   },
   {
-    name = "GamesPegYellow",
+    name = Group.PEG_YELLOW,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticWarn"), from("WarningMsg") },
     vivid = { fg = "#f0e442" },
   },
   {
-    name = "GamesPegOrange",
+    name = Group.PEG_ORANGE,
     role = Role.FOREGROUND,
     theme = { from("Constant"), from("Number") },
     vivid = { fg = "#e69f00" },
   },
   {
-    name = "GamesPegPurple",
+    name = Group.PEG_PURPLE,
     role = Role.FOREGROUND,
     theme = { from("Statement"), from("Keyword") },
     vivid = { fg = "#cc79a7" },
   },
   {
-    name = "GamesCardYellow",
+    name = Group.CARD_YELLOW,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticWarn"), from("WarningMsg") },
     vivid = { fg = "#e0a800" },
   },
   {
-    name = "GamesCardGreen",
+    name = Group.CARD_GREEN,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticOk"), from("String") },
     vivid = { fg = "#2e7d32" },
   },
   {
-    name = "GamesCardBlue",
+    name = Group.CARD_BLUE,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticInfo"), from("Function") },
     vivid = { fg = "#1565c0" },
   },
   {
-    name = "GamesPacman",
+    name = Group.PACMAN,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticWarn"), from("WarningMsg") },
     theme_style = { bold = true },
     vivid = { fg = "#ffd700", bold = true },
   },
   {
-    name = "GamesPacmanWall",
+    name = Group.PACMAN_WALL,
     role = Role.FOREGROUND,
     theme = { from("Function"), from("DiagnosticInfo") },
     vivid = { fg = "#2121de" },
   },
   {
-    name = "GamesGhostBlinky",
+    name = Group.GHOST_BLINKY,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticError"), from("ErrorMsg") },
     vivid = { fg = "#ff0000" },
   },
   {
-    name = "GamesGhostPinky",
+    name = Group.GHOST_PINKY,
     role = Role.FOREGROUND,
     theme = { from("Statement"), from("Keyword") },
     vivid = { fg = "#ffb8ff" },
   },
   {
-    name = "GamesGhostInky",
+    name = Group.GHOST_INKY,
     role = Role.FOREGROUND,
     theme = { from("Special"), from("Type") },
     vivid = { fg = "#00ffff" },
   },
   {
-    name = "GamesGhostClyde",
+    name = Group.GHOST_CLYDE,
     role = Role.FOREGROUND,
     theme = { from("Constant"), from("Number") },
     vivid = { fg = "#ffb852" },
   },
   {
-    name = "GamesGhostFrightened",
+    name = Group.GHOST_FRIGHTENED,
     role = Role.FOREGROUND,
     theme = { from("DiagnosticInfo"), from("Identifier") },
     theme_style = { italic = true },
@@ -353,6 +402,7 @@ end)
 local M = {}
 
 M.Role = Role
+M.Group = Group
 
 ---@type table<string, games.HlRole> every group, inks included
 M.ROLES = vim.iter(INK_OF):fold(
@@ -530,11 +580,15 @@ end
 ---@param definitions games.HlDefinitions
 ---@return games.HlDefinitions
 local function squares_by_lightness(definitions)
-  local light, dark = definitions[LIGHT_SQUARE], definitions[DARK_SQUARE]
+  local light, dark = definitions[Group.SQUARE_LIGHT], definitions[Group.SQUARE_DARK]
   if not is_lighter(dark, light) then
     return definitions
   end
-  return vim.tbl_extend("force", definitions, { [LIGHT_SQUARE] = dark, [DARK_SQUARE] = light })
+  return vim.tbl_extend(
+    "force",
+    definitions,
+    { [Group.SQUARE_LIGHT] = dark, [Group.SQUARE_DARK] = light }
+  )
 end
 
 ---Definitions derived from the colourscheme, taking from each source only the attribute the

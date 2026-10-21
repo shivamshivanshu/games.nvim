@@ -1,7 +1,10 @@
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local movelist = require("games.ui.widgets.movelist")
+
+local Group = highlights.Group
 
 ---@alias games.CheckersPiece ""|"b"|"B"|"w"|"W" empty, black man, black king, white man, white king
 
@@ -30,15 +33,14 @@ local SQUARES_PER_ROW = SIZE / 2
 local EMPTY_KEY = "empty"
 local LIGHT_KEY = "light"
 
-local LAST_MOVE_HL = { "GamesLastMove", "GamesLastMoveDark" }
-local MOVABLE_HL = "GamesMovable"
-local NOTATION_HL = "GamesLabel"
-local NUMBER_HL = "GamesMuted"
+local LAST_MOVE_HL = { Group.LAST_MOVE, Group.LAST_MOVE_DARK }
+local NOTATION_HL = Group.LABEL
+local NUMBER_HL = Group.MUTED
 local NOTATION = "- move  x jump"
 
 ---@type table<games.CheckersPiece, games.Hl>
 local PIECE_HL =
-  { b = "GamesPieceBlack", B = "GamesPieceBlack", w = "GamesPieceWhite", W = "GamesPieceWhite" }
+  { b = Group.PIECE_BLACK, B = Group.PIECE_BLACK, w = Group.PIECE_WHITE, W = Group.PIECE_WHITE }
 
 ---Display columns the move list reserves at least: "99. 15x24x31x22 22x15x8".
 local MOVELIST_WIDTH = 24
@@ -78,7 +80,7 @@ local function marks_for(view)
     return mark_on(square, LAST_MOVE_HL)
   end, view.last)
   for _, path in ipairs(view.legal) do
-    marks[#marks + 1] = mark_on(path[1], MOVABLE_HL)
+    marks[#marks + 1] = mark_on(path[1], Group.MOVABLE)
   end
   return marks
 end

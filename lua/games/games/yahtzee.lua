@@ -3,9 +3,12 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local dice = require("games.ui.dice")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@alias games.YahtzeeBox "ones"|"twos"|"threes"|"fours"|"fives"|"sixes"|"three_of_a_kind"|"four_of_a_kind"|"full_house"|"small_straight"|"large_straight"|"yahtzee"|"chance"
 
@@ -67,10 +70,7 @@ local DICE = vim.fn.range(1, DICE_COUNT)
 local NO_DICE = {}
 local DICE_ROW, HOLD_ROW = 1, 2
 local HELD_KEY, FREE_KEY = "held", "free"
-local HELD_HL = "GamesMovable"
-local KEY_HL = "GamesKey"
-local LABEL_HL = "GamesLabel"
-local MUTED_HL = "GamesMuted"
+local HELD_HL = Group.MOVABLE
 local KEY_WIDTH = 2
 local LABEL_WIDTH = 16
 ---Display columns of each seat's score column, its name cut to fit with a blank before it.
@@ -160,9 +160,9 @@ local function heading(update)
   local parts = { compose.text(text_util.spaces(KEY_WIDTH + LABEL_WIDTH)) }
   for _, card in ipairs(update.view.cards) do
     local name = vim.fn.strcharpart(players.name_of_seat(update, card.seat), 0, SEAT_WIDTH - 1)
-    parts[#parts + 1] = compose.text(text_util.align_right(name, SEAT_WIDTH), LABEL_HL)
+    parts[#parts + 1] = compose.text(text_util.align_right(name, SEAT_WIDTH), Group.LABEL)
   end
-  parts[#parts + 1] = compose.text(text_util.align_right(NOW_HEADING, NOW_WIDTH), LABEL_HL)
+  parts[#parts + 1] = compose.text(text_util.align_right(NOW_HEADING, NOW_WIDTH), Group.LABEL)
   return compose.row(parts)
 end
 
@@ -184,17 +184,17 @@ end
 local function scorecard_line(view, row)
   local option = row.box and option_for(view, row.box)
   local parts = {
-    compose.text(text_util.pad_to_width(option and row.key or "", KEY_WIDTH), KEY_HL),
+    compose.text(text_util.pad_to_width(option and row.key or "", KEY_WIDTH), Group.KEY),
     compose.text(
       text_util.pad_to_width(row_label(view, row), LABEL_WIDTH),
-      row.box and LABEL_HL or KEY_HL
+      row.box and Group.LABEL or Group.KEY
     ),
   }
   for _, card in ipairs(view.cards) do
     parts[#parts + 1] = compose.text(text_util.align_right(card_value(card, row), SEAT_WIDTH))
   end
   local now = option and tostring(option.score) or ""
-  parts[#parts + 1] = compose.text(text_util.align_right(now, NOW_WIDTH), KEY_HL)
+  parts[#parts + 1] = compose.text(text_util.align_right(now, NOW_WIDTH), Group.KEY)
   return compose.row(parts)
 end
 
@@ -207,7 +207,7 @@ local function turn_line(update)
     round = round
       .. (", %d roll%s left"):format(view.rolls_left, view.rolls_left == 1 and "" or "s")
   end
-  return compose.text(round, MUTED_HL)
+  return compose.text(round, Group.MUTED)
 end
 
 ---@param update games.YahtzeeUpdate
@@ -262,9 +262,9 @@ function M.player_extra(update, seat)
   if not card then
     return nil
   end
-  local nodes = { compose.text(("total %d"):format(card.total), LABEL_HL) }
+  local nodes = { compose.text(("total %d"):format(card.total), Group.LABEL) }
   if card.out then
-    nodes[#nodes + 1] = compose.text(" out", MUTED_HL)
+    nodes[#nodes + 1] = compose.text(" out", Group.MUTED)
   end
   return nodes
 end

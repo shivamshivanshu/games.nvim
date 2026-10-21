@@ -1,8 +1,11 @@
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local text = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@class games.HangmanLetterGuess
 ---@field letter string
@@ -31,7 +34,7 @@ local UNFOUND_MARKER = "unfound"
 local GALLOWS_MARKER = "gallows"
 ---The gallows drawn after 0 to this many misses.
 local GALLOWS_STAGES = 6
-local UNFOUND_HL = "GamesLost"
+local UNFOUND_HL = Group.LOST
 local NONE = "-"
 local WRONG_WORD_LABEL = "wrong word"
 local MISSES_LEFT_LABEL = "misses left"

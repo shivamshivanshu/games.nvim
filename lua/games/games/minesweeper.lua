@@ -1,8 +1,11 @@
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local notation = require("games.ui.notation")
 local text = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@alias games.MinesweeperSeat "solver"
 
@@ -47,9 +50,9 @@ local text = require("games.ui.text")
 local CELL_WIDTH = 2
 local REVEAL_KIND, FLAG_KIND, CHORD_KIND = "reveal", "flag", "chord"
 local EXPLODED_KEY = "exploded"
-local HIDDEN_HL = "GamesMuted"
-local FLAG_HL = "GamesCardRed"
-local EXPLODED_HL = "GamesCheck"
+local HIDDEN_HL = Group.MUTED
+local FLAG_HL = Group.CARD_RED
+local EXPLODED_HL = Group.CHECK
 local MINES_LEFT_LABEL = "mines left"
 ---Display columns the status panel reserves: its widest label, a space, and a count such as -99.
 local PANEL_WIDTH = #MINES_LEFT_LABEL + 1 + 3

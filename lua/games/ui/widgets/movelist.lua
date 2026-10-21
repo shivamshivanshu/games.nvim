@@ -2,8 +2,10 @@ local compose = require("games.ui.compose")
 local highlights = require("games.ui.highlights")
 local text_util = require("games.ui.text")
 
-local NUMBER_HL = "GamesMuted"
-local LATEST_HL = highlights.with_ink("GamesLastMove")
+local Group = highlights.Group
+
+local NUMBER_HL = Group.MUTED
+local LATEST_HL = highlights.with_ink(Group.LAST_MOVE)
 local SKIPPED = "..."
 
 ---@class games.MoveAnnotation

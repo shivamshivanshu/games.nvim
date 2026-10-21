@@ -2,9 +2,12 @@ local actions = require("games.ui.actions")
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local theme = require("games.ui.theme")
+
+local Group = highlights.Group
 
 ---@alias games.LudoSeat "blue"|"yellow"|"red"|"green"
 ---@alias games.LudoPhase "roll"|"move"|"finished"
@@ -97,7 +100,6 @@ local FIRST_SPOTS = { { 2, 2 }, { 2, 5 }, { 5, 2 }, { 5, 5 } }
 ---@type games.LudoCell where the top-left arm's finished tokens stand
 local FIRST_GOAL = { 8, 7 }
 
-local LAST_MOVE_HL = "GamesLastMove"
 local MOVABLE_KEY = "movable"
 local TRACK_KEY = "track"
 local PANEL_WIDTH = 16
@@ -303,7 +305,7 @@ local function marks_for(view)
     return {}
   end
   local cell = cell_of(arm_at(view.starts[last.seat]), last.token, last.to)
-  return { grid.mark(cell[1], cell[2], LAST_MOVE_HL) }
+  return { grid.mark(cell[1], cell[2], Group.LAST_MOVE) }
 end
 
 ---@param location games.LudoLocation

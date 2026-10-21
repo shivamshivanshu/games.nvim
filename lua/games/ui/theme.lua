@@ -3,14 +3,17 @@ local notify = require("games.core.notify")
 local players = require("games.core.players")
 local types = require("games.types")
 
+local Group = highlights.Group
+
 ---@class games.ThemeOptions
 ---@field palette games.Palette
 ---@field highlights games.HlDefinitions always applied over the palette, cut to each group's role
 
-local SEAT_COLOURS = 4
----@type table<games.Outcome, string>
+---@type games.HlGroup[]
+local SEAT_HLS = { Group.SEAT_1, Group.SEAT_2, Group.SEAT_3, Group.SEAT_4 }
+---@type table<games.Outcome, games.HlGroup>
 local OUTCOME_HL =
-  { won = "GamesWon", lost = "GamesLost", drawn = "GamesDrawn", aborted = "GamesMuted" }
+  { won = Group.WON, lost = Group.LOST, drawn = Group.DRAWN, aborted = Group.MUTED }
 local AUGROUP = "games.theme"
 
 ---@type games.ThemeOptions
@@ -148,9 +151,9 @@ end
 
 ---Highlight group for the seat at position i of update.players; colours repeat after four seats.
 ---@param i integer
----@return string
+---@return games.HlGroup
 function M.seat_hl(i)
-  return "GamesSeat" .. ((i - 1) % SEAT_COLOURS + 1)
+  return SEAT_HLS[(i - 1) % #SEAT_HLS + 1]
 end
 
 ---The highlight group of seat's colour in update, or nil while no player holds seat.

@@ -1,5 +1,8 @@
 local compose = require("games.ui.compose")
 local discs = require("games.ui.discs")
+local highlights = require("games.ui.highlights")
+
+local Group = highlights.Group
 
 ---@class games.ReversiDiscCount
 ---@field black integer
@@ -24,7 +27,7 @@ local discs = require("games.ui.discs")
 ---@field kind "passed"
 ---@field by games.DiscSeat the seat that had no move
 
-local COUNT_HL = "GamesLabel"
+local COUNT_HL = Group.LABEL
 
 local M = {}
 

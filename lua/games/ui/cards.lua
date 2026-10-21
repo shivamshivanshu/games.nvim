@@ -1,11 +1,14 @@
 local art = require("games.ui.art")
 local compose = require("games.ui.compose")
+local highlights = require("games.ui.highlights")
 local text_util = require("games.ui.text")
+
+local Group = highlights.Group
 
 ---@alias games.CardKey string rank then suit letter, as on the wire: "As", "Td", "2c"
 ---@alias games.UnoCardKey string colour letter then face, as on the wire: "R5", "G+2", "W+4"
 
-local RED_HL = "GamesCardRed"
+local RED_HL = Group.CARD_RED
 ---@type table<string, true> suit letters drawn red
 local RED_SUITS = { d = true, h = true }
 local RANKS = "23456789TJQKA"
@@ -44,9 +47,9 @@ end
 ---@type games.UnoColorStyle[] in the order a deck lists them
 M.uno_colors = {
   { letter = "R", name = "red", hl = RED_HL },
-  { letter = "Y", name = "yellow", hl = "GamesCardYellow" },
-  { letter = "G", name = "green", hl = "GamesCardGreen" },
-  { letter = "B", name = "blue", hl = "GamesCardBlue" },
+  { letter = "Y", name = "yellow", hl = Group.CARD_YELLOW },
+  { letter = "G", name = "green", hl = Group.CARD_GREEN },
+  { letter = "B", name = "blue", hl = Group.CARD_BLUE },
 }
 M.UNO_WILDS = { "W", "W+4" }
 

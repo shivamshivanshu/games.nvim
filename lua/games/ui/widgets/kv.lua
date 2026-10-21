@@ -1,9 +1,12 @@
 local compose = require("games.ui.compose")
+local highlights = require("games.ui.highlights")
 local text_util = require("games.ui.text")
 
-local DEFAULT_KEY_HL = "GamesMuted"
-local PANEL_KEY_HL = "GamesKey"
-local PANEL_VALUE_HL = "GamesLabel"
+local Group = highlights.Group
+
+local DEFAULT_KEY_HL = Group.MUTED
+local PANEL_KEY_HL = Group.KEY
+local PANEL_VALUE_HL = Group.LABEL
 
 ---@alias games.KvPair {[1]: string, [2]: string} {key, value}
 

@@ -2,10 +2,13 @@ local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local cursor = require("games.ui.cursor")
+local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
 local players = require("games.core.players")
 local text = require("games.ui.text")
 local theme = require("games.ui.theme")
+
+local Group = highlights.Group
 
 ---@alias games.DotsAndBoxesSeat "p1"|"p2"
 
@@ -42,8 +45,8 @@ local DRAWN_KEY = { across = "across", down = "down" }
 local LAST_KEY = { across = "last_across", down = "last_down" }
 local AIM_KEY = { across = "aim_across", down = "aim_down" }
 local EDGE_HL, DOT_HL, LAST_HL, AIM_HL, BLOCKED_HL =
-  "GamesLabel", "GamesMuted", "GamesLastMove", "GamesMovable", "GamesCheck"
-local STATUS_HL, VALUE_HL = "GamesKey", "GamesLabel"
+  Group.LABEL, Group.MUTED, Group.LAST_MOVE, Group.MOVABLE, Group.CHECK
+local STATUS_HL, VALUE_HL = Group.KEY, Group.LABEL
 ---Display columns the panel reserves: its widest line, "at a1h: drawn".
 local PANEL_WIDTH = #"at a1h: drawn"
 

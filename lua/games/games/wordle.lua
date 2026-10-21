@@ -6,6 +6,8 @@ local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local text = require("games.ui.text")
 
+local Group = highlights.Group
+
 ---@class games.WordleGuess
 ---@field word string
 ---@field feedback games.WordleMark[] one per letter
@@ -40,9 +42,9 @@ end)
 
 ---@type table<games.WordleMark, string>
 local MARK_HL = {
-  [Mark.HIT] = "GamesHit",
-  [Mark.PRESENT] = "GamesPresent",
-  [Mark.MISS] = "GamesMiss",
+  [Mark.HIT] = Group.HIT,
+  [Mark.PRESENT] = Group.PRESENT,
+  [Mark.MISS] = Group.MISS,
 }
 
 ---@type games.WordleMark[] marks the pack frames; a miss draws the plain letter

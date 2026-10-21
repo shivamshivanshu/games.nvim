@@ -2,9 +2,12 @@ local actions = require("games.ui.actions")
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local tables = require("games.core.tables")
 local types = require("games.types")
+
+local Group = highlights.Group
 
 ---@alias games.FifteenSeat "solver"
 
@@ -32,8 +35,7 @@ local BLANK = 0
 local BLANK_KEY = "blank"
 local SLIDE_KIND, MOVE_KIND = "slide", "move"
 local MOVABLE_MARKER = "movable"
-local MOVABLE_HL = "GamesMovable"
-local SOLVED_HL = "GamesWin"
+local SOLVED_HL = Group.WIN
 local MOVES_LABEL = "moves"
 ---Display columns the status panel reserves: the label, a space, and up to 5 digits.
 local PANEL_WIDTH = #MOVES_LABEL + 1 + 5
@@ -62,7 +64,7 @@ local function marks_for(update, movable)
     if solved and tile ~= BLANK then
       return SOLVED_HL
     end
-    return movable[tile] and MOVABLE_HL or nil
+    return movable[tile] and Group.MOVABLE or nil
   end)
 end
 
