@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
@@ -23,4 +24,18 @@ func PlayersOf(users []UserID, seats map[UserID]Seat) ([]Player, error) {
 // Users lists the players' users in seating order.
 func Users(players []Player) []UserID {
 	return xslices.Map(players, func(p Player) UserID { return p.User })
+}
+
+// NumberedSeat is the seat at index i of a seating order numbered p1, p2, ….
+func NumberedSeat(i int) Seat { return Seat("p" + strconv.Itoa(i+1)) }
+
+// NumberSeats seats users as p1, p2, … in their given order, and returns that order.
+func NumberSeats(users []UserID) ([]Seat, map[UserID]Seat) {
+	order := make([]Seat, len(users))
+	seats := make(map[UserID]Seat, len(users))
+	for i, user := range users {
+		order[i] = NumberedSeat(i)
+		seats[user] = order[i]
+	}
+	return order, seats
 }
