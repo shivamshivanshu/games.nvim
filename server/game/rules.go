@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"math/rand/v2"
 	"reflect"
-	"slices"
 	"time"
 )
 
@@ -126,9 +125,4 @@ type ErasedState interface {
 	Tick(rng *rand.Rand) (ErasedState, []json.RawMessage, error)
 	// Pause is the state itself for a state that is not Ticking.
 	Pause() ErasedState
-}
-
-func ForfeitToRemaining(all []Seat, eliminated Seat, reason ResultReason) Result {
-	winners := slices.DeleteFunc(slices.Clone(all), func(s Seat) bool { return s == eliminated })
-	return Result{Kind: ResultDecisive, Winners: winners, Reason: reason}
 }

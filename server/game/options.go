@@ -39,17 +39,17 @@ func (s OptionSpec) check(value OptionValue) error {
 
 func (s OptionSpec) checkEnum(value OptionValue) error {
 	if !slices.Contains(s.Values, value) {
-		return BadRequestError{Msg: fmt.Sprintf("option %q: invalid value %q, want one of %v", s.Name, value, s.Values)}
+		return BadRequestf("option %q: invalid value %q, want one of %v", s.Name, value, s.Values)
 	}
 	return nil
 }
 
 func (s OptionSpec) checkText(value OptionValue) error {
 	if len(value) > s.MaxLen {
-		return BadRequestError{Msg: fmt.Sprintf("option %q: %d bytes, want at most %d", s.Name, len(value), s.MaxLen)}
+		return BadRequestf("option %q: %d bytes, want at most %d", s.Name, len(value), s.MaxLen)
 	}
 	if strings.ContainsFunc(string(value), IsHiddenRune) {
-		return BadRequestError{Msg: fmt.Sprintf("option %q: control and format characters are not allowed", s.Name)}
+		return BadRequestf("option %q: control and format characters are not allowed", s.Name)
 	}
 	return nil
 }

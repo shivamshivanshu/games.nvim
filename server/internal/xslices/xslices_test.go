@@ -17,3 +17,19 @@ func TestMapValuesKeepsNilMapNil(t *testing.T) {
 		t.Fatalf("got %v, want nil", got)
 	}
 }
+
+func TestCloneOfNilEncodesAsEmptyArray(t *testing.T) {
+	raw, err := json.Marshal(Clone([]int(nil)))
+	if err != nil || string(raw) != "[]" {
+		t.Fatalf("got %s, %v; want []", raw, err)
+	}
+}
+
+func TestCloneDoesNotShareItsInput(t *testing.T) {
+	in := []int{1}
+	out := Clone(in)
+	in[0] = 2
+	if out[0] != 1 {
+		t.Fatalf("clone changed with its input: %v", out)
+	}
+}

@@ -1,8 +1,6 @@
 package grid
 
 import (
-	"fmt"
-
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
@@ -35,7 +33,7 @@ func ParseDirection(text string) (Direction, error) {
 			return d, nil
 		}
 	}
-	return "", game.IllegalActionError{Msg: fmt.Sprintf("want up, down, left or right; got %q", text)}
+	return "", game.Illegalf("want up, down, left or right; got %q", text)
 }
 
 // From is the point one cell from p toward d, row 0 at the top; it may lie off the board.

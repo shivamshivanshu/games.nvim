@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"slices"
 	"time"
+
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 type adapted[Opts, Action, View any] struct {
@@ -43,7 +45,7 @@ func (g adapted[Opts, Action, View]) ResolveOptions(raw json.RawMessage) (Option
 	for name, value := range given {
 		i := slices.IndexFunc(specs, func(s OptionSpec) bool { return s.Name == name })
 		if i < 0 {
-			return nil, BadRequestError{Msg: fmt.Sprintf("unknown option %q", name)}
+			return nil, BadRequestf("unknown option %q", name)
 		}
 		if err := specs[i].check(value); err != nil {
 			return nil, err
@@ -69,13 +71,13 @@ func decodeGivenOptions(raw json.RawMessage) (Options, error) {
 	var given map[OptionName]*OptionValue
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &given); err != nil {
-			return nil, BadRequestError{Msg: fmt.Sprintf("options must be an object of strings: %v", err)}
+			return nil, BadRequestf("options must be an object of strings: %v", err)
 		}
 	}
 	out := make(Options, len(given))
 	for name, value := range given {
 		if value == nil {
-			return nil, BadRequestError{Msg: fmt.Sprintf("option %q must be a string, got null", name)}
+			return nil, BadRequestf("option %q must be a string, got null", name)
 		}
 		out[name] = *value
 	}
@@ -116,13 +118,13 @@ type erased[Action, View any] struct {
 }
 
 func (e erased[Action, View]) OpeningEvents() []json.RawMessage {
-	return append([]json.RawMessage{}, e.opening...)
+	return xslices.Clone(e.opening)
 }
 
 func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Rand) (ErasedState, []json.RawMessage, error) {
 	var action Action
 	if err := json.Unmarshal(raw, &action); err != nil {
-		return nil, nil, BadRequestError{Msg: fmt.Sprintf("malformed action: %v", err)}
+		return nil, nil, BadRequestf("malformed action: %v", err)
 	}
 	next, events, err := e.state.Apply(seat, action, rng)
 	if err != nil {

@@ -45,3 +45,9 @@ func With[M ~map[K]V, K comparable, V any](m M, k K, v V) M {
 	out[k] = v
 	return out
 }
+
+// Clone never returns nil, unlike slices.Clone, so a copied wire array
+// encodes as [] and not null.
+func Clone[S ~[]E, E any](s S) S {
+	return append(make(S, 0, len(s)), s...)
+}
