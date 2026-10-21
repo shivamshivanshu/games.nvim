@@ -2,7 +2,6 @@ package room
 
 import (
 	"cmp"
-	"log/slog"
 	"maps"
 	"slices"
 	"time"
@@ -114,8 +113,5 @@ func (r *Room) expireFlagged() {
 	if !ok || left > 0 {
 		return
 	}
-	if _, err := r.commit(step{seq: r.cur.seq + 1, user: user, kind: store.StepTimeout, at: now}); err != nil {
-		slog.Error("room: persist timeout", "game", r.setup.ID, "user", user, "err", err)
-		r.armIn(retryDelay)
-	}
+	r.commitAuto(step{seq: r.cur.seq + 1, user: user, kind: store.StepTimeout, at: now})
 }

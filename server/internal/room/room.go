@@ -89,7 +89,7 @@ func (g Setup) usersAt(seats []game.Seat) []game.UserID {
 	return xslices.Map(seats, func(seat game.Seat) game.UserID { return g.users[seat] })
 }
 
-func (g Setup) finished(s roomState, at time.Time) (archive.Finished, error) {
+func (g Setup) sealed(s roomState, at time.Time) (archive.Finished, error) {
 	ending, err := s.ending(g)
 	if err != nil {
 		return archive.Finished{}, err
@@ -532,7 +532,7 @@ func (r *Room) commit(st step) (game.Seq, error) {
 // finishing step is not stored: the finish replaces all steps with a summary.
 func (r *Room) persist(st step, next roomState) (roomState, error) {
 	if next.finished() {
-		final, err := r.setup.finished(next, st.at)
+		final, err := r.setup.sealed(next, st.at)
 		if err != nil {
 			return roomState{}, err
 		}

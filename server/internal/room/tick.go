@@ -58,10 +58,7 @@ func (r *Room) tickIfDue() {
 	if !r.cur.ticking() || now.Before(r.cur.nextTickAt) {
 		return
 	}
-	if _, err := r.commit(step{seq: r.cur.seq + 1, kind: store.StepTick, at: now}); err != nil {
-		slog.Error("room: persist tick", "game", r.setup.ID, "err", err)
-		r.armIn(retryDelay)
-	}
+	r.commitAuto(step{seq: r.cur.seq + 1, kind: store.StepTick, at: now})
 }
 
 // Pause stops a ticking game until its player acts again, as the hub does
@@ -85,20 +82,36 @@ func (r *Room) settlePause() bool {
 	if r.pauseWanted == nil {
 		return true
 	}
-	if r.pauseWanted() {
-		if _, err := r.pause(); err != nil {
-			slog.Error("room: persist pause", "game", r.setup.ID, "err", err)
-			r.armIn(retryDelay)
-			return false
-		}
+	if r.pauseWanted() && r.cur.ticking() && !r.commitAuto(r.pauseStep()) {
+		return false
 	}
 	r.pauseWanted = nil
 	return true
 }
 
-func (r *Room) pause() (game.Seq, error) {
+func (r *Room) pause() error {
 	if !r.cur.ticking() {
-		return r.cur.seq, nil
+		return nil
 	}
-	return r.commit(step{seq: r.cur.seq + 1, kind: store.StepPause, at: r.setup.Time.Now()})
+	_, err := r.commit(r.pauseStep())
+	return err
+}
+
+func (r *Room) pauseStep() step {
+	return step{seq: r.cur.seq + 1, kind: store.StepPause, at: r.setup.Time.Now()}
+}
+
+// commitAuto commits a step the room takes on its own. One that fails to
+// persist is logged and retried after retryDelay.
+func (r *Room) commitAuto(st step) bool {
+	if _, err := r.commit(st); err != nil {
+		attrs := []any{"game", r.setup.ID}
+		if st.user != "" {
+			attrs = append(attrs, "user", st.user)
+		}
+		slog.Error("room: persist "+string(st.kind), append(attrs, "err", err)...)
+		r.armIn(retryDelay)
+		return false
+	}
+	return true
 }
