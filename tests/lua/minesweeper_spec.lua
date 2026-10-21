@@ -7,8 +7,14 @@ local assert_eq = helpers.assert_eq
 
 local CATALOGUED = { reveal = true, flag = true, chord = true }
 local FIRST_BOARD_ROW = 3
-local CELL_CODES =
-  { ["#"] = "hidden", F = "flag", ["*"] = "mine", X = "exploded", ["!"] = "wrong_flag" }
+local CELL_CODES = {
+  ["#"] = "hidden",
+  F = "flag",
+  ["*"] = "mine",
+  M = "flagged_mine",
+  X = "exploded",
+  ["!"] = "wrong_flag",
+}
 
 ---@param glyphs games.Glyphs
 ---@return games.ViewOptions
@@ -18,7 +24,7 @@ local function view_options(glyphs)
   return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
 end
 
----@param rows string[] "#" hidden, "F" flag, a digit revealed, and "*", "X", "!" once over
+---@param rows string[] "#" hidden, "F" flag, a digit revealed, and "*", "M", "X", "!" once over
 ---@return games.MinesweeperCell[][]
 local function cells_of(rows)
   return vim.tbl_map(function(row)
@@ -60,14 +66,14 @@ local function update(overrides)
   }, overrides or {})
 end
 
----@return games.MinesweeperUpdate alice revealed the mine at a6 with a wrong flag still on a4
+---@return games.MinesweeperUpdate alice revealed the mine at a6 with a wrong flag on a4 and a right one on b7
 local function lost()
   return update({
     to_act = {},
     controls = {},
     result = { kind = "decisive", winners = {}, reason = "mine" },
     view = {
-      cells = cells_of({ "001!1X##", "00111##*" }),
+      cells = cells_of({ "001!1X##", "00111#M*" }),
       flags = 1,
       remaining = 1,
       chordable = {},
@@ -178,15 +184,15 @@ function T.each_key_sends_its_action_with_the_typed_cell()
   assert_eq({ f = { kind = "flag", cell = "b12" }, c = { kind = "chord", cell = "b12" } }, by_key)
 end
 
-function T.a_lost_board_shows_each_mine_the_exploded_one_and_the_wrong_flag_by_glyph()
+function T.a_lost_board_tells_flagged_unflagged_and_exploded_mines_and_wrong_flags_by_glyph()
   for glyphs, want in pairs({
     unicode = {
       "a       1  ✗  1  ✸  ░░ ░░   flags      1",
-      "b       1  1  1  ░░ ░░ ✱    mines left 1",
+      "b       1  1  1  ░░ ⚑✱ ✱    mines left 1",
     },
     ascii = {
       "a       1  Fx 1  *! ## ##   flags      1",
-      "b       1  1  1  ## ## *    mines left 1",
+      "b       1  1  1  ## F* *    mines left 1",
     },
   }) do
     local rendered =

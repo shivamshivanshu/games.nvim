@@ -4,8 +4,9 @@ local players = require("games.core.players")
 
 ---@alias games.MinesweeperSeat "solver"
 
----"0" to "8" is a revealed cell's count; mine, exploded and wrong_flag appear once the game is over.
----@alias games.MinesweeperCell "hidden"|"flag"|"mine"|"exploded"|"wrong_flag"|"0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"
+---"0" to "8" is a revealed cell's count; mine, flagged_mine, exploded and wrong_flag appear once
+---the game is over.
+---@alias games.MinesweeperCell "hidden"|"flag"|"mine"|"flagged_mine"|"exploded"|"wrong_flag"|"0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"
 
 ---@class games.MinesweeperSquare
 ---@field row integer 1 at the top
@@ -55,7 +56,7 @@ local MINES_LEFT_LABEL = "mines left"
 local PANEL_WIDTH = #MINES_LEFT_LABEL + 1 + 3
 
 ---@type table<games.MinesweeperCell, games.Hl>
-local CELL_HL = { hidden = HIDDEN_HL, flag = FLAG_HL, wrong_flag = FLAG_HL }
+local CELL_HL = { hidden = HIDDEN_HL, flag = FLAG_HL, flagged_mine = FLAG_HL, wrong_flag = FLAG_HL }
 
 ---@type string[]
 local COLUMN_LABELS = vim.tbl_map(tostring, vim.fn.range(1, MAX_COLUMNS))
@@ -107,7 +108,7 @@ local M = {}
 
 ---@type string[] keys every minesweeper asset pack draws: each cell the view can send
 M.asset_keys = vim.list_extend(
-  { "hidden", "flag", "mine", EXPLODED_KEY, "wrong_flag" },
+  { "hidden", "flag", "mine", "flagged_mine", EXPLODED_KEY, "wrong_flag" },
   vim.tbl_map(tostring, vim.fn.range(0, 8))
 )
 

@@ -9,6 +9,7 @@ local COUNTS = { "1", "2", "3", "4", "5", "6", "7", "8" }
 local ICONS = {
   flag = { "## ", "###", "#  ", "#  ", "#  " },
   mine = { " # ", "###", "###", "###", " # " },
+  flagged_mine = { "## ", "###", "# #", " ##", " # " },
   exploded = { "# #", " # ", "###", " # ", "# #" },
   wrong_flag = { "# #", "# #", " # ", "# #", "# #" },
 }
@@ -51,14 +52,16 @@ end
 ---@param hidden string
 ---@param flag string
 ---@param mine string
+---@param flagged_mine string
 ---@param exploded string
 ---@param wrong_flag string
 ---@return table<string, string> each key's glyph, counts included
-local function glyphs(hidden, flag, mine, exploded, wrong_flag)
+local function glyphs(hidden, flag, mine, flagged_mine, exploded, wrong_flag)
   local by_key = {
     hidden = hidden,
     flag = flag,
     mine = mine,
+    flagged_mine = flagged_mine,
     exploded = exploded,
     wrong_flag = wrong_flag,
     ["0"] = "  ",
@@ -70,14 +73,14 @@ local function glyphs(hidden, flag, mine, exploded, wrong_flag)
 end
 
 ---Minesweeper cells: a shaded hidden cell, the count, a flag, and once the game is over a mine,
----the exploded mine and a crossed-out wrong flag, each its own glyph so no state rests on
+---a flagged mine, the exploded mine and a crossed-out wrong flag, each its own glyph so no state rests on
 ---colour; block art for the counts and icons in cells 3 lines tall and up.
 ---@type games.AssetPack
 return {
   name = "default",
   glyphs = {
-    unicode = glyph_set(glyphs("░░", "⚑ ", "✱ ", "✸ ", "✗ ")),
-    ascii = glyph_set(glyphs("##", "F ", "* ", "*!", "Fx")),
+    unicode = glyph_set(glyphs("░░", "⚑ ", "✱ ", "⚑✱", "✸ ", "✗ ")),
+    ascii = glyph_set(glyphs("##", "F ", "* ", "F*", "*!", "Fx")),
   },
   art = art_set(),
 }
