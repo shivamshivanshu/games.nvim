@@ -1,20 +1,15 @@
 local build = require("games.assets.shared.build")
 local ludo = require("games.games.ludo")
 
-local MAX_STACK = 4
-local MAX_MIXED_COUNT = 9
-
 ---@class (private) games.LudoTokenLook
----@field seat string
 ---@field unicode string
 ---@field ascii string
 ---@field art string[][] sprites for a lone token, smallest first
 
 ---Each seat's token differs by shape as well as colour.
----@type games.LudoTokenLook[]
+---@type table<games.LudoSeat, games.LudoTokenLook>
 local TOKENS = {
-  {
-    seat = "blue",
+  blue = {
     unicode = "●",
     ascii = "B",
     art = {
@@ -22,8 +17,7 @@ local TOKENS = {
       { " ▄▄▄▄ ", "██████", " ▀▀▀▀ " },
     },
   },
-  {
-    seat = "yellow",
+  yellow = {
     unicode = "■",
     ascii = "Y",
     art = {
@@ -31,8 +25,7 @@ local TOKENS = {
       { "▐████▌", "▐████▌", "▐████▌" },
     },
   },
-  {
-    seat = "red",
+  red = {
     unicode = "▲",
     ascii = "R",
     art = {
@@ -40,8 +33,7 @@ local TOKENS = {
       { "  ▟▙  ", " ▟██▙ ", "▟████▙" },
     },
   },
-  {
-    seat = "green",
+  green = {
     unicode = "◆",
     ascii = "G",
     art = { { " ▟▙ ", " ▜▛ " }, { "  ▟▙  ", " ████ ", "  ▜▛  " } },
@@ -62,12 +54,13 @@ end
 ---@return games.ArtSet
 local function glyph_set(mode, squares, mixed)
   local lines = vim.deepcopy(squares)
-  for _, token in ipairs(TOKENS) do
-    for n = 1, MAX_STACK do
-      lines[token.seat .. n] = stack_glyph(token[mode], n)
+  for _, seat in ipairs(ludo.SEATS) do
+    local shape = TOKENS[seat][mode] --[[@as string]]
+    for n = 1, ludo.TOKENS_PER_SEAT do
+      lines[seat .. n] = stack_glyph(shape, n)
     end
   end
-  for n = 2, MAX_MIXED_COUNT do
+  for n = 2, ludo.MAX_MIXED_COUNT do
     lines["mixed" .. n] = mixed .. n
   end
   return build.glyph_set(lines, ludo.glyph_width)
@@ -76,8 +69,8 @@ end
 ---@return games.ArtSet
 local function token_art()
   local set = {}
-  for _, token in ipairs(TOKENS) do
-    set[token.seat .. 1] = vim.tbl_map(build.sprite, token.art)
+  for _, seat in ipairs(ludo.SEATS) do
+    set[seat .. 1] = vim.tbl_map(build.sprite, TOKENS[seat].art)
   end
   return set
 end
