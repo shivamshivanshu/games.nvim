@@ -61,6 +61,7 @@ func (MetronomeRules) Info() game.Info {
 			{Kind: MetronomeResume, Description: "Start the ticks again."},
 			{Kind: MetronomeTap, Description: "Count a tap."},
 		},
+		Events: []game.Event{BeatEvent{}},
 	}
 }
 

@@ -76,6 +76,11 @@ func Run[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, Vi
 
 func conform[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) {
 	t.Helper()
+	info := game.Adapt(rules).Info()
+	if err := info.Check(); err != nil {
+		t.Fatalf("Info: %v", err)
+	}
+	checkActionsCatalogued(t, info, script)
 	first, final := play(t, rules, script)
 	second, _ := play(t, rules, script)
 	if diff := cmp.Diff(first, second); diff != "" {
@@ -83,12 +88,13 @@ func conform[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action
 	}
 	for i, obs := range first.Observed {
 		checkSecrecy(t, script, obs, "observation "+strconv.Itoa(i))
+		checkEventsCatalogued(t, info, obs.Events, "observation "+strconv.Itoa(i))
 	}
 	checkWantResult(t, script, first)
 	if first.Finished {
 		checkEliminateFinishedIsNoOp(t, script.PrivateOf, final, sortedSeats(first.Seats), "after the script")
 	}
-	checkEliminate(t, rules, script)
+	checkEliminate(t, rules, info, script)
 }
 
 func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) (replay[View], game.State[Action, View]) {
@@ -261,17 +267,18 @@ func checkWantResult[Opts, Action, View any](t testing.TB, script Script[Opts, A
 	}
 }
 
-func checkEliminate[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) {
+func checkEliminate[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], info game.Info, script Script[Opts, Action]) {
 	t.Helper()
 	state, seats, err := rules.New(script.Opts, script.Challenger, script.Invitees, game.StepRNG(script.Seed, 0))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 	allSeats := sortedSeats(seats)
-	solo := rules.Info().Players.Max == 1
+	solo := info.Players.Max == 1
 	for _, seat := range allSeats {
 		_, after := eliminate(t, script.PrivateOf, state, seat, allSeats)
 		checkSecrecy(t, script, after, "eliminating only "+string(seat))
+		checkEventsCatalogued(t, info, after.Events, "eliminating only "+string(seat))
 		checkEliminationOutcome(t, solo, len(allSeats)-1, after, seat)
 		checkEliminatedNotToAct(t, after, []game.Seat{seat})
 	}
@@ -279,6 +286,7 @@ func checkEliminate[Opts, Action, View any](t testing.TB, rules game.Rules[Opts,
 		var after observation[View]
 		state, after = eliminate(t, script.PrivateOf, state, seat, allSeats)
 		checkSecrecy(t, script, after, "eliminating "+string(seat))
+		checkEventsCatalogued(t, info, after.Events, "eliminating "+string(seat))
 		checkEliminationOutcome(t, solo, len(allSeats)-1-i, after, seat)
 		checkEliminatedNotToAct(t, after, allSeats[:i+1])
 		if after.Finished {

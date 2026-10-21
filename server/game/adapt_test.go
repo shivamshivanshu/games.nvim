@@ -239,7 +239,15 @@ func TestForfeitToRemaining(t *testing.T) {
 	}
 }
 
-type cataloguedCounterRules struct{ gametest.CounterRules }
+type uncataloguedCounterRules struct{ gametest.CounterRules }
+
+func (uncataloguedCounterRules) Info() game.Info {
+	info := gametest.CounterRules{}.Info()
+	info.Events = nil
+	return info
+}
+
+type cataloguedCounterRules struct{ uncataloguedCounterRules }
 
 func (cataloguedCounterRules) EventTypes() []game.Event { return []game.Event{gametest.CountedEvent{}} }
 func (cataloguedCounterRules) Reasons() []game.ResultReason {
@@ -265,7 +273,7 @@ func TestAdaptFillsTheInfoFromTheRulesCatalogs(t *testing.T) {
 		wantEvents  int
 		wantReasons []game.ResultReason
 	}{
-		"no catalogs":                  {game.Adapt(gametest.CounterRules{}), 0, nil},
+		"no catalogs":                  {game.Adapt(uncataloguedCounterRules{}), 0, nil},
 		"catalogs":                     {game.Adapt(cataloguedCounterRules{}), 1, []game.ResultReason{gametest.ReasonTargetReached}},
 		"the Info's own over catalogs": {game.Adapt(declaredCounterRules{}), 2, []game.ResultReason{"declared"}},
 	} {

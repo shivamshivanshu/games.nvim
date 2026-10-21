@@ -25,6 +25,8 @@ const (
 	eliminateRewritesFinished
 	eliminateRewritesPlayedResult
 	concludeKeepsPlaying
+	uncataloguedEvent
+	clockWithoutTimeControl
 )
 
 const (
@@ -44,7 +46,12 @@ type tableRules struct {
 
 type tableOpts struct{}
 
-type tableAction struct{ Finish bool }
+const tableSay game.ActionKind = "say"
+
+type tableAction struct {
+	Kind   game.ActionKind `json:"kind"`
+	Finish bool
+}
 
 type tableView struct {
 	Hand   string
@@ -67,7 +74,16 @@ type namedEvent struct {
 func (e namedEvent) EventKind() game.EventKind { return game.EventKind(e.Kind) }
 
 func (r tableRules) Info() game.Info {
-	return game.Info{Type: "table", Players: game.PlayerRange{Min: 1, Max: r.max}}
+	info := game.Info{
+		Type:    "table",
+		Players: game.PlayerRange{Min: 1, Max: r.max},
+		Actions: []game.ActionSpec{{Kind: tableSay, Description: "Show the hand."}},
+		Events:  []game.Event{saidEvent{}},
+	}
+	if r.flaw == clockWithoutTimeControl {
+		info.Capabilities = []game.Capability{game.CapClock}
+	}
+	return info
 }
 
 func (r tableRules) New(_ tableOpts, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[tableAction, tableView], map[game.UserID]game.Seat, error) {
@@ -95,8 +111,11 @@ func privateHands(s tableState, seat game.Seat) []string { return []string{handO
 func (s tableState) Apply(seat game.Seat, a tableAction, _ *rand.Rand) (game.State[tableAction, tableView], []game.Event, error) {
 	events := []game.Event{s.showdown(seat)}
 	s.round++
-	if s.flaw == leakPrivateInEventKind {
+	switch s.flaw {
+	case leakPrivateInEventKind:
 		events = append(events, namedEvent{Kind: handOf(seat, s.round)})
+	case uncataloguedEvent:
+		events = append(events, namedEvent{Kind: "shrugged"})
 	}
 	if a.Finish {
 		s.Ending, s.playedOut = s.Concluded(game.Result{Kind: game.ResultDraw}), true

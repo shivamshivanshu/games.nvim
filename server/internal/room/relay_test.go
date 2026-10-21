@@ -29,10 +29,13 @@ const (
 	relayOut  relayMove = "out"
 
 	reasonLastLeft game.ResultReason = "last_left"
+
+	relayMoveKind game.ActionKind = "move"
 )
 
 type relayAction struct {
-	Move relayMove `json:"move"`
+	Kind game.ActionKind `json:"kind"`
+	Move relayMove       `json:"move"`
 }
 
 type relayView struct {
@@ -53,6 +56,7 @@ func (relayRules) Info() game.Info {
 		Players:      game.PlayerRange{Min: 2, Max: 4},
 		Capabilities: []game.Capability{game.CapResign, game.CapDraw, game.CapClock, game.CapAbort},
 		Options:      []game.OptionSpec{game.TimeControlOption()},
+		Actions:      []game.ActionSpec{{Kind: relayMoveKind, Description: "Keep the turn, pass it, or bow out."}},
 	}
 }
 
@@ -129,7 +133,7 @@ func newRelayHarness(t *testing.T, timeControl game.TimeControl, invitees ...gam
 
 func (h *harness) relay(t *testing.T, user game.UserID, seq game.Seq, m relayMove) game.Seq {
 	t.Helper()
-	action, err := json.Marshal(relayAction{Move: m})
+	action, err := json.Marshal(relayAction{Kind: relayMoveKind, Move: m})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,10 +150,10 @@ func TestRelayConforms(t *testing.T) {
 		Challenger: prototest.Alice,
 		Invitees:   []game.UserID{prototest.Bob, prototest.Carol},
 		Steps: []gametest.Step[relayAction]{
-			{Seat: game.Seat(prototest.Alice), Action: relayAction{Move: relayKeep}},
-			{Seat: game.Seat(prototest.Alice), Action: relayAction{Move: relayPass}},
-			{Seat: game.Seat(prototest.Alice), Action: relayAction{Move: relayPass}, WantErr: true},
-			{Seat: game.Seat(prototest.Bob), Action: relayAction{Move: relayPass}},
+			{Seat: game.Seat(prototest.Alice), Action: relayAction{Kind: relayMoveKind, Move: relayKeep}},
+			{Seat: game.Seat(prototest.Alice), Action: relayAction{Kind: relayMoveKind, Move: relayPass}},
+			{Seat: game.Seat(prototest.Alice), Action: relayAction{Kind: relayMoveKind, Move: relayPass}, WantErr: true},
+			{Seat: game.Seat(prototest.Bob), Action: relayAction{Kind: relayMoveKind, Move: relayPass}},
 		},
 	}})
 }

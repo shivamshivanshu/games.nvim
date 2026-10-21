@@ -14,6 +14,8 @@ func TestRunCounterRules(t *testing.T) {
 	Run(t, ScoredCounterRules{}, counterScripts)
 }
 
+func adding(n int) CounterAction { return CounterAction{Kind: counterAdd, Add: n} }
+
 var counterScripts = []Script[CounterOpts, CounterAction]{
 	{
 		Name:       "accepted and rejected steps",
@@ -21,9 +23,9 @@ var counterScripts = []Script[CounterOpts, CounterAction]{
 		Challenger: "u",
 		Seed:       1,
 		Steps: []Step[CounterAction]{
-			{Seat: "a", Action: CounterAction{Add: 3}},
-			{Seat: "a", Action: CounterAction{Add: -1}, WantErr: true},
-			{Seat: "a", Action: CounterAction{Add: 1}},
+			{Seat: "a", Action: adding(3)},
+			{Seat: "a", Action: adding(-1), WantErr: true},
+			{Seat: "a", Action: adding(1)},
 		},
 	},
 	{
@@ -32,10 +34,10 @@ var counterScripts = []Script[CounterOpts, CounterAction]{
 		Invitees:   []game.UserID{"v"},
 		Seed:       1,
 		Steps: []Step[CounterAction]{
-			{Seat: "b", Action: CounterAction{Add: 1}, WantErr: true},
-			{Seat: "a", Action: CounterAction{Add: 5}},
-			{Seat: "b", Action: CounterAction{Add: 5}},
-			{Seat: "a", Action: CounterAction{Add: 1}, WantErr: true},
+			{Seat: "b", Action: adding(1), WantErr: true},
+			{Seat: "a", Action: adding(5)},
+			{Seat: "b", Action: adding(5)},
+			{Seat: "a", Action: adding(1), WantErr: true},
 		},
 		WantResult: &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{"b"}, Reason: ReasonTargetReached},
 	},

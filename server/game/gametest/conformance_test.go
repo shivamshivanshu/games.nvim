@@ -49,8 +49,8 @@ func tableScript(players int) Script[tableOpts, tableAction] {
 		Invitees:   invitees,
 		Seed:       1,
 		Steps: []Step[tableAction]{
-			{Seat: "s1", Action: tableAction{}},
-			{Seat: "s1", Action: tableAction{Finish: true}},
+			{Seat: "s1", Action: tableAction{Kind: tableSay}},
+			{Seat: "s1", Action: tableAction{Kind: tableSay, Finish: true}},
 		},
 		PrivateOf: Private(privateHands),
 		Secrets:   []string{tableSecret, escapedSecret},
@@ -94,6 +94,8 @@ func TestRunRejectsNonconformingGames(t *testing.T) {
 		{"eliminating rewrites a result reached by elimination", 2, 2, eliminateRewritesFinished, "after eliminating s1: Eliminate(s2) on a finished game must be a no-op"},
 		{"eliminating rewrites a result reached by play", 2, 2, eliminateRewritesPlayedResult, "after the script: Eliminate(s1) on a finished game must be a no-op"},
 		{"an imposed ending leaves the game playing", 2, 2, concludeKeepsPlaying, "fresh from New: Conclude"},
+		{"an event kind its Info does not list", 2, 2, uncataloguedEvent, `observation 1: event 1 of kind "shrugged" is not in Info.Events`},
+		{"a clock without a time control", 2, 2, clockWithoutTimeControl, `Info: game table: the "clock" capability`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -103,5 +105,14 @@ func TestRunRejectsNonconformingGames(t *testing.T) {
 				t.Errorf("want a failure containing %q, got %q", tt.want, failures)
 			}
 		})
+	}
+}
+
+func TestRunRejectsAnActionKindItsInfoDoesNotList(t *testing.T) {
+	script := tableScript(2)
+	script.Steps[0].Action.Kind = "wave"
+	failures := recordFailures(func(tb testing.TB) { conform(tb, tableRules{max: 2}, script) })
+	if want := `step 0: action kind "wave" is not in Info.Actions`; !slices.Contains(failures, want) {
+		t.Errorf("want failure %q, got %q", want, failures)
 	}
 }
