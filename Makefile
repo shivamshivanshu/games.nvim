@@ -4,8 +4,9 @@ HAS_GO_PACKAGES := $(shell cd server && go list ./... 2>/dev/null)
 
 SCHEMA_DIR := $(CURDIR)/docs/schema
 PICKERS_PACK ?= $(CURDIR)/.pickers
+IMAGE ?= games-server:latest
 
-.PHONY: fmt lint schema schema-check test-go build test-lua check smoke-finders
+.PHONY: fmt lint schema schema-check test-go build docker test-lua check smoke-finders
 
 fmt:
 	cd server && gofmt -w .
@@ -29,6 +30,9 @@ test-go:
 
 build:
 	cd server && go build -o ../bin/games-server ./cmd/games-server
+
+docker:
+	docker build -t $(IMAGE) .
 
 test-lua: $(if $(wildcard server/cmd/games-server),build)
 	$(if $(wildcard tests/lua),nvim --headless -u NONE -l tests/lua/run.lua)

@@ -1,0 +1,13 @@
+services:
+  games:
+    build: .
+    image: games-server:latest
+    restart: unless-stopped
+    ports:
+      - "${GAMES_BIND:-127.0.0.1}:${GAMES_PORT:-7777}:7777"
+    volumes:
+      - games-data:/data
+    stop_grace_period: 15s
+
+volumes:
+  games-data:
