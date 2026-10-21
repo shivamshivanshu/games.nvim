@@ -8,6 +8,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/gomoku"
 	"github.com/shivamshivanshu/games.nvim/server/games/ludo"
 	"github.com/shivamshivanshu/games.nvim/server/games/poker"
+	"github.com/shivamshivanshu/games.nvim/server/games/reversi"
 	"github.com/shivamshivanshu/games.nvim/server/games/sudoku"
 	"github.com/shivamshivanshu/games.nvim/server/games/tictactoe"
 	"github.com/shivamshivanshu/games.nvim/server/games/wordle"
@@ -24,5 +25,6 @@ func All() []game.Game {
 		game.Adapt(sudoku.Rules{}),
 		game.Adapt(poker.Rules{}),
 		game.Adapt(gomoku.Rules{}),
+		game.Adapt(reversi.Rules{}),
 	}
 }

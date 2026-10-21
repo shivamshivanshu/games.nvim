@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "cell": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "cell"
+      ],
+      "description": "Action is a place on Cell, the cell's name as text, such as \"h8\"."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "place"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Cell": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "column"
+      ],
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, column 1 the left."
+    },
+    "DiscCount": {
+      "properties": {
+        "black": {
+          "type": "integer"
+        },
+        "white": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "black",
+        "white"
+      ],
+      "description": "DiscCount is how many discs each seat has on the board."
+    },
+    "PassedEvent": {
+      "properties": {
+        "kind": {
+          "const": "passed"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "PassedEvent reports that By had no legal move, so the turn went back to its opponent."
+    },
+    "PlacedEvent": {
+      "properties": {
+        "kind": {
+          "const": "placed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "cell": {
+          "$ref": "#/$defs/Cell"
+        },
+        "flipped": {
+          "items": {
+            "$ref": "#/$defs/Cell"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "cell",
+        "flipped"
+      ],
+      "description": "PlacedEvent reports a disc placed on Cell and the opponent's discs it turned over."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "more_discs",
+        "equal_discs"
+      ],
+      "description": "The result reasons Reversi adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "cells": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "last": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Cell"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legal_cells": {
+          "items": {
+            "$ref": "#/$defs/Cell"
+          },
+          "type": "array"
+        },
+        "discs": {
+          "$ref": "#/$defs/DiscCount"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "cells",
+        "last",
+        "legal_cells",
+        "discs"
+      ],
+      "description": "View holds Cells[row][column], each the seat whose disc fills it or \"\" when\nempty. LegalCells is the viewer's own: the cells it may play, none unless it\nis to move."
+    }
+  },
+  "title": "Reversi",
+  "description": "The game-specific bodies inside a reversi game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "passed": {
+      "$ref": "#/$defs/PassedEvent"
+    },
+    "placed": {
+      "$ref": "#/$defs/PlacedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
