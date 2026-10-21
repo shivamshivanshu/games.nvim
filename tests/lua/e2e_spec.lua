@@ -98,9 +98,23 @@ function T.e2e_challenge_accept_move()
   with_plugin(function(env, alice, stubs)
     local bob, game_id = start_game(env, alice)
     local board = vim.api.nvim_get_current_buf()
+    local game_act, replies = alice.game_act, 0
+    local function counting_game_act(client, body, cb)
+      game_act(client, body, function(...)
+        replies = replies + 1
+        if cb then
+          cb(...)
+        end
+      end)
+    end
 
     stubs.input_text = "e4"
-    vim.api.nvim_feedkeys("m", "mx", false)
+    helpers.with_overrides({ { alice, "game_act", counting_game_act } }, function()
+      vim.api.nvim_feedkeys("m", "mx", false)
+      helpers.wait_for(function()
+        return replies >= 1
+      end, "the server's reply to alice's move")
+    end)
     wait_for_bob_seq(bob, game_id, 1)
     assert_eq({ "e4" }, bob:game(game_id).view.history_san)
     helpers.wait_for(function()
