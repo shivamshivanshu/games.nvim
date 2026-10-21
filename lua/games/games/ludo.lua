@@ -1,3 +1,4 @@
+local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
@@ -5,10 +6,19 @@ local theme = require("games.ui.theme")
 
 ---@alias games.LudoSeat "blue"|"yellow"|"red"|"green"
 ---@alias games.LudoPhase "roll"|"move"|"finished"
+---@alias games.LudoSquare integer a shared-track square, 0-51 clockwise
+---@alias games.LudoLocationKind "base"|"track"|"home_column"|"home"
+
+---@class games.LudoLocation
+---@field kind games.LudoLocationKind
+---@field square? games.LudoSquare on the track
+---@field step? integer 1-5 up the seat's home column
 
 ---@class games.LudoView
----@field starts table<games.LudoSeat, integer> each seat in play's start square on the track
----@field progress table<games.LudoSeat, integer[]> each seat in play's 4 tokens: -1 base, 0-50 track, 51-55 home column, 56 home
+---@field starts table<games.LudoSeat, games.LudoSquare> each seat in play's start square
+---@field safe games.LudoSquare[] squares where no capture happens
+---@field progress table<games.LudoSeat, integer[]> each seat in play's 4 tokens' steps from base
+---@field locations table<games.LudoSeat, games.LudoLocation[]> where each seat in play's 4 tokens stand
 ---@field last_roll integer 0 before the first roll
 ---@field sixes_in_row integer
 ---@field phase games.LudoPhase
@@ -35,8 +45,8 @@ local theme = require("games.ui.theme")
 ---@field kind "moved"
 ---@field by games.LudoSeat
 ---@field token integer
----@field from integer
----@field to integer
+---@field from games.LudoLocation
+---@field to games.LudoLocation
 
 ---@class games.LudoCapturedEvent: games.Event
 ---@field kind "captured"
@@ -48,15 +58,12 @@ local theme = require("games.ui.theme")
 
 local SIZE = 15
 local TOKENS_PER_SEAT = 4
-local TRACK_LENGTH = 52
-local QUARTER = TRACK_LENGTH / 4
-local BASE = -1
-local LAST_TRACK = 50
-local HOME = 56
-local STAR_OFFSET = 8
+local MAX_MIXED_COUNT = 9
+local ARMS = 4
+local YARD_SIZE = 6
 
----The track's first quarter, from the top-left seat's start clockwise to the next start; each
----later quarter is this one turned a quarter clockwise.
+---The drawn loop's first quarter, clockwise from the top-left arm's start square; each later
+---quarter is this one turned a quarter clockwise.
 ---@type games.LudoCell[]
 local FIRST_QUARTER = {
   { 7, 2 },
@@ -73,17 +80,16 @@ local FIRST_QUARTER = {
   { 1, 8 },
   { 1, 9 },
 }
----@type games.LudoCell[] the top-left seat's home column, outside in
+---@type games.LudoCell[] the top-left arm's home column, outside in
 local FIRST_LANE = { { 8, 2 }, { 8, 3 }, { 8, 4 }, { 8, 5 }, { 8, 6 } }
----@type games.LudoCell[] the top-left seat's base, one spot per token
+---@type games.LudoCell[] the top-left arm's base, one spot per token
 local FIRST_SPOTS = { { 2, 2 }, { 2, 5 }, { 5, 2 }, { 5, 5 } }
----@type games.LudoCell where the top-left seat's finished tokens stand
+---@type games.LudoCell where the top-left arm's finished tokens stand
 local FIRST_GOAL = { 8, 7 }
-local YARD_SIZE = 6
 
 local LAST_MOVE_HL = "GamesLastMove"
-local PANEL_WIDTH = 14
-local MOVABLE_SUFFIX = " ←"
+local MOVABLE_KEY = "movable"
+local PANEL_WIDTH = 16
 
 ---@param cell games.LudoCell
 ---@param turns integer quarter turns clockwise
@@ -96,132 +102,168 @@ local function turned(cell, turns)
   return { r, c }
 end
 
----@param r integer
----@param c integer
+---@param cell games.LudoCell
 ---@return string
-local function cell_id(r, c)
-  return r .. "," .. c
+local function cell_id(cell)
+  return cell[1] .. "," .. cell[2]
 end
 
----@class (private) games.LudoSquare
----@field key string asset key when no token stands on it
----@field quarter? integer whose seat colours it, 0 at the top left, clockwise
+---@param cells games.LudoCell[]
+---@param turns integer
+---@return games.LudoCell[]
+local function all_turned(cells, turns)
+  return vim.tbl_map(function(cell)
+    return turned(cell, turns)
+  end, cells)
+end
 
----What each square of the board is, with no tokens on it.
----@type table<string, games.LudoSquare>
-local SQUARES = (function()
-  local squares = {}
-  local function put(cell, square)
-    squares[cell_id(cell[1], cell[2])] = square
-  end
-  for quarter = 0, 3 do
+---@class (private) games.LudoArm the drawing of one corner: base, home column and goal
+---@field start games.LudoCell the loop square a seat starting here starts on
+---@field spots games.LudoCell[]
+---@field lane games.LudoCell[]
+---@field goal games.LudoCell
+---@field yard games.LudoCell[]
+
+---@type games.LudoArm[]
+local ARM_DRAWINGS = vim
+  .iter(vim.fn.range(0, ARMS - 1))
+  :map(function(turns)
+    local yard = {}
     for r = 1, YARD_SIZE do
       for c = 1, YARD_SIZE do
-        put(turned({ r, c }, quarter), { key = "yard", quarter = quarter })
+        yard[#yard + 1] = turned({ r, c }, turns)
       end
     end
-    for i, cell in ipairs(FIRST_QUARTER) do
-      local offset = i - 1
-      local safe = offset == 0 or offset == STAR_OFFSET
-      put(
-        turned(cell, quarter),
-        { key = safe and "safe" or "track", quarter = offset == 0 and quarter or nil }
-      )
-    end
-    for _, cell in ipairs(FIRST_LANE) do
-      put(turned(cell, quarter), { key = "lane", quarter = quarter })
-    end
-    for _, cell in ipairs(FIRST_SPOTS) do
-      put(turned(cell, quarter), { key = "spot", quarter = quarter })
-    end
-    put(turned(FIRST_GOAL, quarter), { key = "goal", quarter = quarter })
-  end
-  return squares
-end)()
+    return {
+      start = turned(FIRST_QUARTER[1], turns),
+      spots = all_turned(FIRST_SPOTS, turns),
+      lane = all_turned(FIRST_LANE, turns),
+      goal = turned(FIRST_GOAL, turns),
+      yard = yard,
+    }
+  end)
+  :totable()
 
----@param start integer
----@return integer quarter of the board the seat starting there sits in
-local function quarter_of(start)
-  return math.floor(start / QUARTER)
-end
+---@type games.LudoCell[] the drawn track, by square from 0
+local LOOP = vim
+  .iter(vim.fn.range(0, ARMS - 1))
+  :map(function(turns)
+    return all_turned(FIRST_QUARTER, turns)
+  end)
+  :flatten()
+  :totable()
 
----The square a token stands on.
----@param start integer its seat's start square on the track
----@param token integer
----@param progress integer
+---@param square games.LudoSquare
 ---@return games.LudoCell
-local function cell_of(start, token, progress)
-  local quarter = quarter_of(start)
-  if progress == BASE then
-    return turned(FIRST_SPOTS[token], quarter)
-  end
-  if progress <= LAST_TRACK then
-    local square = (start + progress) % TRACK_LENGTH
-    return turned(FIRST_QUARTER[square % QUARTER + 1], quarter_of(square))
-  end
-  if progress < HOME then
-    return turned(FIRST_LANE[progress - LAST_TRACK], quarter)
-  end
-  return turned(FIRST_GOAL, quarter)
+local function loop_cell(square)
+  return LOOP[square + 1]
 end
 
----@param update games.LudoUpdate
----@return table<string, table<games.LudoSeat, integer>> tokens per seat on each occupied square
-local function occupants(update)
-  local view = update.view
-  local by_cell = {}
-  for seat, tokens in pairs(view.progress) do
-    for token, progress in ipairs(tokens) do
-      local cell = cell_of(view.starts[seat], token, progress)
-      local id = cell_id(cell[1], cell[2])
-      by_cell[id] = by_cell[id] or {}
-      by_cell[id][seat] = (by_cell[id][seat] or 0) + 1
+---@param start games.LudoSquare
+---@return games.LudoArm the arm drawn at the start square
+local function arm_at(start)
+  local id = cell_id(loop_cell(start))
+  return assert(
+    vim.iter(ARM_DRAWINGS):find(function(arm)
+      return cell_id(arm.start) == id
+    end),
+    "no arm starts at square " .. start
+  )
+end
+
+---@param arm games.LudoArm
+---@param token integer
+---@param location games.LudoLocation
+---@return games.LudoCell
+local function cell_of(arm, token, location)
+  if location.kind == "base" then
+    return arm.spots[token]
+  end
+  if location.kind == "track" then
+    return loop_cell(assert(location.square))
+  end
+  if location.kind == "home_column" then
+    return arm.lane[assert(location.step)]
+  end
+  return arm.goal
+end
+
+---@class (private) games.LudoBoard what the view puts where
+---@field tokens table<string, table<games.LudoSeat, integer>> tokens per seat on each occupied cell
+---@field squares table<string, {key: string, seat?: games.LudoSeat}> each empty cell's key and owning seat
+
+---@param view games.LudoView
+---@return games.LudoBoard
+local function board_of(view)
+  local squares, tokens = {}, {}
+  for _, cell in ipairs(LOOP) do
+    squares[cell_id(cell)] = { key = "track" }
+  end
+  for _, square in ipairs(view.safe) do
+    squares[cell_id(loop_cell(square))] = { key = "safe" }
+  end
+  for _, arm in ipairs(ARM_DRAWINGS) do
+    for _, cell in ipairs(arm.yard) do
+      squares[cell_id(cell)] = { key = "yard" }
+    end
+    for _, cell in ipairs(arm.spots) do
+      squares[cell_id(cell)] = { key = "spot" }
+    end
+    for _, cell in ipairs(arm.lane) do
+      squares[cell_id(cell)] = { key = "lane" }
+    end
+    squares[cell_id(arm.goal)] = { key = "goal" }
+  end
+  for seat, start in pairs(view.starts) do
+    local arm = arm_at(start)
+    local owned = { arm.start, arm.goal }
+    vim.list_extend(owned, arm.spots)
+    vim.list_extend(owned, arm.lane)
+    for _, cell in ipairs(owned) do
+      squares[cell_id(cell)].seat = seat
+    end
+    for token, location in ipairs(view.locations[seat]) do
+      local id = cell_id(cell_of(arm, token, location))
+      tokens[id] = tokens[id] or {}
+      tokens[id][seat] = (tokens[id][seat] or 0) + 1
     end
   end
-  return by_cell
+  return { tokens = tokens, squares = squares }
 end
 
 ---@param update games.LudoUpdate
----@param seat games.LudoSeat
+---@param seat? games.LudoSeat
 ---@return string|nil
 local function seat_hl(update, seat)
-  for i, player in ipairs(update.players) do
-    if player.seat == seat then
-      return theme.seat_hl(i)
-    end
-  end
-  return nil
+  local index = seat and players.seat_index(update, seat)
+  return index and theme.seat_hl(index)
 end
 
----@param update games.LudoUpdate
----@return table<integer, games.LudoSeat> the seat in play in each quarter
-local function seats_by_quarter(update)
-  local by_quarter = {}
-  for seat, start in pairs(update.view.starts) do
-    by_quarter[quarter_of(start)] = seat
-  end
-  return by_quarter
+---@param here table<games.LudoSeat, integer>
+---@return integer
+local function total(here)
+  return vim.iter(vim.tbl_values(here)):fold(0, function(sum, n)
+    return sum + n
+  end)
 end
 
 ---@param update games.LudoUpdate
 ---@return fun(r: integer, c: integer): games.GridCell
 local function cells(update)
-  local tokens = occupants(update)
-  local owners = seats_by_quarter(update)
+  local drawn = board_of(update.view)
   return function(r, c)
-    local id = cell_id(r, c)
-    local here = tokens[id]
+    local id = cell_id({ r, c })
+    local here = drawn.tokens[id]
     if here then
       local seats = vim.tbl_keys(here)
       if #seats > 1 then
-        return { "mixed" }
+        return { "mixed" .. math.min(total(here), MAX_MIXED_COUNT) }
       end
       local seat = seats[1]
       return { seat .. here[seat], seat_hl(update, seat) }
     end
-    local square = SQUARES[id] or { key = "center" }
-    local owner = square.quarter and owners[square.quarter]
-    return { square.key, owner and seat_hl(update, owner) }
+    local square = drawn.squares[id] or { key = "center" }
+    return { square.key, seat_hl(update, square.seat) }
   end
 end
 
@@ -233,23 +275,24 @@ local function marks_for(update)
     local start = update.view.starts[event.by]
     if event.kind == "moved" and start then
       ---@cast event games.LudoMovedEvent
-      local cell = cell_of(start, event.token, event.to)
+      local cell = cell_of(arm_at(start), event.token, event.to)
       return { { row = cell[1], col = cell[2], hl = LAST_MOVE_HL } }
     end
   end
   return {}
 end
 
----@param progress integer
+---@param location games.LudoLocation
+---@param steps integer the token's steps from base
 ---@return string
-local function progress_text(progress)
-  if progress == BASE then
-    return "base"
+local function location_text(location, steps)
+  if location.kind == "track" then
+    return ("track %d"):format(steps)
   end
-  if progress == HOME then
-    return "home"
+  if location.kind == "home_column" then
+    return ("lane %d"):format(location.step)
   end
-  return ("%d/%d"):format(progress, HOME)
+  return location.kind
 end
 
 ---@param update games.LudoUpdate
@@ -262,10 +305,13 @@ local function panel_pairs(update, ctx)
     { "sixes", tostring(view.sixes_in_row) },
     { "phase", view.phase },
   }
-  local mine = view.progress[players.seat_of_user(update, ctx.me)]
-  for token, progress in ipairs(mine or {}) do
-    local movable = vim.tbl_contains(view.movable, token) and MOVABLE_SUFFIX or ""
-    rows[#rows + 1] = { tostring(token), progress_text(progress) .. movable }
+  local seat = players.seat_of_user(update, ctx.me)
+  local mine = seat and view.locations[seat]
+  local mark = art.glyph(assert(ctx.art), MOVABLE_KEY, ctx.ambiwidth)
+  for token, location in ipairs(mine or {}) do
+    local movable = vim.tbl_contains(view.movable, token) and mark or ""
+    rows[#rows + 1] =
+      { tostring(token), location_text(location, view.progress[seat][token]) .. movable }
   end
   return rows
 end
@@ -277,11 +323,14 @@ M.glyph_width = 2
 
 ---@type string[] keys every ludo asset pack draws
 M.asset_keys = (function()
-  local keys = { "track", "safe", "lane", "spot", "goal", "yard", "center", "mixed" }
+  local keys = { "track", "safe", "lane", "spot", "goal", "yard", "center", MOVABLE_KEY }
   for _, seat in ipairs({ "blue", "yellow", "red", "green" }) do
     for n = 1, TOKENS_PER_SEAT do
       keys[#keys + 1] = seat .. n
     end
+  end
+  for n = 2, MAX_MIXED_COUNT do
+    keys[#keys + 1] = "mixed" .. n
   end
   return keys
 end)()
@@ -365,13 +414,16 @@ local DESCRIBE = {
   moved = function(event, update)
     ---@cast event games.LudoMovedEvent
     local who = name_of(update, event.by)
-    if event.from == BASE then
+    if event.from.kind == "base" then
       return ("%s brought token %d out"):format(who, event.token)
     end
-    if event.to == HOME then
+    if event.to.kind == "home" then
       return ("%s brought token %d home"):format(who, event.token)
     end
-    return ("%s moved token %d to %s"):format(who, event.token, progress_text(event.to))
+    if event.to.kind == "home_column" then
+      return ("%s moved token %d to lane %d"):format(who, event.token, event.to.step)
+    end
+    return ("%s moved token %d to square %d"):format(who, event.token, event.to.square)
   end,
   captured = function(event, update)
     ---@cast event games.LudoCapturedEvent

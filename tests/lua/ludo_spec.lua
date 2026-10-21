@@ -6,6 +6,20 @@ local shell = require("games.ui.shell")
 local assert_eq = helpers.assert_eq
 
 local CATALOGUE = { roll = true, move = true }
+local BASE = { kind = "base" }
+local HOME = { kind = "home" }
+
+---@param square integer
+---@return games.LudoLocation
+local function track(square)
+  return { kind = "track", square = square }
+end
+
+---@param step integer
+---@return games.LudoLocation
+local function lane(step)
+  return { kind = "home_column", step = step }
+end
 
 ---@param glyphs games.Glyphs
 ---@return games.ViewOptions
@@ -33,11 +47,17 @@ local function ludo_update(view_overrides)
     controls = { "resign" },
     events = {
       { kind = "rolled", by = "blue", value = 4 },
-      { kind = "moved", by = "blue", token = 2, from = 6, to = 10 },
+      { kind = "moved", by = "blue", token = 2, from = track(6), to = track(10) },
     },
     view = vim.tbl_extend("force", {
       starts = { blue = 0, red = 13, yellow = 26 },
       progress = { blue = { -1, 10, 52, 56 }, yellow = { 0, 0, -1, 40 }, red = { -1, -1, -1, 21 } },
+      safe = { 0, 8, 13, 21, 26, 34, 39, 47 },
+      locations = {
+        blue = { BASE, track(10), lane(2), HOME },
+        yellow = { track(26), track(26), BASE, track(14) },
+        red = { BASE, BASE, BASE, track(34) },
+      },
       last_roll = 6,
       sixes_in_row = 1,
       phase = "move",
@@ -64,21 +84,21 @@ local T = {}
 function T.tokens_stand_on_their_seats_squares_counted_when_stacked()
   local rendered = shell.render(ludo_update(), ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
   local board = {
-    "                  B  .  .                      roll  6      ",
-    "   B        o     .  :: *     R        R       sixes 1      ",
-    "                  *  :: Y                      phase move   ",
-    "                  .  :: .                      1     base ← ",
-    "   o        o     .  :: .     o        R       2     10/56 ←",
-    "                  .  :: .                      3     52/56  ",
-    ".  *  .  .  .  .     ^     .  .  .  *  .  .    4     home   ",
-    ".  :: B  :: :: :: B     ^  :: :: :: :: :: .                 ",
-    ".  .  *  .  .  .     ^     .  .  .  .  Y2 .                 ",
-    "                  .  :: .                                   ",
-    "   o        o     .  :: .     o        Y                    ",
-    "                  .  :: .                                   ",
-    "                  .  :: R                                   ",
-    "   o        o     *  :: .     o        o                    ",
-    "                  .  .  .                                   ",
+    "                  B  .  .                      roll  6         ",
+    "   B        o     .  :: *     R        R       sixes 1         ",
+    "                  *  :: Y                      phase move      ",
+    "                  .  :: .                      1     base <    ",
+    "   o        o     .  :: .     o        R       2     track 10 <",
+    "                  .  :: .                      3     lane 2    ",
+    ".  *  .  .  .  .     ^     .  .  .  *  .  .    4     home      ",
+    ".  :: B  :: :: :: B     ^  :: :: :: :: :: .                    ",
+    ".  .  *  .  .  .     ^     .  .  .  .  Y2 .                    ",
+    "                  .  :: .                                      ",
+    "   o        o     .  :: .     o        Y                       ",
+    "                  .  :: .                                      ",
+    "                  .  :: R                                      ",
+    "   o        o     *  :: .     o        o                       ",
+    "                  .  .  .                                      ",
   }
   local first = line_of(rendered, board[1])
   assert_eq(board, vim.list_slice(rendered.lines, first, first + #board - 1))
@@ -86,7 +106,8 @@ end
 
 function T.a_token_takes_its_seats_colour_and_the_last_move_is_marked()
   local rendered = shell.render(ludo_update(), ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
-  local row = line_of(rendered, "                  B  .  .                      roll  6      ") - 1
+  local row = line_of(rendered, "                  B  .  .                      roll  6         ")
+    - 1
   local function hl_at(line, col)
     local found = {}
     for _, mark in ipairs(rendered.extmarks) do
@@ -136,14 +157,21 @@ function T.events_read_as_sentences()
     { { kind = "rolled", by = "yellow", value = 6 }, "bob rolled 6" },
     { { kind = "passed", by = "red" }, "carol cannot move" },
     { { kind = "forfeited", by = "blue" }, "alice rolled a third six and loses the turn" },
-    { { kind = "moved", by = "blue", token = 1, from = -1, to = 0 }, "alice brought token 1 out" },
     {
-      { kind = "moved", by = "blue", token = 3, from = 52, to = 56 },
+      { kind = "moved", by = "blue", token = 1, from = BASE, to = track(0) },
+      "alice brought token 1 out",
+    },
+    {
+      { kind = "moved", by = "blue", token = 3, from = lane(2), to = HOME },
       "alice brought token 3 home",
     },
     {
-      { kind = "moved", by = "red", token = 4, from = 17, to = 21 },
-      "carol moved token 4 to 21/56",
+      { kind = "moved", by = "red", token = 4, from = track(30), to = track(34) },
+      "carol moved token 4 to square 34",
+    },
+    {
+      { kind = "moved", by = "red", token = 2, from = track(10), to = lane(1) },
+      "carol moved token 2 to lane 1",
     },
     {
       { kind = "captured", by = "red", victim = "yellow", token = 2 },
@@ -152,6 +180,65 @@ function T.events_read_as_sentences()
   }) do
     assert_eq(case[2], ludo.describe_event(case[1], update))
   end
+end
+
+---The board's 15 rows, without the panel beside it.
+---@param rendered games.Rendered
+---@param first string the board's first row, as drawn
+---@return string[]
+local function board_rows(rendered, first)
+  local row = vim.iter(ipairs(rendered.lines)):find(function(_, line)
+    return vim.startswith(line, first)
+  end)
+  return vim.tbl_map(function(line)
+    return vim.fn.strcharpart(line, 0, 44)
+  end, vim.list_slice(rendered.lines, row, row + 14))
+end
+
+function T.several_colours_on_a_safe_square_show_their_count()
+  local update = ludo_update()
+  update.view.locations.yellow = { track(8), track(8), BASE, track(14) }
+  local rendered = shell.render(update, ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  update.view.locations.blue = { track(8), track(10), lane(2), HOME }
+  local mixed = shell.render(update, ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  assert_eq("                  Y2 :: Y", board_rows(rendered, "                  B")[3]:sub(1, 25))
+  assert_eq("                  x3 :: Y", board_rows(mixed, "                  B")[3]:sub(1, 25))
+end
+
+function T.the_unicode_pack_draws_each_seat_by_shape()
+  local rendered =
+    shell.render(ludo_update(), ludo, ludo_view("unicode"), "alice", 0, nil, CATALOGUE)
+  local rows = board_rows(rendered, "                  ●")
+  assert_eq("   ●        ○     ·  ░░ ✶     ▲        ▲    ", rows[2])
+  assert_eq(
+    "·  ░░ ●  ░░ ░░ ░░ ●     ⌂  ░░ ░░ ░░ ░░ ░░ · ",
+    rows[8]
+  )
+  assert(
+    rendered.lines[vim.iter(ipairs(rendered.lines)):find(function(_, line)
+      return line:find("track 10", 1, true) ~= nil
+    end)]:find("track 10 ←", 1, true),
+    "movable mark from the unicode pack"
+  )
+end
+
+function T.a_resigned_seat_leaves_its_corner_empty_and_uncoloured()
+  local update = ludo_update()
+  for _, field in ipairs({ "starts", "progress", "locations" }) do
+    update.view[field].red = nil
+  end
+  local rendered = shell.render(update, ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  local rows = board_rows(rendered, "                  B")
+  assert_eq("   B        o     .  :: *     o        o    ", rows[2])
+  assert_eq("                  .  :: *                   ", rows[13])
+  local row = vim.iter(ipairs(rendered.lines)):find(function(_, line)
+    return vim.startswith(line, "   B        o     .  :: *     o")
+  end) - 1
+  local coloured = vim.tbl_filter(function(mark)
+    local hl = type(mark.hl) == "table" and mark.hl or { mark.hl }
+    return mark.row == row and mark.col == 30 and vim.tbl_contains(hl, "GamesSeat3")
+  end, rendered.extmarks)
+  assert_eq({}, coloured)
 end
 
 return T

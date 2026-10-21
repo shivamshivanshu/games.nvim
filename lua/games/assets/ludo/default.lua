@@ -1,5 +1,6 @@
 local GLYPH_WIDTH = 2
 local MAX_STACK = 4
+local MAX_MIXED_COUNT = 9
 
 ---@param line string
 ---@return games.ArtEntry
@@ -67,8 +68,9 @@ end
 
 ---@param mode "unicode"|"ascii"
 ---@param squares table<string, string>
+---@param mixed string the shape of several colours on one square, followed by their count
 ---@return games.ArtSet
-local function glyph_set(mode, squares)
+local function glyph_set(mode, squares, mixed)
   local set = {}
   for key, line in pairs(squares) do
     set[key] = { glyph(line) }
@@ -77,6 +79,9 @@ local function glyph_set(mode, squares)
     for n = 1, MAX_STACK do
       set[token.seat .. n] = { glyph(stack_glyph(token[mode], n)) }
     end
+  end
+  for n = 2, MAX_MIXED_COUNT do
+    set["mixed" .. n] = { glyph(mixed .. n) }
   end
   return set
 end
@@ -90,7 +95,8 @@ local function token_art()
   return set
 end
 
----Ludo tokens as a shape per seat, with block art for lone tokens in cells 2 and 3 lines tall.
+---Ludo tokens as a shape per seat, with block art for lone tokens in cells 2 and 3 lines tall;
+---several colours on one square show their count, 9 standing for 9 or more.
 ---@type games.AssetPack
 return {
   name = "default",
@@ -103,8 +109,8 @@ return {
       goal = "⌂ ",
       yard = "  ",
       center = "  ",
-      mixed = "※ ",
-    }),
+      movable = " ←",
+    }, "※"),
     ascii = glyph_set("ascii", {
       track = ". ",
       safe = "* ",
@@ -113,8 +119,8 @@ return {
       goal = "^ ",
       yard = "  ",
       center = "  ",
-      mixed = "x ",
-    }),
+      movable = " <",
+    }, "x"),
   },
   art = token_art(),
 }
