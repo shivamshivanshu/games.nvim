@@ -32,13 +32,6 @@ local text_util = require("games.ui.text")
 ---@field n integer blank columns added on the left
 ---@field child games.Node
 
----@class games.BoxNode
----@field kind "box"
----@field w integer display columns
----@field h integer lines
----@field hl? games.Hl over every whole line of the box, under the child's own highlights
----@field child games.Node centred; odd padding goes right and bottom
-
 ---Lines drawn already, each w display columns wide, placed as they are.
 ---@class games.BlockNode
 ---@field kind "block"
@@ -47,7 +40,7 @@ local text_util = require("games.ui.text")
 ---@field lines string[]
 ---@field marks games.Marks rows count from the block's first line, byte columns from its left edge
 
----@alias games.Node games.TextNode|games.RowNode|games.ColNode|games.PadNode|games.BoxNode|games.BlockNode
+---@alias games.Node games.TextNode|games.RowNode|games.ColNode|games.PadNode|games.BlockNode
 
 ---@class games.Size
 ---@field w integer display columns
@@ -162,19 +155,6 @@ function M.pad(n, node)
   return { kind = "pad", n = n, child = node }
 end
 
----@class games.BoxProps
----@field w integer display columns
----@field h integer lines
----@field hl? games.Hl over every whole line of the box
----@field child games.Node centred; odd padding goes right and bottom
-
----A w x h block filled with hl on every line, with child centred in it.
----@param props games.BoxProps
----@return games.BoxNode
-function M.box(props)
-  return { kind = "box", w = props.w, h = props.h, hl = props.hl, child = props.child }
-end
-
 ---Pads row with spaces out to display column col, or takes col as reached when it is past it.
 ---@param canvas games.Canvas
 ---@param row integer
@@ -226,34 +206,6 @@ local function place_text(canvas, node, row, col)
   local width = text_width(node)
   canvas.cols[row] = col + width
   return width, 1
-end
-
----@param canvas games.Canvas
----@param node games.BoxNode
----@param row integer
----@param col integer
----@return integer width
----@return integer height
-local function place_box(canvas, node, row, col)
-  local child = M.measure(node.child)
-  local line_marks = {}
-  for i = 0, node.h - 1 do
-    advance(canvas, row + i, col)
-    if node.hl then
-      local start = canvas.bytes[row + i]
-      line_marks[i] = M.add_mark(canvas.marks, row + i, start, start, node.hl)
-    end
-  end
-  local top = math.max(0, math.floor((node.h - child.h) / 2))
-  local left = math.max(0, math.floor((node.w - child.w) / 2))
-  place(canvas, node.child, row + top, col + left)
-  for i = 0, node.h - 1 do
-    advance(canvas, row + i, col + node.w)
-    if line_marks[i] then
-      canvas.marks.end_col[line_marks[i]] = canvas.bytes[row + i]
-    end
-  end
-  return node.w, node.h
 end
 
 ---@param canvas games.Canvas
@@ -335,9 +287,6 @@ place = function(canvas, node, row, col)
     local w, h = place(canvas, node.child, row, col + node.n)
     return w + node.n, h
   end
-  if node.kind == "box" then
-    return place_box(canvas, node, row, col)
-  end
   if node.kind == "block" then
     return place_block(canvas, node, row, col)
   end
@@ -370,7 +319,7 @@ function M.measure(node)
     local child = M.measure(node.child)
     return { w = child.w + node.n, h = child.h }
   end
-  if node.kind == "box" or node.kind == "block" then
+  if node.kind == "block" then
     return { w = node.w, h = node.h }
   end
   local w, h = 0, 0

@@ -4,6 +4,18 @@ local text_util = require("games.ui.text")
 
 local assert_eq = helpers.assert_eq
 
+---A w x h block of blanks.
+---@param w integer
+---@param h integer
+---@return games.BlockNode
+local function blank_block(w, h)
+  local lines = {}
+  for i = 1, h do
+    lines[i] = string.rep(" ", w)
+  end
+  return compose.block(w, lines, compose.no_marks())
+end
+
 ---Candidates of sizes n x n down to 1 x 1, counting how many get built.
 ---@param n integer
 ---@return (fun(): games.Node)[]
@@ -14,26 +26,13 @@ local function square_candidates(n)
   for size = n, 1, -1 do
     candidates[#candidates + 1] = function()
       builds.count = builds.count + 1
-      return compose.box({ w = size, h = size, child = compose.text(tostring(size)) })
+      return blank_block(size, size)
     end
   end
   return candidates, builds
 end
 
 local T = {}
-
-function T.box_centres_child_with_odd_padding_right_and_bottom()
-  local child = compose.col({ compose.text("ab", "GamesKey"), compose.text("c") })
-  local rendered = compose.render(compose.box({ w = 5, h = 5, hl = "GamesWin", child = child }))
-
-  assert_eq({ "     ", " ab  ", " c   ", "     ", "     " }, rendered.lines)
-  local box_marks = vim.tbl_filter(function(mark)
-    return mark.hl == "GamesWin"
-  end, helpers.extmarks(rendered))
-  assert_eq(5, #box_marks)
-  assert_eq({ row = 4, col = 0, end_col = 5, hl = "GamesWin" }, box_marks[5])
-  assert_eq({ row = 1, col = 1, end_col = 3, hl = "GamesKey" }, helpers.extmarks(rendered)[6])
-end
 
 function T.row_pads_a_shorter_child_and_marks_its_neighbours_at_their_byte_columns()
   local node = compose.pad(
@@ -63,9 +62,9 @@ function T.measure_matches_the_rendered_size_of_every_node_kind()
   local nodes = {
     compose.text("♟ab"),
     compose.pad(3, compose.col({ compose.text("x"), compose.text("long") })),
-    compose.box({ w = 6, h = 4, child = compose.text("ab") }),
+    blank_block(6, 4),
     compose.row({
-      compose.box({ w = 2, h = 3, child = compose.text("k") }),
+      blank_block(2, 3),
       compose.col({ compose.text("wide one"), compose.pad(1, compose.text("y")) }),
       compose.text(""),
     }),
