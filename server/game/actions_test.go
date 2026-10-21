@@ -1,6 +1,7 @@
 package game_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -28,5 +29,19 @@ func TestCheckActions(t *testing.T) {
 				t.Errorf("got %v, want error %t", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestParseNumberedTakesOnlyTheExactValues(t *testing.T) {
+	const n = 9
+	for _, text := range game.NumberedValues(n) {
+		if i, ok := game.ParseNumbered(text, n); !ok || strconv.Itoa(i) != text {
+			t.Errorf("ParseNumbered(%q) = %d, %t", text, i, ok)
+		}
+	}
+	for _, text := range []string{"0", "10", "+1", "01", " 1", "1 ", "", "x"} {
+		if i, ok := game.ParseNumbered(text, n); ok {
+			t.Errorf("ParseNumbered(%q) = %d, want none", text, i)
+		}
 	}
 }

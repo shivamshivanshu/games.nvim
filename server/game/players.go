@@ -45,3 +45,8 @@ const SeatSolo Seat = "solver"
 
 // SoloSeat seats the challenger of a solo game.
 func SoloSeat(challenger UserID) map[UserID]Seat { return map[UserID]Seat{challenger: SeatSolo} }
+
+// Participants lists the challenger first, then the invitees.
+func Participants(challenger UserID, invitees []UserID) []UserID {
+	return append([]UserID{challenger}, invitees...)
+}

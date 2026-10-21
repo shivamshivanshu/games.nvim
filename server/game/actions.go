@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 )
 
 // ActionKind is the "kind" field every action object carries.
@@ -58,4 +59,23 @@ func (in *ActionInput) check() error {
 		return fmt.Errorf("input %q: %w", in.Field, err)
 	}
 	return nil
+}
+
+// NumberedValues are the input values "1" to "n", in order.
+func NumberedValues(n int) []string {
+	values := make([]string, n)
+	for i := range values {
+		values[i] = strconv.Itoa(i + 1)
+	}
+	return values
+}
+
+// ParseNumbered is the number text names if it is exactly one of
+// NumberedValues(n): no sign, no leading zero, no space.
+func ParseNumbered(text string, n int) (int, bool) {
+	i, err := strconv.Atoi(text)
+	if err != nil || i < 1 || i > n || strconv.Itoa(i) != text {
+		return 0, false
+	}
+	return i, true
 }
