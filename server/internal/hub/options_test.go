@@ -1,6 +1,7 @@
 package hub_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -18,13 +19,24 @@ func (badDefaultRules) Info() game.Info {
 	return info
 }
 
-func TestNewRejectsGameWithInvalidOptionDefault(t *testing.T) {
+func TestNewRejectsInvalidGameInfo(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t)
-	_, err := hub.New(t.Context(), hub.Deps{
-		Store: e.store, Games: []game.Game{game.Adapt(badDefaultRules{})}, Limits: limits.Default(), Time: e.clock,
-	})
-	if err == nil {
-		t.Fatal("want an error for a default its own option rejects")
+	counter := game.Adapt(gametest.CounterRules{})
+	tests := map[string]struct {
+		games   []game.Game
+		wantErr string
+	}{
+		"an option default its own option rejects": {[]game.Game{game.Adapt(badDefaultRules{})}, "note"},
+		"a game type registered twice":             {[]game.Game{counter, counter}, "registered twice"},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			_, err := hub.New(t.Context(), hub.Deps{Store: e.store, Games: tc.games, Limits: limits.Default(), Time: e.clock})
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("got %v, want an error naming %q", err, tc.wantErr)
+			}
+		})
 	}
 }
