@@ -43,7 +43,7 @@ local NOTATION = "- move  x jump"
 local PIECE_HL =
   { b = "GamesPieceBlack", B = "GamesPieceBlack", w = "GamesPieceWhite", W = "GamesPieceWhite" }
 
----Display columns the move list reserves: "99. 15x24x31x22 22x15x8".
+---Display columns the move list reserves at least: "99. 15x24x31x22 22x15x8".
 local MOVELIST_WIDTH = 24
 
 ---@param row integer
@@ -86,21 +86,11 @@ local function marks_for(view)
   return marks
 end
 
----@param flip boolean
----@return integer[] logical indices in display order
-local function display_order(flip)
-  local order = {}
-  for i = 1, SIZE do
-    order[i] = flip and SIZE + 1 - i or i
-  end
-  return order
-end
-
 ---The square numbers laid out as the board is drawn, one line per row.
 ---@param flip boolean
 ---@return games.Node
 local function numbering(flip)
-  local order = display_order(flip)
+  local order = grid.display_order(SIZE, flip)
   return compose.col(vim.tbl_map(function(row)
     local cells = vim.tbl_map(function(col)
       local square = square_at(row, col)
@@ -108,6 +98,21 @@ local function numbering(flip)
     end, order)
     return compose.text(table.concat(cells), NUMBER_HL)
   end, order))
+end
+
+---@param history string[]
+---@param max_lines? integer
+---@return games.Node
+local function moves_node(history, max_lines)
+  return movelist({ items = history, columns = 2, numbered = true, max_lines = max_lines })
+end
+
+---The move list's width over the whole game: MOVELIST_WIDTH unless long jump chains or move
+---numbers past it need more, so an ordinary game never resizes the board.
+---@param history string[]
+---@return integer
+local function movelist_width(history)
+  return math.max(MOVELIST_WIDTH, compose.measure(moves_node(history)).w)
 end
 
 ---@param update games.CheckersUpdate
@@ -155,14 +160,9 @@ function M.layout(update, ctx)
         end,
       },
       {
-        width = MOVELIST_WIDTH,
+        width = movelist_width(view.history),
         node = function(max_height)
-          return movelist({
-            items = view.history,
-            columns = 2,
-            numbered = true,
-            max_lines = max_height,
-          })
+          return moves_node(view.history, max_height)
         end,
       },
     },

@@ -70,6 +70,7 @@ end
 
 ---@class games.GridWidget
 ---@field is_dark fun(row: integer, col: integer): boolean
+---@field display_order fun(n: integer, flip: boolean|nil): integer[]
 ---@overload fun(props: games.GridProps): games.Node
 
 local M = {}
@@ -93,10 +94,11 @@ local function shade_hl(shade, row, col)
   return M.is_dark(row, col) and DARK_SQUARE_HL or LIGHT_SQUARE_HL
 end
 
+---The logical indices 1..n in the order the grid draws them: reversed when flipped.
 ---@param n integer
 ---@param flip boolean|nil
 ---@return integer[]
-local function display_order(n, flip)
+function M.display_order(n, flip)
   local order = {}
   for i = 1, n do
     order[i] = flip and n + 1 - i or i
@@ -219,8 +221,8 @@ local function render(props)
   local separators = separators_for(props.glyphs or "unicode", ambiwidth)
   local cell_height = props.cell_height or 1
   local marks = marks_by_cell(props.marks or {})
-  local row_order = display_order(props.rows, props.flip)
-  local col_order = display_order(props.cols, props.flip)
+  local row_order = M.display_order(props.rows, props.flip)
+  local col_order = M.display_order(props.cols, props.flip)
   local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)
   local col_labels = props.labels and labels_in_order(props.labels.cols, col_order)
   local label_width = row_labels and text_util.max_display_width(row_labels) or 0

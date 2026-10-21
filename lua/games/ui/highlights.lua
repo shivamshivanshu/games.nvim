@@ -120,12 +120,6 @@ local GROUPS = {
     vivid = { bg = "#787c7e" },
   },
   {
-    name = "GamesMovable",
-    role = Role.BACKGROUND,
-    theme = { from("PmenuSel"), from("Visual") },
-    vivid = { bg = "#829769" },
-  },
-  {
     name = "GamesPieceWhite",
     role = Role.FOREGROUND,
     theme = { from("Normal") },
@@ -227,6 +221,12 @@ local GROUPS = {
     theme = { from("DiagnosticOk") },
     theme_style = { reverse = true, bold = true },
     vivid = { fg = "#ffffff", bg = "#629924", bold = true },
+  },
+  {
+    name = "GamesMovable",
+    role = Role.BACKGROUND,
+    theme = { from("PmenuSel"), from("Visual") },
+    vivid = { bg = "#829769" },
   },
 }
 

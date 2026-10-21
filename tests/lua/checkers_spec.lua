@@ -164,6 +164,37 @@ function T.last_move_path_is_tinted_and_the_movers_pieces_are_marked_only_for_th
   assert_eq(0, movable_marks(other))
 end
 
+function T.long_jump_chains_and_move_numbers_past_99_stay_inside_the_window()
+  local history = {}
+  for i = 1, 200 do
+    history[i] = i % 2 == 1 and "11-15" or "22-18"
+  end
+  vim.list_extend(history, { "10x17x26x19x10", "10x19x26x17x10" })
+  local update =
+    checkers_update({ view = { board = start_board(), legal = {}, last = {}, history = history } })
+  local area = { w = 80, h = 30 }
+
+  local rendered = shell.render(
+    update,
+    checkers,
+    view_options("unicode"),
+    "bob",
+    0,
+    { text_area = area, seats = 2 }
+  )
+
+  local widest = vim.iter(rendered.lines):fold(0, function(widest, line)
+    return math.max(widest, vim.fn.strdisplaywidth(line))
+  end)
+  assert(widest <= area.w, ("widest line %d > %d"):format(widest, area.w))
+  assert(
+    vim.iter(rendered.lines):any(function(line)
+      return line:find("101. 10x17x26x19x10 10x19x26x17x10", 1, true) ~= nil
+    end),
+    "the long chains are not shown whole"
+  )
+end
+
 function T.describe_event_names_the_player_and_a_crowning()
   local update = checkers_update({})
   assert_eq(
