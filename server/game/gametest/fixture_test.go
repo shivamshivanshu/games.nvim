@@ -2,6 +2,7 @@ package gametest
 
 import (
 	"fmt"
+	"maps"
 	"math/rand/v2"
 	"slices"
 
@@ -17,6 +18,9 @@ const (
 	leakPrivateInViewKey
 	leakPrivateInEvent
 	leakPrivateInEventKind
+	leakNeighbourInEvent
+	leakNeighbourInOpening
+	finishOnNeighbourCut
 	leakSecretInView
 	leakEscapedSecretInView
 	leakSecretInEvent
@@ -37,6 +41,9 @@ const (
 
 // handOf is seat's private hand in a round; every step deals a new round.
 func handOf(seat game.Seat, round int) string { return fmt.Sprintf("hand-%s-r%d", seat, round) }
+
+// hand is seat's hand now; each cut of seat's share deals it a later round's.
+func (s tableState) hand(seat game.Seat) string { return handOf(seat, s.round+s.cuts[seat]) }
 
 // tableRules seats everyone at a table where each holds a private hand, re-dealt every step,
 // and the game holds a secret that is revealed once it finishes.
@@ -97,7 +104,7 @@ func (r tableRules) New(_ tableOpts, challenger game.UserID, invitees []game.Use
 		all[i] = game.Seat(fmt.Sprintf("s%d", i+1))
 		seats[u] = all[i]
 	}
-	return tableState{flaw: r.flaw, seats: all, alive: all, deck: []string{"c", "a", "b"}}, seats, nil
+	return tableState{flaw: r.flaw, seats: all, alive: all, cuts: map[game.Seat]int{}, deck: []string{"c", "a", "b"}}, seats, nil
 }
 
 type tableState struct {
@@ -106,11 +113,20 @@ type tableState struct {
 	seats     []game.Seat
 	alive     []game.Seat
 	round     int
+	cuts      map[game.Seat]int
 	deck      []string
 	playedOut bool
 }
 
-func privateHands(s tableState, seat game.Seat) []string { return []string{handOf(seat, s.round)} }
+func privateHands(s tableState, seat game.Seat) []string { return []string{s.hand(seat)} }
+
+// cutHand deals owner another hand, a change only owner may see.
+func cutHand(st game.State[tableAction, tableView], owner game.Seat) (game.State[tableAction, tableView], []game.Seat) {
+	s := st.(tableState)
+	s.cuts = maps.Clone(s.cuts)
+	s.cuts[owner]++
+	return s, []game.Seat{owner}
+}
 
 func (s tableState) Apply(seat game.Seat, a tableAction, _ *rand.Rand) (game.State[tableAction, tableView], []game.Event, error) {
 	said := s.showdown(seat)
@@ -127,7 +143,7 @@ func (s tableState) Apply(seat game.Seat, a tableAction, _ *rand.Rand) (game.Sta
 	case uncataloguedEvent:
 		events = append(events, namedEvent{Kind: "shrugged"})
 	}
-	if a.Finish {
+	if a.Finish || (s.flaw == finishOnNeighbourCut && s.cuts[s.neighbour(seat)] > 0) {
 		s.Ending, s.playedOut = s.Concluded(game.Result{Kind: game.ResultDraw}), true
 	}
 	return s, events, nil
@@ -140,15 +156,28 @@ func (s tableState) showdown(seat game.Seat) saidEvent {
 		return saidEvent{By: seat, Text: handOf(seat, s.round+1)}
 	case leakSecretInEvent:
 		return saidEvent{By: seat, Text: tableSecret}
+	case leakNeighbourInEvent:
+		return saidEvent{By: seat, Text: s.hand(s.neighbour(seat))}
 	}
-	return saidEvent{By: seat, Text: handOf(seat, s.round)}
+	return saidEvent{By: seat, Text: s.hand(seat)}
+}
+
+func (s tableState) neighbour(seat game.Seat) game.Seat {
+	return s.seats[(slices.Index(s.seats, seat)+1)%len(s.seats)]
+}
+
+func (s tableState) OpeningEvents() []game.Event {
+	if s.flaw != leakNeighbourInOpening {
+		return nil
+	}
+	return []game.Event{saidEvent{By: s.seats[0], Text: s.hand(s.neighbour(s.seats[0]))}}
 }
 
 func (s tableState) View(seat game.Seat) tableView {
 	if s.flaw == viewSortsDeck {
 		slices.Sort(s.deck)
 	}
-	v := tableView{Hand: handOf(seat, s.round)}
+	v := tableView{Hand: s.hand(seat)}
 	switch {
 	case s.Over() || s.flaw == leakSecretInView:
 		v.Answer = tableSecret
@@ -161,9 +190,9 @@ func (s tableState) View(seat game.Seat) tableView {
 		}
 		switch s.flaw {
 		case leakPrivateInView:
-			v.Others = append(v.Others, handOf(other, s.round))
+			v.Others = append(v.Others, s.hand(other))
 		case leakPrivateInViewKey:
-			v.Counts = map[string]int{handOf(other, s.round): 1}
+			v.Counts = map[string]int{s.hand(other): 1}
 		}
 	}
 	return v
