@@ -34,14 +34,18 @@ Solo chess along a line you import: find the moves of a puzzle, or guess the mov
 ## Puzzle sets (client side)
 The server knows nothing of sets; they are the client's, in `stdpath("data")/games/puzzles/<set>.json` as `{entries: [{id, mode, fen, moves, player}], next}`, `next` 1-based.
 
-- `:Games import <file> [set]` reads a `.csv` or `.pgn` file into the set, by default named after the file (letters, digits, `_` and `-` only). It replaces a set of that name and becomes the latest set. It needs no server.
+- `:Games import <file> [set] [max]` reads a `.csv` or `.pgn` file into the set, by default named after the file (letters, digits, `_` and `-` only). It replaces a set of that name and becomes the latest set. It needs no server.
+  - The file is read a line at a time, so Neovim stays responsive on a large file, such as the whole Lichess database; a notice reports progress every 100000 lines.
+  - The set keeps the file's first `max` entries, by default `puzzles.max_entries` from setup (5000). The summary counts the entries left out past it apart from those that could not be read.
   - **CSV**, the Lichess puzzle database: a header with `PuzzleId`, `FEN` and `Moves` (other columns are ignored); each row is a puzzle for the side **not** to move in its FEN.
-  - **PGN**, split into games. Comments (`{}` and `;`), variations, NAGs, move numbers, annotations (`!?`) and the result are stripped.
+  - **PGN**, split into games. Comments (`{}`, which may span lines, and `;` to the end of the line), variations (nested), `%` escape lines, NAGs, move numbers, annotations (`!?`) and the result are stripped. A tag line inside a comment does not start a game.
     - A game with a `FEN` header is a puzzle for the side to move in it.
     - A game without one is a study from the standard start; one prompt at import asks which side to study in all of them.
   - An entry that cannot be read (no moves, a FEN without a side to move, an unbalanced comment) is reported with its line or game number, and the rest are imported. A file with none writes no set.
   - Lines are only split, not checked: the server checks each entry when it starts.
-- `:Games puzzle [set]` starts the set's next entry, by default in the latest imported set, opens its board and moves the set past it. An entry the server refuses is reported and skipped. When the set is done it says so; import the file again to restart. The set argument completes from the saved sets.
+- `:Games puzzle [set]` starts the set's next entry, by default in the latest imported set, opens its board and moves the set past it. An entry the server refuses is reported and skipped. When the set is done it says so; restart it from the finder or import the file again. The set argument completes from the saved sets.
+- The set names in `latest` and the set files are checked like an imported name, so no set is ever read or written outside the sets' directory; a `latest` naming no set is ignored with a warning.
+- `:Games find puzzles` lists the saved sets with their size and next entry. Its default action starts the set's next entry; `restart`, once confirmed, sends the set back to its first entry.
 
 ## Other endings (core)
 - Give up (`R`, confirms): a loss with no winner, reason `resign`; the view then shows the solution.
@@ -86,5 +90,5 @@ Solved or completed +1; wrong move or gave up -1; abort 0. Solo games count in t
 
 ## Known limits
 - A study takes one side for every game of a PGN file; split the file to study different sides.
-- The finder's `puzzles` source does not list the sets yet; use `:Games puzzle`.
+- A set holds at most `max` entries (5000 by default), since `:Games puzzle` rewrites the whole set file as it moves past each entry. Import a larger file in slices with another `max`, or raise `puzzles.max_entries`.
 - Two Neovims playing the same set can both start its next entry.

@@ -130,6 +130,7 @@ Details and flags are under Server below.
 | `assets` | table | `{}` | asset pack per game, e.g. `{ chess = "my.chess_art" }`; every game defaults to `"default"` |
 | `picker` | `"snacks"`, `"telescope"`, `"fzf"` or `"select"` | unset | the finder's picker; unset takes the first installed of snacks.picker, telescope, fzf-lua, else `vim.ui.select`; a forced one that is not installed falls back to `vim.ui.select` with a warning |
 | `keys` | `{ dashboard?, find? }` | `{}` | global normal-mode keys for `:Games` and `:Games find`, e.g. `{ dashboard = "<leader>gg", find = "<leader>gf" }`; none are mapped by default; the two must differ, and a later `setup()` unmaps only the keys it still owns, never your remap |
+| `puzzles.max_entries` | integer | `5000` | entries a puzzle set keeps of an imported file; `:Games import`'s `max` overrides it |
 
 A bad login or protocol mismatch stops auto-reconnect and notifies; fix the config and restart Neovim (or call `setup()` again).
 
@@ -190,7 +191,7 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 | `:Games next` | open the next game waiting on your move |
 | `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or failed |
 | `:Games find [source]` | fuzzy-find `requests`, `games`, `types`, `players` or `puzzles`; asks which when no source is given; see Finder below |
-| `:Games import <file> [set]` | import a Lichess puzzle `.csv` or a `.pgn` into a puzzle set, by default named after the file; needs no server. Reports each entry it could not read; a PGN game without a `FEN` header is a study, and one prompt asks which side to study |
+| `:Games import <file> [set] [max]` | import a Lichess puzzle `.csv` or a `.pgn` into a puzzle set, by default named after the file; needs no server. Reads the file a line at a time; the set keeps the first `max` entries (default `puzzles.max_entries`, 5000). Reports each entry it could not read and how many it left out past `max`; a PGN game without a `FEN` header is a study, and one prompt asks which side to study |
 | `:Games puzzle [set]` | start the next entry of a puzzle set (default: the latest imported) as a `chess_puzzle` game and open it; the set completes from the saved sets |
 
 Incoming challenges and moves in boards you are not viewing arrive as `vim.notify` messages. Accepting a challenge opens the board when the game starts.
@@ -237,7 +238,7 @@ The dashboard closes when focus moves to an ordinary window, such as a board's; 
 | `games` | ongoing games, your move first, then finished ones, newest first | open | resign, or give up for a solo game |
 | `types` | the server's game types, with their options and actions | start | leaderboard |
 | `players` | other users, online first, with the server's ranking | challenge | stats |
-| `puzzles` | nothing yet: use `:Games puzzle` for puzzle sets | | |
+| `puzzles` | the saved puzzle sets, with their size and next entry | start the next entry | restart, once confirmed |
 
 The finder is a thin adapter over whichever picker is installed, tried in this order: [snacks.picker](https://github.com/folke/snacks.nvim), [telescope](https://github.com/nvim-telescope/telescope.nvim), [fzf-lua](https://github.com/ibhagwan/fzf-lua); `picker = "..."` forces one. Each is optional. In snacks, telescope and fzf-lua, `<M-CR>` asks which of the item's actions to run. Without any of them it falls back to `vim.ui.select`, which has no preview: picking an item runs `<CR>`'s action, or asks which action for a request.
 

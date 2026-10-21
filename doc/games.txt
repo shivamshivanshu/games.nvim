@@ -68,6 +68,7 @@ Passed to `require("games").setup({opts})`.
     `picker`          `"snacks"` `"telescope"`       detected
                     `"fzf"` or `"select"`
     `keys`            `{ dashboard?, find? }`      `{}` (none mapped)
+    `puzzles`         `{ max_entries? }`           `{ max_entries = 5000 }`
 
 `password` as a function is called at each connect, never during setup(), so
 the secret need not live in your dotfiles.
@@ -255,11 +256,15 @@ same `dir` can both append the same events to `events.jsonl`.
                         report how many were written, already present, or
                         failed.
 
-:Games import {file} [set]                                    *:Games-import*
+:Games import {file} [set] [max]                              *:Games-import*
                         Import a Lichess puzzle `.csv` (columns `PuzzleId`,
                         `FEN`, `Moves`) or a `.pgn` into the puzzle set
                         [set], by default named after the file, in
                         `stdpath("data")/games/puzzles/`. Needs no server.
+                        The file is read a line at a time, with a progress
+                        notice every 100000 lines, and the set keeps its
+                        first [max] entries, by default `puzzles.max_entries`
+                        (5000); the summary counts those left out.
                         Entries that cannot be read are reported with their
                         line or game number; the rest are imported. A PGN
                         game with a `FEN` header is a puzzle for the side
@@ -329,7 +334,7 @@ it.
     `games`       open          resign (give up, for a solo game)
     `types`       start         leaderboard
     `players`     challenge     stats
-    `puzzles`     (none yet: use |:Games-puzzle| for puzzle sets)
+    `puzzles`     start         restart (confirms)
 
 The finder adapts whichever picker is installed, tried in order:
 snacks.picker, telescope, fzf-lua; `picker` forces one (|games-config|). Each
