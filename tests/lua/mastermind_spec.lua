@@ -5,6 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
+local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
 local CATALOGUED = { guess = true }
 local BOARD_ROWS = { 4, 15 }
 local BOARD_WIDTH = 34
@@ -64,6 +65,14 @@ local function board_lines(rendered)
   return vim.tbl_map(function(line)
     return (vim.fn.strcharpart(line, 0, BOARD_WIDTH):gsub("%s+$", ""))
   end, vim.list_slice(rendered.lines, BOARD_ROWS[1], BOARD_ROWS[2]))
+end
+
+---@param rendered games.Rendered
+---@return integer how many cells carry the solved mark
+local function solved_marks(rendered)
+  return #vim.tbl_filter(function(mark)
+    return type(mark.hl) == "table" and mark.hl[1] == "GamesWin"
+  end, rendered.extmarks)
 end
 
 ---The highlights of the board's cells on one line, left to right.
@@ -141,6 +150,43 @@ function T.pegs_take_their_colour_and_the_solving_row_is_marked()
       return type(hls) == "table" and hls[1] == "GamesWin"
     end, cell_hls(rendered, first_guess))
   )
+end
+
+function T.only_a_solved_result_marks_the_last_row()
+  local not_solved = solved()
+  not_solved.result = { kind = "decisive", winners = {}, reason = "resign" }
+  for _, case in ipairs({ { solved(), 4 }, { not_solved, 0 }, { update(), 0 } }) do
+    local rendered =
+      shell.render(case[1], mastermind, view_options("unicode"), "sam", 0, nil, CATALOGUED)
+    assert_eq(case[2], solved_marks(rendered))
+  end
+end
+
+---The palette the server sent at the start of the conformance transcript.
+---@return string[]
+local function transcript_palette()
+  local path = REPO_ROOT .. "/docs/conformance/mastermind.ndjson"
+  for line in io.lines(path) do
+    local entry = vim.json.decode(line)
+    local body = entry.recv and entry.recv.body
+    if type(body) == "table" and type(body.view) == "table" and body.view.palette then
+      return body.view.palette
+    end
+  end
+  error("no palette in " .. path)
+end
+
+function T.pack_draws_a_peg_for_exactly_the_servers_palette()
+  local pegs = vim
+    .iter(mastermind.asset_keys)
+    :filter(function(key)
+      return vim.startswith(key, "peg:")
+    end)
+    :map(function(key)
+      return key:sub(#"peg:" + 1)
+    end)
+    :totable()
+  assert_eq(transcript_palette(), pegs)
 end
 
 function T.panel_lists_the_palette_the_key_pegs_and_guesses_left()

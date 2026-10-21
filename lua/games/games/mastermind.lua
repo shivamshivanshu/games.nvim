@@ -44,6 +44,7 @@ local Key = {
   GAP = "gap",
 }
 local SOLVED_HL = "GamesWin"
+local SOLVED_REASON = "solved"
 
 ---@type table<games.MastermindColour, string>
 local PEG_HL = {
@@ -113,11 +114,11 @@ local function cell_for(view, row, col)
   return guess and key_peg(guess, key_col) or { Key.NO_KEY }
 end
 
----@param view games.MastermindView
----@return games.GridMark[] the solving guess's pegs
-local function marks_for(view)
-  local last = view.guesses[#view.guesses]
-  if not last or last.black ~= view.code_length then
+---@param update games.MastermindUpdate
+---@return games.GridMark[] the solving guess's pegs, once the server says the code is solved
+local function marks_for(update)
+  local view = update.view
+  if not (update.result and update.result.reason == SOLVED_REASON) then
     return {}
   end
   return vim
@@ -181,7 +182,7 @@ function M.layout(update, ctx)
       cell = function(r, c)
         return cell_for(view, r, c)
       end,
-      marks = marks_for(view),
+      marks = marks_for(update),
     },
     art = assert(ctx.art, "mastermind draws from an asset pack"),
     panels = {
