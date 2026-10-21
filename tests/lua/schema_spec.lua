@@ -147,6 +147,20 @@ local GAME_CLASS = {
     StartedEvent = "games.UnoStartedEvent",
     View = "games.UnoView",
   },
+  hearts = {
+    HandScore = "games.HeartsHandScore",
+    HandScoredEvent = "games.HeartsHandScoredEvent",
+    HandStartedEvent = "games.HeartsHandStartedEvent",
+    PassChosenEvent = "games.HeartsPassChosenEvent",
+    PassedEvent = "games.HeartsPassedEvent",
+    Play = "games.HeartsPlay",
+    PlayedEvent = "games.HeartsPlayedEvent",
+    SeatPoints = "games.HeartsSeatPoints",
+    SeatView = "games.HeartsSeatView",
+    TrickResult = "games.HeartsTrickResult",
+    TrickWonEvent = "games.HeartsTrickWonEvent",
+    View = "games.HeartsView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
