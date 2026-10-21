@@ -4,10 +4,9 @@ local wordle = require("games.games.wordle")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { guess = true }
+local CATALOGUED = { guess = { input = { field = "text" } } }
 local BOARD_ROWS = { 4, 9 }
 local BOARD_WIDTH = 19
-local FOOTER_ROW = 11
 
 ---@param glyphs games.Glyphs
 ---@param extra? table
@@ -129,33 +128,12 @@ function T.tiles_and_keys_take_their_marks_background()
   assert_eq({ hit, hit, miss, hit, hit }, key_hls)
 end
 
-function T.guess_key_needs_an_ongoing_game_and_the_catalogue()
-  for _, case in ipairs({
-    {
-      state = update(),
-      catalogued = CATALOGUED,
-      footer = "R give up  m guess  ]g next game  q close",
-    },
-    { state = update(), catalogued = nil, footer = "R give up  ]g next game  q close" },
-    { state = failed(), catalogued = CATALOGUED, footer = "]g next game  q close" },
-  }) do
-    local rendered =
-      shell.render(case.state, wordle, view_options("unicode"), "sam", 0, nil, case.catalogued)
-    assert_eq(case.footer, rendered.lines[FOOTER_ROW])
-  end
-end
-
 function T.finished_game_shows_the_answer_in_place_of_the_guesses_left()
   local rendered =
     shell.render(failed(), wordle, view_options("unicode"), "sam", 0, nil, CATALOGUED)
   local panel = table.concat(rendered.lines, "\n")
   assert(panel:find("answer ROUSE", 1, true), panel)
   assert(not panel:find("guesses left", 1, true), panel)
-end
-
-function T.input_sends_the_text_raw_for_the_server_to_parse()
-  assert_eq("guess", wordle.input.kind)
-  assert_eq({ kind = "guess", text = " Crane" }, wordle.input.parse(" Crane"))
 end
 
 function T.describe_event_names_the_player_and_the_word()

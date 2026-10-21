@@ -415,9 +415,6 @@ end
 M.input = {
   kind = PLAY_KIND,
   prompt = "Play, e.g. qs: ",
-  parse = function(text)
-    return { kind = PLAY_KIND, card = text }
-  end,
 }
 
 ---@type games.GameAction[]
@@ -428,9 +425,6 @@ M.actions = {
     input = {
       kind = PASS_KIND,
       prompt = "Pass three, e.g. 2c qs ah: ",
-      parse = function(text)
-        return { kind = PASS_KIND, cards = text }
-      end,
     },
     available = function(update)
       return update.view.must_pass > 0

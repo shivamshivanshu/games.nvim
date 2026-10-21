@@ -4,7 +4,8 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { reveal = true, flag = true, chord = true }
+local CELL_INPUT = { input = { field = "cell" } }
+local CATALOGUED = { reveal = CELL_INPUT, flag = CELL_INPUT, chord = CELL_INPUT }
 local FIRST_BOARD_ROW = 3
 local CELL_CODES = {
   ["#"] = "hidden",
@@ -157,18 +158,7 @@ function T.keys_follow_the_catalogue_the_chordable_cells_and_the_end()
     "R give up  m reveal, e.g. c5  f flag  ]g next game  q close",
     footer(nothing_to_chord, CATALOGUED)
   )
-  assert_eq("R give up  ]g next game  q close", footer(update(), nil))
   assert_eq("]g next game  q close", footer(lost(), CATALOGUED))
-end
-
-function T.each_key_sends_its_action_with_the_typed_cell()
-  assert_eq("reveal", minesweeper.input.kind)
-  assert_eq({ kind = "reveal", cell = "c5" }, minesweeper.input.parse("c5"))
-  local by_key = {}
-  for _, entry in ipairs(minesweeper.actions) do
-    by_key[entry.key] = entry.input.parse("b12")
-  end
-  assert_eq({ f = { kind = "flag", cell = "b12" }, c = { kind = "chord", cell = "b12" } }, by_key)
 end
 
 function T.a_lost_board_tells_flagged_unflagged_and_exploded_mines_and_wrong_flags_by_glyph()

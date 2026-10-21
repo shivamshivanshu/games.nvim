@@ -4,7 +4,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { play = true, pass = true }
+local CATALOGUE = { play = { input = { field = "card" } }, pass = { input = { field = "cards" } } }
 
 ---@param glyphs games.Glyphs
 ---@param extra? table
@@ -202,11 +202,6 @@ function T.a_seat_yet_to_pass_is_told_whom_to_and_may_press_p()
   local hand = assert(line_of(lines, "2c 7c Td Qd 4s Ks 3h 8h Ah"))
   assert_eq("", vim.trim(lines[hand + 1]))
   assert_eq("R resign  m play, e.g. qs  p pass cards  ]g next game  q close", lines[#lines])
-  local pass = vim.iter(hearts.actions):find(function(entry)
-    return entry.key == "p"
-  end)
-  assert_eq({ kind = "pass", cards = "2c qs ah" }, pass.input.parse("2c qs ah"))
-  assert_eq({ kind = "play", card = "qs" }, hearts.input.parse("qs"))
 end
 
 function T.a_seat_that_has_passed_waits_for_the_others()

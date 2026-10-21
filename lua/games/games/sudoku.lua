@@ -137,9 +137,6 @@ end
 M.input = {
   kind = SET_KIND,
   prompt = "Set, e.g. 53 7: ",
-  parse = function(text)
-    return { kind = SET_KIND, text = text }
-  end,
 }
 
 ---@param event games.Event

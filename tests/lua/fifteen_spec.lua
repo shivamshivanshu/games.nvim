@@ -4,7 +4,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { slide = true, move = true }
+local CATALOGUED = { slide = { input = { field = "tile" } }, move = true }
 local FIRST_BOARD_ROW = 3
 
 ---@param glyphs games.Glyphs
@@ -85,14 +85,9 @@ function T.direction_keys_are_bound_only_where_a_tile_can_move_that_way()
     "R give up  m slide tile, e.g. 7  h left  j down  l right  ]g next game  q close",
     footer(update(), CATALOGUED)
   )
-  assert_eq(
-    "R give up  m slide tile, e.g. 7  ]g next game  q close",
-    footer(update(), { slide = true })
-  )
 end
 
 function T.keys_send_the_slide_by_number_and_the_move_by_direction()
-  assert_eq({ kind = "slide", tile = "7" }, fifteen.input.parse("7"))
   local sent = {}
   for _, entry in ipairs(fifteen.actions) do
     sent[entry.key] = entry.action

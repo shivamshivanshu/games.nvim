@@ -82,19 +82,6 @@ local function marks_for(view)
   return marks
 end
 
----@param kind games.ActionKind
----@param prompt string
----@return games.GameInput
-local function cell_input(kind, prompt)
-  return {
-    kind = kind,
-    prompt = prompt,
-    parse = function(text)
-      return { kind = kind, cell = text }
-    end,
-  }
-end
-
 ---@param event games.MinesweeperRevealedEvent|games.MinesweeperChordedEvent
 ---@return string "" when it opened none, which only a mine does
 local function opened_text(event)
@@ -153,15 +140,15 @@ function M.layout(update, ctx)
 end
 
 ---@type games.GameInput
-M.input = cell_input(REVEAL_KIND, "Reveal, e.g. c5: ")
+M.input = { kind = REVEAL_KIND, prompt = "Reveal, e.g. c5: " }
 
 ---@type games.GameAction[]
 M.actions = {
-  { key = "f", label = "flag", input = cell_input(FLAG_KIND, "Flag or unflag, e.g. c5: ") },
+  { key = "f", label = "flag", input = { kind = FLAG_KIND, prompt = "Flag or unflag, e.g. c5: " } },
   {
     key = "c",
     label = "chord",
-    input = cell_input(CHORD_KIND, "Chord, e.g. c5: "),
+    input = { kind = CHORD_KIND, prompt = "Chord, e.g. c5: " },
     available = function(update)
       return #update.view.chordable > 0
     end,

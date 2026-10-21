@@ -4,8 +4,14 @@ local uno = require("games.games.uno")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE =
-  { play = true, draw = true, pass = true, challenge = true, accept = true, color = true }
+local CATALOGUE = {
+  play = { input = { field = "card" } },
+  draw = true,
+  pass = true,
+  challenge = true,
+  accept = true,
+  color = true,
+}
 
 ---@param glyphs games.Glyphs
 ---@param extra? table
@@ -171,7 +177,6 @@ function T.colour_keys_name_their_colour()
     { "g", { kind = "color", color = "G" } },
     { "b", { kind = "color", color = "B" } },
   }, named)
-  assert_eq({ kind = "play", card = "w g" }, uno.input.parse("w g"))
 end
 
 function T.each_header_line_shows_the_seats_cards_uno_on_the_last_or_out()

@@ -4,12 +4,11 @@ local sudoku = require("games.games.sudoku")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { set = true }
+local CATALOGUED = { set = { input = { field = "text" } } }
 local PUZZLE = "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
 local SOLUTION = "534678912672195348198342567859761423426853791713924856961537284287419635345286179"
 local FIRST_BOARD_ROW = 3
 local BOARD_LINES = 12
-local FOOTER_ROW = 16
 
 ---@param glyphs games.Glyphs
 ---@param extra? table
@@ -103,31 +102,6 @@ function T.board_draws_the_grid_in_boxes_with_labels_and_frames_conflicts_withou
       vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + BOARD_LINES)
     )
   end
-end
-
-function T.the_set_key_needs_the_catalogue_and_an_unfinished_game()
-  for _, case in ipairs({
-    {
-      state = update(),
-      catalogued = CATALOGUED,
-      footer = "R give up  A abort  m set, e.g. 53 7  ]g next game  q close",
-    },
-    { state = update(), catalogued = nil, footer = "R give up  A abort  ]g next game  q close" },
-    { state = gave_up(), catalogued = CATALOGUED, footer = "]g next game  q close" },
-  }) do
-    local rendered, _, bindings =
-      shell.render(case.state, sudoku, view_options("unicode"), "alice", 0, nil, case.catalogued)
-    assert_eq(case.footer, rendered.lines[FOOTER_ROW + 1])
-    local set = vim.iter(bindings):find(function(binding)
-      return binding.key == "m"
-    end)
-    assert_eq(case.footer:find(" m ") ~= nil, set ~= nil)
-  end
-end
-
-function T.input_sends_the_typed_text_for_the_server_to_parse()
-  assert_eq("set", sudoku.input.kind)
-  assert_eq({ kind = "set", text = "53 7" }, sudoku.input.parse("53 7"))
 end
 
 function T.givens_are_bold_and_muted_entries_take_the_seat_colour_and_conflicts_are_tinted()

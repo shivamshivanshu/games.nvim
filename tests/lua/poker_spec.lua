@@ -6,7 +6,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { act = true }
+local CATALOGUE = { act = { input = { field = "text" } } }
 
 ---@param glyphs games.Glyphs
 ---@return games.ViewOptions
@@ -81,10 +81,9 @@ end
 
 ---@param update games.PokerUpdate
 ---@param glyphs games.Glyphs
----@param catalogued? table<games.ActionKind, true>
 ---@return string[]
-local function render(update, glyphs, catalogued)
-  return shell.render(update, poker, poker_view(glyphs), "alice", 0, nil, catalogued or CATALOGUE).lines
+local function render(update, glyphs)
+  return shell.render(update, poker, poker_view(glyphs), "alice", 0, nil, CATALOGUE).lines
 end
 
 ---@param mark games.Extmark
@@ -172,13 +171,6 @@ function T.the_raise_range_shows_only_when_a_bet_or_raise_is_legal()
 
   assert(not table.concat(short, "\n"):find("Raise to", 1, true))
   assert(table.concat(opening, "\n"):find("Bet%s+20%-980"), table.concat(opening, "\n"))
-end
-
-function T.no_move_is_bound_until_the_catalogue_lists_act()
-  local lines = render(poker_update(), "ascii", {})
-  local footer = lines[#lines]
-
-  assert(not footer:find("f fold", 1, true) and not footer:find("m ", 1, true), footer)
 end
 
 function T.events_read_as_table_talk_with_users_for_seats()

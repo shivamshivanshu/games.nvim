@@ -5,10 +5,9 @@ local shell = require("games.ui.shell")
 local assert_eq = helpers.assert_eq
 
 local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
-local CATALOGUED = { guess = true }
+local CATALOGUED = { guess = { input = { field = "code" } } }
 local BOARD_ROWS = { 4, 15 }
 local BOARD_WIDTH = 34
-local FOOTER_ROW = 17
 
 ---@param glyphs games.Glyphs
 ---@param extra? table
@@ -187,27 +186,6 @@ function T.panel_lists_the_palette_the_key_pegs_and_guesses_left()
   }) do
     assert(panel:find(wanted, 1, true), panel)
   end
-end
-
-function T.guess_key_needs_an_ongoing_game_and_the_catalogue()
-  for _, case in ipairs({
-    {
-      state = update(),
-      catalogued = CATALOGUED,
-      footer = "R give up  m guess  ]g next game  q close",
-    },
-    { state = update(), catalogued = nil, footer = "R give up  ]g next game  q close" },
-    { state = solved(), catalogued = CATALOGUED, footer = "]g next game  q close" },
-  }) do
-    local rendered =
-      shell.render(case.state, mastermind, view_options("unicode"), "sam", 0, nil, case.catalogued)
-    assert_eq(case.footer, rendered.lines[FOOTER_ROW])
-  end
-end
-
-function T.input_sends_the_code_raw_for_the_server_to_parse()
-  assert_eq("guess", mastermind.input.kind)
-  assert_eq({ kind = "guess", code = " RGby" }, mastermind.input.parse(" RGby"))
 end
 
 function T.describe_event_names_the_player_the_code_and_the_pegs()

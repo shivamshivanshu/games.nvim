@@ -4,7 +4,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { bid = true, dudo = true }
+local CATALOGUE = { bid = { input = { field = "bid" } }, dudo = true }
 
 ---@param glyphs games.Glyphs
 ---@param extra? table
@@ -124,7 +124,6 @@ function T.the_seat_to_act_may_bid_or_call_dudo()
     return entry.key == "d"
   end)
   assert_eq({ kind = "dudo" }, dudo.action)
-  assert_eq({ kind = "bid", bid = "3x5" }, liars_dice.input.parse("3x5"))
 end
 
 function T.each_header_line_shows_the_seats_dice_or_that_it_is_out()

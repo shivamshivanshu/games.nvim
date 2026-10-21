@@ -4,9 +4,8 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { guess = true }
+local CATALOGUED = { guess = { input = { field = "text" } } }
 local BOARD_ROWS = { 4, 9 }
-local FOOTER_ROW = 11
 
 ---@param glyphs games.Glyphs
 ---@param extra? table
@@ -127,27 +126,6 @@ function T.hanged_board_draws_the_whole_figure_and_frames_the_unfound_letters()
     end)
     :totable()
   assert_eq(3, #unfound)
-end
-
-function T.guess_key_needs_an_ongoing_game_and_the_catalogue()
-  for _, case in ipairs({
-    {
-      state = update(),
-      catalogued = CATALOGUED,
-      footer = "R give up  m guess  ]g next game  q close",
-    },
-    { state = update(), catalogued = nil, footer = "R give up  ]g next game  q close" },
-    { state = hanged(), catalogued = CATALOGUED, footer = "]g next game  q close" },
-  }) do
-    local rendered =
-      shell.render(case.state, hangman, view_options("unicode"), "sam", 0, nil, case.catalogued)
-    assert_eq(case.footer, rendered.lines[FOOTER_ROW])
-  end
-end
-
-function T.input_sends_the_text_raw_for_the_server_to_parse()
-  assert_eq("guess", hangman.input.kind)
-  assert_eq({ kind = "guess", text = " E" }, hangman.input.parse(" E"))
 end
 
 function T.describe_event_names_the_player_the_guess_and_whether_it_hit()

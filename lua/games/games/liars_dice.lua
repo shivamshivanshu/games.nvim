@@ -220,9 +220,6 @@ end
 M.input = {
   kind = BID_KIND,
   prompt = "Bid, e.g. 3x5: ",
-  parse = function(text)
-    return { kind = BID_KIND, bid = text }
-  end,
 }
 
 ---@type games.GameAction[]

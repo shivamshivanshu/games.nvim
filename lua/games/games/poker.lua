@@ -304,9 +304,6 @@ end
 M.input = {
   kind = "act",
   prompt = "Bet/raise/allin: ",
-  parse = function(text)
-    return { kind = "act", text = text }
-  end,
 }
 
 ---@param update games.GameUpdate

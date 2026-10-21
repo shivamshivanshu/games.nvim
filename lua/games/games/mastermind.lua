@@ -199,9 +199,6 @@ end
 M.input = {
   kind = "guess",
   prompt = "Guess: ",
-  parse = function(text)
-    return { kind = "guess", code = text }
-  end,
 }
 
 ---@param event games.Event

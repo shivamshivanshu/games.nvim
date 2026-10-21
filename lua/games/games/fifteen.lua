@@ -154,9 +154,6 @@ end
 M.input = {
   kind = SLIDE_KIND,
   prompt = "Slide tile, e.g. 7: ",
-  parse = function(text)
-    return { kind = SLIDE_KIND, tile = text }
-  end,
 }
 
 ---@type games.GameAction[]

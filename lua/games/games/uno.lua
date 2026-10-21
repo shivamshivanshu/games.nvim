@@ -235,9 +235,6 @@ end
 M.input = {
   kind = PLAY_KIND,
   prompt = "Play, e.g. r5 or w g: ",
-  parse = function(text)
-    return { kind = PLAY_KIND, card = text }
-  end,
 }
 
 ---@param key string
