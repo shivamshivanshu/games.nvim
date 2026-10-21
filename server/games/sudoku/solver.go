@@ -34,7 +34,7 @@ func newSearch(g Grid) (s *search, ok bool) {
 		if d == Empty {
 			continue
 		}
-		if d < 1 || d > Size || s.candidates(cell)&(digitSet(1)<<d) == 0 {
+		if s.candidates(cell)&(digitSet(1)<<d) == 0 {
 			return nil, false
 		}
 		s.place(cell, d)

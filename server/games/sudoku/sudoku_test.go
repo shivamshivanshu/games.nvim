@@ -213,13 +213,13 @@ func TestNewRejects(t *testing.T) {
 
 func TestEveryDifficultyReachesTheGeneratorThroughTheAdapter(t *testing.T) {
 	tests := []struct {
-		raw  string
-		want Difficulty
+		raw        string
+		wantGivens int
 	}{
-		{`{}`, DifficultyMedium},
-		{`{"difficulty":"easy"}`, DifficultyEasy},
-		{`{"difficulty":"medium"}`, DifficultyMedium},
-		{`{"difficulty":"hard"}`, DifficultyHard},
+		{`{}`, 32},
+		{`{"difficulty":"easy"}`, 40},
+		{`{"difficulty":"medium"}`, 32},
+		{`{"difficulty":"hard"}`, 26},
 	}
 	g := game.Adapt(Rules{})
 	for _, tt := range tests {
@@ -243,9 +243,8 @@ func TestEveryDifficultyReachesTheGeneratorThroughTheAdapter(t *testing.T) {
 			if err := json.Unmarshal(raw, &view); err != nil {
 				t.Fatal(err)
 			}
-			target, _ := tt.want.givens()
-			if givens := countGivens(view.Grid); givens != target {
-				t.Errorf("%d givens, want %d for %s", givens, target, tt.want)
+			if givens := countGivens(view.Grid); givens != tt.wantGivens {
+				t.Errorf("%d givens, want %d", givens, tt.wantGivens)
 			}
 		})
 	}
@@ -306,5 +305,16 @@ func TestConcludeEndsAnUnfinishedGameAndKeepsAReachedResult(t *testing.T) {
 	solved, _ := mustApply(t, lastCellOpen(t), set("91 3"))
 	if result, _ := solved.Conclude(aborted).Outcome(); result.Reason != ReasonSolved {
 		t.Errorf("Conclude replaced a reached result with %+v", result)
+	}
+}
+
+func TestViewMarksExactlyThePuzzlesCellsAsGiven(t *testing.T) {
+	var want [CellCount]bool
+	for cell, char := range wikipediaPuzzle {
+		want[cell] = char != '.'
+	}
+	filled, _ := mustApply(t, wikipedia(t), set("13 4"))
+	if diff := cmp.Diff(want, filled.View(SeatSolver).Given); diff != "" {
+		t.Errorf("given (-want +got):\n%s", diff)
 	}
 }

@@ -11,13 +11,15 @@ import (
 // from 1 to 9, then a digit, where 0 clears.
 const setPattern = `^\s*([1-9])([1-9])\s+([0-9])\s*$`
 
+var setTextPattern = regexp.MustCompile(setPattern)
+
 type cellSet struct {
 	row, col int
 	digit    Digit
 }
 
 func parseSet(text string) (cellSet, error) {
-	match := regexp.MustCompile(setPattern).FindStringSubmatch(text)
+	match := setTextPattern.FindStringSubmatch(text)
 	if match == nil {
 		return cellSet{}, game.IllegalActionError{Msg: fmt.Sprintf(`want "RC D", e.g. "53 7" for row 5, column 3, digit 7 (0 clears); got %q`, text)}
 	}
