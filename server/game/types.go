@@ -3,7 +3,6 @@ package game
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -59,31 +58,13 @@ const (
 )
 
 // ResultKind encodes as its name, both on the wire and in the store.
-type ResultKind int
+type ResultKind string
 
 const (
-	ResultDecisive ResultKind = iota
-	ResultDraw
-	ResultAborted
+	ResultDecisive ResultKind = "decisive"
+	ResultDraw     ResultKind = "draw"
+	ResultAborted  ResultKind = "aborted"
 )
-
-var resultKindNames = [...]string{ResultDecisive: "decisive", ResultDraw: "draw", ResultAborted: "aborted"}
-
-func (k ResultKind) MarshalText() ([]byte, error) {
-	if k < 0 || int(k) >= len(resultKindNames) {
-		return nil, fmt.Errorf("unknown result kind %d", k)
-	}
-	return []byte(resultKindNames[k]), nil
-}
-
-func (k *ResultKind) UnmarshalText(text []byte) error {
-	i := slices.Index(resultKindNames[:], string(text))
-	if i < 0 {
-		return fmt.Errorf("unknown result kind %q", text)
-	}
-	*k = ResultKind(i)
-	return nil
-}
 
 type Result struct {
 	Kind    ResultKind

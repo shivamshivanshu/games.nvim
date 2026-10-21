@@ -27,17 +27,6 @@ func open[T ~string](values ...T) enum {
 	return e
 }
 
-func resultKinds() enum {
-	kinds := []game.ResultKind{game.ResultDecisive, game.ResultDraw, game.ResultAborted}
-	return enum{typ: reflect.TypeFor[game.ResultKind](), values: xslices.Map(kinds, func(k game.ResultKind) string {
-		text, err := k.MarshalText()
-		if err != nil {
-			panic(err)
-		}
-		return string(text)
-	})}
-}
-
 func messageTypes() []protocol.MessageType {
 	types := []protocol.MessageType{protocol.TypeOK, protocol.TypeError}
 	for _, r := range protocol.Requests {
@@ -60,7 +49,7 @@ func coreEnums() []enum {
 		closed(protocol.OptionEnum, protocol.OptionText),
 		closed(game.OptionRoleClock),
 		closed(game.CapResign, game.CapDraw, game.CapAbort, game.CapClock),
-		resultKinds(),
+		closed(game.ResultDecisive, game.ResultDraw, game.ResultAborted),
 		open(game.ReasonResign, game.ReasonTimeout, game.ReasonDrawAgreed, game.ReasonAborted),
 	}
 }

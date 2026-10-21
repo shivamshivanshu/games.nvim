@@ -307,7 +307,7 @@ func standingOf(result game.Result, seat game.Seat) (store.Standing, error) {
 	case game.ResultAborted:
 		return store.Standing{Outcome: store.OutcomeNone}, nil
 	}
-	return store.Standing{}, fmt.Errorf("room: unknown result kind %d", result.Kind)
+	return store.Standing{}, fmt.Errorf("room: unknown result kind %q", result.Kind)
 }
 
 // gameScores are the game's own when its final state is a game.Scorer and the

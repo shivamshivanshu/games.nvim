@@ -213,10 +213,6 @@ func (s *Store) AppendStep(ctx context.Context, id game.GameID, step StepRecord)
 
 // FinishGame stores a game's ending and summary and deletes its steps.
 func (s *Store) FinishGame(ctx context.Context, id game.GameID, f Finish) error {
-	kind, err := f.Kind.MarshalText()
-	if err != nil {
-		return fmt.Errorf("store: %w", err)
-	}
 	exports, err := json.Marshal(f.Exports)
 	if err != nil {
 		return fmt.Errorf("store: encode exports: %w", err)
@@ -225,7 +221,7 @@ func (s *Store) FinishGame(ctx context.Context, id game.GameID, f Finish) error 
 		if err := requireAffected(ctx, tx, ErrNotOngoing,
 			`UPDATE games SET finished_at = ?, final_seq = ?, result_kind = ?, result_reason = ?, summary = ?, digest = ?, exports_json = ?
 			 WHERE game_id = ? AND finished_at IS NULL`,
-			f.At.UnixMilli(), int64(f.Seq), string(kind), f.Reason, f.Summary, f.Digest, exports, id); err != nil {
+			f.At.UnixMilli(), int64(f.Seq), string(f.Kind), f.Reason, f.Summary, f.Digest, exports, id); err != nil {
 			return err
 		}
 		for user, standing := range f.Standings {
@@ -387,14 +383,10 @@ func scanGame(row scanner) (GameRecord, error) {
 	if !finishedMS.Valid {
 		return rec, nil
 	}
-	var resultKind game.ResultKind
-	if err := resultKind.UnmarshalText([]byte(kind.V)); err != nil {
-		return rec, fmt.Errorf("store: game %s: %w", rec.ID, err)
-	}
 	finish := &Finish{
 		At:      time.UnixMilli(finishedMS.V),
 		Seq:     game.Seq(finalSeq.V),
-		Ending:  Ending{Kind: resultKind, Reason: game.ResultReason(reason.V), Standings: map[game.UserID]Standing{}},
+		Ending:  Ending{Kind: game.ResultKind(kind.V), Reason: game.ResultReason(reason.V), Standings: map[game.UserID]Standing{}},
 		Summary: summary,
 		Digest:  digest.V,
 		Views:   map[game.UserID]json.RawMessage{},
