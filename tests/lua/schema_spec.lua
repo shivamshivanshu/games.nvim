@@ -51,6 +51,10 @@ local GAME_CLASS = {
     GuessedEvent = "games.WordleGuessedEvent",
     View = "games.WordleView",
   },
+  sudoku = {
+    CellSetEvent = "games.SudokuCellSetEvent",
+    View = "games.SudokuView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
