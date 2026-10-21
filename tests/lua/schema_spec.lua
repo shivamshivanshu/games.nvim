@@ -161,6 +161,16 @@ local GAME_CLASS = {
     TrickWonEvent = "games.HeartsTrickWonEvent",
     View = "games.HeartsView",
   },
+  battleship = {
+    Anchors = "games.BattleshipAnchors",
+    ReadyEvent = "games.BattleshipReadyEvent",
+    ShipSpec = "games.BattleshipShipSpec",
+    ShipStatus = "games.BattleshipShipStatus",
+    ShotEvent = "games.BattleshipShot",
+    ShotEvent_shot = "games.BattleshipShotEvent",
+    Square = "games.BattleshipSquare",
+    View = "games.BattleshipView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
