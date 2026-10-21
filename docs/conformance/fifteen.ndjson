@@ -9,7 +9,7 @@
 {"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "no tile 9 on a 3x3 board"}}}
 {"comment": "So is a direction that is not up, down, left or right."}
 {"client": "alice", "send": {"id": 4, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "move", "direction": "north"}}}}
-{"client": "alice", "recv": {"id": 4, "type": "error", "body": {"code": "illegal_action", "message": "want up, down, left or right; got \"north\""}}}
+{"client": "alice", "recv": {"id": 4, "type": "error", "body": {"code": "illegal_action", "message": "direction must be one of up, down, left, right; got \"north\""}}}
 {"comment": "Giving up is the resign control: a loss with no winner, and the finishing push offers no tile to move."}
 {"client": "alice", "send": {"id": 5, "type": "game.control", "body": {"game_id": "$game", "seq": 0, "control": "resign"}}}
 {"client": "alice", "recv": {"type": "game.update", "body": {"game_id": "$game", "game": "fifteen", "options": {"size": "3x3"}, "seq": 1, "players": [{"user": "alice", "seat": "solver"}], "to_act": [], "result": {"kind": "decisive", "winners": [], "reason": "resign"}, "clock": null, "draw_agreed": [], "controls": [], "events": [], "view": {"tiles": "$tiles", "moves": 0, "movable": []}, "started_at": "$started_at", "finished_at": "$finished_at", "summary": "$summary", "digest": "$digest", "exports": {}}}}

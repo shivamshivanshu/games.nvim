@@ -58,7 +58,7 @@ func New(ctx context.Context, d Deps) (*Hub, error) {
 	}
 	for _, g := range d.Games {
 		info := g.Info()
-		if err := info.Check(); err != nil {
+		if err := game.CheckGame(g); err != nil {
 			return nil, fmt.Errorf("hub: %w", err)
 		}
 		if _, registered := h.gameTypes[info.Type]; registered {

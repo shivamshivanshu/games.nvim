@@ -7,7 +7,7 @@
 {"client": "alice", "recv": {"id": 2, "type": "ok", "body": {"game_id": "$game", "game": "hangman", "options": {}, "seq": 0, "players": [{"user": "alice", "seat": "solver"}], "to_act": ["alice"], "result": null, "clock": null, "draw_agreed": [], "controls": ["resign", "abort"], "events": [], "view": {"pattern": ["", "", "", "", ""], "guessed": [], "missed_words": [], "misses": 0, "remaining": 6}, "started_at": "$started_at", "finished_at": null, "summary": null, "digest": null, "exports": null}}}
 {"comment": "Two letters are neither one letter nor a whole word: an illegal_action."}
 {"client": "alice", "send": {"id": 3, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "guess", "text": "ab"}}}}
-{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "a guess is one letter a-z or a 5-letter word, got \"ab\""}}}
+{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "text \"ab\" is not valid: One letter, or a 5-letter word from the word list, in any case."}}}
 {"comment": "A whole word must be in the word list."}
 {"client": "alice", "send": {"id": 4, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "guess", "text": "zzzzz"}}}}
 {"client": "alice", "recv": {"id": 4, "type": "error", "body": {"code": "illegal_action", "message": "not in word list: zzzzz"}}}

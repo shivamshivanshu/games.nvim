@@ -87,6 +87,10 @@ func (g adapted[Opts, Action, View]) New(opts Options, challenger UserID, invite
 	if err := json.Unmarshal(encoded, &typed); err != nil {
 		return nil, nil, fmt.Errorf("decode options: %w", err)
 	}
+	actions, err := compileCatalogue(g.rules.Info().Actions, reflect.TypeFor[Action]())
+	if err != nil {
+		return nil, nil, err
+	}
 	state, seats, err := g.rules.New(typed, challenger, invitees, rng)
 	if err != nil {
 		return nil, nil, err
@@ -95,7 +99,7 @@ func (g adapted[Opts, Action, View]) New(opts Options, challenger UserID, invite
 	if err != nil {
 		return nil, nil, err
 	}
-	return erased[Action, View]{state: state, opening: opening}, seats, nil
+	return erased[Action, View]{state: state, actions: actions, opening: opening}, seats, nil
 }
 
 // checkPlayerCount refuses a game of the challenger and that many opponents
@@ -124,6 +128,7 @@ func openingEvents(state any) []Event {
 
 type erased[Action, View any] struct {
 	state   State[Action, View]
+	actions catalogue
 	opening []json.RawMessage
 }
 
@@ -132,6 +137,13 @@ func (e erased[Action, View]) OpeningEvents() []json.RawMessage {
 }
 
 func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Rand) (ErasedState, []json.RawMessage, error) {
+	fields, err := decodeActionFields(raw)
+	if err != nil {
+		return nil, nil, BadRequestf("malformed action: %v", err)
+	}
+	if err := e.actions.checkFields(fields); err != nil {
+		return nil, nil, err
+	}
 	var action Action
 	if err := json.Unmarshal(raw, &action); err != nil {
 		return nil, nil, BadRequestf("malformed action: %v", err)
@@ -139,11 +151,14 @@ func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Ra
 	if err := CheckTurn(e.state, seat); err != nil {
 		return nil, nil, err
 	}
+	if err := e.actions.checkInput(fields); err != nil {
+		return nil, nil, err
+	}
 	next, events, err := e.state.Apply(seat, action, rng)
 	if err != nil {
 		return nil, nil, err
 	}
-	return erasedWithEvents(next, events)
+	return e.withEvents(next, events)
 }
 
 func (e erased[Action, View]) View(seat Seat) (json.RawMessage, error) {
@@ -180,15 +195,15 @@ func (e erased[Action, View]) Tick(rng *rand.Rand) (ErasedState, []json.RawMessa
 		return nil, nil, errors.New("game: tick of a state that does not tick")
 	}
 	next, events := ticking.Tick(rng)
-	return erasedWithEvents(next, events)
+	return e.withEvents(next, events)
 }
 
 func (e erased[Action, View]) Pause() ErasedState {
 	ticking, ok := e.state.(Ticking[Action, View])
 	if !ok {
-		return erased[Action, View]{state: e.state}
+		return e.with(e.state)
 	}
-	return erased[Action, View]{state: ticking.Pause()}
+	return e.with(ticking.Pause())
 }
 
 func (e erased[Action, View]) Scores() (map[Seat]int64, bool) {
@@ -208,20 +223,25 @@ func (e erased[Action, View]) Exports(ctx ExportContext) map[string][]byte {
 }
 
 func (e erased[Action, View]) Conclude(result Result) ErasedState {
-	return erased[Action, View]{state: e.state.Conclude(result)}
+	return e.with(e.state.Conclude(result))
 }
 
 func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error) {
 	next, events := e.state.Eliminate(seat, reason)
-	return erasedWithEvents(next, events)
+	return e.withEvents(next, events)
 }
 
-func erasedWithEvents[Action, View any](next State[Action, View], events []Event) (ErasedState, []json.RawMessage, error) {
+// with is next under e's catalogue, without e's opening events.
+func (e erased[Action, View]) with(next State[Action, View]) erased[Action, View] {
+	return erased[Action, View]{state: next, actions: e.actions}
+}
+
+func (e erased[Action, View]) withEvents(next State[Action, View], events []Event) (ErasedState, []json.RawMessage, error) {
 	encoded, err := encodeEvents(events)
 	if err != nil {
 		return nil, nil, err
 	}
-	return erased[Action, View]{state: next}, encoded, nil
+	return e.with(next), encoded, nil
 }
 
 func encodeEvents(events []Event) ([]json.RawMessage, error) {

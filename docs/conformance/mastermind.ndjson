@@ -7,10 +7,10 @@
 {"client": "alice", "recv": {"id": 2, "type": "ok", "body": {"game_id": "$game", "game": "mastermind", "options": {}, "seq": 0, "players": [{"user": "alice", "seat": "solver"}], "to_act": ["alice"], "result": null, "clock": null, "draw_agreed": [], "controls": ["resign", "abort"], "events": [], "view": {"palette": ["r", "g", "b", "y", "o", "p"], "code_length": 4, "guesses": [], "remaining": 10}, "started_at": "$started_at", "finished_at": null, "summary": null, "digest": null, "exports": null}}}
 {"comment": "A colour outside the palette is an illegal_action, and the game does not move on."}
 {"client": "alice", "send": {"id": 3, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "guess", "code": "rgbw"}}}}
-{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "a guess is 4 colours from rgbyop, got \"rgbw\""}}}
+{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "code \"rgbw\" is not valid: 4 peg colours from rgbyop (red, green, blue, yellow, orange, purple), in any case."}}}
 {"comment": "So is a code of the wrong length."}
 {"client": "alice", "send": {"id": 4, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "guess", "code": "rgbyo"}}}}
-{"client": "alice", "recv": {"id": 4, "type": "error", "body": {"code": "illegal_action", "message": "a guess is 4 colours from rgbyop, got \"rgbyo\""}}}
+{"client": "alice", "recv": {"id": 4, "type": "error", "body": {"code": "illegal_action", "message": "code \"rgbyo\" is not valid: 4 peg colours from rgbyop (red, green, blue, yellow, orange, purple), in any case."}}}
 {"client": "alice", "send": {"id": 5, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "guess", "code": "rgby"}}}}
 {"client": "alice", "recv": {"type": "game.update", "body": {"game_id": "$game", "game": "mastermind", "options": {}, "seq": 1, "players": [{"user": "alice", "seat": "solver"}], "to_act": ["alice"], "result": null, "clock": null, "draw_agreed": [], "controls": ["resign"], "events": [{"black": 0, "by": "solver", "code": "rgby", "kind": "guessed", "white": 2}], "view": {"palette": ["r", "g", "b", "y", "o", "p"], "code_length": 4, "guesses": [{"code": "rgby", "black": 0, "white": 2}], "remaining": 9}, "started_at": "$started_at", "finished_at": null, "summary": null, "digest": null, "exports": null}}}
 {"client": "alice", "recv": {"id": 5, "type": "ok", "body": {"seq": 1}}}

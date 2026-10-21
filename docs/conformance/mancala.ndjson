@@ -18,7 +18,7 @@
 {"client": "bob", "recv": {"id": 3, "type": "error", "body": {"code": "not_your_turn", "message": "not your turn"}}}
 {"comment": "A pit is \"1\" to \"6\" from the mover's left; anything else is an illegal_action."}
 {"client": "alice", "send": {"id": 3, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "sow", "pit": "7"}}}}
-{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "pit must be 1 to 6, got \"7\""}}}
+{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "pit must be one of 1, 2, 3, 4, 5, 6; got \"7\""}}}
 {"client": "alice", "send": {"id": 4, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "sow", "pit": "1"}}}}
 {"client": "alice", "recv": {"type": "game.update", "body": {"game_id": "$game", "game": "mancala", "options": {"first": "me", "time_control": "none"}, "seq": 1, "players": [{"user": "alice", "seat": "south"}, {"user": "bob", "seat": "north"}], "to_act": ["bob"], "result": null, "clock": null, "draw_agreed": [], "controls": ["resign", "offer_draw", "abort"], "events": [{"again": false, "by": "south", "captured": 0, "kind": "sowed", "pit": 1}], "view": {"south": {"pits": [0, 5, 5, 5, 5, 4], "store": 0}, "north": {"pits": [4, 4, 4, 4, 4, 4], "store": 0}, "legal_pits": []}, "started_at": "$started_at", "finished_at": null, "summary": null, "digest": null, "exports": null}}}
 {"client": "alice", "recv": {"id": 4, "type": "ok", "body": {"seq": 1}}}

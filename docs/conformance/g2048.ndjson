@@ -6,7 +6,7 @@
 {"client": "alice", "recv": {"id": 2, "type": "ok", "body": {"game_id": "$game", "game": "g2048", "options": {}, "seq": 0, "players": [{"user": "alice", "seat": "solver"}], "to_act": ["alice"], "result": null, "clock": null, "draw_agreed": [], "controls": ["resign", "abort"], "events": [], "view": {"cells": "$cells", "score": 0, "goal": 2048, "reached": false, "movable": "$movable"}, "started_at": "$started_at", "finished_at": null, "summary": null, "digest": null, "exports": null}}}
 {"comment": "A direction is up, down, left or right; anything else is an illegal_action and the game does not move on."}
 {"client": "alice", "send": {"id": 3, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "move", "direction": "north"}}}}
-{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "want up, down, left or right; got \"north\""}}}
+{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "direction must be one of up, down, left, right; got \"north\""}}}
 {"comment": "So is an action the catalogue does not list."}
 {"client": "alice", "send": {"id": 4, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "slide", "direction": "up"}}}}
 {"client": "alice", "recv": {"id": 4, "type": "error", "body": {"code": "illegal_action", "message": "unknown action: slide"}}}

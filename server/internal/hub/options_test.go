@@ -1,6 +1,7 @@
 package hub_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -19,6 +20,15 @@ func (badDefaultRules) Info() game.Info {
 	return info
 }
 
+// embeddingGame is the counter with an action type that embeds a struct.
+type embeddingGame struct{ game.Game }
+
+type embeddingAction struct{ gametest.CounterAction }
+
+func (embeddingGame) WireTypes() (action, view reflect.Type) {
+	return reflect.TypeFor[embeddingAction](), reflect.TypeFor[gametest.CounterView]()
+}
+
 func TestNewRejectsInvalidGameInfo(t *testing.T) {
 	t.Parallel()
 	counter := game.Adapt(gametest.CounterRules{})
@@ -28,6 +38,7 @@ func TestNewRejectsInvalidGameInfo(t *testing.T) {
 	}{
 		"an option default its own option rejects": {[]game.Game{game.Adapt(badDefaultRules{})}, "note"},
 		"a game type registered twice":             {[]game.Game{counter, counter}, "registered twice"},
+		"an action type that embeds a struct":      {[]game.Game{embeddingGame{counter}}, "embeds gametest.CounterAction"},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {

@@ -16,10 +16,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-const (
-	defsPrefix      = "#/$defs/"
-	actionKindField = "kind"
-)
+const defsPrefix = "#/$defs/"
 
 func gameFile(t game.GameType) string { return path.Join("games", string(t)+".json") }
 
@@ -27,7 +24,7 @@ func gameFile(t game.GameType) string { return path.Join("games", string(t)+".js
 // by x-action, x-view and x-events; the core's enums stay in the protocol schema.
 func gameSchema(g game.Game, comments map[string]string, coreEnums []reflect.Type) (*jsonschema.Schema, error) {
 	info := g.Info()
-	if err := info.Check(); err != nil {
+	if err := game.CheckGame(g); err != nil {
 		return nil, err
 	}
 	actionKinds := closed(xslices.Map(info.Actions, func(a game.ActionSpec) game.ActionKind { return a.Kind })...)
@@ -75,7 +72,7 @@ func gameSchema(g game.Game, comments map[string]string, coreEnums []reflect.Typ
 // fails on an input that is not a string field of action, and on a field of
 // action no kind takes.
 func actionOneOf(info game.Info, action *jsonschema.Schema) (*jsonschema.Schema, error) {
-	taken := map[string]bool{actionKindField: true}
+	taken := map[string]bool{game.ActionKindField: true}
 	alternatives := make([]*jsonschema.Schema, 0, len(info.Actions))
 	for _, spec := range info.Actions {
 		alternative, err := actionAlternative(spec, action)
@@ -97,8 +94,8 @@ func actionOneOf(info game.Info, action *jsonschema.Schema) (*jsonschema.Schema,
 
 func actionAlternative(spec game.ActionSpec, action *jsonschema.Schema) (*jsonschema.Schema, error) {
 	properties := orderedmap.New[string, *jsonschema.Schema]()
-	properties.Set(actionKindField, &jsonschema.Schema{Const: string(spec.Kind)})
-	required := []string{actionKindField}
+	properties.Set(game.ActionKindField, &jsonschema.Schema{Const: string(spec.Kind)})
+	required := []string{game.ActionKindField}
 	if in := spec.Input; in != nil {
 		field, _ := action.Properties.Get(in.Field)
 		if field == nil || field.Type != "string" {

@@ -80,7 +80,7 @@ func Run[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, Vi
 func conform[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) {
 	t.Helper()
 	info := rules.Info()
-	if err := info.Check(); err != nil {
+	if err := game.CheckGame(game.Adapt(rules)); err != nil {
 		t.Fatalf("Info: %v", err)
 	}
 	checkActionsCatalogued(t, info, script)
