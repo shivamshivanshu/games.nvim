@@ -62,13 +62,6 @@ func parsePit(text string) (int, error) {
 
 // New seats the first mover as south, which sows first.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 1 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("mancala needs exactly one opponent, got %d", len(invitees))}
-	}
-	first, second := challenger, invitees[0]
-	if !game.PickFirst(opts.First, rng) {
-		first, second = second, first
-	}
-	seats := map[game.UserID]game.Seat{first: SeatSouth, second: SeatNorth}
+	seats := sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng))
 	return state{board: startBoard(), toMove: SeatSouth}, seats, nil
 }

@@ -18,17 +18,12 @@ type state struct {
 	result   *game.Result
 }
 
-var allSeats = []game.Seat{SeatWhite, SeatBlack}
-
 func newState(p Position) state {
 	legal := p.LegalMoves()
 	return state{start: p, position: p, legal: legal, history: []RepetitionKey{p.repetitionKey(legal)}}
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	switch action.Kind {
 	case ActionMove:
 		return s.applyMove(seat, action.Move)
@@ -111,7 +106,7 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 	if s.result != nil {
 		return s, nil
 	}
-	s.result = new(game.ForfeitToRemaining(allSeats, seat, reason))
+	s.result = new(game.ForfeitToRemaining(sides.Seats(), seat, reason))
 	return s, nil
 }
 

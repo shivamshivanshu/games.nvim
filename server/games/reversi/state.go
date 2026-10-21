@@ -3,7 +3,6 @@ package reversi
 import (
 	"fmt"
 	"math/rand/v2"
-	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
@@ -17,9 +16,6 @@ type state struct {
 }
 
 func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.State[discs.Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	coords := s.board.Coords()
 	at, err := discs.PlacedPoint(coords, action)
 	if err != nil {
@@ -43,7 +39,7 @@ func (s state) place(seat game.Seat, at grid.Point, turned []grid.Point) (state,
 	last := discs.CellAt(at)
 	next := state{Turn: s.Turn, board: s.board.With(seat, at).With(seat, turned...), last: &last}
 	events := []game.Event{PlacedEvent{By: seat, Cell: last, Flipped: discs.CellsAt(turned)}}
-	opponent := discs.Opponent(seat)
+	opponent := discs.Sides.Other(seat)
 	switch {
 	case len(legalPoints(next.board, opponent)) > 0:
 		next.Turn = s.To(opponent)
@@ -79,7 +75,7 @@ func (s state) View(viewer game.Seat) View {
 }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[discs.Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining(discs.Seats(), seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining(discs.Sides.Seats(), seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is

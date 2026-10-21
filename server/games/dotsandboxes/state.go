@@ -15,7 +15,6 @@ import (
 type state struct {
 	side     int
 	edges    grid.Edges
-	seats    []game.Seat
 	drawn    map[grid.Edge]game.Seat
 	owners   map[grid.Point]game.Seat
 	last     *grid.Edge
@@ -24,21 +23,17 @@ type state struct {
 	finished bool
 }
 
-func newState(side int, seats []game.Seat) state {
+func newState(side int) state {
 	return state{
 		side:   side,
 		edges:  grid.NewEdges(side, side),
-		seats:  seats,
 		drawn:  map[grid.Edge]game.Seat{},
 		owners: map[grid.Point]game.Seat{},
-		toMove: seats[0],
+		toMove: sides[0],
 	}
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	edge, err := s.undrawnEdge(action)
 	if err != nil {
 		return nil, nil, err
@@ -86,7 +81,7 @@ func (s state) withEdge(seat game.Seat, edge grid.Edge) (state, []grid.Point) {
 	case len(next.owners) == s.side*s.side:
 		next = next.ended()
 	case len(completed) == 0:
-		next.toMove = s.opponent(seat)
+		next.toMove = sides.Other(seat)
 	}
 	return next, completed
 }
@@ -98,17 +93,10 @@ func (s state) closed(cell grid.Point) bool {
 	})
 }
 
-func (s state) opponent(seat game.Seat) game.Seat {
-	if seat == s.seats[0] {
-		return s.seats[1]
-	}
-	return s.seats[0]
-}
-
 // ended decides the game on the boxes each seat holds.
 func (s state) ended() state {
 	scores := s.scores()
-	first, second := s.seats[0], s.seats[1]
+	first, second := sides[0], sides[1]
 	switch {
 	case scores[first] > scores[second]:
 		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{first}, Reason: ReasonMoreBoxes}
@@ -122,8 +110,8 @@ func (s state) ended() state {
 }
 
 func (s state) scores() map[game.Seat]int {
-	scores := make(map[game.Seat]int, len(s.seats))
-	for _, seat := range s.seats {
+	scores := make(map[game.Seat]int, len(sides))
+	for _, seat := range sides {
 		scores[seat] = 0
 	}
 	for _, owner := range s.owners {
@@ -189,7 +177,7 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining(s.seats, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is offered

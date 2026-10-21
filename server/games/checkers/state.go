@@ -30,9 +30,6 @@ func newState(b Board, toMove game.Seat, quietPlies int) state {
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	if action.Kind != ActionMove {
 		return nil, nil, illegal("unknown action: " + string(action.Kind))
 	}
@@ -51,7 +48,7 @@ func (s state) play(m Move) (state, bool) {
 	if m.IsCapture() || moved.isMan() {
 		quietPlies = 0
 	}
-	next := newState(board, opponent(s.toMove), quietPlies)
+	next := newState(board, sides.Other(s.toMove), quietPlies)
 	next.history = append(slices.Clip(s.history), m.Text())
 	next.last = m.Path
 	return next, crowned
@@ -60,7 +57,7 @@ func (s state) play(m Move) (state, bool) {
 // ending checks the side to move: with no legal move it has lost, which takes
 // precedence over the quiet-ply draw.
 func (s state) ending() (game.Result, bool) {
-	winner := []game.Seat{opponent(s.toMove)}
+	winner := []game.Seat{sides.Other(s.toMove)}
 	switch {
 	case len(s.board.squaresOf(s.toMove)) == 0:
 		return game.Result{Kind: game.ResultDecisive, Winners: winner, Reason: ReasonNoPieces}, true
@@ -106,6 +103,6 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 	if s.finished {
 		return s, nil
 	}
-	s.result, s.finished = game.ForfeitToRemaining([]game.Seat{SeatBlack, SeatWhite}, seat, reason), true
+	s.result, s.finished = game.ForfeitToRemaining(sides.Seats(), seat, reason), true
 	return s, nil
 }

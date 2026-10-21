@@ -16,9 +16,6 @@ type state struct {
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	if action.Kind != ActionSow {
 		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
 	}
@@ -31,7 +28,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	}
 	sown, last := s.board.sown(seat, pit)
 	b, captured := sown.captured(seat, last)
-	next := state{board: b, toMove: opponent(seat)}
+	next := state{board: b, toMove: sides.Other(seat)}
 	if b.pitsEmpty(SeatSouth) || b.pitsEmpty(SeatNorth) {
 		ended, collected := next.ended()
 		return ended, append([]game.Event{SowedEvent{By: seat, Pit: pit, Captured: captured}}, collected...), nil
@@ -46,7 +43,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 // ended gives each seat the seeds left in its pits and decides the game by the stores.
 func (s state) ended() (state, []game.Event) {
 	events := []game.Event{}
-	for _, seat := range []game.Seat{SeatSouth, SeatNorth} {
+	for _, seat := range sides {
 		var seeds int
 		s.board, seeds = s.board.collected(seat)
 		if seeds > 0 {
@@ -84,7 +81,7 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSouth, SeatNorth}, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is offered

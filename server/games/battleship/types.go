@@ -5,6 +5,8 @@ import "github.com/shivamshivanshu/games.nvim/server/game"
 // TypeBattleship is the game's catalogue id.
 const TypeBattleship game.GameType = "battleship"
 
+var sides = game.Pair{game.NumberedSeat(0), game.NumberedSeat(1)}
+
 // Opts are the options a game is created with.
 type Opts struct {
 	First game.FirstMover `json:"first"`

@@ -8,9 +8,6 @@ import (
 // TypeChessPuzzle is the game type on the wire.
 const TypeChessPuzzle game.GameType = "chess_puzzle"
 
-// SeatSolver is the only seat.
-const SeatSolver game.Seat = "solver"
-
 // Mode is how a move that is not the line's is taken.
 type Mode string
 

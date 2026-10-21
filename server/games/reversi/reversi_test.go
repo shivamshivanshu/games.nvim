@@ -3,6 +3,7 @@ package reversi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -109,6 +110,30 @@ func cells(names ...string) []discs.Cell {
 	return out
 }
 
+func TestNewSeatsTheFirstMoverAsBlack(t *testing.T) {
+	tests := []struct {
+		first     game.FirstMover
+		seed      game.Seed
+		wantAlice game.Seat
+	}{
+		{game.FirstMoverMe, 1, discs.SeatBlack},
+		{game.FirstMoverOpponent, 1, discs.SeatWhite},
+		{game.FirstMoverRandom, 1, discs.SeatWhite},
+		{game.FirstMoverRandom, 6, discs.SeatBlack},
+	}
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
+			_, seats, err := Rules{}.New(discs.Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if seats[alice] != tc.wantAlice || seats[bob] != discs.Sides.Other(tc.wantAlice) {
+				t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
+			}
+		})
+	}
+}
+
 func TestStartPosition(t *testing.T) {
 	st := newGame(t)
 	want := View{
@@ -146,7 +171,6 @@ func TestApplyRejects(t *testing.T) {
 		{"column past h", discs.SeatBlack, place("i1"), game.IllegalActionError{Msg: `cell must be a1 to h8, a letter then a number, got "i1"`}},
 		{"row 9", discs.SeatBlack, place("a9"), game.IllegalActionError{Msg: `cell must be a1 to h8, a letter then a number, got "a9"`}},
 		{"unknown kind", discs.SeatBlack, discs.Action{Kind: "pass"}, game.IllegalActionError{Msg: "unknown action: pass"}},
-		{"white moves first", discs.SeatWhite, place("c5"), game.ErrNotYourTurn},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

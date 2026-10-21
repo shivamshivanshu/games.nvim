@@ -25,7 +25,7 @@ func flips(b discs.Board, seat game.Seat, at grid.Point) []grid.Point {
 	for _, d := range directions() {
 		run := []grid.Point{}
 		p := step(at, d)
-		for b.Contains(p) && b.At(p) == discs.Opponent(seat) {
+		for b.Contains(p) && b.At(p) == discs.Sides.Other(seat) {
 			run = append(run, p)
 			p = step(p, d)
 		}

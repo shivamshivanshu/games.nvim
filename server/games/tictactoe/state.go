@@ -19,23 +19,11 @@ type state struct {
 	finished     bool
 }
 
-func seats() []game.Seat { return []game.Seat{SeatX, SeatO} }
-
 func newState() state {
 	return state{toMove: SeatX, winningLines: [][]Cell{}}
 }
 
-func opponent(seat game.Seat) game.Seat {
-	if seat == SeatX {
-		return SeatO
-	}
-	return SeatX
-}
-
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	if action.Kind != ActionPlace {
 		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
 	}
@@ -50,7 +38,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 }
 
 func (s state) place(seat game.Seat, cell Cell) state {
-	next := state{board: s.board.with(cell, seat), toMove: opponent(seat), last: cell}
+	next := state{board: s.board.with(cell, seat), toMove: sides.Other(seat), last: cell}
 	next.winningLines = next.board.winningLinesThrough(cell)
 	switch {
 	case len(next.winningLines) > 0:
@@ -84,7 +72,7 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining(seats(), seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game.

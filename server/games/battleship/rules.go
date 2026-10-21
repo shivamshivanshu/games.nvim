@@ -48,13 +48,5 @@ func (Rules) Info() game.Info {
 // New implements game.Rules. Seat p1 fires first: the challenger, or the
 // opponent, as Opts.First picks.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 1 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("battleship needs exactly one opponent, got %d", len(invitees))}
-	}
-	users := []game.UserID{challenger, invitees[0]}
-	if !game.PickFirst(opts.First, rng) {
-		users[0], users[1] = users[1], users[0]
-	}
-	order, seats := game.NumberSeats(users)
-	return newState(order), seats, nil
+	return newState(), sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng)), nil
 }

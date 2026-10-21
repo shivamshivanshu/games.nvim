@@ -1,7 +1,6 @@
 package connect4
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"strconv"
 
@@ -54,13 +53,6 @@ func columnNames() []string {
 
 // New seats the first mover as red.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 1 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("connect4 needs exactly one opponent, got %d", len(invitees))}
-	}
-	first, second := challenger, invitees[0]
-	if !game.PickFirst(opts.First, rng) {
-		first, second = second, first
-	}
-	seats := map[game.UserID]game.Seat{first: SeatRed, second: SeatYellow}
+	seats := sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng))
 	return state{toMove: SeatRed, winningLines: [][]Cell{}}, seats, nil
 }

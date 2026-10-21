@@ -2,7 +2,6 @@ package discs
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -10,45 +9,6 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
-
-const (
-	alice game.UserID = "alice"
-	bob   game.UserID = "bob"
-)
-
-func TestSeatPlayersGivesBlackToTheFirstMover(t *testing.T) {
-	tests := []struct {
-		first     game.FirstMover
-		seed      game.Seed
-		wantAlice game.Seat
-	}{
-		{game.FirstMoverMe, 1, SeatBlack},
-		{game.FirstMoverOpponent, 1, SeatWhite},
-		{game.FirstMoverRandom, 1, SeatWhite},
-		{game.FirstMoverRandom, 6, SeatBlack},
-	}
-	for _, tc := range tests {
-		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
-			seats, err := SeatPlayers("gomoku", tc.first, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if seats[alice] != tc.wantAlice || seats[bob] != Opponent(tc.wantAlice) {
-				t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
-			}
-		})
-	}
-}
-
-func TestSeatPlayersNeedsExactlyOneOpponent(t *testing.T) {
-	for _, invitees := range [][]game.UserID{nil, {bob, "carol"}} {
-		_, err := SeatPlayers("reversi", game.FirstMoverMe, alice, invitees, game.StepRNG(1, 0))
-		want := game.BadRequestError{Msg: fmt.Sprintf("reversi needs exactly one opponent, got %d", len(invitees))}
-		if !errors.Is(err, want) {
-			t.Errorf("%d invitees: got %v", len(invitees), err)
-		}
-	}
-}
 
 func TestBoardWithLeavesTheOriginalUnchanged(t *testing.T) {
 	empty := NewBoard(3)

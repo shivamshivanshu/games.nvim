@@ -8,6 +8,8 @@ import (
 // TypeDotsAndBoxes is the game's catalogue id.
 const TypeDotsAndBoxes game.GameType = "dots_and_boxes"
 
+var sides = game.Pair{game.NumberedSeat(0), game.NumberedSeat(1)}
+
 // Size is the board's side in boxes.
 type Size string
 

@@ -1,7 +1,6 @@
 package checkers
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -9,8 +8,6 @@ import (
 
 // TypeCheckers is the game type id.
 const TypeCheckers game.GameType = "checkers"
-
-const optionColor game.OptionName = "color"
 
 const textField = "text"
 
@@ -34,11 +31,7 @@ func (Rules) Info() game.Info {
 		Capabilities: []game.Capability{game.CapResign, game.CapDraw, game.CapClock, game.CapAbort},
 		Options: []game.OptionSpec{
 			game.TimeControlOption(),
-			{
-				Name:    optionColor,
-				Values:  game.OptionValues(ColorRandom, ColorBlack, ColorWhite),
-				Default: game.OptionValue(ColorRandom),
-			},
+			game.SideOption(ColorBlack, ColorWhite),
 		},
 		Actions: []game.ActionSpec{{
 			Kind:        ActionMove,
@@ -54,13 +47,6 @@ func (Rules) Info() game.Info {
 
 // New seats the challenger by the colour option and starts with Black to move.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 1 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("checkers needs exactly one opponent, got %d", len(invitees))}
-	}
-	challengerSeat, opponentSeat := SeatBlack, SeatWhite
-	if !game.PickFirst(opts.Color.firstMover(), rng) {
-		challengerSeat, opponentSeat = SeatWhite, SeatBlack
-	}
-	seats := map[game.UserID]game.Seat{challenger: challengerSeat, invitees[0]: opponentSeat}
-	return newState(StartBoard(), SeatBlack, 0), seats, nil
+	challengerFirst := game.PickFirst(game.SideFirstMover(opts.Color, ColorBlack, ColorWhite), rng)
+	return newState(StartBoard(), SeatBlack, 0), sides.Assign(challenger, invitees[0], challengerFirst), nil
 }

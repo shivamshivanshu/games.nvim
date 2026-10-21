@@ -10,16 +10,6 @@ const (
 	ColorBlack  ColorChoice = "black"
 )
 
-func (c ColorChoice) firstMover() game.FirstMover {
-	switch c {
-	case ColorWhite:
-		return game.FirstMoverMe
-	case ColorBlack:
-		return game.FirstMoverOpponent
-	}
-	return game.FirstMoverRandom
-}
-
 type Opts struct {
 	TimeControl game.TimeControl `json:"time_control"`
 	Color       ColorChoice      `json:"color"`
@@ -65,6 +55,8 @@ const (
 	SeatWhite game.Seat = "white"
 	SeatBlack game.Seat = "black"
 )
+
+var sides = game.Pair{SeatWhite, SeatBlack}
 
 const (
 	ReasonCheckmate            game.ResultReason = "checkmate"

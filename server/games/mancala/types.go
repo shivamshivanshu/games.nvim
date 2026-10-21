@@ -11,6 +11,8 @@ const (
 	SeatNorth game.Seat = "north"
 )
 
+var sides = game.Pair{SeatSouth, SeatNorth}
+
 // The ways a game ends once one side's pits are empty: the larger store wins, equal stores draw.
 const (
 	ReasonMoreSeeds  game.ResultReason = "more_seeds"

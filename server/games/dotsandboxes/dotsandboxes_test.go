@@ -132,22 +132,10 @@ func TestFirstMoverIsP1(t *testing.T) {
 	}
 }
 
-func TestNewRefuses(t *testing.T) {
-	tests := []struct {
-		name     string
-		opts     Opts
-		invitees []game.UserID
-		want     error
-	}{
-		{"no opponent", Opts{Size: Size3}, nil, game.BadRequestError{Msg: "dots_and_boxes needs exactly one opponent, got 0"}},
-		{"two opponents", Opts{Size: Size3}, []game.UserID{bob, "carol"}, game.BadRequestError{Msg: "dots_and_boxes needs exactly one opponent, got 2"}},
-		{"unknown size", Opts{Size: "4"}, []game.UserID{bob}, game.BadRequestError{Msg: `unknown size "4"`}},
-	}
-	for _, tc := range tests {
-		_, _, err := Rules{}.New(tc.opts, alice, tc.invitees, game.StepRNG(1, 0))
-		if !errors.Is(err, tc.want) {
-			t.Errorf("%s: got %v, want %v", tc.name, err, tc.want)
-		}
+func TestNewRefusesAnUnknownSize(t *testing.T) {
+	_, _, err := Rules{}.New(Opts{Size: "4"}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
+	if want := (game.BadRequestError{Msg: `unknown size "4"`}); !errors.Is(err, want) {
+		t.Errorf("got %v, want %v", err, want)
 	}
 }
 
@@ -261,7 +249,6 @@ func TestTheViewRecordsWhoDrewEachEdge(t *testing.T) {
 }
 
 func TestRefusals(t *testing.T) {
-	_, finished := playedOut(t, Size3, first)
 	opened, _ := played(t, newGame(t, Size3), move{p1, "a1h"})
 	tests := []struct {
 		name   string
@@ -270,8 +257,6 @@ func TestRefusals(t *testing.T) {
 		action Action
 		want   error
 	}{
-		{"out of turn", newGame(t, Size3), p2, draw("a1h"), game.ErrNotYourTurn},
-		{"after the end", finished, p1, draw("a1h"), game.ErrNotYourTurn},
 		{"unknown kind", newGame(t, Size3), p1, Action{Kind: "fill", Edge: "a1h"}, game.IllegalActionError{Msg: "unknown action: fill"}},
 		{"no orientation", newGame(t, Size3), p1, draw("b2"), game.IllegalActionError{Msg: `edge must be a dot then h or v, such as b2h, got "b2"`}},
 		{"off the largest board", newGame(t, Size3), p1, draw("i1h"), game.IllegalActionError{Msg: `edge must be a dot then h or v, such as b2h, got "i1h"`}},
@@ -349,7 +334,7 @@ func TestTheLastBoxMovesNoOneAgain(t *testing.T) {
 }
 
 func TestEqualBoxesDraw(t *testing.T) {
-	even := newState(2, []game.Seat{p1, p2})
+	even := newState(2)
 	even.owners = map[grid.Point]game.Seat{{Row: 0, Col: 0}: p1, {Row: 0, Col: 1}: p2, {Row: 1, Col: 0}: p2, {Row: 1, Col: 1}: p1}
 	if got, want := even.ended().result, (game.Result{Kind: game.ResultDraw, Reason: ReasonEqualBoxes}); !cmp.Equal(want, got) {
 		t.Errorf("2 boxes each: %+v, want %+v", got, want)

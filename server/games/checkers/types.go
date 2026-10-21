@@ -12,16 +12,6 @@ const (
 	ColorWhite  ColorChoice = "white"
 )
 
-func (c ColorChoice) firstMover() game.FirstMover {
-	switch c {
-	case ColorBlack:
-		return game.FirstMoverMe
-	case ColorWhite:
-		return game.FirstMoverOpponent
-	}
-	return game.FirstMoverRandom
-}
-
 // Opts are the resolved game options.
 type Opts struct {
 	TimeControl game.TimeControl `json:"time_control"`
@@ -65,12 +55,7 @@ const (
 	SeatWhite game.Seat = "white"
 )
 
-func opponent(seat game.Seat) game.Seat {
-	if seat == SeatBlack {
-		return SeatWhite
-	}
-	return SeatBlack
-}
+var sides = game.Pair{SeatBlack, SeatWhite}
 
 // Reasons a game of checkers ends.
 const (

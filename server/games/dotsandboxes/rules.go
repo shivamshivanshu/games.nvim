@@ -50,19 +50,11 @@ func (Rules) Info() game.Info {
 // New implements game.Rules. Seat p1 moves first: the challenger, or the opponent, as Opts.First
 // picks.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 1 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("dots_and_boxes needs exactly one opponent, got %d", len(invitees))}
-	}
 	side := boxesPerSide(opts.Size)
 	if side == 0 {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown size %q", opts.Size)}
 	}
-	users := []game.UserID{challenger, invitees[0]}
-	if !game.PickFirst(opts.First, rng) {
-		users[0], users[1] = users[1], users[0]
-	}
-	order, seats := game.NumberSeats(users)
-	return newState(side, order), seats, nil
+	return newState(side), sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng)), nil
 }
 
 // boxesPerSide is the number size names, 0 for an unknown size.

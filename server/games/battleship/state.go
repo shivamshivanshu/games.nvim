@@ -10,9 +10,8 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-// state holds both seats' waters; order[0] fires first once both fleets are placed.
+// state holds both seats' waters; sides[0] fires first once both fleets are placed.
 type state struct {
-	order    []game.Seat
 	waters   map[game.Seat]waters
 	toFire   game.Seat
 	last     *ShotEvent
@@ -20,18 +19,15 @@ type state struct {
 	finished bool
 }
 
-func newState(order []game.Seat) state {
-	all := make(map[game.Seat]waters, len(order))
-	for _, seat := range order {
+func newState() state {
+	all := make(map[game.Seat]waters, len(sides))
+	for _, seat := range sides {
 		all[seat] = newWaters()
 	}
-	return state{order: order, waters: all, toFire: order[0]}
+	return state{waters: all, toFire: sides[0]}
 }
 
 func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	var (
 		next   state
 		events []game.Event
@@ -127,7 +123,7 @@ func (s state) fire(seat game.Seat, cell string) (state, []game.Event, error) {
 	if err != nil {
 		return state{}, nil, err
 	}
-	opponent := s.opponent(seat)
+	opponent := sides.Other(seat)
 	target := s.waters[opponent]
 	if target.shot[index(p)] {
 		return state{}, nil, game.IllegalActionError{Msg: "you have already fired at " + coords().Name(p)}
@@ -144,25 +140,18 @@ func (s state) fire(seat game.Seat, cell string) (state, []game.Event, error) {
 	return s, []game.Event{shot}, nil
 }
 
-func (s state) opponent(seat game.Seat) game.Seat {
-	if seat == s.order[0] {
-		return s.order[1]
-	}
-	return s.order[0]
-}
-
 func (s state) phase() Phase {
 	switch {
 	case s.finished:
 		return PhaseOver
-	case slices.ContainsFunc(s.order, func(seat game.Seat) bool { return !s.waters[seat].complete() }):
+	case slices.ContainsFunc(sides[:], func(seat game.Seat) bool { return !s.waters[seat].complete() }):
 		return PhaseSetup
 	}
 	return PhaseBattle
 }
 
 func (s state) View(viewer game.Seat) View {
-	own, enemy := s.waters[viewer], s.waters[s.opponent(viewer)]
+	own, enemy := s.waters[viewer], s.waters[sides.Other(viewer)]
 	view := View{
 		Phase:   s.phase(),
 		Own:     own.tiles(true, false),
@@ -193,7 +182,7 @@ func (s state) ToAct() []game.Seat {
 	case PhaseOver:
 		return nil
 	case PhaseSetup:
-		return slices.DeleteFunc(slices.Clone(s.order), func(seat game.Seat) bool { return s.waters[seat].complete() })
+		return slices.DeleteFunc(sides.Seats(), func(seat game.Seat) bool { return s.waters[seat].complete() })
 	}
 	return []game.Seat{s.toFire}
 }
@@ -201,7 +190,7 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining(s.order, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game, so

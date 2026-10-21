@@ -75,15 +75,6 @@ func TestNewSeatsTheFirstMoverSouth(t *testing.T) {
 	}
 }
 
-func TestNewNeedsExactlyOneOpponent(t *testing.T) {
-	for _, invitees := range [][]game.UserID{nil, {bob, "carol"}} {
-		_, _, err := Rules{}.New(Opts{}, alice, invitees, game.StepRNG(1, 0))
-		if !errors.As(err, new(game.BadRequestError)) {
-			t.Errorf("%d opponents: got %v, want a bad request", len(invitees), err)
-		}
-	}
-}
-
 func TestStartView(t *testing.T) {
 	s := newState(t)
 	four := []int{4, 4, 4, 4, 4, 4}
@@ -328,8 +319,6 @@ func TestRejectedActions(t *testing.T) {
 		{"pit with spaces, which the catalogue does not list", newState(t), SeatSouth, sow(" 1"), game.IllegalActionError{Msg: `pit must be 1 to 6, got " 1"`}},
 		{"pit missing", newState(t), SeatSouth, sow(""), game.IllegalActionError{Msg: `pit must be 1 to 6, got ""`}},
 		{"unknown kind", newState(t), SeatSouth, Action{Kind: "drop", Pit: "1"}, game.IllegalActionError{Msg: "unknown action: drop"}},
-		{"out of turn", newState(t), SeatNorth, sow("1"), game.ErrNotYourTurn},
-		{"after the game ends", state{board: at([6]int{}, 24, [6]int{}, 24), finished: true}, SeatSouth, sow("1"), game.ErrNotYourTurn},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -3,7 +3,6 @@ package gomoku
 import (
 	"fmt"
 	"math/rand/v2"
-	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
@@ -23,9 +22,6 @@ func newState() state {
 }
 
 func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.State[discs.Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	at, err := discs.PlacedPoint(s.board.Coords(), action)
 	if err != nil {
 		return nil, nil, err
@@ -47,7 +43,7 @@ func (s state) place(seat game.Seat, at grid.Point) state {
 	case len(next.board.Empty()) == 0:
 		next.Turn = s.Finish(game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull})
 	default:
-		next.Turn = s.To(discs.Opponent(seat))
+		next.Turn = s.To(discs.Sides.Other(seat))
 	}
 	return next
 }
@@ -62,7 +58,7 @@ func (s state) View(viewer game.Seat) View {
 }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[discs.Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining(discs.Seats(), seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining(discs.Sides.Seats(), seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is

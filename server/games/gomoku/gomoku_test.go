@@ -3,6 +3,7 @@ package gomoku
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -44,7 +45,7 @@ func places(cells ...string) []gametest.Step[discs.Action] {
 	seat := discs.SeatBlack
 	for i, cell := range cells {
 		steps[i] = gametest.Step[discs.Action]{Seat: seat, Action: place(cell)}
-		seat = discs.Opponent(seat)
+		seat = discs.Sides.Other(seat)
 	}
 	return steps
 }
@@ -117,6 +118,30 @@ func cells(names ...string) []discs.Cell {
 	return out
 }
 
+func TestNewSeatsTheFirstMoverAsBlack(t *testing.T) {
+	tests := []struct {
+		first     game.FirstMover
+		seed      game.Seed
+		wantAlice game.Seat
+	}{
+		{game.FirstMoverMe, 1, discs.SeatBlack},
+		{game.FirstMoverOpponent, 1, discs.SeatWhite},
+		{game.FirstMoverRandom, 1, discs.SeatWhite},
+		{game.FirstMoverRandom, 6, discs.SeatBlack},
+	}
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
+			_, seats, err := Rules{}.New(discs.Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if seats[alice] != tc.wantAlice || seats[bob] != discs.Sides.Other(tc.wantAlice) {
+				t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
+			}
+		})
+	}
+}
+
 func TestApplyRejects(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -132,9 +157,6 @@ func TestApplyRejects(t *testing.T) {
 		{"number first", nil, discs.SeatBlack, place("8h"), game.IllegalActionError{Msg: `cell must be a1 to o15, a letter then a number, got "8h"`}},
 		{"taken cell", []string{"h8"}, discs.SeatWhite, place("H8"), game.IllegalActionError{Msg: "h8 is taken"}},
 		{"unknown kind", nil, discs.SeatBlack, discs.Action{Kind: "drop", Cell: "h8"}, game.IllegalActionError{Msg: "unknown action: drop"}},
-		{"white moves first", nil, discs.SeatWhite, place("h8"), game.ErrNotYourTurn},
-		{"black moves twice", []string{"h8"}, discs.SeatBlack, place("h9"), game.ErrNotYourTurn},
-		{"after a win", blackFiveOnRowEight(), discs.SeatWhite, place("e1"), game.ErrNotYourTurn},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

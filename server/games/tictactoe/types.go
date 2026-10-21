@@ -12,6 +12,8 @@ const (
 	noSeat game.Seat = ""
 )
 
+var sides = game.Pair{SeatX, SeatO}
+
 // Opts are the resolved challenge options.
 type Opts struct {
 	First game.FirstMover `json:"first"`

@@ -61,20 +61,11 @@ func TestNewSeatsFirstMoverAsX(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if seats[alice] != tc.wantAlice || seats[bob] != opponent(tc.wantAlice) {
+				if seats[alice] != tc.wantAlice || seats[bob] != sides.Other(tc.wantAlice) {
 					t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
 				}
 			}
 		})
-	}
-}
-
-func TestNewNeedsExactlyOneOpponent(t *testing.T) {
-	for _, invitees := range [][]game.UserID{nil, {bob, "carol"}} {
-		_, _, err := Rules{}.New(Opts{}, alice, invitees, game.StepRNG(1, 0))
-		if !errors.As(err, &game.BadRequestError{}) {
-			t.Errorf("%d invitees: got %v", len(invitees), err)
-		}
 	}
 }
 
@@ -92,9 +83,6 @@ func TestApplyRejects(t *testing.T) {
 		{"signed cell", nil, SeatX, Action{Kind: ActionPlace, Cell: "+5"}, game.IllegalActionError{Msg: `cell must be 1-9, got "+5"`}},
 		{"taken cell", []Cell{5}, SeatO, place(5), game.IllegalActionError{Msg: "cell 5 is taken"}},
 		{"unknown kind", nil, SeatX, Action{Kind: "move", Cell: "1"}, game.IllegalActionError{Msg: "unknown action: move"}},
-		{"O moves first", nil, SeatO, place(1), game.ErrNotYourTurn},
-		{"X moves twice", []Cell{1}, SeatX, place(2), game.ErrNotYourTurn},
-		{"after a win", []Cell{1, 4, 2, 5, 3}, SeatO, place(6), game.ErrNotYourTurn},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -245,7 +233,7 @@ func places(cells ...Cell) []gametest.Step[Action] {
 	seat := SeatX
 	for i, c := range cells {
 		steps[i] = gametest.Step[Action]{Seat: seat, Action: place(c)}
-		seat = opponent(seat)
+		seat = sides.Other(seat)
 	}
 	return steps
 }

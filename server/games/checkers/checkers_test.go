@@ -60,7 +60,7 @@ func TestColorOption(t *testing.T) {
 	}
 	for _, c := range cases {
 		st, seats := newGame(t, c.color, c.seed)
-		if seats[alice] != c.want || seats[bob] != opponent(c.want) {
+		if seats[alice] != c.want || seats[bob] != sides.Other(c.want) {
 			t.Errorf("%s seed %d: got %v", c.color, c.seed, seats)
 		}
 		if got := st.ToAct(); !slices.Equal(got, []game.Seat{SeatBlack}) {
@@ -74,7 +74,7 @@ func TestColorDefaultsToRandom(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := opts[optionColor]; got != game.OptionValue(ColorRandom) {
+	if got := opts[game.OptionColor]; got != game.OptionValue(ColorRandom) {
 		t.Errorf("default color %q", got)
 	}
 }
@@ -133,9 +133,6 @@ func TestRejectedActions(t *testing.T) {
 				t.Errorf("got %v, want %q", err, c.wantMsg)
 			}
 		})
-	}
-	if _, _, err := capture.Apply(SeatWhite, move("32-27"), nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("white out of turn: got %v", err)
 	}
 }
 

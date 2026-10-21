@@ -64,9 +64,6 @@ func (Rules) Info() game.Info {
 // New checks the options and replays the line, then plays the other side's
 // moves up to the solver's first.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("chess_puzzle is solo, got %d opponents", len(invitees))}
-	}
 	if !slices.Contains(modes(), opts.Mode) {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown mode %q", opts.Mode)}
 	}
@@ -82,7 +79,7 @@ func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, _ *r
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("the line has no move for %s", opts.Player)}
 	}
 	start, replies := newState(opts.Mode, solver, parsed).replyUntilSolverMoves()
-	return opened{state: start, replies: replies}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return opened{state: start, replies: replies}, game.SoloSeat(challenger), nil
 }
 
 // opened is the state New hands over, with the replies played to reach it.

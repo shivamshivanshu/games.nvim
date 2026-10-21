@@ -18,19 +18,12 @@ type board [holes]int
 
 func startBoard() board {
 	var b board
-	for _, seat := range []game.Seat{SeatSouth, SeatNorth} {
+	for _, seat := range sides {
 		for pit := 1; pit <= pitsPerSide; pit++ {
 			b[pitHole(seat, pit)] = startSeeds
 		}
 	}
 	return b
-}
-
-func opponent(seat game.Seat) game.Seat {
-	if seat == SeatSouth {
-		return SeatNorth
-	}
-	return SeatSouth
 }
 
 // firstHole is the hole of seat's pit 1.
@@ -85,7 +78,7 @@ func (b board) sown(seat game.Seat, pit int) (board, int) {
 	hole := pitHole(seat, pit)
 	seeds := b[hole]
 	b[hole] = 0
-	skipped := storeHole(opponent(seat))
+	skipped := storeHole(sides.Other(seat))
 	for seeds > 0 {
 		hole = (hole + 1) % holes
 		if hole == skipped {

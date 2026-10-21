@@ -54,6 +54,8 @@ const (
 	noDisc     game.Seat = ""
 )
 
+var sides = game.Pair{SeatRed, SeatYellow}
+
 // ReasonFourInARow ends a game won by a line of four or more; ReasonBoardFull
 // ends one drawn because no column is left.
 const (

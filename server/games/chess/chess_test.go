@@ -102,13 +102,6 @@ func TestIllegalMoveMessage(t *testing.T) {
 	}
 }
 
-func TestNotYourTurn(t *testing.T) {
-	st, _ := newGame(t, ColorWhite)
-	if _, err := act(t, st, SeatBlack, Action{Kind: ActionMove, Move: "e5"}); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Fatalf("got %v", err)
-	}
-}
-
 func TestFoolsMate(t *testing.T) {
 	st, _ := newGame(t, ColorWhite)
 	st = playSANs(t, st, "f3 e5 g4 Qh4#")

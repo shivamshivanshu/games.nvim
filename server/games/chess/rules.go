@@ -1,15 +1,12 @@
 package chess
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 const TypeChess game.GameType = "chess"
-
-const optionColor game.OptionName = "color"
 
 const moveField = "move"
 
@@ -32,11 +29,7 @@ func (Rules) Info() game.Info {
 		Capabilities: []game.Capability{game.CapResign, game.CapDraw, game.CapClock, game.CapAbort},
 		Options: []game.OptionSpec{
 			game.TimeControlOption(),
-			{
-				Name:    optionColor,
-				Values:  game.OptionValues(ColorRandom, ColorWhite, ColorBlack),
-				Default: game.OptionValue(ColorRandom),
-			},
+			game.SideOption(ColorWhite, ColorBlack),
 		},
 		Actions: []game.ActionSpec{
 			{
@@ -66,13 +59,6 @@ func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng 
 
 // NewGame is a game of chess from start, the challenger's colour picked by opts.
 func NewGame(start Position, opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 1 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("chess needs exactly one opponent, got %d", len(invitees))}
-	}
-	challengerSeat, opponentSeat := SeatWhite, SeatBlack
-	if !game.PickFirst(opts.Color.firstMover(), rng) {
-		challengerSeat, opponentSeat = SeatBlack, SeatWhite
-	}
-	seats := map[game.UserID]game.Seat{challenger: challengerSeat, invitees[0]: opponentSeat}
-	return newState(start), seats, nil
+	challengerFirst := game.PickFirst(game.SideFirstMover(opts.Color, ColorWhite, ColorBlack), rng)
+	return newState(start), sides.Assign(challenger, invitees[0], challengerFirst), nil
 }

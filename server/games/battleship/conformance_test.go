@@ -59,7 +59,7 @@ func (p *planner) refuse(seat game.Seat, action Action) {
 // the opponent answers each shot but the last at the next cell of its own fire list.
 func (p *planner) sink(shooter game.Seat, answers []string) {
 	p.t.Helper()
-	opponent := p.state.(state).opponent(shooter)
+	opponent := sides.Other(shooter)
 	targets := shipNames(p.state, opponent)
 	for i, cell := range targets {
 		p.play(shooter, fire(cell))

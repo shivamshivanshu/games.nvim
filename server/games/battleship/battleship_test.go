@@ -39,19 +39,8 @@ func TestNewSeatsTheFirstMoverAsP1(t *testing.T) {
 	}
 }
 
-func TestNewNeedsExactlyOneOpponent(t *testing.T) {
-	for _, invitees := range [][]game.UserID{nil, {bob, "carol"}} {
-		_, _, err := Rules{}.New(Opts{}, alice, invitees, game.StepRNG(1, 0))
-		want := game.BadRequestError{Msg: fmt.Sprintf("battleship needs exactly one opponent, got %d", len(invitees))}
-		if !errors.Is(err, want) {
-			t.Errorf("%d invitees: got %v", len(invitees), err)
-		}
-	}
-}
-
 func TestApplyRejects(t *testing.T) {
 	carrierAtA1 := moves(p1, across("a1"))
-	p1Ready := moves(p1, rowsFleet()...)
 	tests := []struct {
 		name   string
 		before []move
@@ -65,9 +54,7 @@ func TestApplyRejects(t *testing.T) {
 		{"bad cell", nil, p1, across("k1"), game.IllegalActionError{Msg: `cell must be a1 to j10, a letter then a number, got "k1"`}},
 		{"row 11", nil, p1, down("a11"), game.IllegalActionError{Msg: `cell must be a1 to j10, a letter then a number, got "a11"`}},
 		{"fire during setup", nil, p1, fire("a1"), game.IllegalActionError{Msg: "fire once both fleets are placed"}},
-		{"a placed fleet waits", p1Ready, p1, across("a1"), game.ErrNotYourTurn},
 		{"unknown kind", nil, p2, Action{Kind: "salvo", Cell: "a1"}, game.IllegalActionError{Msg: "unknown action: salvo"}},
-		{"a seat not in the game", nil, "p3", random(), game.ErrNotYourTurn},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -88,7 +75,6 @@ func TestBattleRejects(t *testing.T) {
 		action Action
 		want   error
 	}{
-		{"out of turn", nil, p2, fire("a1"), game.ErrNotYourTurn},
 		{"place in battle", nil, p1, across("j1"), game.IllegalActionError{Msg: "the fleets are placed; fire at a cell"}},
 		{"random in battle", nil, p1, random(), game.IllegalActionError{Msg: "the fleets are placed; fire at a cell"}},
 		{"twice at one cell", []move{{p1, fire("j10")}, {p2, fire("j10")}}, p1, fire(" J10 "), game.IllegalActionError{Msg: "you have already fired at j10"}},

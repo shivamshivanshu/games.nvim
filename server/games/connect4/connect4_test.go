@@ -39,7 +39,7 @@ func drops(columns string) []gametest.Step[Action] {
 	seat := SeatRed
 	for i, digit := range columns {
 		steps[i] = gametest.Step[Action]{Seat: seat, Action: drop(string(digit))}
-		seat = opponent(seat)
+		seat = sides.Other(seat)
 	}
 	return steps
 }
@@ -176,8 +176,6 @@ func TestRejectedActions(t *testing.T) {
 		{"column missing", "", SeatRed, drop(""), game.IllegalActionError{Msg: `column must be 1 to 7, got ""`}},
 		{"column not a number", "", SeatRed, drop("a"), game.IllegalActionError{Msg: `column must be 1 to 7, got "a"`}},
 		{"unknown kind", "", SeatRed, Action{Kind: "place", Column: "1"}, game.IllegalActionError{Msg: "unknown action: place"}},
-		{"out of turn", "4", SeatRed, drop("4"), game.ErrNotYourTurn},
-		{"after the game ends", "1122334", SeatYellow, drop("5"), game.ErrNotYourTurn},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -265,20 +263,13 @@ func TestFirstMoverIsRed(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if seats[alice] != tc.want || seats[bob] != opponent(tc.want) {
+			if seats[alice] != tc.want || seats[bob] != sides.Other(tc.want) {
 				t.Errorf("seats %v, want alice %s", seats, tc.want)
 			}
 			if diff := cmp.Diff([]game.Seat{SeatRed}, st.ToAct()); diff != "" {
 				t.Errorf("to act (-want +got):\n%s", diff)
 			}
 		})
-	}
-}
-
-func TestNewNeedsExactlyOneOpponent(t *testing.T) {
-	_, _, err := Rules{}.New(Opts{}, alice, []game.UserID{bob, "carol"}, game.StepRNG(1, 0))
-	if !errors.As(err, &game.BadRequestError{}) {
-		t.Fatalf("got %v, want a bad request", err)
 	}
 }
 
