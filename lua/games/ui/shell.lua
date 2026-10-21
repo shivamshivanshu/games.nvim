@@ -45,7 +45,8 @@ local Control = types.Control
 ---@field key string
 ---@field label string|fun(update: games.GameUpdate): string a function reads the label off the update, e.g. "call 40"
 ---@field action? games.Action
----@field available? fun(update: games.GameUpdate): boolean whether action applies now; default always
+---@field input? games.GameInput prompts for text and sends the action it parses, in place of action
+---@field available? fun(update: games.GameUpdate): boolean whether action or input applies now; default always
 ---@field local_fn? fun(view: games.ViewOptions): games.ViewOptions
 
 ---@class games.GameModule
@@ -413,7 +414,8 @@ local function bindings_for(update, module, catalogued)
     }
   end
   for _, entry in ipairs(module.actions or {}) do
-    local local_fn, game_action = entry.local_fn, entry.action
+    local local_fn, game_action, entry_input = entry.local_fn, entry.action, entry.input
+    local kind = game_action and game_action.kind or entry_input and entry_input.kind
     if local_fn then
       bindings[#bindings + 1] = {
         key = entry.key,
@@ -425,15 +427,19 @@ local function bindings_for(update, module, catalogued)
       }
     elseif
       ongoing
-      and game_action
-      and is_catalogued(catalogued, game_action.kind)
+      and kind
+      and is_catalogued(catalogued, kind)
       and (not entry.available or entry.available(update))
     then
       bindings[#bindings + 1] = {
         key = entry.key,
         label = label_of(entry, update),
         run = function(board)
-          act(board, game_action)
+          if entry_input then
+            prompt_input(board, entry_input)
+          else
+            act(board, game_action --[[@as games.Action]])
+          end
         end,
       }
     end

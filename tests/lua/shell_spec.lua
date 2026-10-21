@@ -288,6 +288,68 @@ function T.game_actions_stay_unbound_until_the_catalog_arrives_then_every_board_
   vim.api.nvim_buf_delete(buf, { force = true })
 end
 
+function T.an_action_with_input_prompts_and_sends_what_it_parses_while_catalogued_and_available()
+  ---@type games.GameModule
+  local module = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    actions = {
+      {
+        key = "f",
+        label = "flag",
+        input = {
+          kind = "flag",
+          prompt = "Flag: ",
+          parse = function(text)
+            return { kind = "flag", cell = text }
+          end,
+        },
+        available = function(update)
+          return update.view.flaggable
+        end,
+      },
+    },
+  }
+  local function flag_binding(update, catalogued)
+    local rendered, _, bindings = shell.render(update, module, ASCII, "alice", 0, nil, catalogued)
+    local binding = vim.iter(bindings):find(function(b)
+      return b.key == "f"
+    end)
+    assert_eq(binding ~= nil, rendered.lines[#rendered.lines]:find("f flag", 1, true) ~= nil)
+    return binding
+  end
+  local flaggable = chess_update({ game_id = "flag01", seq = 4, view = { flaggable = true } })
+
+  assert(not flag_binding(flaggable, { move = true }), "bound without the catalogue listing it")
+  assert(not flag_binding(chess_update({ view = { flaggable = false } }), { flag = true }))
+  assert(not flag_binding(
+    chess_update({
+      view = { flaggable = true },
+      result = { kind = "aborted", winners = {}, reason = "aborted" },
+    }),
+    { flag = true }
+  ), "bound on a finished game")
+  local acted = {}
+  local board = {
+    update = flaggable,
+    client = {
+      game_act = function(_, request)
+        acted[#acted + 1] = request
+      end,
+    },
+  }
+  local prompts = {}
+  with_stub(vim.ui, "input", function(opts, on_confirm)
+    prompts[#prompts + 1] = opts.prompt
+    on_confirm("c5")
+  end, function()
+    flag_binding(flaggable, { flag = true }).run(board)
+  end)
+  assert_eq({ "Flag: " }, prompts)
+  assert_eq({ { game_id = "flag01", seq = 4, action = { kind = "flag", cell = "c5" } } }, acted)
+end
+
 function T.running_clock_counts_down_from_arrival()
   local update = chess_update({
     clock = { remaining_ms = { alice = 300000, bob = 300000 }, running = "alice" },
