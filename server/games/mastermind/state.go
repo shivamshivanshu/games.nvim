@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 type state struct {
@@ -41,7 +42,7 @@ func (s state) View(game.Seat) View {
 	view := View{
 		Palette:    strings.Split(Palette, ""),
 		CodeLength: CodeLength,
-		Guesses:    append([]Guess{}, s.guesses...),
+		Guesses:    xslices.Clone(s.guesses),
 		Remaining:  MaxGuesses - len(s.guesses),
 	}
 	if s.Over() {

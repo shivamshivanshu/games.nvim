@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 type state struct {
@@ -93,8 +94,8 @@ func (s state) pattern() []string {
 func (s state) View(game.Seat) View {
 	view := View{
 		Pattern:     s.pattern(),
-		Guessed:     append([]LetterGuess{}, s.guessed...),
-		MissedWords: append([]string{}, s.missedWords...),
+		Guessed:     xslices.Clone(s.guessed),
+		MissedWords: xslices.Clone(s.missedWords),
 		Misses:      s.misses(),
 		Remaining:   MaxMisses - s.misses(),
 	}

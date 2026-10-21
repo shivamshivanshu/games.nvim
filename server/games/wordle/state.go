@@ -8,6 +8,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/feedback"
 	"github.com/shivamshivanshu/games.nvim/server/games/words"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 type state struct {
@@ -60,7 +61,7 @@ func (s state) with(latest Guess) state {
 
 func (s state) View(game.Seat) View {
 	view := View{
-		Guesses:   append([]Guess{}, s.guesses...),
+		Guesses:   xslices.Clone(s.guesses),
 		Keyboard:  keyboardOf(s.guesses),
 		Remaining: MaxGuesses - len(s.guesses),
 	}
