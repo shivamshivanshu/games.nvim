@@ -7,7 +7,10 @@ local SERVER_BIN = REPO_ROOT .. "/bin/games-server"
 local USERS = { "alice", "bob" }
 M.PASSWORD = "pw"
 ---The action kinds the server catalogues for chess.
-M.CHESS_ACTIONS = { move = true, claim_draw = true }
+M.CHESS_ACTIONS = {
+  move = { kind = "move", description = "", input = { field = "move" } },
+  claim_draw = { kind = "claim_draw", description = "" },
+}
 M.WAIT_MS = 2000
 
 ---@class games.test.Server

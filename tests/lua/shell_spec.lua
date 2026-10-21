@@ -253,7 +253,11 @@ function T.game_actions_stay_unbound_until_the_catalog_arrives_then_every_board_
 
   conn:respond("catalog.list", {
     games = {
-      { id = "chess", name = "Chess", actions = { { kind = "move" }, { kind = "claim_draw" } } },
+      {
+        id = "chess",
+        name = "Chess",
+        actions = { { kind = "move", input = { field = "move" } }, { kind = "claim_draw" } },
+      },
     },
   })
 

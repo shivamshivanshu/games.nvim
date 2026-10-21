@@ -4,7 +4,10 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { move = true, reveal = true }
+local CATALOGUED = {
+  move = { kind = "move", description = "", input = { field = "text" } },
+  reveal = { kind = "reveal", description = "" },
+}
 local LINE = "g8f6 h5f7"
 local SCHOLARS = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
 local AFTER_NF6 = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
@@ -153,11 +156,6 @@ function T.reveal_is_offered_only_in_a_running_study()
     end)
     assert_eq(case.footer:find(" n reveal ") ~= nil, reveal ~= nil)
   end
-end
-
-function T.input_sends_the_typed_move_as_text_for_the_server_to_parse()
-  assert_eq("move", puzzle.input.kind)
-  assert_eq({ kind = "move", text = "qxf7" }, puzzle.input.parse("qxf7"))
 end
 
 function T.events_read_as_the_solver_and_the_side_the_server_plays()

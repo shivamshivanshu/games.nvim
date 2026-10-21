@@ -288,20 +288,8 @@ function M.layout(update, ctx)
   return M.board(update.view, ctx, ctx.flip)
 end
 
----The move prompt; parse puts the typed text, for the server to read, in field.
----@param field string
----@return games.GameInput
-function M.move_input(field)
-  return {
-    kind = MOVE_KIND,
-    prompt = "Move: ",
-    parse = function(text)
-      return { kind = MOVE_KIND, [field] = text }
-    end,
-  }
-end
-
-M.input = M.move_input("move")
+---@type games.GameInput
+M.input = { kind = MOVE_KIND, prompt = "Move: " }
 
 ---@type games.GameAction[]
 M.actions = {

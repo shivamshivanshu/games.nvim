@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { move = true, claim_draw = true }
+local CATALOGUED = helpers.CHESS_ACTIONS
 local START_FEN = "rqnbnkbr/pppppppp/8/8/8/8/PPPPPPPP/RQNBNKBR w KQkq - 0 1"
 local CASTLED_FEN = "rqnbnrk1/pppppbpp/8/5p2/5P2/8/PPPPPBPP/RQNBNRK1 w - - 4 4"
 local FIRST_BOARD_ROW = 4
@@ -87,10 +87,6 @@ function T.claim_draw_is_offered_only_when_the_view_allows_it()
       shell.render(update, chess960, view_options("ascii"), "alice", 0, nil, CATALOGUED)
     assert_eq(claimable, rendered.lines[#rendered.lines]:find(" C claim draw ", 1, true) ~= nil)
   end
-end
-
-function T.input_sends_the_typed_move_for_the_server_to_parse()
-  assert_eq({ kind = "move", move = "f1h1" }, chess960.input.parse("f1h1"))
 end
 
 function T.events_name_the_player_and_the_move()

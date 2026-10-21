@@ -33,7 +33,18 @@ M.CATALOG = {
         role = "clock",
       },
     },
-    actions = { { kind = "move", description = "a move in SAN or UCI" } },
+    actions = {
+      {
+        kind = "move",
+        description = "a move in SAN or UCI",
+        input = {
+          field = "move",
+          description = "A move in SAN or UCI, any case, e.g. e4, Nf3, O-O, exd8=Q, e2e4.",
+          pattern = [[^\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\s*$]],
+          values = {},
+        },
+      },
+    },
   },
 }
 

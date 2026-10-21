@@ -41,7 +41,6 @@ local players = require("games.core.players")
 local STUDY = "study"
 local BLACK = "black"
 local WHITE = "white"
-local TEXT_FIELD = "text"
 local REVEAL_KIND = "reveal"
 ---Lines the status panel keeps above the solution: its heading and the blank line before it.
 local SOLUTION_HEADING_LINES = 2
@@ -117,7 +116,7 @@ function M.layout(update, ctx)
   })
 end
 
-M.input = chess.move_input(TEXT_FIELD)
+M.input = chess.input
 
 ---@type games.GameAction[]
 M.actions = {
