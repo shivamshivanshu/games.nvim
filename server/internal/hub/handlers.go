@@ -55,9 +55,7 @@ func (h *Hub) Routes() session.Router {
 }
 
 func (h *Hub) catalog(context.Context, *session.Session, protocol.Empty) (protocol.CatalogResult, error) {
-	return protocol.CatalogResult{Games: xslices.Map(h.deps.Games, func(g game.Game) protocol.GameInfoWire {
-		return protocol.InfoToWire(g.Info())
-	})}, nil
+	return protocol.CatalogOf(h.deps.Games), nil
 }
 
 func (h *Hub) users(ctx context.Context, _ *session.Session, _ protocol.Empty) (protocol.UserListResult, error) {

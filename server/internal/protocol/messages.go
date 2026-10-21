@@ -154,6 +154,11 @@ type CatalogResult struct {
 	Games []GameInfoWire `json:"games"`
 }
 
+// CatalogOf is the catalog.list reply listing games.
+func CatalogOf(games []game.Game) CatalogResult {
+	return CatalogResult{Games: xslices.Map(games, func(g game.Game) GameInfoWire { return InfoToWire(g.Info()) })}
+}
+
 type UserPresence struct {
 	User   game.UserID `json:"user"`
 	Online bool        `json:"online"`

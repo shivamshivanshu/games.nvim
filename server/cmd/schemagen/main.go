@@ -1,5 +1,6 @@
 // Command schemagen writes the JSON Schema of the wire protocol and of each
-// registered game's bodies, or checks that a directory holds exactly that.
+// registered game's bodies, with the game catalog the server lists, or checks
+// that a directory holds exactly that.
 package main
 
 import (
@@ -16,9 +17,14 @@ import (
 	"github.com/invopop/jsonschema"
 
 	"github.com/shivamshivanshu/games.nvim/server/games"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 )
 
-const module = "github.com/shivamshivanshu/games.nvim/server"
+const (
+	module = "github.com/shivamshivanshu/games.nvim/server"
+	// catalogFile is the catalog.list reply, which clients' tests read the games' actions from.
+	catalogFile = "catalog.json"
+)
 
 func main() {
 	out := flag.String("out", "", "directory to write the schema into")
@@ -49,7 +55,7 @@ func run(out, check string) error {
 	return compare(check, files)
 }
 
-// generate maps each schema file's path to its content.
+// generate maps the path of each schema file, and of the catalog, to its content.
 func generate(comments map[string]string) (map[string][]byte, error) {
 	schemas := map[string]*jsonschema.Schema{}
 	protocolDoc, coreEnums, err := protocolSchema(comments)
@@ -63,9 +69,13 @@ func generate(comments map[string]string) (map[string][]byte, error) {
 			return nil, fmt.Errorf("game %s: %w", t, err)
 		}
 	}
-	files := make(map[string][]byte, len(schemas))
+	documents := map[string]any{catalogFile: protocol.CatalogOf(games.All())}
 	for name, s := range schemas {
-		content, err := json.MarshalIndent(s, "", "  ")
+		documents[name] = s
+	}
+	files := make(map[string][]byte, len(documents))
+	for name, document := range documents {
+		content, err := json.MarshalIndent(document, "", "  ")
 		if err != nil {
 			return nil, fmt.Errorf("encode %s: %w", name, err)
 		}

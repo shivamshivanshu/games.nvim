@@ -3,7 +3,6 @@ package hub_test
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,13 +15,11 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-var updateCatalog = flag.Bool("update", false, "rewrite testdata/catalog.json from the hub's catalog")
-
-var catalogGolden = filepath.Join("testdata", "catalog.json")
+var catalogGolden = filepath.Join(schemaDir, "catalog.json")
 
 // TestCatalogAdvertisesEveryGameAsPinned compares what the hub advertises for
-// every registered game with testdata/catalog.json; run it with -update to
-// accept a deliberate change.
+// every registered game with docs/schema/catalog.json, which make schema
+// writes.
 func TestCatalogAdvertisesEveryGameAsPinned(t *testing.T) {
 	registered := xslices.Map(games.All(), func(g game.Game) game.GameType { return g.Info().Type })
 	c := newEnv(t).start(t).login(t, prototest.Alice)
@@ -33,16 +30,11 @@ func TestCatalogAdvertisesEveryGameAsPinned(t *testing.T) {
 		t.Fatal(err)
 	}
 	got = append(got, '\n')
-	if *updateCatalog {
-		if err := os.WriteFile(catalogGolden, got, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
 	want, err := os.ReadFile(catalogGolden)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(want, got) {
-		t.Errorf("the advertised catalog differs from %s; review the change with go test -run %s -update and git diff:\n%s", catalogGolden, t.Name(), got)
+		t.Errorf("the advertised catalog differs from %s; run make schema and review the change with git diff:\n%s", catalogGolden, got)
 	}
 }
