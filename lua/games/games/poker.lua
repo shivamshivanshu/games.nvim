@@ -354,6 +354,12 @@ local function legal_any(update, ...)
   end)
 end
 
+---@param view games.PokerView
+---@return games.PokerMove the one of check and call the seat to act may make
+local function check_or_call(view)
+  return vim.tbl_contains(view.legal, "check") and "check" or "call"
+end
+
 ---@type games.GameAction[]
 M.actions = {
   {
@@ -367,10 +373,12 @@ M.actions = {
   {
     key = "c",
     label = function(update)
-      local view = update.view
-      return vim.tbl_contains(view.legal, "check") and "check" or ("call %d"):format(view.to_call)
+      local move = check_or_call(update.view)
+      return move == "call" and ("call %d"):format(update.view.to_call) or move
     end,
-    action = { kind = "act", text = "call" },
+    act = function(update)
+      return { kind = "act", text = check_or_call(update.view) }
+    end,
     available = function(update)
       return legal_any(update, "check", "call")
     end,

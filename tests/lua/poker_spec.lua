@@ -104,6 +104,16 @@ function T.c_reads_check_or_call_and_the_amount_off_the_view()
   assert(not checking[#checking]:find("call", 1, true), checking[#checking])
 end
 
+function T.c_sends_check_when_check_is_legal_and_call_otherwise()
+  local c = vim.iter(poker.actions):find(function(entry)
+    return entry.key == "c"
+  end)
+  local checking = poker_update({ legal = { "fold", "check", "bet", "allin" }, to_call = 0 })
+
+  assert_eq({ kind = "act", text = "check" }, c.act(checking, poker_view("ascii")))
+  assert_eq({ kind = "act", text = "call" }, c.act(poker_update(), poker_view("ascii")))
+end
+
 function T.hearts_and_diamonds_are_red_on_the_board_and_in_the_last_hand()
   local rendered =
     shell.render(poker_update(), poker, poker_view("unicode"), "alice", 0, nil, CATALOGUE)
