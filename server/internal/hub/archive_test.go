@@ -118,7 +118,7 @@ func TestFinishingBroadcastAddsLastStepToEveryLaterRead(t *testing.T) {
 		for _, ev := range finishing.Events {
 			events = append(events, string(ev))
 		}
-		if string(finishing.View) != `{"Total":11}` || !cmp.Equal(events, []string{`{"by":"a","kind":"counted","total":11}`}) {
+		if string(finishing.View) != `{"Total":11}` || !cmp.Equal(events, []string{`{"kind":"counted","by":"a","total":11}`}) {
 			t.Fatalf("%s's finishing broadcast view %s, events %v; want the final total and its counted event", user, finishing.View, events)
 		}
 		snapshot := call[protocol.GameUpdate](t, c, protocol.TypeGameSnapshot, protocol.GameSnapshotRequest{GameID: id})

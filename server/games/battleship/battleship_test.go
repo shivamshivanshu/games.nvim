@@ -349,7 +349,7 @@ func TestWireShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	st, events, err := st.Apply(p2, json.RawMessage(`{"kind":"random"}`), game.StepRNG(1, 2))
-	if err != nil || len(events) != 1 || string(events[0]) != `{"by":"p2","kind":"ready"}` {
+	if err != nil || len(events) != 1 || string(events[0]) != `{"kind":"ready","by":"p2"}` {
 		t.Fatalf("ready: %s, %v", events, err)
 	}
 	st, events, err = st.Apply(p1, json.RawMessage(`{"kind":"fire","cell":"a1"}`), nil)

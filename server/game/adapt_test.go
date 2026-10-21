@@ -149,8 +149,69 @@ func TestAdaptEncodesEventsWithKind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := `{"by":"a","kind":"counted","total":5}`; len(events) != 1 || string(events[0]) != want {
+	if want := `{"kind":"counted","by":"a","total":5}`; len(events) != 1 || string(events[0]) != want {
 		t.Fatalf("events %s, want [%s]", events, want)
+	}
+}
+
+type bareEvent struct{}
+
+func (bareEvent) EventKind() game.EventKind { return "bare" }
+
+type kindedEvent struct {
+	Kind string `json:"kind"`
+}
+
+func (kindedEvent) EventKind() game.EventKind { return "kinded" }
+
+type nestingEvent struct {
+	Inner kindedEvent `json:"inner"`
+}
+
+func (nestingEvent) EventKind() game.EventKind { return "nesting" }
+
+// escapedKindEvent marshals itself with a kind field whose name it escapes.
+type escapedKindEvent struct{}
+
+func (escapedKindEvent) EventKind() game.EventKind { return "escaped" }
+
+func (escapedKindEvent) MarshalJSON() ([]byte, error) { return []byte(`{"\u006bind":"fake"}`), nil }
+
+type textEvent string
+
+func (textEvent) EventKind() game.EventKind { return "text" }
+
+func TestEncodeEventPutsTheKindFirst(t *testing.T) {
+	for name, tc := range map[string]struct {
+		event game.Event
+		want  string
+	}{
+		"fields":                  {gametest.CountedEvent{By: "a", Total: 5}, `{"kind":"counted","by":"a","total":5}`},
+		"no fields":               {bareEvent{}, `{"kind":"bare"}`},
+		"an inner kind field":     {nestingEvent{Inner: kindedEvent{Kind: "x"}}, `{"kind":"nesting","inner":{"kind":"x"}}`},
+		"a kind field of its own": {kindedEvent{Kind: "x"}, ""},
+		"an escaped kind field":   {escapedKindEvent{}, ""},
+		"not an object":           {textEvent("x"), ""},
+	} {
+		got, err := game.EncodeEvent(tc.event)
+		if tc.want == "" {
+			if err == nil {
+				t.Errorf("%s: encoded %s, want an error", name, got)
+			}
+			continue
+		}
+		if err != nil || string(got) != tc.want {
+			t.Errorf("%s: got %s, %v; want %s", name, got, err, tc.want)
+		}
+	}
+}
+
+func BenchmarkEncodeEvent(b *testing.B) {
+	event := gametest.CountedEvent{By: "a", Total: 5}
+	for b.Loop() {
+		if _, err := game.EncodeEvent(event); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

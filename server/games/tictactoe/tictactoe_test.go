@@ -203,7 +203,7 @@ func TestWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 1 || string(events[0]) != `{"by":"x","cell":3,"kind":"placed"}` {
+	if len(events) != 1 || string(events[0]) != `{"kind":"placed","by":"x","cell":3}` {
 		t.Errorf("events %s", events)
 	}
 	wantView(t, st, `{"cells":["","","x","","","","","",""],"last":3,"winning_lines":[],"legal_cells":[1,2,4,5,6,7,8,9]}`)

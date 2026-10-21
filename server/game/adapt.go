@@ -1,6 +1,7 @@
 package game
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -223,23 +224,54 @@ func encodeEvents(events []Event) ([]json.RawMessage, error) {
 // EventKindField is the field of an encoded event that holds its kind.
 const EventKindField = "kind"
 
-// EncodeEvent is the wire form of e: its JSON object with the event kind added.
+const eventKindKey = `"` + EventKindField + `":`
+
+// EncodeEvent is the wire form of e: its JSON object with the event kind put
+// first. An event that has a field of that name itself is refused.
 func EncodeEvent(e Event) (json.RawMessage, error) {
 	raw, err := json.Marshal(e)
 	if err != nil {
 		return nil, fmt.Errorf("encode %s event: %w", e.EventKind(), err)
 	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return nil, fmt.Errorf("event %s is not a JSON object: %w", e.EventKind(), err)
+	if raw[0] != '{' {
+		return nil, fmt.Errorf("event %s is not a JSON object: %s", e.EventKind(), raw)
+	}
+	if mayHaveKindField(e, raw) {
+		if err := checkNoKindField(raw); err != nil {
+			return nil, fmt.Errorf("event %s: %w", e.EventKind(), err)
+		}
 	}
 	kind, err := json.Marshal(e.EventKind())
 	if err != nil {
 		return nil, err
 	}
-	if fields == nil {
-		fields = map[string]json.RawMessage{}
+	encoded := make(json.RawMessage, 0, len(raw)+len(eventKindKey)+len(kind)+1)
+	encoded = append(encoded, '{')
+	encoded = append(encoded, eventKindKey...)
+	encoded = append(encoded, kind...)
+	if len(raw) > len("{}") {
+		encoded = append(encoded, ',')
 	}
-	fields[EventKindField] = kind
-	return json.Marshal(fields)
+	return append(encoded, raw[1:]...), nil
+}
+
+// mayHaveKindField is false only when raw cannot hold a top-level
+// EventKindField: the encoder writes a struct's or map's "kind" key as is,
+// but a json.Marshaler may spell its keys with escapes.
+func mayHaveKindField(e Event, raw []byte) bool {
+	_, custom := e.(json.Marshaler)
+	return custom || bytes.Contains(raw, []byte(eventKindKey))
+}
+
+// checkNoKindField fails on an object with a top-level EventKindField, which
+// an inner object's field of that name only looks like.
+func checkNoKindField(object []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(object, &fields); err != nil {
+		return err
+	}
+	if _, ok := fields[EventKindField]; ok {
+		return fmt.Errorf("has a %q field of its own", EventKindField)
+	}
+	return nil
 }

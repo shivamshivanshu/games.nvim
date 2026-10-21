@@ -45,7 +45,7 @@ func TestMovedEventWireShape(t *testing.T) {
 	h := newHarness(t, game.TimeControlNone)
 	h.play(t, prototest.Alice, 0, "e4")
 	events := h.snapshot(t, prototest.Bob).Events
-	if want := `{"by":"white","kind":"moved","san":"e4"}`; len(events) != 1 || string(events[0]) != want {
+	if want := `{"kind":"moved","by":"white","san":"e4"}`; len(events) != 1 || string(events[0]) != want {
 		t.Fatalf("events %s, want [%s]", events, want)
 	}
 }
@@ -305,7 +305,7 @@ func TestFinishingBroadcastAddsStepToSealedUpdate(t *testing.T) {
 		if diff := cmp.Diff(wantClock, sent.Clock); diff != "" {
 			t.Errorf("%s finishing clock (-want +got):\n%s", user, diff)
 		}
-		if want := `{"by":"black","kind":"moved","san":"Qh4#"}`; len(sent.Events) != 1 || string(sent.Events[0]) != want {
+		if want := `{"kind":"moved","by":"black","san":"Qh4#"}`; len(sent.Events) != 1 || string(sent.Events[0]) != want {
 			t.Errorf("%s finishing events %s, want [%s]", user, sent.Events, want)
 		}
 		if len(sent.View) == 0 {

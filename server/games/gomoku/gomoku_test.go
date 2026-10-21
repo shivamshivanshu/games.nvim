@@ -295,7 +295,7 @@ func TestWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 1 || string(events[0]) != `{"by":"black","cell":{"row":2,"column":3},"kind":"placed"}` {
+	if len(events) != 1 || string(events[0]) != `{"kind":"placed","by":"black","cell":{"row":2,"column":3}}` {
 		t.Errorf("events %s", events)
 	}
 	raw, err := st.View(discs.SeatWhite)
