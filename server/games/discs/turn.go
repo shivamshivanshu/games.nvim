@@ -17,8 +17,13 @@ type Turn struct {
 // FirstTurn is black to move.
 func FirstTurn() Turn { return Turn{toMove: SeatBlack} }
 
-// To is the turn passed to seat.
-func (t Turn) To(seat game.Seat) Turn { return Turn{toMove: seat} }
+// To is the turn passed to seat; a finished turn stays as it is.
+func (t Turn) To(seat game.Seat) Turn {
+	if t.finished {
+		return t
+	}
+	return Turn{toMove: seat}
+}
 
 // Finish ends the game with result.
 func (t Turn) Finish(result game.Result) Turn {

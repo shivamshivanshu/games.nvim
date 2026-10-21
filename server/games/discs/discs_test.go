@@ -106,6 +106,8 @@ func TestTurn(t *testing.T) {
 		{"concluded", FirstTurn().Conclude(imposed), nil, imposed, map[game.Seat][]Cell{SeatBlack: {}, SeatWhite: {}}},
 		{"a reached result outlives a conclusion", FirstTurn().Finish(won).Conclude(imposed), nil, won,
 			map[game.Seat][]Cell{SeatBlack: {}, SeatWhite: {}}},
+		{"a finished turn passes to no one", FirstTurn().Finish(won).To(SeatWhite), nil, won,
+			map[game.Seat][]Cell{SeatBlack: {}, SeatWhite: {}}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
