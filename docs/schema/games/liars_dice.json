@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "bid": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is a bid typed as quantity x face, e.g. \"3x5\", or dudo, the\nchallenge of the standing bid."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "bid",
+        "dudo"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Bid": {
+      "properties": {
+        "by": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer"
+        },
+        "face": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "by",
+        "quantity",
+        "face"
+      ],
+      "description": "Bid is By's claim that at least Quantity dice on the table show Face, ones\ncounting as any face but when the bid is on ones."
+    },
+    "BidEvent": {
+      "properties": {
+        "kind": {
+          "const": "bid"
+        },
+        "by": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer"
+        },
+        "face": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "quantity",
+        "face"
+      ],
+      "description": "BidEvent reports a bid."
+    },
+    "BidMinimum": {
+      "properties": {
+        "face": {
+          "type": "integer"
+        },
+        "quantity": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "face",
+        "quantity"
+      ],
+      "description": "BidMinimum is the smallest quantity the seat to act may bid on Face."
+    },
+    "ChallengedEvent": {
+      "properties": {
+        "kind": {
+          "const": "challenged"
+        },
+        "by": {
+          "type": "string"
+        },
+        "bid": {
+          "$ref": "#/$defs/Bid"
+        },
+        "counted": {
+          "type": "integer"
+        },
+        "loser": {
+          "type": "string"
+        },
+        "cups": {
+          "items": {
+            "$ref": "#/$defs/SeatDice"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "bid",
+        "counted",
+        "loser",
+        "cups"
+      ],
+      "description": "ChallengedEvent reports By's dudo and the reveal it made."
+    },
+    "OutEvent": {
+      "properties": {
+        "kind": {
+          "const": "out"
+        },
+        "seat": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "seat"
+      ],
+      "description": "OutEvent reports a seat that lost its last die."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "last_with_dice"
+      ],
+      "description": "The result reasons Liar's Dice adds to the core's."
+    },
+    "Reveal": {
+      "properties": {
+        "round": {
+          "type": "integer"
+        },
+        "bid": {
+          "$ref": "#/$defs/Bid"
+        },
+        "challenger": {
+          "type": "string"
+        },
+        "counted": {
+          "type": "integer"
+        },
+        "loser": {
+          "type": "string"
+        },
+        "cups": {
+          "items": {
+            "$ref": "#/$defs/SeatDice"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "round",
+        "bid",
+        "challenger",
+        "counted",
+        "loser",
+        "cups"
+      ],
+      "description": "Reveal is how a challenge went: the bid, the challenger, how many dice\ncounted toward it, who lost a die for it, and every cup in play."
+    },
+    "SeatDice": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "dice": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "dice"
+      ],
+      "description": "SeatDice is one seat's dice."
+    },
+    "SeatView": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "dice": {
+          "type": "integer"
+        },
+        "out": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "dice",
+        "out"
+      ],
+      "description": "SeatView is one seat at the table, in seat order. Out is a seat with no\ndice left, whether lost or left the game."
+    },
+    "View": {
+      "properties": {
+        "round": {
+          "type": "integer"
+        },
+        "seats": {
+          "items": {
+            "$ref": "#/$defs/SeatView"
+          },
+          "type": "array"
+        },
+        "bid": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Bid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "total_dice": {
+          "type": "integer"
+        },
+        "my_dice": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "min_bids": {
+          "items": {
+            "$ref": "#/$defs/BidMinimum"
+          },
+          "type": "array"
+        },
+        "can_dudo": {
+          "type": "boolean"
+        },
+        "last_reveal": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Reveal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "round",
+        "seats",
+        "bid",
+        "total_dice",
+        "my_dice",
+        "min_bids",
+        "can_dudo",
+        "last_reveal"
+      ],
+      "description": "View is the table as one seat sees it: its own dice, and every other cup\nonly as a count until a challenge reveals them.\n\nBid is the standing bid, null when the round's bidding has not opened.\nMinBids and CanDudo are the viewer's own, empty and false unless it is to\nact: for each face it may bid now, the smallest quantity it may bid; any\nquantity from that up to TotalDice is legal. LastReveal is the previous\nround's challenge, with every cup it showed."
+    }
+  },
+  "title": "Liar's Dice",
+  "description": "The game-specific bodies inside a liars_dice game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "bid": {
+      "$ref": "#/$defs/BidEvent"
+    },
+    "challenged": {
+      "$ref": "#/$defs/ChallengedEvent"
+    },
+    "out": {
+      "$ref": "#/$defs/OutEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
