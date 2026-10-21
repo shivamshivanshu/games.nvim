@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -48,12 +49,15 @@ type Script[Opts, Action any] struct {
 }
 
 type observation[View any] struct {
-	Views    map[game.Seat]View
-	Events   []game.Event
-	Private  map[game.Seat][]string
-	ToAct    []game.Seat
-	Result   game.Result
-	Finished bool
+	Views      map[game.Seat]View
+	Events     []game.Event
+	Private    map[game.Seat][]string
+	ToAct      []game.Seat
+	Result     game.Result
+	Finished   bool
+	KnockedOut []game.Seat
+	NextTick   time.Duration
+	TickDue    bool
 }
 
 type replay[View any] struct {
@@ -99,6 +103,7 @@ func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, V
 		opening = opener.OpeningEvents()
 	}
 	observed := []observation[View]{record(t, script.PrivateOf, state, allSeats, opening)}
+	checkStops(t, state, allSeats, "fresh from New")
 	applied := game.Seq(0)
 	for i, step := range script.Steps {
 		before := observe(t, state, allSeats)
@@ -118,16 +123,21 @@ func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, V
 		state = next
 		applied++
 		observed = append(observed, record(t, script.PrivateOf, state, allSeats, events))
+		checkStops(t, state, allSeats, "after step "+strconv.Itoa(i))
 	}
 	result, finished := state.Outcome()
 	return replay[View]{Seats: seats, Observed: observed, FinalResult: result, Finished: finished}, state
 }
 
-// advance makes step on state; a tick or pause step on a state that is not a
+// advance makes step on state, an action only from a seat to act as the
+// core's adapter allows; a tick or pause step on a state that is not a
 // game.Ticking, or a tick it does not want, fails the test.
 func advance[Action, View any](t testing.TB, state game.State[Action, View], step Step[Action], rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	t.Helper()
 	if step.Kind == StepAction {
+		if err := game.CheckTurn(state, step.Seat); err != nil {
+			return nil, nil, err
+		}
 		return state.Apply(step.Seat, step.Action, rng)
 	}
 	ticking, ok := state.(game.Ticking[Action, View])
@@ -174,12 +184,64 @@ func observe[Action, View any](t testing.TB, state game.State[Action, View], sea
 	if finished != (len(toAct) == 0) {
 		t.Fatalf("ToAct()=%v but Outcome finished=%t: ToAct must be empty exactly when finished", toAct, finished)
 	}
-	if ticking, ok := state.(game.Ticking[Action, View]); ok && finished {
-		if _, due := ticking.NextTick(); due {
-			t.Fatalf("a finished state wants a tick; NextTick must be false once finished")
-		}
+	obs := observation[View]{Views: views, ToAct: toAct, Result: result, Finished: finished, KnockedOut: []game.Seat{}}
+	if knockout, ok := state.(game.Knockout); ok {
+		obs.KnockedOut = knockout.KnockedOut()
 	}
-	return observation[View]{Views: views, ToAct: toAct, Result: result, Finished: finished}
+	if ticking, ok := state.(game.Ticking[Action, View]); ok {
+		obs.NextTick, obs.TickDue = ticking.NextTick()
+	}
+	if finished && obs.TickDue {
+		t.Fatalf("a finished state wants a tick; NextTick must be false once finished")
+	}
+	return obs
+}
+
+// checkStops checks the ways the core stops an unfinished state from outside.
+func checkStops[Action, View any](t testing.TB, state game.State[Action, View], seats []game.Seat, where string) {
+	t.Helper()
+	if _, finished := state.Outcome(); finished {
+		return
+	}
+	checkConclude(t, state, seats, where)
+	checkPause(t, state, seats, where)
+}
+
+// checkPause pauses a game.Ticking, as the core does when its player goes
+// away and after every restore: no tick may be due until the player acts.
+func checkPause[Action, View any](t testing.TB, state game.State[Action, View], seats []game.Seat, where string) {
+	t.Helper()
+	ticking, ok := state.(game.Ticking[Action, View])
+	if !ok {
+		return
+	}
+	before := observe(t, state, seats)
+	paused := observe(t, ticking.Pause(), seats)
+	if diff := cmp.Diff(before, observe(t, state, seats)); diff != "" {
+		t.Fatalf("%s: Pause mutated its receiver (-before +after):\n%s", where, diff)
+	}
+	if paused.TickDue {
+		t.Fatalf("%s: Pause left a tick due in %v; NextTick must be false while paused", where, paused.NextTick)
+	}
+}
+
+// checkConclude imposes an ending on a game.Concluder, as the core does on
+// an agreed draw or an abort: the game must end on that result.
+func checkConclude[Action, View any](t testing.TB, state game.State[Action, View], seats []game.Seat, where string) {
+	t.Helper()
+	concluder, ok := state.(game.Concluder[Action, View])
+	if !ok {
+		return
+	}
+	imposed := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
+	before := observe(t, state, seats)
+	concluded := observe(t, concluder.Conclude(imposed), seats)
+	if diff := cmp.Diff(before, observe(t, state, seats)); diff != "" {
+		t.Fatalf("%s: Conclude mutated its receiver (-before +after):\n%s", where, diff)
+	}
+	if !concluded.Finished || !cmp.Equal(concluded.Result, imposed) {
+		t.Fatalf("%s: Conclude(%+v) left the game with ToAct %v and outcome %+v; it must end on the imposed result", where, imposed, concluded.ToAct, concluded.Result)
+	}
 }
 
 func sortedSeats(seats map[game.UserID]game.Seat) []game.Seat {

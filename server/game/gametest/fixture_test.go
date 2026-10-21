@@ -24,6 +24,7 @@ const (
 	ignoreElimination
 	eliminateRewritesFinished
 	eliminateRewritesPlayedResult
+	concludeKeepsPlaying
 )
 
 const (
@@ -81,28 +82,24 @@ func (r tableRules) New(_ tableOpts, challenger game.UserID, invitees []game.Use
 }
 
 type tableState struct {
+	game.Ending
 	flaw      flaw
 	seats     []game.Seat
 	alive     []game.Seat
 	round     int
-	result    game.Result
-	finished  bool
 	playedOut bool
 }
 
 func privateHands(s tableState, seat game.Seat) []string { return []string{handOf(seat, s.round)} }
 
 func (s tableState) Apply(seat game.Seat, a tableAction, _ *rand.Rand) (game.State[tableAction, tableView], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	events := []game.Event{s.showdown(seat)}
 	s.round++
 	if s.flaw == leakPrivateInEventKind {
 		events = append(events, namedEvent{Kind: handOf(seat, s.round)})
 	}
 	if a.Finish {
-		s.result, s.finished, s.playedOut = game.Result{Kind: game.ResultDraw}, true, true
+		s.Ending, s.playedOut = s.Concluded(game.Result{Kind: game.ResultDraw}), true
 	}
 	return s, events, nil
 }
@@ -121,7 +118,7 @@ func (s tableState) showdown(seat game.Seat) saidEvent {
 func (s tableState) View(seat game.Seat) tableView {
 	v := tableView{Hand: handOf(seat, s.round)}
 	switch {
-	case s.finished || s.flaw == leakSecretInView:
+	case s.Over() || s.flaw == leakSecretInView:
 		v.Answer = tableSecret
 	case s.flaw == leakEscapedSecretInView:
 		v.Answer = escapedSecret
@@ -141,18 +138,23 @@ func (s tableState) View(seat game.Seat) tableView {
 }
 
 func (s tableState) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
 	return s.alive
 }
 
-func (s tableState) Outcome() (game.Result, bool) { return s.result, s.finished }
+func (s tableState) Conclude(r game.Result) game.State[tableAction, tableView] {
+	if s.flaw != concludeKeepsPlaying {
+		s.Ending = s.Concluded(r)
+	}
+	return s
+}
 
 func (s tableState) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[tableAction, tableView], []game.Event) {
-	if s.finished {
+	if s.Over() {
 		if s.flaw == eliminateRewritesFinished || (s.flaw == eliminateRewritesPlayedResult && s.playedOut) {
-			s.result = game.ForfeitToRemaining(s.seats, seat, reason)
+			s.Ending = game.Ending{}.Concluded(game.ForfeitToRemaining(s.seats, seat, reason))
 		}
 		return s, nil
 	}
@@ -161,7 +163,7 @@ func (s tableState) Eliminate(seat game.Seat, reason game.ResultReason) (game.St
 	}
 	s.alive = slices.DeleteFunc(slices.Clone(s.alive), func(a game.Seat) bool { return a == seat })
 	if len(s.alive) < 2 || s.flaw == finishOnFirstElimination {
-		s.result, s.finished = game.Result{Kind: game.ResultDecisive, Winners: s.alive, Reason: reason}, true
+		s.Ending = s.Concluded(game.WinFor(reason, s.alive...))
 	}
 	return s, nil
 }

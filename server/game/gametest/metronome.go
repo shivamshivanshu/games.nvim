@@ -64,23 +64,18 @@ func (MetronomeRules) Info() game.Info {
 	}
 }
 
-func (MetronomeRules) New(_ struct{}, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[MetronomeAction, MetronomeView], map[game.UserID]game.Seat, error) {
-	if len(invitees) > 0 {
-		return nil, nil, game.BadRequestError{Msg: "metronome is solo"}
-	}
+func (MetronomeRules) New(_ struct{}, challenger game.UserID, _ []game.UserID, _ *rand.Rand) (game.State[MetronomeAction, MetronomeView], map[game.UserID]game.Seat, error) {
 	return metronomeState{}, map[game.UserID]game.Seat{challenger: MetronomeSeat}, nil
 }
 
 type metronomeState struct {
+	game.Ending
 	total, ticks, taps int
 	paused             bool
-	result             *game.Result
 }
 
 func (s metronomeState) Apply(seat game.Seat, a MetronomeAction, _ *rand.Rand) (game.State[MetronomeAction, MetronomeView], []game.Event, error) {
 	switch {
-	case s.result != nil || seat != MetronomeSeat:
-		return nil, nil, game.ErrNotYourTurn
 	case a.Kind == MetronomePause && !s.paused:
 		s.paused = true
 	case a.Kind == MetronomeResume && s.paused:
@@ -88,20 +83,20 @@ func (s metronomeState) Apply(seat game.Seat, a MetronomeAction, _ *rand.Rand) (
 	case a.Kind == MetronomeTap:
 		s.taps++
 	default:
-		return nil, nil, game.IllegalActionError{Msg: "cannot " + string(a.Kind) + " now"}
+		return nil, nil, game.Illegalf("cannot %s now", a.Kind)
 	}
 	return s, nil, nil
 }
 
 func (s metronomeState) NextTick() (time.Duration, bool) {
-	return MetronomeInterval, s.result == nil && !s.paused
+	return MetronomeInterval, !s.Over() && !s.paused
 }
 
 func (s metronomeState) Tick(rng *rand.Rand) (game.State[MetronomeAction, MetronomeView], []game.Event) {
 	s.total += 1 + rng.IntN(3)
 	s.ticks++
 	if s.total >= MetronomeTarget {
-		s.result = &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{MetronomeSeat}, Reason: ReasonTargetReached}
+		s.Ending = s.Concluded(game.WinFor(ReasonTargetReached, MetronomeSeat))
 	}
 	return s, []game.Event{BeatEvent{Total: s.total}}
 }
@@ -116,22 +111,18 @@ func (s metronomeState) View(game.Seat) MetronomeView {
 }
 
 func (s metronomeState) ToAct() []game.Seat {
-	if s.result != nil {
+	if s.Over() {
 		return []game.Seat{}
 	}
 	return []game.Seat{MetronomeSeat}
 }
 
-func (s metronomeState) Outcome() (game.Result, bool) {
-	if s.result == nil {
-		return game.Result{}, false
-	}
-	return *s.result, true
+func (s metronomeState) Conclude(r game.Result) game.State[MetronomeAction, MetronomeView] {
+	s.Ending = s.Concluded(r)
+	return s
 }
 
 func (s metronomeState) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[MetronomeAction, MetronomeView], []game.Event) {
-	if s.result == nil {
-		s.result = new(game.ForfeitToRemaining([]game.Seat{MetronomeSeat}, seat, reason))
-	}
+	s.Ending = s.Concluded(game.ForfeitToRemaining([]game.Seat{MetronomeSeat}, seat, reason))
 	return s, nil
 }

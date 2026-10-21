@@ -74,8 +74,13 @@ type endlessMetronome struct{ metronomeState }
 
 func (s endlessMetronome) NextTick() (time.Duration, bool) { return MetronomeInterval, true }
 
+// restlessMetronome ticks on through a pause.
+type restlessMetronome struct{ metronomeState }
+
+func (s restlessMetronome) Pause() game.State[MetronomeAction, MetronomeView] { return s }
+
 func TestRunRejectsTicksTheGameDoesNotWant(t *testing.T) {
-	finished := metronomeState{result: &game.Result{Kind: game.ResultDraw}}
+	finished := metronomeState{Ending: game.Ending{}.Concluded(game.Result{Kind: game.ResultDraw})}
 	tests := []struct {
 		name  string
 		check func(testing.TB)
@@ -84,6 +89,9 @@ func TestRunRejectsTicksTheGameDoesNotWant(t *testing.T) {
 		{"a finished state that wants a tick", func(tb testing.TB) {
 			observe(tb, game.State[MetronomeAction, MetronomeView](endlessMetronome{finished}), []game.Seat{MetronomeSeat})
 		}, "a finished state wants a tick"},
+		{"a pause that leaves a tick due", func(tb testing.TB) {
+			checkStops(tb, game.State[MetronomeAction, MetronomeView](restlessMetronome{}), []game.Seat{MetronomeSeat}, "fresh")
+		}, "fresh: Pause left a tick due"},
 		{"a tick of a paused state", func(tb testing.TB) {
 			_, _, _ = advance(tb, game.State[MetronomeAction, MetronomeView](metronomeState{paused: true}), Step[MetronomeAction]{Kind: StepTick}, nil)
 		}, "a tick step on a state that wants no tick"},

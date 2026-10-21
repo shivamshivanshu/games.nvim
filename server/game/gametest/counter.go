@@ -93,10 +93,10 @@ func newCounter(o CounterOpts, challenger game.UserID, invitees []game.UserID) (
 }
 
 type counterState struct {
+	game.Ending
 	total, step, turn int
 	order             []game.Seat
 	added             []int
-	result            *game.Result
 }
 
 func (s counterState) Apply(seat game.Seat, a CounterAction, _ *rand.Rand) (game.State[CounterAction, CounterView], []game.Event, error) {
@@ -108,20 +108,15 @@ func (s counterState) Apply(seat game.Seat, a CounterAction, _ *rand.Rand) (game
 }
 
 func (s counterState) apply(seat game.Seat, a CounterAction) (counterState, []game.Event, error) {
-	switch {
-	case s.result != nil:
-		return s, nil, game.IllegalActionError{Msg: "game is over"}
-	case seat != s.order[s.turn]:
-		return s, nil, game.ErrNotYourTurn
-	case a.Add < 0:
-		return s, nil, game.IllegalActionError{Msg: "negative add"}
+	if a.Add < 0 {
+		return s, nil, game.Illegalf("negative add")
 	}
 	s.total += a.Add * s.step
 	s.added = slices.Clone(s.added)
 	s.added[s.turn] += a.Add * s.step
 	s.turn = (s.turn + 1) % len(s.order)
 	if s.total >= CounterTarget {
-		s.result = &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat}, Reason: ReasonTargetReached}
+		s.Ending = s.Concluded(game.WinFor(ReasonTargetReached, seat))
 	}
 	return s, []game.Event{CountedEvent{By: seat, Total: s.total}}, nil
 }
@@ -129,17 +124,15 @@ func (s counterState) apply(seat game.Seat, a CounterAction) (counterState, []ga
 func (s counterState) View(game.Seat) CounterView { return CounterView{Total: s.total} }
 
 func (s counterState) ToAct() []game.Seat {
-	if s.result != nil {
+	if s.Over() {
 		return []game.Seat{}
 	}
 	return []game.Seat{s.order[s.turn]}
 }
 
-func (s counterState) Outcome() (game.Result, bool) {
-	if s.result == nil {
-		return game.Result{}, false
-	}
-	return *s.result, true
+func (s counterState) Conclude(r game.Result) game.State[CounterAction, CounterView] {
+	s.Ending = s.Concluded(r)
+	return s
 }
 
 func (s counterState) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[CounterAction, CounterView], []game.Event) {
@@ -147,9 +140,7 @@ func (s counterState) Eliminate(seat game.Seat, reason game.ResultReason) (game.
 }
 
 func (s counterState) eliminate(seat game.Seat, reason game.ResultReason) counterState {
-	if s.result == nil {
-		s.result = new(game.ForfeitToRemaining(s.order, seat, reason))
-	}
+	s.Ending = s.Concluded(game.ForfeitToRemaining(s.order, seat, reason))
 	return s
 }
 
@@ -161,6 +152,11 @@ func (s scoredCounterState) Apply(seat game.Seat, a CounterAction, _ *rand.Rand)
 		return nil, nil, err
 	}
 	return scoredCounterState{next}, events, nil
+}
+
+func (s scoredCounterState) Conclude(r game.Result) game.State[CounterAction, CounterView] {
+	s.Ending = s.Concluded(r)
+	return s
 }
 
 func (s scoredCounterState) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[CounterAction, CounterView], []game.Event) {
