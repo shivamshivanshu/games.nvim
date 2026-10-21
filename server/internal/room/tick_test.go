@@ -269,3 +269,36 @@ func TestFailedTickPersistRetriesAfterDelay(t *testing.T) {
 		t.Fatalf("seq %d after the retry, want 1", u.Seq)
 	}
 }
+
+func TestFailedPausePersistHoldsTicksAndRetries(t *testing.T) {
+	h := newMetronomeHarness(t)
+	h.persist.setFail(errors.New("disk full"))
+	if err := h.room.Pause(t.Context(), away); err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(retryDelay)}, h.clock.Armed()); diff != "" {
+		t.Fatalf("armed after a failed pause (-want +got):\n%s", diff)
+	}
+	h.persist.setFail(nil)
+	u := h.advance(t, retryDelay)
+	if steps, _ := h.persist.recorded(); !slices.Equal(stepKinds(steps), []store.StepKind{store.StepPause}) || !metronomeView(t, u).Paused {
+		t.Fatalf("after the retry recorded %v, view %s; want the pause alone", stepKinds(steps), u.View)
+	}
+	if armed := h.clock.Armed(); len(armed) != 0 {
+		t.Fatalf("armed %v once paused", armed)
+	}
+}
+
+func TestFailedPauseIsDroppedOnceThePlayerIsBack(t *testing.T) {
+	h := newMetronomeHarness(t)
+	h.persist.setFail(errors.New("disk full"))
+	gone := true
+	if err := h.room.Pause(t.Context(), func() bool { return gone }); err != nil {
+		t.Fatal(err)
+	}
+	h.persist.setFail(nil)
+	gone = false
+	if u := h.advance(t, retryDelay); u.Seq != 1 || metronomeView(t, u).Paused {
+		t.Fatalf("player back before the retry: seq %d, view %s; want ticking", u.Seq, u.View)
+	}
+}

@@ -13,9 +13,9 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-// retryDelay paces retries after a timeout or a tick fails to persist, so a
-// flag that is already down or a tick already due does not re-fire in a tight
-// loop.
+// retryDelay paces retries after a timeout, a tick or a pause fails to
+// persist, so a flag that is already down or a tick already due does not
+// re-fire in a tight loop.
 const retryDelay = time.Second
 
 func (s roomState) left(user game.UserID, at time.Time) time.Duration {

@@ -51,6 +51,9 @@ func (s roomState) applyPause(g Setup) roomState {
 }
 
 func (r *Room) tickIfDue() {
+	if !r.settlePause() {
+		return
+	}
 	now := r.setup.Time.Now()
 	if !r.cur.ticking() || now.Before(r.cur.nextTickAt) {
 		return
@@ -65,15 +68,32 @@ func (r *Room) tickIfDue() {
 // when the player goes away. away is asked on the room's actor, where steps
 // are ordered: a pause that comes after the player is back is dropped, so it
 // cannot stop a game they have just resumed. A game that is not ticking is
-// left as it is.
+// left as it is. A pause that fails to persist is kept, holding the ticks
+// back, and retried as a tick is.
 func (r *Room) Pause(ctx context.Context, away func() bool) error {
 	_, err := ask(ctx, r, func() (game.Seq, error) {
-		if !away() {
-			return r.cur.seq, nil
-		}
-		return r.pause()
+		r.pauseWanted = away
+		r.settlePause()
+		return r.cur.seq, nil
 	}, func() (game.Seq, error) { return 0, nil })
 	return err
+}
+
+// settlePause persists the pause wanted while its player is still away, and
+// reports whether none is left waiting to persist.
+func (r *Room) settlePause() bool {
+	if r.pauseWanted == nil {
+		return true
+	}
+	if r.pauseWanted() {
+		if _, err := r.pause(); err != nil {
+			slog.Error("room: persist pause", "game", r.setup.ID, "err", err)
+			r.armIn(retryDelay)
+			return false
+		}
+	}
+	r.pauseWanted = nil
+	return true
 }
 
 func (r *Room) pause() (game.Seq, error) {

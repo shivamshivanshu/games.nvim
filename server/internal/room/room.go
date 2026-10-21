@@ -397,6 +397,10 @@ type Room struct {
 	inbox  chan func()
 	done   chan struct{}
 	exited chan struct{}
+
+	// pauseWanted is a pause asked for, while its player is away, that has
+	// yet to persist.
+	pauseWanted func() bool
 }
 
 func Start(ctx context.Context, g Setup, state game.ErasedState) *Room {
