@@ -258,6 +258,9 @@ M.ResultReason = {
   ABORTED = "aborted",
 }
 
+---The reason a game played alone ends once its player solves it, as fifteen and mastermind do.
+M.SOLVED_REASON = "solved"
+
 ---@enum games.ResultKind
 M.ResultKind = {
   DECISIVE = "decisive",

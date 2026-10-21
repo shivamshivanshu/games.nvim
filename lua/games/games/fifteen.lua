@@ -4,6 +4,7 @@ local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local tables = require("games.core.tables")
+local types = require("games.types")
 
 ---@alias games.FifteenSeat "solver"
 
@@ -33,7 +34,6 @@ local SLIDE_KIND, MOVE_KIND = "slide", "move"
 local MOVABLE_MARKER = "movable"
 local MOVABLE_HL = "GamesMovable"
 local SOLVED_HL = "GamesWin"
-local SOLVED_REASON = "solved"
 local MOVES_LABEL = "moves"
 ---Display columns the status panel reserves: the label, a space, and up to 5 digits.
 local PANEL_WIDTH = #MOVES_LABEL + 1 + 5
@@ -57,7 +57,7 @@ end
 ---@param movable table<integer, true> the tiles that may slide
 ---@return games.GridMark[] the movable tiles while playing; every tile once solved
 local function marks_for(update, movable)
-  local solved = update.result and update.result.reason == SOLVED_REASON
+  local solved = update.result and update.result.reason == types.SOLVED_REASON
   return grid.marks_where(update.view.tiles, function(tile)
     if solved and tile ~= BLANK then
       return SOLVED_HL

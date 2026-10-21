@@ -3,6 +3,7 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
+local types = require("games.types")
 
 ---@alias games.MastermindColour "r"|"g"|"b"|"y"|"o"|"p"
 
@@ -45,7 +46,6 @@ local Key = {
 }
 local PEG_MARKER = "peg"
 local SOLVED_HL = "GamesWin"
-local SOLVED_REASON = "solved"
 
 ---@type table<games.MastermindColour, string>
 local PEG_HL = {
@@ -119,7 +119,7 @@ end
 ---@return games.GridMark[] the solving guess's pegs, once the server says the code is solved
 local function marks_for(update)
   local view = update.view
-  if not (update.result and update.result.reason == SOLVED_REASON) then
+  if not (update.result and update.result.reason == types.SOLVED_REASON) then
     return {}
   end
   return vim
