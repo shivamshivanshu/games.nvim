@@ -18,6 +18,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Poker | 2–6 | [docs/games/poker.md](docs/games/poker.md) |
 | Gomoku | 2 | [docs/games/gomoku.md](docs/games/gomoku.md) |
 | Reversi | 2 | [docs/games/reversi.md](docs/games/reversi.md) |
+| Chess puzzles and study | 1 (solo) | [docs/games/chess_puzzle.md](docs/games/chess_puzzle.md) |
 
 ## Requirements
 
@@ -189,6 +190,8 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 | `:Games next` | open the next game waiting on your move |
 | `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or failed |
 | `:Games find [source]` | fuzzy-find `requests`, `games`, `types`, `players` or `puzzles`; asks which when no source is given; see Finder below |
+| `:Games import <file> [set]` | import a Lichess puzzle `.csv` or a `.pgn` into a puzzle set, by default named after the file; needs no server. Reports each entry it could not read; a PGN game without a `FEN` header is a study, and one prompt asks which side to study |
+| `:Games puzzle [set]` | start the next entry of a puzzle set (default: the latest imported) as a `chess_puzzle` game and open it; the set completes from the saved sets |
 
 Incoming challenges and moves in boards you are not viewing arrive as `vim.notify` messages. Accepting a challenge opens the board when the game starts.
 
@@ -234,7 +237,7 @@ The dashboard closes when focus moves to an ordinary window, such as a board's; 
 | `games` | ongoing games, your move first, then finished ones, newest first | open | resign, or give up for a solo game |
 | `types` | the server's game types, with their options and actions | start | leaderboard |
 | `players` | other users, online first, with the server's ranking | challenge | stats |
-| `puzzles` | nothing yet: puzzle sets arrive with chess puzzles | | |
+| `puzzles` | nothing yet: use `:Games puzzle` for puzzle sets | | |
 
 The finder is a thin adapter over whichever picker is installed, tried in this order: [snacks.picker](https://github.com/folke/snacks.nvim), [telescope](https://github.com/nvim-telescope/telescope.nvim), [fzf-lua](https://github.com/ibhagwan/fzf-lua); `picker = "..."` forces one. Each is optional. In snacks, telescope and fzf-lua, `<M-CR>` asks which of the item's actions to run. Without any of them it falls back to `vim.ui.select`, which has no preview: picking an item runs `<CR>`'s action, or asks which action for a request.
 
@@ -276,6 +279,8 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `r` | roll the die (ludo), on your roll |
 | `1`-`4` | move that token by your roll (ludo), when it can move |
 | `m` (sudoku) | set a cell: `53 7` writes 7 at row 5, column 3; `53 0` clears it |
+| `m` (chess puzzle) | your move, SAN or UCI as in chess; in puzzle mode a wrong move ends the game |
+| `n` | reveal the line's move (chess puzzle, study mode only); counts as a miss |
 | `]g` | next game waiting on your move |
 | `q` | close |
 

@@ -298,6 +298,24 @@ An action object always carries `kind`.
   - `discs` counts each seat's discs on the board.
 - Actions: `place` (`cell`: `a`-`h` then `1`-`8`, e.g. `"d3"`), as in Gomoku. A cell that flips nothing is an `illegal_action`.
 
+### Chess puzzle
+
+- Solo: one seat, `solver`; start it with `game.start`. The client supplies the whole line in the options:
+  - `mode`: `puzzle` (default; a wrong move ends the game) or `study` (a wrong guess is a miss);
+  - `fen`: the start position, text of at most 100 bytes; `""` is the standard start;
+  - `moves`: the line, both sides, space-separated SAN or UCI, 1 to 600 plies;
+  - `player`: `white` (default) or `black`, the side the solver plays.
+- `game.start` checks the line: a FEN that does not parse, a move that does not replay (`ply 3: illegal move: Nf6`), a line of 0 or more than 600 plies, or one with no move for `player` is a `bad_request`.
+- The server plays every move of the other side, at the start and after each of the solver's, so a Lichess row's first move (the opponent's) needs no special case.
+- Reasons: `solved` (puzzle: the line played out, or any mate), `wrong_move` (puzzle, a loss), `completed` (study, a win).
+- Events, all `by` the solver's seat: `moved {by, san}` (the solver's accepted move), `replied {by, san}` (the server's move for the other side), `missed {by, san}` (a legal move that is not the line's), `revealed {by, san}` (the line's move, played on `reveal`).
+- View `{fen, history_san, last_move, legal_moves, check_square, mode, misses, remaining, solution}`:
+  - `fen`, `history_san`, `last_move` and `check_square` are as in chess; `history_san` starts at the given FEN;
+  - `legal_moves` is in UCI while the game runs, `[]` once it is over, however it ends;
+  - `misses` counts missed and revealed moves; `remaining` counts the solver's moves left in the line;
+  - `solution` is `[]` until the game is over, then the whole line in SAN.
+- Actions: `move` (`text`: SAN or UCI, any case) and `reveal` (study mode only). A move that is not legal is an `illegal_action` and costs nothing. In puzzle mode a move other than the line's that mates is accepted as the solve.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
