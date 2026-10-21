@@ -67,7 +67,6 @@ local TITLES = { "your fleet", "target" }
 local PLACE_KIND = { across = "place_across", down = "place_down" }
 local FIRE_KIND, RANDOM_KIND = "fire", "random"
 local BERTH_KEY, BLOCKED_KEY, AIM_KEY = "berth", "blocked", "aim"
-local EMPTY_TILE = "empty"
 ---@type table<games.BattleshipTile, games.Hl>
 local TILE_HL = {
   empty = "GamesMuted",
@@ -134,6 +133,13 @@ local function berthable(view, at)
   return contains(view.anchors[at.orientation], at)
 end
 
+---@param view games.BattleshipView
+---@param at games.GridPos
+---@return boolean whether the viewer may fire at the cursor's cell
+local function open_water(view, at)
+  return contains(view.targets, at)
+end
+
 ---@param tiles games.BattleshipTile[][]
 ---@param overlay table<integer, table<integer, string>> row -> col -> key drawn over the tile
 ---@return fun(r: integer, c: integer): games.GridCell
@@ -186,7 +192,8 @@ local function layers(update, ctx)
       mark(own, cell, legal and BERTH_KEY or BLOCKED_KEY, legal and BERTH_HL or BLOCKED_HL)
     end
   elseif firing(update) then
-    mark(target, at, view.target[at.row][at.col] == EMPTY_TILE and AIM_KEY or nil, AIM_HL)
+    local open = open_water(view, at)
+    mark(target, at, open and AIM_KEY or BLOCKED_KEY, open and AIM_HL or BLOCKED_HL)
   end
   return own, target
 end
@@ -219,7 +226,8 @@ local function status_lines(update, ctx)
     }
   end
   if firing(update) then
-    return { "your shot", "at " .. cell_name(at) }
+    local where = "at " .. cell_name(at)
+    return { "your shot", open_water(view, at) and where or (where .. ": fired") }
   end
   if view.phase == "over" then
     return { "game over", "" }
@@ -270,8 +278,8 @@ end
 
 local M = {}
 
----@type string[] keys every battleship asset pack draws: each tile, the ship being placed where
----it fits or not, and the aim on a square not yet fired at
+---@type string[] keys every battleship asset pack draws: each tile; the ship being placed where it
+---fits and the aim where a shot may go; and either where it may not
 M.asset_keys = { "empty", "ship", "miss", "hit", "sunk", BERTH_KEY, BLOCKED_KEY, AIM_KEY }
 
 ---@param update games.BattleshipUpdate
@@ -312,17 +320,17 @@ M.actions = vim.list_extend(cursor.moves(BOUNDS, aiming), {
   {
     key = "<CR>",
     label = function(update)
-      return placing(update) and ("place " .. update.view.next.name) or "fire"
+      return placing(update) and "place" or "fire"
     end,
     act = function(update, view)
       local at = cursor.of(view)
       if placing(update) then
         return { kind = PLACE_KIND[at.orientation], cell = cell_name(at) }
       end
-      return firing(update) and { kind = FIRE_KIND, cell = cell_name(at) } or nil
+      return open_water(update.view, at) and { kind = FIRE_KIND, cell = cell_name(at) } or nil
     end,
   },
-  { key = "f", label = "random fleet", action = { kind = RANDOM_KIND }, available = placing },
+  { key = "f", label = "fill", action = { kind = RANDOM_KIND }, available = placing },
 })
 
 ---@param event games.Event

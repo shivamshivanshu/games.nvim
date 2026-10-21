@@ -51,7 +51,7 @@ function T.moving_keys_share_one_label_and_follow_their_availability()
   assert(vim.iter(moves):all(function(m)
     return m.label == "move" and m.available == available
   end))
-  assert_eq({ key = "r", label = "rotate", available = available }, {
+  assert_eq({ key = "r", label = "turn", available = available }, {
     key = cursor.rotate(available).key,
     label = cursor.rotate(available).label,
     available = cursor.rotate(available).available,

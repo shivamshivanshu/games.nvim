@@ -41,8 +41,8 @@ local function art_set()
 end
 
 ---Battleship squares: water, a ship, a miss, a hit and a sunk ship, the ship being placed where it
----fits and where it does not, and the aim; each its own glyph so no state rests on colour, with
----block art in cells 2 lines tall and up.
+---fits, the aim, and either where it may not go; each its own glyph so no state rests on colour,
+---with block art in cells 2 lines tall and up.
 ---@type games.AssetPack
 return {
   name = "default",

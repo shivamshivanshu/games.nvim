@@ -29,7 +29,7 @@ local MOVES = {
   { key = "l", d_row = 0, d_col = 1 },
 }
 local MOVE_LABEL = "move"
-local ROTATE_KEY, ROTATE_LABEL = "r", "rotate"
+local ROTATE_KEY, ROTATE_LABEL = "r", "turn"
 
 ---@type games.GridCursor
 local START = { row = 1, col = 1, orientation = M.Orientation.ACROSS }

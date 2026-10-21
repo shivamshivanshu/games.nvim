@@ -51,6 +51,9 @@ local function fleet(states)
     :totable()
 end
 
+---Both seats have acted once both fleets are placed, so abort is over.
+local BATTLE_CONTROLS = { "resign" }
+
 local AFLOAT = fleet({ "afloat", "afloat", "afloat", "afloat", "afloat" })
 
 ---@param view table fields over an empty board
@@ -93,21 +96,24 @@ end
 ---last sank his destroyer on i1-i2.
 ---@return games.BattleshipUpdate
 local function firing()
+  local target = tiles({ "........*.", "........*.", "", "", "", "", "", "", "", ".........o" })
   local targets = {}
   for r = 1, 10 do
     for c = 1, 10 do
-      targets[#targets + 1] = { row = r, col = c }
+      if target[r][c] == "empty" then
+        targets[#targets + 1] = { row = r, col = c }
+      end
     end
   end
   return update({
     phase = "battle",
     own = tiles({ "#####....o", "", "####", "", "###", "", "###", "", "**" }),
-    target = tiles({ "........*.", "........*.", "", "", "", "", "", "", "", ".........o" }),
+    target = target,
     fleet = fleet({ "afloat", "afloat", "afloat", "afloat", "sunk" }),
     enemy = fleet({ "afloat", "afloat", "afloat", "afloat", "sunk" }),
     targets = targets,
     last = { by = "p1", cell = { row = 2, col = 9 }, outcome = "sunk", ship = "destroyer" },
-  }, { to_act = { "alice" } })
+  }, { to_act = { "alice" }, controls = BATTLE_CONTROLS })
 end
 
 ---@param rendered games.Rendered
@@ -243,24 +249,26 @@ function T.a_finished_board_shows_the_opponents_ships_and_offers_nothing()
 end
 
 function T.keys_follow_the_phase_and_the_catalogue()
-  local waiting = update({ phase = "battle" }, { to_act = { "bob" } })
+  local waiting = update({ phase = "battle" }, { to_act = { "bob" }, controls = BATTLE_CONTROLS })
   local cases = {
     {
       placing(),
       CATALOGUED,
-      "R resign  A abort  h,j-l move  r rotate  <CR> place battleship  f random fleet  ]g next game  q close",
+      "R resign  A abort  h,j-l move  r turn  <CR> place  f fill  ]g next game  q close",
     },
     {
       firing(),
       CATALOGUED,
-      "R resign  A abort  m fire at, e.g. c5  h,j-l move  <CR> fire  ]g next game  q close",
+      "R resign  m fire at, e.g. c5  h,j-l move  <CR> fire  ]g next game  q close",
     },
-    { waiting, CATALOGUED, "R resign  A abort  ]g next game  q close" },
-    { placing(), nil, "R resign  A abort  h,j-l move  r rotate  ]g next game  q close" },
+    { waiting, CATALOGUED, "R resign  ]g next game  q close" },
+    { placing(), nil, "R resign  A abort  h,j-l move  r turn  ]g next game  q close" },
   }
   for _, case in ipairs(cases) do
     local rendered = render(case[1], view_options("ascii"), case[2])
-    assert_eq(case[3], rendered.lines[#rendered.lines])
+    local footer = rendered.lines[#rendered.lines]
+    assert_eq(case[3], footer)
+    assert(vim.fn.strdisplaywidth(footer) <= 80, footer)
   end
 end
 
@@ -295,6 +303,39 @@ function T.enter_sends_the_cursors_cell_as_a_placement_lying_its_way_or_a_shot()
   )
   assert_eq({ kind = "random" }, sent(placing(), nil, "f"))
   assert_eq({ kind = "fire", cell = " d4" }, battleship.input.parse(" d4"))
+end
+
+function T.aiming_where_the_view_offers_no_shot_marks_it_blocked_and_enter_sends_nothing()
+  local grid_width, grid_gap, labels_width = 22, 3, 3
+  local target_col = grid_width + grid_gap + labels_width
+  local fired = { row = 1, col = 9, orientation = "across" }
+  local not_offered = firing()
+  not_offered.view.targets = vim.tbl_filter(function(cell)
+    return not (cell.row == 4 and cell.col == 3)
+  end, not_offered.view.targets)
+  for _, case in ipairs({
+    { firing(), fired, "i1" },
+    { not_offered, { row = 4, col = 3, orientation = "across" }, "c4" },
+  }) do
+    local state, at, name = case[1], case[2], case[3]
+    local rendered, bindings = render(state, view_options("ascii", at), CATALOGUED)
+    local line = rendered.lines[FIRST_BOARD_ROW + at.row - 1]
+    assert_eq("!", line:sub(target_col + 1 + 2 * (at.col - 1), target_col + 1 + 2 * (at.col - 1)))
+    assert_eq(
+      "GamesCheck",
+      hl_at(rendered, FIRST_BOARD_ROW + at.row - 1, target_col + 2 * (at.col - 1))[1]
+    )
+    assert_eq(
+      "at " .. name .. ": fired",
+      vim.trim(lines_of(rendered, FIRST_BOARD_ROW, 1)[1]:sub(51))
+    )
+    assert_eq(
+      nil,
+      vim.iter(bindings):find(function(b)
+        return b.key == "<CR>"
+      end)
+    )
+  end
 end
 
 function T.the_board_and_panel_fit_eighty_columns_at_one_line_a_cell()
