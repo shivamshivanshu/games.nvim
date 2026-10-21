@@ -190,3 +190,20 @@ func TestChess960Perft(t *testing.T) {
 		}
 	}
 }
+
+func TestChess960FENNamesAnInnerCastlingRooksFile(t *testing.T) {
+	tests := []struct{ name, rank, fen, want string }{
+		{"position 773, the outermost rook castles", "QRBBKNRN", "4k3/8/8/8/8/8/8/4K1R1 w K - 0 1", "4k3/8/8/8/8/8/8/4K1R1 w K - 0 1"},
+		{"another white rook beyond it", "QRBBKNRN", "4k3/8/8/8/8/8/8/4K1RR w K - 0 1", "4k3/8/8/8/8/8/8/4K1RR w G - 0 1"},
+		{"another black rook beyond it", "QRBBKNRN", "4k1rr/8/8/8/8/8/8/4K3 b k - 0 1", "4k1rr/8/8/8/8/8/8/4K3 b g - 0 1"},
+		{"queenside, beyond on the a-side", "NRNBKQBR", "rr2k3/8/8/8/8/8/8/RR2K3 w Qq - 0 1", "rr2k3/8/8/8/8/8/8/RR2K3 w Bb - 0 1"},
+		{"a rook of the other colour does not count", "QRBBKNRN", "4k3/8/8/8/8/8/8/4K1Rr w K - 0 1", "4k3/8/8/8/8/8/8/4K1Rr w K - 0 1"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := chess960At(t, tc.rank, tc.fen).FEN(); got != tc.want {
+				t.Errorf("FEN %s, want %s", got, tc.want)
+			}
+		})
+	}
+}

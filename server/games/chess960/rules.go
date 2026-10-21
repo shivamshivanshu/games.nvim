@@ -8,7 +8,7 @@ import (
 )
 
 const moveDescription = "A move in SAN or UCI, any case, e.g. e4, Nf3, exd8=Q, e2e4; " +
-	"castle as O-O, O-O-O or the king onto its own rook, e.g. e1h1."
+	"castle as O-O, O-O-O or the king onto its own rook, e.g. f1h1."
 
 // Rules implements game.Rules for Chess960: chess's, from a drawn start.
 type Rules struct{}

@@ -24,6 +24,7 @@ A separate game type from `chess`, so its games keep their own stats and leaderb
   - the king is not in check, and no square it crosses or lands on is attacked;
   - the king is not in check once both have moved, which rules out a castle whose rook was shielding the king from an attack along the rank.
 - Written in UCI as the king's move onto its own rook: `f1h1`, `b1a1`. This is how the server lists it in `legal_moves` and `last_move`, and the board tints those two squares as the last move.
+- The FEN is X-FEN: the castling field writes `K`, `Q`, `k` or `q` while the castling rook is the outermost rook of its colour on that side of the king, and otherwise the rook's file (`G` for white's g1 rook once another white rook stands on h1).
 
 ## Move input
 - As in chess: SAN or UCI, any case.
@@ -44,6 +45,5 @@ Chess's: `m` move, `C` claim draw (when the server marks one claimable), `F` fli
 - `game.pgn` has the Seven Tag Roster, then `[Variant "Chess960"]`, `[SetUp "1"]` and `[FEN "<start>"]`, even from position 518. Castles are `O-O` / `O-O-O` in the movetext.
 
 ## Known limits
-- The FEN castling field is always `KQkq`-style. At the start these name the outermost rooks, which are the castling rooks, so the start FEN and the PGN tag are exact X-FEN. Mid-game, if another rook of the same colour ends up beyond the castling rook on its side, X-FEN would name the rook's file instead; the view's FEN does not.
 - Standard chess FENs are the only ones the server reads; a Chess960 FEN cannot seed `chess_puzzle`.
 - No choice of start position, and no mirrored or "double" Fischer random variants.

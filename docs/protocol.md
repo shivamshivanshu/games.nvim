@@ -469,7 +469,7 @@ An action object always carries `kind`.
 - The start position is drawn from the game's seed at the start: one of 960 back ranks (bishops on opposite colours, the king between the rooks), mirrored for black.
 - View: chess's, plus `start_position` (its number, 0 to 959, in Scharnagl's numbering; 518 is the standard array) and `start_fen` (the start position's FEN, which the move list numbers from).
 - Castling ends as in chess, the king on the g- or c-file and the rook on the f- or d-file. It is written as the king's move onto its own rook: UCI `f1h1`, also in `legal_moves` and `last_move`. `move` also takes `O-O` and `O-O-O`; a king's move to the g- or c-file is a plain king move, never a castle.
-- The FEN castling field is `KQkq`, naming the outermost rooks at the start.
+- The FEN castling field is X-FEN: `K`, `Q`, `k` or `q` while the castling rook is the outermost rook of its colour on that side of the king, otherwise that rook's file (`G` for a white rook on g1 with another on h1, lower case for black). The server reads only standard FENs.
 - `game.pgn` adds `[Variant "Chess960"]`, `[SetUp "1"]` and the start `[FEN]`, even from position 518.
 
 ## Stats

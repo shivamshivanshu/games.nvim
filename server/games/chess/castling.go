@@ -5,12 +5,15 @@ import (
 	"slices"
 )
 
-// variant is the rule set a game castles by.
-type variant uint8
+// castleMove is how a castle is written as the king's move.
+type castleMove uint8
 
 const (
-	standard variant = iota
-	chess960
+	// kingToDestination is standard chess's: e1g1.
+	kingToDestination castleMove = iota
+	// kingOntoRook is Chess960's, where the destination may be a plain king
+	// step or the king's own square: f1h1.
+	kingOntoRook
 )
 
 const (
@@ -33,36 +36,33 @@ type castling struct {
 	san              string
 	kingFrom, kingTo Square
 	rookFrom, rookTo Square
-	// move is the castle as the king's move: onto kingTo in standard chess,
-	// onto rookFrom in Chess960, where kingTo may be a plain king move too.
-	move        Move
-	mustBeEmpty []Square
-	kingPath    []Square
+	move             Move
+	mustBeEmpty      []Square
+	kingPath         []Square
 }
 
 // castlingLayout is every castle's start and landing squares, fixed for a
 // game by its start position.
 type castlingLayout struct {
-	variant   variant
 	castlings [4]castling
 }
 
-var standardLayout = newCastlingLayout(standard, standardKingFile, standardKingsideRookFile, standardQueensideRookFile)
+var standardLayout = newCastlingLayout(kingToDestination, standardKingFile, standardKingsideRookFile, standardQueensideRookFile)
 
-func newCastlingLayout(v variant, kingFile, kingsideRookFile, queensideRookFile int) *castlingLayout {
+func newCastlingLayout(written castleMove, kingFile, kingsideRookFile, queensideRookFile int) *castlingLayout {
 	kingside := castleSide{san: kingsideCastleSAN, kingToFile: 6, rookToFile: 5}
 	queenside := castleSide{san: queensideCastleSAN, kingToFile: 2, rookToFile: 3}
-	return &castlingLayout{variant: v, castlings: [...]castling{
-		newCastling(v, 'K', White, WhiteKingside, kingFile, kingsideRookFile, kingside),
-		newCastling(v, 'Q', White, WhiteQueenside, kingFile, queensideRookFile, queenside),
-		newCastling(v, 'k', Black, BlackKingside, kingFile, kingsideRookFile, kingside),
-		newCastling(v, 'q', Black, BlackQueenside, kingFile, queensideRookFile, queenside),
+	return &castlingLayout{castlings: [...]castling{
+		newCastling(written, 'K', White, WhiteKingside, kingFile, kingsideRookFile, kingside),
+		newCastling(written, 'Q', White, WhiteQueenside, kingFile, queensideRookFile, queenside),
+		newCastling(written, 'k', Black, BlackKingside, kingFile, kingsideRookFile, kingside),
+		newCastling(written, 'q', Black, BlackQueenside, kingFile, queensideRookFile, queenside),
 	}}
 }
 
 // newCastling needs empty every square the king or the rook crosses or lands
 // on, but for the two of them, and the king safe on each it crosses or lands on.
-func newCastling(v variant, letter byte, color Color, right CastlingRights, kingFile, rookFile int, side castleSide) castling {
+func newCastling(written castleMove, letter byte, color Color, right CastlingRights, kingFile, rookFile int, side castleSide) castling {
 	rank := homeRank(color)
 	c := castling{
 		letter:   letter,
@@ -75,7 +75,7 @@ func newCastling(v variant, letter byte, color Color, right CastlingRights, king
 		rookTo:   NewSquare(side.rookToFile, rank),
 	}
 	c.move = Move{From: c.kingFrom, To: c.kingTo}
-	if v == chess960 {
+	if written == kingOntoRook {
 		c.move.To = c.rookFrom
 	}
 	isMover := func(sq Square) bool { return sq == c.kingFrom || sq == c.rookFrom }
@@ -108,7 +108,8 @@ func (p Position) castlings() []castling {
 	return p.layout.castlings[:]
 }
 
-func (p Position) isChess960() bool { return p.layout != nil && p.layout.variant == chess960 }
+// isChess960 holds for a position from Chess960Position; ParseFEN's are standard.
+func (p Position) isChess960() bool { return p.layout != nil }
 
 // BackRank is a side's first rank, from the a-file to the h-file.
 type BackRank [fileCount]PieceKind
@@ -134,7 +135,7 @@ func Chess960Position(rank BackRank) (Position, error) {
 		Castling:       WhiteKingside | WhiteQueenside | BlackKingside | BlackQueenside,
 		EnPassant:      NoSquare,
 		FullmoveNumber: 1,
-		layout:         newCastlingLayout(chess960, kingFile, rookFiles[1], rookFiles[0]),
+		layout:         newCastlingLayout(kingOntoRook, kingFile, rookFiles[1], rookFiles[0]),
 	}
 	for file, kind := range rank {
 		p.Board[NewSquare(file, homeRank(White))] = Piece{Kind: kind, Color: White}

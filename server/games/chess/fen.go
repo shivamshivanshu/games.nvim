@@ -174,7 +174,7 @@ func (p Position) castlingField() string {
 	var field []byte
 	for _, c := range p.castlings() {
 		if p.Castling&c.right != 0 {
-			field = append(field, c.letter)
+			field = append(field, p.castlingLetter(c))
 		}
 	}
 	if len(field) == 0 {
@@ -183,9 +183,34 @@ func (p Position) castlingField() string {
 	return string(field)
 }
 
+// castlingLetter is c's letter as X-FEN writes it: K, Q, k or q while c's rook
+// is the outermost rook of its colour on that side of the king, else the
+// rook's file, upper case for white.
+func (p Position) castlingLetter(c castling) byte {
+	outward := 1
+	if c.rookFrom < c.kingFrom {
+		outward = -1
+	}
+	rook := Piece{Kind: Rook, Color: c.color}
+	for sq, ok := c.rookFrom.step(direction{outward, 0}); ok; sq, ok = sq.step(direction{outward, 0}) {
+		if p.Board[sq] == rook {
+			return fileLetter(c)
+		}
+	}
+	return c.letter
+}
+
 func enPassantField(sq Square) string {
 	if sq == NoSquare {
 		return noneField
 	}
 	return sq.String()
+}
+
+func fileLetter(c castling) byte {
+	letter := byte('a' + c.rookFrom.File())
+	if c.color == White {
+		letter -= 'a' - 'A'
+	}
+	return letter
 }

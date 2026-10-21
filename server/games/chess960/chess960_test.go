@@ -167,7 +167,7 @@ func TestInfoIsChesssUnderItsOwnType(t *testing.T) {
 		t.Errorf("type %q", info.Type)
 	}
 	i := slices.IndexFunc(info.Actions, func(a game.ActionSpec) bool { return a.Kind == chess.ActionMove })
-	if i < 0 || info.Actions[i].Input.Pattern != chess.MovePattern || !strings.Contains(info.Actions[i].Input.Description, "e1h1") {
+	if i < 0 || info.Actions[i].Input.Pattern != chess.MovePattern || !strings.Contains(info.Actions[i].Input.Description, "f1h1") {
 		t.Fatalf("move action %+v", info.Actions)
 	}
 	if chessInfo.Actions[i].Input.Description == info.Actions[i].Input.Description {
