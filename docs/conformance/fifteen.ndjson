@@ -1,0 +1,19 @@
+{"comment": "alice starts a 3x3 fifteen alone and gives up. The shuffle comes from a random seed, so the tiles and the movable tiles are placeholders. Solving is covered by the Go rules tests and the smoke test."}
+{"client": "alice", "send": {"id": 1, "type": "auth.login", "body": {"v": 1, "username": "alice", "password": "correct horse"}}}
+{"client": "alice", "recv": {"id": 1, "type": "ok", "body": {"user": "alice", "heartbeat_ms": 15000}}}
+{"client": "alice", "send": {"id": 2, "type": "game.start", "body": {"game": "fifteen", "options": {"size": "3x3"}}}}
+{"client": "alice", "recv": {"type": "game.update", "body": {"game_id": "$game", "game": "fifteen", "options": {"size": "3x3"}, "seq": 0, "players": [{"user": "alice", "seat": "solver"}], "to_act": ["alice"], "result": null, "clock": null, "draw_agreed": [], "controls": ["resign", "abort"], "events": [], "view": {"tiles": "$tiles", "moves": 0, "movable": "$movable"}, "started_at": "$started_at", "finished_at": null, "summary": null, "digest": null, "exports": null}}}
+{"client": "alice", "recv": {"id": 2, "type": "ok", "body": {"game_id": "$game", "game": "fifteen", "options": {"size": "3x3"}, "seq": 0, "players": [{"user": "alice", "seat": "solver"}], "to_act": ["alice"], "result": null, "clock": null, "draw_agreed": [], "controls": ["resign", "abort"], "events": [], "view": {"tiles": "$tiles", "moves": 0, "movable": "$movable"}, "started_at": "$started_at", "finished_at": null, "summary": null, "digest": null, "exports": null}}}
+{"comment": "A tile the board does not have is an illegal_action, and the game does not move on."}
+{"client": "alice", "send": {"id": 3, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "slide", "tile": "9"}}}}
+{"client": "alice", "recv": {"id": 3, "type": "error", "body": {"code": "illegal_action", "message": "no tile 9 on a 3x3 board"}}}
+{"comment": "So is a direction that is not up, down, left or right."}
+{"client": "alice", "send": {"id": 4, "type": "game.act", "body": {"game_id": "$game", "seq": 0, "action": {"kind": "move", "direction": "north"}}}}
+{"client": "alice", "recv": {"id": 4, "type": "error", "body": {"code": "illegal_action", "message": "want up, down, left or right; got \"north\""}}}
+{"comment": "Giving up is the resign control: a loss with no winner, and the finishing push offers no tile to move."}
+{"client": "alice", "send": {"id": 5, "type": "game.control", "body": {"game_id": "$game", "seq": 0, "control": "resign"}}}
+{"client": "alice", "recv": {"type": "game.update", "body": {"game_id": "$game", "game": "fifteen", "options": {"size": "3x3"}, "seq": 1, "players": [{"user": "alice", "seat": "solver"}], "to_act": [], "result": {"kind": "decisive", "winners": [], "reason": "resign"}, "clock": null, "draw_agreed": [], "controls": [], "events": [], "view": {"tiles": "$tiles", "moves": 0, "movable": []}, "started_at": "$started_at", "finished_at": "$finished_at", "summary": "$summary", "digest": "$digest", "exports": {}}}}
+{"client": "alice", "recv": {"id": 5, "type": "ok", "body": {"seq": 1}}}
+{"comment": "Later reads keep the final view."}
+{"client": "alice", "send": {"id": 6, "type": "game.snapshot", "body": {"game_id": "$game"}}}
+{"client": "alice", "recv": {"id": 6, "type": "ok", "body": {"game_id": "$game", "game": "fifteen", "options": {"size": "3x3"}, "seq": 1, "players": [{"user": "alice", "seat": "solver"}], "to_act": [], "result": {"kind": "decisive", "winners": [], "reason": "resign"}, "clock": null, "draw_agreed": [], "controls": [], "events": [], "view": {"tiles": "$tiles", "moves": 0, "movable": []}, "started_at": "$started_at", "finished_at": "$finished_at", "summary": "$summary", "digest": "$digest", "exports": {}}}}
