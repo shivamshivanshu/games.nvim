@@ -93,6 +93,13 @@ local GAME_CLASS = {
     LetterGuess = "games.HangmanLetterGuess",
     View = "games.HangmanView",
   },
+  minesweeper = {
+    ChordedEvent = "games.MinesweeperChordedEvent",
+    FlaggedEvent = "games.MinesweeperFlaggedEvent",
+    RevealedEvent = "games.MinesweeperRevealedEvent",
+    Square = "games.MinesweeperSquare",
+    View = "games.MinesweeperView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
