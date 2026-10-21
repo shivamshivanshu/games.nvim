@@ -35,14 +35,16 @@ Two players, American/English checkers (straight checkers) on an 8×8 board. The
 - One action is one complete move: `{kind: "move", text}`.
 - **A step** is two squares joined by `-`, e.g. `11-15`.
 - **A capture** lists every landing square joined by `x`, e.g. `15x24` or `15x24x31`.
-- **Matching:** surrounding spaces are trimmed, then the text must equal a legal move exactly. The server parses it; the client sends it raw.
+- **Matching:** the server trims surrounding spaces, tabs and newlines (exactly the regex's `\s`), then the text must equal a legal move. The catalogue pattern accepts squares 1-32 only, with no leading zeros, and the server rejects the same texts with the same regex. The client sends the text raw.
 - **Errors** (`illegal_action`):
 
   | Message | When |
   |---|---|
-  | `illegal move: <text>` | anything else |
-  | `illegal move <text>: a capture is mandatory: 9x18, ...` | a capture exists and the text is not one; the message lists every capture |
+  | `illegal move "<text>": write squares 1-32 joined by - for a step or x for each jump, e.g. 11-15 or 15x24x31` | not move notation, e.g. `9`, `e4`, `01-05`, `99-98` |
   | `illegal move <text>: the jump must continue, as in 9x18x27` | the text stops a chain early |
+  | `illegal move <text>: a capture is mandatory: 9x18, ...` | a capture exists and the text is a step; the message lists every capture |
+  | `illegal move <text>: the captures are 9x18, ...` | a capture exists and the text is a different capture |
+  | `illegal move: <text>` | any other move that is not legal |
 
 - Moving out of turn gives `not_your_turn`.
 

@@ -2,6 +2,7 @@ package checkers
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -9,19 +10,36 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
+const (
+	squarePattern = `([1-9]|[12][0-9]|3[0-2])`
+	// moveSpace is the set RE2's \s matches, so trimming agrees with movePattern.
+	moveSpace = " \t\n\f\r"
+	// movePattern matches the move text matchMove reads: a step, or a capture listing every
+	// landing, each a square 1-32 without leading zeros.
+	movePattern = `^\s*(` + squarePattern + stepSeparator + squarePattern +
+		`|` + squarePattern + `(` + captureSeparator + squarePattern + `)+)\s*$`
+	notationHint = "squares 1-32 joined by - for a step or x for each jump, e.g. 11-15 or 15x24x31"
+)
+
 // matchMove finds the legal move whose text is exactly input, explaining why when none is.
 func matchMove(input string, legal []Move) (Move, error) {
-	text := strings.TrimSpace(input)
+	text := strings.Trim(input, moveSpace)
 	if i := slices.IndexFunc(legal, func(m Move) bool { return m.Text() == text }); i >= 0 {
 		return legal[i], nil
+	}
+	if !regexp.MustCompile(movePattern).MatchString(text) {
+		return Move{}, illegal(fmt.Sprintf("illegal move %q: write %s", text, notationHint))
 	}
 	if continuations := movesExtending(text, legal); len(continuations) > 0 {
 		return Move{}, illegal(fmt.Sprintf("illegal move %s: the jump must continue, as in %s", text, joinTexts(continuations)))
 	}
-	if len(legal) > 0 && legal[0].IsCapture() {
+	if len(legal) == 0 || !legal[0].IsCapture() {
+		return Move{}, illegal("illegal move: " + text)
+	}
+	if !strings.Contains(text, captureSeparator) {
 		return Move{}, illegal(fmt.Sprintf("illegal move %s: a capture is mandatory: %s", text, joinTexts(legal)))
 	}
-	return Move{}, illegal("illegal move: " + text)
+	return Move{}, illegal(fmt.Sprintf("illegal move %s: the captures are %s", text, joinTexts(legal)))
 }
 
 func movesExtending(prefix string, legal []Move) []Move {

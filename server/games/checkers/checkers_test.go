@@ -3,6 +3,7 @@ package checkers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -68,6 +69,16 @@ func TestColorOption(t *testing.T) {
 	}
 }
 
+func TestColorDefaultsToRandom(t *testing.T) {
+	opts, err := game.Adapt(Rules{}).ResolveOptions(json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opts[optionColor]; got != game.OptionValue(ColorRandom) {
+		t.Errorf("default color %q", got)
+	}
+}
+
 func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 	before := newState(StartBoard(), SeatBlack, 0)
 	earlier := []string{"11-15", "23-19", "8-11"}
@@ -85,7 +96,12 @@ func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 	}
 }
 
+func notationError(text string) string {
+	return fmt.Sprintf("illegal move %q: write %s", text, notationHint)
+}
+
 func TestRejectedActions(t *testing.T) {
+	start := newState(StartBoard(), SeatBlack, 0)
 	capture := newState(boardOf(t, "b:9,12 w:14,23 W:32"), SeatBlack, 0)
 	cases := []struct {
 		name    string
@@ -95,12 +111,19 @@ func TestRejectedActions(t *testing.T) {
 		wantMsg string
 	}{
 		{"unknown kind", newState(StartBoard(), SeatBlack, 0), SeatBlack, Action{Kind: "jump"}, "unknown action: jump"},
-		{"garbage", newState(StartBoard(), SeatBlack, 0), SeatBlack, move("e4"), "illegal move: e4"},
+		{"garbage", start, SeatBlack, move("e4"), notationError("e4")},
+		{"a lone square", start, SeatBlack, move("9"), notationError("9")},
+		{"a lone square while a capture exists", capture, SeatBlack, move("9"), notationError("9")},
+		{"square past 32", start, SeatBlack, move("99-98"), notationError("99-98")},
+		{"leading zero", start, SeatBlack, move("01-05"), notationError("01-05")},
+		{"three digits", start, SeatBlack, move("111-15"), notationError("111-15")},
+		{"wrong capture", capture, SeatBlack, move("9x1"), "illegal move 9x1: the captures are 9x18x27"},
+		{"capture with none to make", start, SeatBlack, move("9x18"), "illegal move: 9x18"},
 		{"backward man", newState(boardOf(t, "b:14 w:30"), SeatBlack, 0), SeatBlack, move("14-9"), "illegal move: 14-9"},
 		{"capture written as a step", capture, SeatBlack, move("9-18"), "illegal move 9-18: a capture is mandatory: 9x18x27"},
 		{"step while a capture exists", capture, SeatBlack, move("12-16"), "illegal move 12-16: a capture is mandatory: 9x18x27"},
 		{"incomplete jump", capture, SeatBlack, move("9x18"), "illegal move 9x18: the jump must continue, as in 9x18x27"},
-		{"jump past the end", capture, SeatBlack, move("9x18x27x31"), "illegal move 9x18x27x31: a capture is mandatory: 9x18x27"},
+		{"jump past the end", capture, SeatBlack, move("9x18x27x31"), "illegal move 9x18x27x31: the captures are 9x18x27"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -171,9 +194,21 @@ func TestMovePatternMatchesNotation(t *testing.T) {
 			}
 		}
 	}
-	for _, text := range []string{"", "e4", "11", "11-15-19", "11x", "11-15x19"} {
+	for _, text := range []string{"", "e4", "11", "11-15-19", "11x", "11-15x19", "99-98", "01-05", "111-15", "0-4", "33x24"} {
 		if pattern.MatchString(text) {
 			t.Errorf("pattern accepts %q", text)
+		}
+	}
+}
+
+func TestPatternAndParserAgreeOnNotation(t *testing.T) {
+	pattern := regexp.MustCompile(movePattern)
+	legal := StartBoard().LegalMoves(SeatBlack)
+	for _, text := range []string{"11-15", " 11-15 ", "\t11-15\n", "\v11-15", "11-15\u00a0", "32-28", "01-05", "9", "9x1"} {
+		_, err := matchMove(text, legal)
+		parsed := err == nil || !strings.Contains(err.Error(), notationHint)
+		if parsed != pattern.MatchString(text) {
+			t.Errorf("%q: parser reads notation %t, pattern matches %t", text, parsed, pattern.MatchString(text))
 		}
 	}
 }

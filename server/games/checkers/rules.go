@@ -14,9 +14,6 @@ const optionColor game.OptionName = "color"
 
 const textField = "text"
 
-// movePattern matches the move text matchMove reads: a step, or a capture listing every landing.
-const movePattern = `^\s*([0-9]{1,2}-[0-9]{1,2}|[0-9]{1,2}(x[0-9]{1,2})+)\s*$`
-
 // Rules is American/English checkers on an 8x8 board.
 type Rules struct{}
 
