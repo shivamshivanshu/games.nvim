@@ -62,9 +62,17 @@ func (r *Room) tickIfDue() {
 }
 
 // Pause stops a ticking game until its player acts again, as the hub does
-// when the player goes away. A game that is not ticking is left as it is.
-func (r *Room) Pause(ctx context.Context) error {
-	_, err := ask(ctx, r, r.pause, func() (game.Seq, error) { return 0, nil })
+// when the player goes away. away is asked on the room's actor, where steps
+// are ordered: a pause that comes after the player is back is dropped, so it
+// cannot stop a game they have just resumed. A game that is not ticking is
+// left as it is.
+func (r *Room) Pause(ctx context.Context, away func() bool) error {
+	_, err := ask(ctx, r, func() (game.Seq, error) {
+		if !away() {
+			return r.cur.seq, nil
+		}
+		return r.pause()
+	}, func() (game.Seq, error) { return 0, nil })
 	return err
 }
 

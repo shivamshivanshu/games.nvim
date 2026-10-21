@@ -62,6 +62,7 @@ func newEnv(t *testing.T) *env {
 type server struct {
 	addr string
 	stop func()
+	hub  *hub.Hub
 }
 
 func (e *env) start(t *testing.T) server {
@@ -98,7 +99,7 @@ func (e *env) start(t *testing.T) server {
 		}
 	})
 	t.Cleanup(stop)
-	return server{addr: ln.Addr().String(), stop: stop}
+	return server{addr: ln.Addr().String(), stop: stop, hub: h}
 }
 
 func (s server) login(t *testing.T, user game.UserID) *testClient {

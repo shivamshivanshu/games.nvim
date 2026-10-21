@@ -15,6 +15,8 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
+func away() bool { return true }
+
 func newMetronomeHarness(t *testing.T) *harness {
 	t.Helper()
 	return startHarness(t, game.Adapt(gametest.MetronomeRules{}), `{}`)
@@ -116,13 +118,13 @@ func TestTickingGameInputIsNeverStale(t *testing.T) {
 func TestPauseStopsTicksUntilThePlayerResumes(t *testing.T) {
 	h := newMetronomeHarness(t)
 	h.advance(t, gametest.MetronomeInterval)
-	if err := h.room.Pause(t.Context()); err != nil {
+	if err := h.room.Pause(t.Context(), away); err != nil {
 		t.Fatal(err)
 	}
 	if armed := h.clock.Armed(); len(armed) != 0 {
 		t.Fatalf("armed %v while paused", armed)
 	}
-	if err := h.room.Pause(t.Context()); err != nil {
+	if err := h.room.Pause(t.Context(), away); err != nil {
 		t.Fatal(err)
 	}
 	if u := h.advance(t, time.Hour); u.Seq != 2 || !metronomeView(t, u).Paused {
@@ -137,6 +139,19 @@ func TestPauseStopsTicksUntilThePlayerResumes(t *testing.T) {
 	want := []store.StepKind{store.StepTick, store.StepPause, store.StepAction, store.StepTick}
 	if diff := cmp.Diff(want, stepKinds(steps)); diff != "" || seq != 3 {
 		t.Fatalf("resume at seq %d; step kinds (-want +got):\n%s", seq, diff)
+	}
+}
+
+func TestPauseIsDroppedOnceThePlayerIsBack(t *testing.T) {
+	h := newMetronomeHarness(t)
+	if err := h.room.Pause(t.Context(), func() bool { return false }); err != nil {
+		t.Fatal(err)
+	}
+	if u := h.advance(t, gametest.MetronomeInterval); u.Seq != 1 || metronomeView(t, u).Paused {
+		t.Fatalf("after a pause for a player who is back: seq %d, view %s", u.Seq, u.View)
+	}
+	if steps, _ := h.persist.recorded(); !slices.Equal(stepKinds(steps), []store.StepKind{store.StepTick}) {
+		t.Fatalf("recorded %v, want only the tick", stepKinds(steps))
 	}
 }
 
@@ -160,7 +175,7 @@ func TestNoTickAfterTheGameFinishes(t *testing.T) {
 			if armed := h.clock.Armed(); len(armed) != 0 {
 				t.Fatalf("armed %v after the finish", armed)
 			}
-			if err := h.room.Pause(t.Context()); err != nil {
+			if err := h.room.Pause(t.Context(), away); err != nil {
 				t.Fatalf("pause after the finish: %v", err)
 			}
 		})

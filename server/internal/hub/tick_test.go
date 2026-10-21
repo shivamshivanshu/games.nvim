@@ -76,3 +76,22 @@ func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {
 		t.Fatalf("after a restart %+v, want seq %d paused after one tick", u, resumed+1)
 	}
 }
+
+func TestADisconnectPauseArrivingAfterTheUserIsBackIsDropped(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	srv := e.start(t)
+	gone := srv.login(t, alice)
+	id := call[protocol.GameUpdate](t, gone, protocol.TypeGameStart, protocol.GameStartRequest{Game: metronomeType}).GameID
+	_ = gone.conn.Close()
+	back := srv.login(t, alice)
+	paused := pausedSnapshot(t, back, id)
+	call[protocol.SeqResult](t, back, protocol.TypeGameAct, protocol.GameActRequest{
+		GameID: id, Seq: paused.Seq, Action: json.RawMessage(`{"kind":"resume"}`),
+	})
+
+	srv.hub.PauseGamesOf(alice)
+	if u := snapshotOf(t, back, id); metronomeOf(t, u).Paused {
+		t.Fatalf("a late disconnect pause stopped the game alice resumed: %+v", u)
+	}
+}
