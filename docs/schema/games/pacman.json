@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "direction": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "direction"
+      ],
+      "description": "Action is a turn, with Direction one of grid.DirectionNames, or a pause, without one."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "turn",
+        "pause"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "CaughtEvent": {
+      "properties": {
+        "kind": {
+          "const": "caught"
+        },
+        "by": {
+          "type": "string"
+        },
+        "ghost": {
+          "type": "string"
+        },
+        "lives_left": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "ghost",
+        "lives_left"
+      ],
+      "description": "CaughtEvent reports a ghost catching Pac-Man, and the lives left after it."
+    },
+    "GhostEatenEvent": {
+      "properties": {
+        "kind": {
+          "const": "ghost_eaten"
+        },
+        "by": {
+          "type": "string"
+        },
+        "ghost": {
+          "type": "string"
+        },
+        "points": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "ghost",
+        "points"
+      ],
+      "description": "GhostEatenEvent reports Pac-Man eating a frightened ghost, and the points it scored."
+    },
+    "GhostView": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "facing": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col",
+        "facing",
+        "name",
+        "mode"
+      ],
+      "description": "GhostView is one ghost."
+    },
+    "LevelClearedEvent": {
+      "properties": {
+        "kind": {
+          "const": "level_cleared"
+        },
+        "by": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "level"
+      ],
+      "description": "LevelClearedEvent reports Pac-Man eating the last dot of a level."
+    },
+    "PacmanView": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "facing": {
+          "type": "string"
+        },
+        "next_turn": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col",
+        "facing",
+        "next_turn"
+      ],
+      "description": "PacmanView is Pac-Man, and the turn it will take at the first cell where it can; null for none."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "game_over",
+        "cleared"
+      ],
+      "description": "The result reasons Pac-Man adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "maze": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pacman": {
+          "$ref": "#/$defs/PacmanView"
+        },
+        "ghosts": {
+          "items": {
+            "$ref": "#/$defs/GhostView"
+          },
+          "type": "array"
+        },
+        "score": {
+          "type": "integer"
+        },
+        "lives": {
+          "type": "integer"
+        },
+        "level": {
+          "type": "integer"
+        },
+        "levels": {
+          "type": "integer"
+        },
+        "food_left": {
+          "type": "integer"
+        },
+        "fright_ticks": {
+          "type": "integer"
+        },
+        "paused": {
+          "type": "boolean"
+        },
+        "can_turn": {
+          "type": "boolean"
+        },
+        "can_pause": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "maze",
+        "pacman",
+        "ghosts",
+        "score",
+        "lives",
+        "level",
+        "levels",
+        "food_left",
+        "fright_ticks",
+        "paused",
+        "can_turn",
+        "can_pause"
+      ],
+      "description": "View is the whole game. Maze has one line per row, top first, of one Tile letter per cell. Lives\ncounts the life in play. FrightTicks is how many ticks the ghosts stay frightened. CanTurn and\nCanPause tell the player which actions are open: both are false once the game is over, and\nCanPause is false while paused."
+    }
+  },
+  "title": "Pac-Man",
+  "description": "The game-specific bodies inside a pacman game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "caught": {
+      "$ref": "#/$defs/CaughtEvent"
+    },
+    "ghost_eaten": {
+      "$ref": "#/$defs/GhostEatenEvent"
+    },
+    "level_cleared": {
+      "$ref": "#/$defs/LevelClearedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
