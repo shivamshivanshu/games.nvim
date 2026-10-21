@@ -31,6 +31,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Hearts | 4 | [docs/games/hearts.md](docs/games/hearts.md) |
 | Battleship | 2 | [docs/games/battleship.md](docs/games/battleship.md) |
 | Chess960 | 2 | [docs/games/chess960.md](docs/games/chess960.md) |
+| Dots and Boxes | 2 | [docs/games/dots_and_boxes.md](docs/games/dots_and_boxes.md) |
 
 ## Requirements
 

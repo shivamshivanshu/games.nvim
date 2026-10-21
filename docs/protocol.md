@@ -472,6 +472,18 @@ An action object always carries `kind`.
 - The FEN castling field is X-FEN: `K`, `Q`, `k` or `q` while the castling rook is the outermost rook of its colour on that side of the king, otherwise that rook's file (`G` for a white rook on g1 with another on h1, lower case for black). The server reads only standard FENs.
 - `game.pgn` adds `[Variant "Chess960"]`, `[SetUp "1"]` and the start `[FEN]`, even from position 518.
 
+### Dots and Boxes
+
+- Seats `p1` and `p2`; `p1` moves first, and the `first` option picks who is `p1`. Option `size`: `3`, `5` or `7` boxes a side, default `5`.
+- Edges are `{row, col, orientation}`: the dot at the edge's left end lying `across`, or its top end lying `down`, 1-based from the top left on the lattice of dots, which is one row and one column larger than the boxes. Actions name an edge as text, the dot's column letter and row number then `h` (across) or `v` (down), e.g. `"b2h"`, either case, with the catalogue's pattern; the pattern is the 7-box board's, and an edge off a smaller board is an `illegal_action`.
+- Reasons: `more_boxes`; `equal_boxes` (a draw) cannot happen at the offered sizes, whose box counts are odd.
+- Events: `drawn {by, edge, boxes}`, `boxes` the `{row, col}` boxes the edge completed, `[]` for none. Completing a box gives `by` the next move as well.
+- View `{across, down, boxes, scores, last, legal_edges}`:
+  - `across` is `size + 1` rows of `size`, `down` `size` rows of `size + 1`: the seat that drew each edge from that dot, `""` while undrawn; `boxes` is `size` rows of `size`, the seat that completed each box or `""`;
+  - `scores` maps each seat to its boxes; `last` is the latest edge drawn, or `null`;
+  - `legal_edges` is the viewer's own: every undrawn edge, `[]` unless it is to move.
+- Actions: `draw` (`edge`).
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
