@@ -6,8 +6,6 @@ local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local text = require("games.ui.text")
 
----@alias games.WordleMark "hit"|"present"|"miss"
-
 ---@class games.WordleGuess
 ---@field word string
 ---@field feedback games.WordleMark[] one per letter
@@ -27,6 +25,9 @@ local text = require("games.ui.text")
 ---@field word string
 ---@field feedback games.WordleMark[]
 
+---@enum games.WordleMark
+local Mark = { HIT = "hit", PRESENT = "present", MISS = "miss" }
+
 local WORD_LENGTH = 5
 local CELL_WIDTH = 3
 local EMPTY_KEY = "empty"
@@ -38,10 +39,14 @@ local PANEL_WIDTH = vim.iter(ipairs(KEYBOARD_ROWS)):fold(0, function(widest, i, 
 end)
 
 ---@type table<games.WordleMark, string>
-local MARK_HL = { hit = "GamesHit", present = "GamesPresent", miss = "GamesMiss" }
+local MARK_HL = {
+  [Mark.HIT] = "GamesHit",
+  [Mark.PRESENT] = "GamesPresent",
+  [Mark.MISS] = "GamesMiss",
+}
 
 ---@type games.WordleMark[] marks the pack frames; a miss draws the plain letter
-local FRAMED_MARKS = { "hit", "present" }
+local FRAMED_MARKS = { Mark.HIT, Mark.PRESENT }
 
 ---The asset key that draws letter under mark: a framed key for a hit or present, else the letter.
 ---@param letter string
@@ -104,12 +109,14 @@ end
 
 local M = {}
 
+M.Mark = Mark
+
 ---@type string[] keys every wordle asset pack draws: each letter plain, framed per mark, and an empty tile
 M.asset_keys = vim.list_extend(
   vim
     .iter(text.chars(text.ALPHABET))
     :map(function(letter)
-      return { letter, key_for(letter, "hit"), key_for(letter, "present") }
+      return { letter, key_for(letter, Mark.HIT), key_for(letter, Mark.PRESENT) }
     end)
     :flatten()
     :totable(),

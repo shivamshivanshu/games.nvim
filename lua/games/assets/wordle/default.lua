@@ -3,7 +3,10 @@ local letters = require("games.assets.shared.letters")
 local wordle = require("games.games.wordle")
 
 ---@type table<string, games.LetterMarker> each feedback key's marker -> how its letters draw
-local FEEDBACK_MARKERS = { hit = letters.Marker.HIT, present = letters.Marker.PRESENT }
+local FEEDBACK_MARKERS = {
+  [wordle.Mark.HIT] = letters.Marker.HIT,
+  [wordle.Mark.PRESENT] = letters.Marker.PRESENT,
+}
 
 ---@param empty string
 ---@return games.ArtSet
