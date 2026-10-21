@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"maps"
 	"net/netip"
 	"slices"
 	"sync"
@@ -16,12 +17,13 @@ type ipRecord struct {
 }
 
 type Lockout struct {
-	mu       sync.Mutex
-	failures int
-	window   time.Duration
-	duration time.Duration
-	clock    clock.Clock
-	records  map[netip.Addr]ipRecord
+	mu        sync.Mutex
+	failures  int
+	window    time.Duration
+	duration  time.Duration
+	clock     clock.Clock
+	records   map[netip.Addr]ipRecord
+	nextSweep time.Time
 }
 
 func NewLockout(lim limits.Limits, c clock.Clock) *Lockout {
@@ -37,20 +39,22 @@ func NewLockout(lim limits.Limits, c clock.Clock) *Lockout {
 func (l *Lockout) Locked(ip netip.Addr) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.lockedLocked(ip, l.clock.Now())
+	now := l.clock.Now()
+	l.pruneLocked(now)
+	return now.Before(l.records[ip].lockedUntil)
 }
 
 func (l *Lockout) RecordFailure(ip netip.Addr) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.clock.Now()
-	if l.lockedLocked(ip, now) {
+	l.pruneLocked(now)
+	record := l.records[ip]
+	if now.Before(record.lockedUntil) {
 		return
 	}
 	cutoff := now.Add(-l.window)
-	record := l.records[ip]
-	recent := slices.DeleteFunc(slices.Clone(record.failures), func(at time.Time) bool { return at.Before(cutoff) })
-	recent = append(recent, now)
+	recent := append(slices.DeleteFunc(record.failures, func(at time.Time) bool { return at.Before(cutoff) }), now)
 	if len(recent) >= l.failures {
 		l.records[ip] = ipRecord{lockedUntil: now.Add(l.duration)}
 		return
@@ -58,14 +62,23 @@ func (l *Lockout) RecordFailure(ip netip.Addr) {
 	l.records[ip] = ipRecord{failures: recent}
 }
 
-func (l *Lockout) lockedLocked(ip netip.Addr, now time.Time) bool {
-	record, ok := l.records[ip]
-	if !ok || record.lockedUntil.IsZero() {
-		return false
+// pruneLocked drops every record that no longer counts, so an address that
+// fails once and never returns is not kept forever. It sweeps at most once a
+// window, so a login does not cost a pass over every address that failed.
+func (l *Lockout) pruneLocked(now time.Time) {
+	if now.Before(l.nextSweep) {
+		return
 	}
-	if now.Before(record.lockedUntil) {
-		return true
+	l.nextSweep = now.Add(l.window)
+	cutoff := now.Add(-l.window)
+	maps.DeleteFunc(l.records, func(_ netip.Addr, r ipRecord) bool { return r.stale(now, cutoff) })
+}
+
+// stale is whether r's lock has expired or, unlocked, its newest failure is
+// older than cutoff.
+func (r ipRecord) stale(now, cutoff time.Time) bool {
+	if !r.lockedUntil.IsZero() {
+		return !now.Before(r.lockedUntil)
 	}
-	delete(l.records, ip)
-	return false
+	return r.failures[len(r.failures)-1].Before(cutoff)
 }

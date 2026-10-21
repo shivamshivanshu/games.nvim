@@ -57,3 +57,27 @@ func TestFailuresOutsideWindowDontCount(t *testing.T) {
 		t.Fatal("stale failures counted toward lockout")
 	}
 }
+
+func TestStaleRecordsArePruned(t *testing.T) {
+	otherIP := netip.MustParseAddr("198.51.100.1")
+	tests := map[string]struct {
+		failures int
+		wait     time.Duration
+		next     func(l *Lockout)
+	}{
+		"failures past the window, on the next Locked":  {1, 6 * time.Minute, func(l *Lockout) { l.Locked(otherIP) }},
+		"failures past the window, on the next failure": {1, 6 * time.Minute, func(l *Lockout) { l.RecordFailure(otherIP) }},
+		"an expired lock, on the next failure":          {5, 6 * time.Minute, func(l *Lockout) { l.RecordFailure(otherIP) }},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			l, clock := newTestLockout()
+			recordFailures(l, tc.failures)
+			clock.Advance(tc.wait)
+			tc.next(l)
+			if _, kept := l.records[testIP]; kept {
+				t.Fatalf("stale record of %v kept: %+v", testIP, l.records[testIP])
+			}
+		})
+	}
+}
