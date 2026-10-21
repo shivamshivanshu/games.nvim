@@ -40,10 +40,10 @@ type relayView struct {
 }
 
 type relayState struct {
-	order  []game.Seat
-	out    []game.Seat
-	turn   int
-	result *game.Result
+	game.Ending
+	order []game.Seat
+	out   []game.Seat
+	turn  int
 }
 
 func (relayRules) Info() game.Info {
@@ -67,7 +67,7 @@ func (relayRules) New(_ struct{}, challenger game.UserID, invitees []game.UserID
 
 func (s relayState) Apply(seat game.Seat, a relayAction, _ *rand.Rand) (game.State[relayAction, relayView], []game.Event, error) {
 	switch {
-	case s.result != nil:
+	case s.Over():
 		return nil, nil, game.IllegalActionError{Msg: "game is over"}
 	case seat != s.order[s.turn]:
 		return nil, nil, game.ErrNotYourTurn
@@ -86,30 +86,23 @@ func (s relayState) Apply(seat game.Seat, a relayAction, _ *rand.Rand) (game.Sta
 }
 
 func (s relayState) View(seat game.Seat) relayView {
-	if s.result != nil {
+	if s.Over() {
 		return relayView{Viewer: seat}
 	}
 	return relayView{Turn: s.order[s.turn], Viewer: seat}
 }
 
 func (s relayState) ToAct() []game.Seat {
-	if s.result != nil {
+	if s.Over() {
 		return []game.Seat{}
 	}
 	return []game.Seat{s.order[s.turn]}
 }
 
-func (s relayState) Outcome() (game.Result, bool) {
-	if s.result == nil {
-		return game.Result{}, false
-	}
-	return *s.result, true
-}
-
 func (s relayState) KnockedOut() []game.Seat { return slices.Clone(s.out) }
 
 func (s relayState) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[relayAction, relayView], []game.Event) {
-	if s.result != nil || !slices.Contains(s.order, seat) {
+	if s.Over() || !slices.Contains(s.order, seat) {
 		return s, nil
 	}
 	return s.without(seat, reason), nil
@@ -123,7 +116,7 @@ func (s relayState) without(seat game.Seat, reason game.ResultReason) relayState
 	}
 	s.turn %= len(s.order)
 	if len(s.order) == 1 {
-		s.result = &game.Result{Kind: game.ResultDecisive, Winners: slices.Clone(s.order), Reason: reason}
+		s.Ending = s.Concluded(game.WinFor(reason, s.order...))
 	}
 	return s
 }
