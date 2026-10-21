@@ -6,13 +6,15 @@ import (
 	"time"
 
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
 )
 
 var testIP = netip.MustParseAddr("203.0.113.7")
 
 func newTestLockout() (*Lockout, *clocktest.FakeClock) {
 	clock := clocktest.New(clocktest.Epoch)
-	return NewLockout(5, 5*time.Minute, 5*time.Minute, clock.Now), clock
+	lim := limits.Limits{LockoutFailures: 5, LockoutWindow: 5 * time.Minute, LockoutDuration: 5 * time.Minute}
+	return NewLockout(lim, clock), clock
 }
 
 func recordFailures(l *Lockout, n int) {

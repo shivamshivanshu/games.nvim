@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/shivamshivanshu/games.nvim/server/games"
 	"github.com/shivamshivanshu/games.nvim/server/internal/auth"
@@ -46,7 +45,7 @@ func serve(args []string) error {
 		Games:   games.All(),
 		Limits:  lim,
 		Time:    clock.System{},
-		Lockout: auth.NewLockout(lim.LockoutFailures, lim.LockoutWindow, lim.LockoutDuration, time.Now),
+		Lockout: auth.NewLockout(lim, clock.System{}),
 	})
 	if err != nil {
 		return fmt.Errorf("start hub: %w", err)

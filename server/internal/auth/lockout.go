@@ -5,6 +5,9 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/shivamshivanshu/games.nvim/server/internal/clock"
+	"github.com/shivamshivanshu/games.nvim/server/internal/limits"
 )
 
 type ipRecord struct {
@@ -17,16 +20,16 @@ type Lockout struct {
 	failures int
 	window   time.Duration
 	duration time.Duration
-	now      func() time.Time
+	clock    clock.Clock
 	records  map[netip.Addr]ipRecord
 }
 
-func NewLockout(failures int, window, duration time.Duration, now func() time.Time) *Lockout {
+func NewLockout(lim limits.Limits, c clock.Clock) *Lockout {
 	return &Lockout{
-		failures: failures,
-		window:   window,
-		duration: duration,
-		now:      now,
+		failures: lim.LockoutFailures,
+		window:   lim.LockoutWindow,
+		duration: lim.LockoutDuration,
+		clock:    c,
 		records:  make(map[netip.Addr]ipRecord),
 	}
 }
@@ -34,13 +37,13 @@ func NewLockout(failures int, window, duration time.Duration, now func() time.Ti
 func (l *Lockout) Locked(ip netip.Addr) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.lockedLocked(ip, l.now())
+	return l.lockedLocked(ip, l.clock.Now())
 }
 
 func (l *Lockout) RecordFailure(ip netip.Addr) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	now := l.now()
+	now := l.clock.Now()
 	if l.lockedLocked(ip, now) {
 		return
 	}
