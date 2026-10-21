@@ -117,6 +117,24 @@ local GAME_CLASS = {
     SowedEvent = "games.MancalaSowedEvent",
     View = "games.MancalaView",
   },
+  yahtzee = {
+    Card = "games.YahtzeeCard",
+    Option = "games.YahtzeeOption",
+    RolledEvent = "games.YahtzeeRolledEvent",
+    ScoredEvent = "games.YahtzeeScoredEvent",
+    View = "games.YahtzeeView",
+  },
+  liars_dice = {
+    Bid = "games.LiarsDiceBid",
+    BidEvent = "games.LiarsDiceBidEvent",
+    BidMinimum = "games.LiarsDiceBidMinimum",
+    ChallengedEvent = "games.LiarsDiceChallengedEvent",
+    OutEvent = "games.LiarsDiceOutEvent",
+    Reveal = "games.LiarsDiceReveal",
+    SeatDice = "games.LiarsDiceSeatDice",
+    SeatView = "games.LiarsDiceSeatView",
+    View = "games.LiarsDiceView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
