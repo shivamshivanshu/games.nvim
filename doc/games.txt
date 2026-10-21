@@ -390,6 +390,11 @@ the current state are mapped; the footer lists them.
             too, only when the move changes the board
     1-6     mancala: sow that pit of yours, counted from your left, on your
             move
+    r       roll the dice not held (yahtzee), while you have rolls left
+    1-5     hold or release that die (yahtzee), after a roll
+    a-l n   score that scorecard box (yahtzee): a-f Ones to Sixes, g-l
+            3 of a kind to Yahtzee, n Chance; the card shows the letters
+            of the boxes you may score now
     ]g      next game waiting on your move
     q       close
 

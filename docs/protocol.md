@@ -395,6 +395,18 @@ An action object always carries `kind`.
   - `legal_pits` holds the viewer's own: its pits with seeds, empty unless the viewer is to move.
 - Actions: `sow` (`pit`: `"1"` to `"6"`, the mover's own pit). An empty pit is an `illegal_action`.
 
+### Yahtzee
+
+- Seats `p1`-`p4` in invite order, `p1` first; one player starts it solo with `game.start`.
+- Reasons: `scorecards_full`. A tie of every seat still in play is a `draw`; a tie at the top otherwise gives several winners.
+- Events: `rolled {by: seat, dice}`, all five faces after the roll; `scored {by: seat, box, score, yahtzee_bonus}`, `yahtzee_bonus` 0 or 100. `hold` sends no event.
+- View `{round, dice, held, rolls_left, cards, can_roll, can_hold, options}`:
+  - `dice` is `[]` before the turn's first roll, then 5 faces 1-6; `held` is always 5 booleans;
+  - `cards` is every seat's `{seat, scores, upper_total, upper_bonus, yahtzee_bonus, total, out}` in seat order; `scores` maps each filled box to its points;
+  - `can_roll`, `can_hold` and `options` are the viewer's own: `options` lists `{box, score}` for every box it may fill now, under the forced joker rule, and is `[]` unless the viewer is to act.
+- Actions: `roll`, `hold` (`die`: `"1"` to `"5"`, toggles), `score` (`box`: one of the 13 box names). The catalogue gives the values.
+- Scores: each seat's card total, unless the result was imposed.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

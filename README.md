@@ -25,6 +25,7 @@ See the Games table below for what you can play. The server owns all state and r
 | 15-puzzle | 1 (solo) | [docs/games/fifteen.md](docs/games/fifteen.md) |
 | 2048 | 1 (solo) | [docs/games/g2048.md](docs/games/g2048.md) |
 | Mancala | 2 | [docs/games/mancala.md](docs/games/mancala.md) |
+| Yahtzee | 1–4 | [docs/games/yahtzee.md](docs/games/yahtzee.md) |
 
 ## Requirements
 
