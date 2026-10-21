@@ -1,6 +1,9 @@
 package battleship
 
-import "github.com/shivamshivanshu/games.nvim/server/game/grid"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+)
 
 const boardSize = 10
 
@@ -15,6 +18,10 @@ const (
 	ShipSubmarine  ShipName = "submarine"
 	ShipDestroyer  ShipName = "destroyer"
 )
+
+func (ShipName) EnumValues() []string {
+	return game.Strings(ShipCarrier, ShipBattleship, ShipCruiser, ShipSubmarine, ShipDestroyer)
+}
 
 // Fleet is every seat's fleet, in the order its ships are placed.
 func Fleet() []ShipSpec {

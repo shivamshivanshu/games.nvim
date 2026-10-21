@@ -59,6 +59,10 @@ const (
 	MoveAllIn MoveKind = "allin"
 )
 
+func (MoveKind) EnumValues() []string {
+	return game.Strings(MoveFold, MoveCheck, MoveCall, MoveBet, MoveRaise, MoveAllIn)
+}
+
 // Street is a betting round, named by the board cards dealt before it.
 type Street string
 
@@ -69,6 +73,8 @@ const (
 	StreetRiver Street = "river"
 )
 
+func (Street) EnumValues() []string { return game.Strings(StreetFlop, StreetTurn, StreetRiver) }
+
 // BlindKind tells the small blind from the big blind.
 type BlindKind string
 
@@ -77,6 +83,8 @@ const (
 	BlindSmall BlindKind = "small"
 	BlindBig   BlindKind = "big"
 )
+
+func (BlindKind) EnumValues() []string { return game.Strings(BlindSmall, BlindBig) }
 
 // Blinds are the forced bets of a hand.
 type Blinds struct {

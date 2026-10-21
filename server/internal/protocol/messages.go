@@ -18,6 +18,10 @@ const (
 	ControlAbort       Control = "abort"
 )
 
+func (Control) EnumValues() []string {
+	return game.Strings(ControlResign, ControlOfferDraw, ControlDeclineDraw, ControlAbort)
+}
+
 type ChallengeState string
 
 const (
@@ -28,6 +32,10 @@ const (
 	ChallengeExpired   ChallengeState = "expired"
 )
 
+func (ChallengeState) EnumValues() []string {
+	return game.Strings(ChallengePending, ChallengeAccepted, ChallengeDeclined, ChallengeCancelled, ChallengeExpired)
+}
+
 type GameStatus string
 
 const (
@@ -35,12 +43,16 @@ const (
 	StatusFinished GameStatus = "finished"
 )
 
+func (GameStatus) EnumValues() []string { return game.Strings(StatusOngoing, StatusFinished) }
+
 type OptionType string
 
 const (
 	OptionEnum OptionType = "enum"
 	OptionText OptionType = "text"
 )
+
+func (OptionType) EnumValues() []string { return game.Strings(OptionEnum, OptionText) }
 
 // optionTypeOf panics on an unknown kind, which game.Info.Check rejects at registration.
 func optionTypeOf(k game.OptionKind) OptionType {

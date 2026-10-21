@@ -77,6 +77,24 @@
         "san"
       ]
     },
+    "PieceLetter": {
+      "type": "string",
+      "enum": [
+        "P",
+        "N",
+        "B",
+        "R",
+        "Q",
+        "K",
+        "p",
+        "n",
+        "b",
+        "r",
+        "q",
+        "k"
+      ],
+      "description": "PieceLetter is a piece as FEN writes it: uppercase for white, lowercase for black."
+    },
     "ResultReason": {
       "type": "string",
       "enum": [
@@ -94,7 +112,7 @@
       "properties": {
         "pieces": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/PieceLetter"
           },
           "type": "array"
         },

@@ -46,6 +46,14 @@
       ],
       "description": "MissedEvent reports a legal move that is not the line's: in study mode the\nposition stays, in puzzle mode the game ends."
     },
+    "Mode": {
+      "type": "string",
+      "enum": [
+        "puzzle",
+        "study"
+      ],
+      "description": "Mode is how a move that is not the line's is taken."
+    },
     "MoveSquares": {
       "properties": {
         "from": {
@@ -175,7 +183,7 @@
           "type": "integer"
         },
         "mode": {
-          "type": "string"
+          "$ref": "#/$defs/Mode"
         },
         "misses": {
           "type": "integer"

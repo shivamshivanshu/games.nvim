@@ -59,6 +59,10 @@ const (
 	PhaseChallenge Phase = "challenge"
 )
 
+func (Phase) EnumValues() []string {
+	return game.Strings(PhaseColor, PhasePlay, PhaseDrawn, PhaseChallenge)
+}
+
 // Direction is the way play goes round the table.
 type Direction string
 
@@ -67,6 +71,8 @@ const (
 	Clockwise        Direction = "clockwise"
 	CounterClockwise Direction = "counterclockwise"
 )
+
+func (Direction) EnumValues() []string { return game.Strings(Clockwise, CounterClockwise) }
 
 // Prompt is what the viewer is to do now.
 type Prompt string
@@ -88,6 +94,10 @@ const (
 	// PromptChallenge is challenging a Wild Draw Four, or drawing its four cards.
 	PromptChallenge Prompt = "challenge"
 )
+
+func (Prompt) EnumValues() []string {
+	return game.Strings(PromptNone, PromptColor, PromptPlayOrDraw, PromptDraw, PromptPlayOrKeep, PromptKeep, PromptChallenge)
+}
 
 // View is the table as one seat sees it: its own hand, and every other hand
 // only as a count.

@@ -1,6 +1,8 @@
 // Package feedback marks a guess against a hidden code symbol by symbol, as Wordle and Mastermind score.
 package feedback
 
+import "github.com/shivamshivanshu/games.nvim/server/game"
+
 // Mark is the feedback for one symbol of a guess.
 type Mark string
 
@@ -10,6 +12,8 @@ const (
 	Present Mark = "present"
 	Miss    Mark = "miss"
 )
+
+func (Mark) EnumValues() []string { return game.Strings(Hit, Present, Miss) }
 
 const symbolCount = 1 << 8
 

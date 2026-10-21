@@ -19,19 +19,14 @@ func gameFile(t game.GameType) string { return path.Join("games", string(t)+".js
 
 // gameSchema has the game's Action, View and events in its $defs, pointed to
 // by x-action, x-view and x-events; the core's enums stay in the protocol schema.
-func gameSchema(g game.Game, comments map[string]string) (*jsonschema.Schema, error) {
+func gameSchema(g game.Game, comments map[string]string, coreEnums []reflect.Type) (*jsonschema.Schema, error) {
 	info := g.Info()
 	if err := info.Check(); err != nil {
 		return nil, err
 	}
 	actionKinds := closed(xslices.Map(info.Actions, func(a game.ActionSpec) game.ActionKind { return a.Kind })...)
-	local, core := enumRefs([]enum{actionKinds}, ""), enumRefs(coreEnums(), "../"+protocolFile)
-	doc := newDocument(comments, func(t reflect.Type) *jsonschema.Schema {
-		if s := local(t); s != nil {
-			return s
-		}
-		return core(t)
-	})
+	refs := xslices.With(enumRefs(coreEnums, "../"+protocolFile), actionKinds.typ, defsPrefix+actionKinds.typ.Name())
+	doc := newDocument(comments, refs)
 	actionType, viewType := g.WireTypes()
 	action, err := doc.ref(actionType)
 	if err != nil {
@@ -51,7 +46,7 @@ func gameSchema(g game.Game, comments map[string]string) (*jsonschema.Schema, er
 			return nil, err
 		}
 	}
-	if err := doc.defineEnum(actionKinds); err != nil {
+	if err := errors.Join(doc.defineEnum(actionKinds), doc.defineEnums()); err != nil {
 		return nil, err
 	}
 	if err := defineReasons(doc, info); err != nil {

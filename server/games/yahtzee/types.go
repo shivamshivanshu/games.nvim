@@ -38,6 +38,8 @@ const (
 	BoxChance        Box = "chance"
 )
 
+func (Box) EnumValues() []string { return game.Strings(Boxes()...) }
+
 // The action kinds.
 const (
 	ActionRoll  game.ActionKind = "roll"

@@ -14,6 +14,10 @@ const (
 	WhiteKing Piece = "W"
 )
 
+func (Piece) EnumValues() []string {
+	return game.Strings(NoPiece, BlackMan, BlackKing, WhiteMan, WhiteKing)
+}
+
 func (p Piece) owner() game.Seat {
 	switch p {
 	case BlackMan, BlackKing:

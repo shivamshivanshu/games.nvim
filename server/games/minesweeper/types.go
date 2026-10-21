@@ -58,6 +58,14 @@ const (
 	CellWrongFlag   Cell = "wrong_flag"
 )
 
+// maxMinesAround is the most mines a cell can neighbour.
+const maxMinesAround = 8
+
+// EnumValues lists the cells that are not a count, then the counts.
+func (Cell) EnumValues() []string {
+	return append(game.Strings(CellHidden, CellFlag, CellMine, CellFlaggedMine, CellExploded, CellWrongFlag), append([]string{"0"}, game.NumberedValues(maxMinesAround)...)...)
+}
+
 // Square is a 1-based board position; row 1 is the top.
 type Square struct {
 	Row int `json:"row"`

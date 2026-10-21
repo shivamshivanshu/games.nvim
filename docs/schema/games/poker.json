@@ -10,7 +10,7 @@
           "type": "string"
         },
         "move": {
-          "type": "string"
+          "$ref": "#/$defs/MoveKind"
         },
         "amount": {
           "type": "integer"
@@ -71,6 +71,14 @@
       ],
       "description": "Award is a pot, or a seat's share of a split pot. Pot 0 is the main pot."
     },
+    "BlindKind": {
+      "type": "string",
+      "enum": [
+        "small",
+        "big"
+      ],
+      "description": "BlindKind tells the small blind from the big blind."
+    },
     "Blinds": {
       "properties": {
         "small": {
@@ -97,7 +105,7 @@
           "type": "string"
         },
         "street": {
-          "type": "string"
+          "$ref": "#/$defs/Street"
         },
         "cards": {
           "items": {
@@ -217,6 +225,18 @@
       ],
       "description": "LeftEvent is By leaving the game; its stack leaves play."
     },
+    "MoveKind": {
+      "type": "string",
+      "enum": [
+        "fold",
+        "check",
+        "call",
+        "bet",
+        "raise",
+        "allin"
+      ],
+      "description": "MoveKind is a parsed betting move."
+    },
     "PostedEvent": {
       "properties": {
         "kind": {
@@ -229,7 +249,7 @@
           "type": "string"
         },
         "blind": {
-          "type": "string"
+          "$ref": "#/$defs/BlindKind"
         },
         "amount": {
           "type": "integer"
@@ -383,6 +403,15 @@
       ],
       "description": "ShownHand is a hand revealed at showdown."
     },
+    "Street": {
+      "type": "string",
+      "enum": [
+        "flop",
+        "turn",
+        "river"
+      ],
+      "description": "Street is a betting round, named by the board cards dealt before it."
+    },
     "View": {
       "properties": {
         "hand_no": {
@@ -414,7 +443,7 @@
         },
         "legal": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/MoveKind"
           },
           "type": "array"
         },

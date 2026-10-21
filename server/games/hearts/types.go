@@ -55,6 +55,8 @@ const (
 	PhasePlay Phase = "play"
 )
 
+func (Phase) EnumValues() []string { return game.Strings(PhasePass, PhasePlay) }
+
 // PassDirection is where a hand's passes go: left, right, across, then
 // held, in turn from the first hand.
 type PassDirection string
@@ -66,6 +68,10 @@ const (
 	PassAcross PassDirection = "across"
 	PassHold   PassDirection = "hold"
 )
+
+func (PassDirection) EnumValues() []string {
+	return game.Strings(PassLeft, PassRight, PassAcross, PassHold)
+}
 
 // Prompt is what the viewer is to do now.
 type Prompt string
@@ -83,6 +89,10 @@ const (
 	// PromptPlay is playing to the trick.
 	PromptPlay Prompt = "play"
 )
+
+func (Prompt) EnumValues() []string {
+	return game.Strings(PromptNone, PromptPass, PromptWait, PromptLead, PromptPlay)
+}
 
 // View is the table as one seat sees it: its own hand and passes, and every
 // trick played.

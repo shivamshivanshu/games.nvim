@@ -52,14 +52,14 @@ func run(out, check string) error {
 // generate maps each schema file's path to its content.
 func generate(comments map[string]string) (map[string][]byte, error) {
 	schemas := map[string]*jsonschema.Schema{}
-	protocolDoc, err := protocolSchema(comments)
+	protocolDoc, coreEnums, err := protocolSchema(comments)
 	if err != nil {
 		return nil, fmt.Errorf("protocol: %w", err)
 	}
 	schemas[protocolFile] = protocolDoc
 	for _, g := range games.All() {
 		t := g.Info().Type
-		if schemas[gameFile(t)], err = gameSchema(g, comments); err != nil {
+		if schemas[gameFile(t)], err = gameSchema(g, comments, coreEnums); err != nil {
 			return nil, fmt.Errorf("game %s: %w", t, err)
 		}
 	}

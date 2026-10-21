@@ -33,6 +33,10 @@ const (
 	LocationHome       LocationKind = "home"
 )
 
+func (LocationKind) EnumValues() []string {
+	return game.Strings(LocationBase, LocationTrack, LocationHomeColumn, LocationHome)
+}
+
 // Location is where a token is drawn: Square on the track, or Step 1 to 5 up its seat's home column.
 type Location struct {
 	Kind   LocationKind `json:"kind"`
@@ -55,6 +59,8 @@ const (
 	PhaseMove     Phase = "move"
 	PhaseFinished Phase = "finished"
 )
+
+func (Phase) EnumValues() []string { return game.Strings(PhaseRoll, PhaseMove, PhaseFinished) }
 
 // The action kinds.
 const (

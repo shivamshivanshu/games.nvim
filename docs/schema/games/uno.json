@@ -57,6 +57,17 @@
       ],
       "description": "ChallengedEvent is By challenging Seat's Wild Draw Four. Guilty is whether\nSeat held a card of the colour in play before it, which the server checks\nwithout showing the hand."
     },
+    "Color": {
+      "type": "string",
+      "enum": [
+        "R",
+        "Y",
+        "G",
+        "B",
+        ""
+      ],
+      "description": "Color is a card colour by its wire letter; a wild card has none."
+    },
     "ColorEvent": {
       "properties": {
         "kind": {
@@ -66,7 +77,7 @@
           "type": "string"
         },
         "color": {
-          "type": "string"
+          "$ref": "#/$defs/Color"
         }
       },
       "additionalProperties": false,
@@ -77,6 +88,14 @@
         "color"
       ],
       "description": "ColorEvent is By naming the colour for a Wild turned up to start."
+    },
+    "Direction": {
+      "type": "string",
+      "enum": [
+        "clockwise",
+        "counterclockwise"
+      ],
+      "description": "Direction is the way play goes round the table."
     },
     "DrewEvent": {
       "properties": {
@@ -137,6 +156,16 @@
       ],
       "description": "PassedEvent is By keeping the card it drew."
     },
+    "Phase": {
+      "type": "string",
+      "enum": [
+        "color",
+        "play",
+        "drawn",
+        "challenge"
+      ],
+      "description": "Phase is what the seat to act must do."
+    },
     "PlayedEvent": {
       "properties": {
         "kind": {
@@ -149,7 +178,7 @@
           "type": "string"
         },
         "color": {
-          "type": "string"
+          "$ref": "#/$defs/Color"
         }
       },
       "additionalProperties": false,
@@ -161,6 +190,19 @@
         "color"
       ],
       "description": "PlayedEvent is By playing Card; Color is the colour in play after it."
+    },
+    "Prompt": {
+      "type": "string",
+      "enum": [
+        "",
+        "color",
+        "play_or_draw",
+        "draw",
+        "play_or_keep",
+        "keep",
+        "challenge"
+      ],
+      "description": "Prompt is what the viewer is to do now."
     },
     "ReshuffledEvent": {
       "properties": {
@@ -199,7 +241,7 @@
           "type": "string"
         },
         "direction": {
-          "type": "string"
+          "$ref": "#/$defs/Direction"
         }
       },
       "additionalProperties": false,
@@ -284,13 +326,13 @@
           "type": "string"
         },
         "color": {
-          "type": "string"
+          "$ref": "#/$defs/Color"
         },
         "direction": {
-          "type": "string"
+          "$ref": "#/$defs/Direction"
         },
         "phase": {
-          "type": "string"
+          "$ref": "#/$defs/Phase"
         },
         "draw_pile": {
           "type": "integer"
@@ -320,7 +362,7 @@
           "type": "array"
         },
         "prompt": {
-          "type": "string"
+          "$ref": "#/$defs/Prompt"
         }
       },
       "additionalProperties": false,

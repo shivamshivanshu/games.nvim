@@ -29,6 +29,25 @@
       ],
       "description": "ActionKind is the \"kind\" field every action object carries."
     },
+    "Box": {
+      "type": "string",
+      "enum": [
+        "ones",
+        "twos",
+        "threes",
+        "fours",
+        "fives",
+        "sixes",
+        "three_of_a_kind",
+        "four_of_a_kind",
+        "full_house",
+        "small_straight",
+        "large_straight",
+        "yahtzee",
+        "chance"
+      ],
+      "description": "Box is a scorecard box."
+    },
     "Card": {
       "properties": {
         "seat": {
@@ -37,6 +56,9 @@
         "scores": {
           "additionalProperties": {
             "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Box"
           },
           "type": "object"
         },
@@ -72,7 +94,7 @@
     "Option": {
       "properties": {
         "box": {
-          "type": "string"
+          "$ref": "#/$defs/Box"
         },
         "score": {
           "type": "integer"
@@ -126,7 +148,7 @@
           "type": "string"
         },
         "box": {
-          "type": "string"
+          "$ref": "#/$defs/Box"
         },
         "score": {
           "type": "integer"

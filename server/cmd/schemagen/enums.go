@@ -2,9 +2,11 @@ package main
 
 import (
 	"reflect"
+	"slices"
 
 	"github.com/invopop/jsonschema"
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/games/mastermind"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
@@ -17,41 +19,36 @@ type enum struct {
 	open   bool
 }
 
+var (
+	enumInterface     = reflect.TypeFor[game.Enum]()
+	openEnumInterface = reflect.TypeFor[game.OpenEnum]()
+)
+
+// corePackages hold the identifiers, such as game.Seat, that are named
+// strings without being kinds.
+var corePackages = []string{reflect.TypeFor[game.Seat]().PkgPath(), reflect.TypeFor[protocol.MessageType]().PkgPath()}
+
+// freeText are the games' named strings that hold text of their own rather
+// than one of a set.
+var freeText = []reflect.Type{reflect.TypeFor[mastermind.Code]()}
+
 func closed[T ~string](values ...T) enum {
-	return enum{typ: reflect.TypeFor[T](), values: xslices.Map(values, func(v T) string { return string(v) })}
+	return enum{typ: reflect.TypeFor[T](), values: game.Strings(values...)}
 }
 
-func open[T ~string](values ...T) enum {
-	e := closed(values...)
-	e.open = true
-	return e
+// enumOf is t's enum, if t is a string type that implements game.Enum.
+func enumOf(t reflect.Type) (enum, bool) {
+	if t.Kind() != reflect.String || !t.Implements(enumInterface) {
+		return enum{}, false
+	}
+	values := reflect.Zero(t).Interface().(game.Enum).EnumValues()
+	return enum{typ: t, values: values, open: t.Implements(openEnumInterface)}, true
 }
 
-func messageTypes() []protocol.MessageType {
-	types := []protocol.MessageType{protocol.TypeOK, protocol.TypeError}
-	for _, r := range protocol.Requests {
-		types = append(types, r.Type)
-	}
-	for _, p := range protocol.Pushes {
-		types = append(types, p.Type)
-	}
-	return types
-}
-
-// coreEnums are defined once, in the protocol schema, and referred to by every game's.
-func coreEnums() []enum {
-	return []enum{
-		closed(messageTypes()...),
-		closed(protocol.ErrorCodes...),
-		closed(protocol.ChallengePending, protocol.ChallengeAccepted, protocol.ChallengeDeclined, protocol.ChallengeCancelled, protocol.ChallengeExpired),
-		closed(protocol.StatusOngoing, protocol.StatusFinished),
-		closed(protocol.ControlResign, protocol.ControlOfferDraw, protocol.ControlDeclineDraw, protocol.ControlAbort),
-		closed(protocol.OptionEnum, protocol.OptionText),
-		closed(game.OptionRoleClock),
-		closed(game.CapResign, game.CapDraw, game.CapAbort, game.CapClock),
-		closed(game.ResultDecisive, game.ResultDraw, game.ResultAborted),
-		open(game.ReasonResign, game.ReasonTimeout, game.ReasonDrawAgreed, game.ReasonAborted),
-	}
+// isGameKind reports whether t is a game's string kind, which the wire can
+// restrict only if it implements game.Enum.
+func isGameKind(t reflect.Type) bool {
+	return t.Kind() == reflect.String && t.PkgPath() != "" && !slices.Contains(corePackages, t.PkgPath()) && !slices.Contains(freeText, t)
 }
 
 func (e enum) schema(description string) *jsonschema.Schema {
@@ -65,17 +62,11 @@ func (e enum) schema(description string) *jsonschema.Schema {
 	return s
 }
 
-// enumRefs maps each enum's type to a reference into defsURI, the document
-// whose $defs hold the enums.
-func enumRefs(enums []enum, defsURI string) func(reflect.Type) *jsonschema.Schema {
-	refs := make(map[reflect.Type]string, len(enums))
-	for _, e := range enums {
-		refs[e.typ] = defsURI + "#/$defs/" + e.typ.Name()
+// enumRefs maps each type to a reference to its def in defsURI.
+func enumRefs(types []reflect.Type, defsURI string) map[reflect.Type]string {
+	refs := make(map[reflect.Type]string, len(types))
+	for _, t := range types {
+		refs[t] = defsURI + defsPrefix + t.Name()
 	}
-	return func(t reflect.Type) *jsonschema.Schema {
-		if ref, ok := refs[t]; ok {
-			return &jsonschema.Schema{Ref: ref}
-		}
-		return nil
-	}
+	return refs
 }

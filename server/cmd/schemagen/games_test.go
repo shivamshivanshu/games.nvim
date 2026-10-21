@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/invopop/jsonschema"
-
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
@@ -16,7 +14,7 @@ type actionWithFields struct {
 }
 
 func TestActionInputsMustBeStringFieldsOfTheAction(t *testing.T) {
-	doc := newDocument(nil, func(reflect.Type) *jsonschema.Schema { return nil })
+	doc := newDocument(nil, nil)
 	ref, err := doc.ref(reflect.TypeFor[actionWithFields]())
 	if err != nil {
 		t.Fatal(err)
@@ -31,7 +29,7 @@ func TestActionInputsMustBeStringFieldsOfTheAction(t *testing.T) {
 }
 
 func TestEveryActionKindMaySendOnlyItsKindAndInput(t *testing.T) {
-	doc := newDocument(nil, func(reflect.Type) *jsonschema.Schema { return nil })
+	doc := newDocument(nil, nil)
 	ref, err := doc.ref(reflect.TypeFor[actionWithFields]())
 	if err != nil {
 		t.Fatal(err)

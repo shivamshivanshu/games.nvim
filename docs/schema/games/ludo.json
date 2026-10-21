@@ -91,7 +91,7 @@
     "Location": {
       "properties": {
         "kind": {
-          "type": "string"
+          "$ref": "#/$defs/LocationKind"
         },
         "square": {
           "type": "integer"
@@ -106,6 +106,16 @@
         "kind"
       ],
       "description": "Location is where a token is drawn: Square on the track, or Step 1 to 5 up its seat's home column."
+    },
+    "LocationKind": {
+      "type": "string",
+      "enum": [
+        "base",
+        "track",
+        "home_column",
+        "home"
+      ],
+      "description": "LocationKind is the part of the board a token stands on."
     },
     "Locations": {
       "items": {
@@ -161,6 +171,15 @@
         "by"
       ],
       "description": "PassedEvent means the roll left no token able to move."
+    },
+    "Phase": {
+      "type": "string",
+      "enum": [
+        "roll",
+        "move",
+        "finished"
+      ],
+      "description": "Phase is what the seat to act must do next."
     },
     "ResultReason": {
       "type": "string",
@@ -242,7 +261,7 @@
           ]
         },
         "phase": {
-          "type": "string"
+          "$ref": "#/$defs/Phase"
         },
         "movable": {
           "items": {

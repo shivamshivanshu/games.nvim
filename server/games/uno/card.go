@@ -3,6 +3,8 @@ package uno
 import (
 	"fmt"
 	"slices"
+
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 // Color is a card colour by its wire letter; a wild card has none.
@@ -18,6 +20,8 @@ const (
 	// player names one for a Wild turned up to start.
 	NoColor Color = ""
 )
+
+func (Color) EnumValues() []string { return game.Strings(append(colors[:], NoColor)...) }
 
 // colors are the four colours, in the order a hand is sorted by.
 var colors = [...]Color{Red, Yellow, Green, Blue}

@@ -3,6 +3,8 @@ package grid
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
 // EdgeOrientation is the way an edge runs from its dot: across to the dot on its right, or down
@@ -14,6 +16,8 @@ const (
 	EdgeAcross EdgeOrientation = "across"
 	EdgeDown   EdgeOrientation = "down"
 )
+
+func (EdgeOrientation) EnumValues() []string { return game.Strings(EdgeAcross, EdgeDown) }
 
 // Edge is the line between two adjacent dots, the corners of a board's cells. Dot is its left
 // end lying across or its top end lying down, indexed like a cell from 0 at the top left on the

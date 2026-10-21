@@ -1,6 +1,10 @@
 package chess
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"strings"
+
+	"github.com/shivamshivanshu/games.nvim/server/game"
+)
 
 type ColorChoice string
 
@@ -32,6 +36,12 @@ type MoveSquares struct {
 
 // PieceLetter is a piece as FEN writes it: uppercase for white, lowercase for black.
 type PieceLetter string
+
+// EnumValues lists the white pieces, then the black.
+func (PieceLetter) EnumValues() []string {
+	white := pieceLetters[NoPieceKind+1:]
+	return strings.Split(white+strings.ToLower(white), "")
+}
 
 // SideMaterial is one side's material lead: Pieces are the opponent's pieces
 // it is up, most valuable first, and Score the points it is ahead, 0 unless

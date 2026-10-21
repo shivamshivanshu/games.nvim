@@ -74,6 +74,14 @@
       ],
       "description": "DrawnEvent reports By's edge and the boxes it completed. Again is true when By moves again,\nhaving completed a box with the game still on."
     },
+    "EdgeOrientation": {
+      "type": "string",
+      "enum": [
+        "across",
+        "down"
+      ],
+      "description": "EdgeOrientation is the way an edge runs from its dot: across to the dot on its right, or down\nto the dot below."
+    },
     "Line": {
       "properties": {
         "row": {
@@ -83,7 +91,7 @@
           "type": "integer"
         },
         "orientation": {
-          "type": "string"
+          "$ref": "#/$defs/EdgeOrientation"
         }
       },
       "additionalProperties": false,

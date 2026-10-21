@@ -47,6 +47,8 @@ const (
 	Clyde  GhostName = "clyde"
 )
 
+func (GhostName) EnumValues() []string { return game.Strings(Blinky, Pinky, Inky, Clyde) }
+
 // GhostMode is what a ghost is doing.
 type GhostMode string
 
@@ -63,6 +65,10 @@ const (
 	// ModeEyes is an eaten ghost's eyes going back to the house.
 	ModeEyes GhostMode = "eyes"
 )
+
+func (GhostMode) EnumValues() []string {
+	return game.Strings(ModeHouse, ModeScatter, ModeChase, ModeFrightened, ModeEyes)
+}
 
 // Actor is where Pac-Man or a ghost is: Row and Col are 1-based from the top left.
 type Actor struct {

@@ -26,7 +26,7 @@
     },
     "Board": {
       "items": {
-        "type": "string"
+        "$ref": "#/$defs/Piece"
       },
       "type": "array",
       "maxItems": 32,
@@ -57,6 +57,17 @@
         "crowned"
       ],
       "description": "MovedEvent reports a played move and whether it crowned a man."
+    },
+    "Piece": {
+      "type": "string",
+      "enum": [
+        "",
+        "b",
+        "B",
+        "w",
+        "W"
+      ],
+      "description": "Piece is what stands on a square; the zero value is an empty square."
     },
     "ResultReason": {
       "type": "string",

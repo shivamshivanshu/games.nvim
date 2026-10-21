@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
-	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 // Direction is one of the four orthogonal ways across a board, named as on the wire.
@@ -25,9 +24,9 @@ func Directions() []Direction { return slices.Clone(directions[:]) }
 
 // DirectionNames lists the text ParseDirection accepts, in the order of Directions, for an
 // action catalogue's Values.
-func DirectionNames() []string {
-	return xslices.Map(directions[:], func(d Direction) string { return string(d) })
-}
+func DirectionNames() []string { return game.Strings(directions[:]...) }
+
+func (Direction) EnumValues() []string { return DirectionNames() }
 
 // ParseDirection reads a direction's name, failing with a game.IllegalActionError for any
 // text not in DirectionNames.

@@ -92,7 +92,7 @@
           "type": "integer"
         },
         "pass": {
-          "type": "string"
+          "$ref": "#/$defs/PassDirection"
         }
       },
       "additionalProperties": false,
@@ -143,6 +143,16 @@
       ],
       "description": "PassChosenEvent is Seat choosing its three cards to pass, which only it and its receiver see."
     },
+    "PassDirection": {
+      "type": "string",
+      "enum": [
+        "left",
+        "right",
+        "across",
+        "hold"
+      ],
+      "description": "PassDirection is where a hand's passes go: left, right, across, then\nheld, in turn from the first hand."
+    },
     "PassedEvent": {
       "properties": {
         "kind": {
@@ -152,7 +162,7 @@
           "type": "string"
         },
         "pass": {
-          "type": "string"
+          "$ref": "#/$defs/PassDirection"
         }
       },
       "additionalProperties": false,
@@ -163,6 +173,14 @@
         "pass"
       ],
       "description": "PassedEvent hands every seat's chosen cards on, Pass."
+    },
+    "Phase": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "play"
+      ],
+      "description": "Phase is what the hand waits on."
     },
     "Play": {
       "properties": {
@@ -205,6 +223,17 @@
         "card"
       ],
       "description": "PlayedEvent is Seat playing Card to the trick."
+    },
+    "Prompt": {
+      "type": "string",
+      "enum": [
+        "",
+        "pass",
+        "wait",
+        "lead",
+        "play"
+      ],
+      "description": "Prompt is what the viewer is to do now."
     },
     "ResultReason": {
       "type": "string",
@@ -314,10 +343,10 @@
           "type": "integer"
         },
         "pass": {
-          "type": "string"
+          "$ref": "#/$defs/PassDirection"
         },
         "phase": {
-          "type": "string"
+          "$ref": "#/$defs/Phase"
         },
         "score_limit": {
           "type": "integer"
@@ -405,7 +434,7 @@
           ]
         },
         "prompt": {
-          "type": "string"
+          "$ref": "#/$defs/Prompt"
         }
       },
       "additionalProperties": false,

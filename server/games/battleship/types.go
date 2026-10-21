@@ -37,6 +37,8 @@ const (
 	PhaseOver   Phase = "over"
 )
 
+func (Phase) EnumValues() []string { return game.Strings(PhaseSetup, PhaseBattle, PhaseOver) }
+
 // Tile is what one square of a board shows its viewer. On the viewer's own
 // board: water, a ship, or the opponent's miss, hit or sunk ship. On the target
 // board: a square not fired at, or the viewer's miss, hit or sunk ship; once
@@ -51,6 +53,10 @@ const (
 	TileHit   Tile = "hit"
 	TileSunk  Tile = "sunk"
 )
+
+func (Tile) EnumValues() []string {
+	return game.Strings(TileEmpty, TileShip, TileMiss, TileHit, TileSunk)
+}
 
 // Square is a board position on the wire, 1-based: row 1 is the top, column 1 the left.
 type Square struct {
@@ -74,6 +80,8 @@ const (
 	ShipAfloat   ShipState = "afloat"
 	ShipSunk     ShipState = "sunk"
 )
+
+func (ShipState) EnumValues() []string { return game.Strings(ShipUnplaced, ShipAfloat, ShipSunk) }
 
 // ShipStatus is one ship of a fleet as the viewer may know it.
 type ShipStatus struct {
@@ -114,6 +122,8 @@ const (
 	ShotHit  ShotOutcome = "hit"
 	ShotSunk ShotOutcome = "sunk"
 )
+
+func (ShotOutcome) EnumValues() []string { return game.Strings(ShotMiss, ShotHit, ShotSunk) }
 
 // ReadyEvent reports that By has placed its whole fleet.
 type ReadyEvent struct {

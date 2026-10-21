@@ -50,6 +50,15 @@
       ],
       "description": "Anchors are the squares the viewer's next ship may start on, its left end\nlying across or its top end lying down. Both are empty unless the viewer is placing."
     },
+    "Phase": {
+      "type": "string",
+      "enum": [
+        "setup",
+        "battle",
+        "over"
+      ],
+      "description": "Phase is where the game is: placing fleets, shooting, or finished."
+    },
     "ReadyEvent": {
       "properties": {
         "kind": {
@@ -74,10 +83,21 @@
       ],
       "description": "The result reasons Battleship adds to the core's."
     },
+    "ShipName": {
+      "type": "string",
+      "enum": [
+        "carrier",
+        "battleship",
+        "cruiser",
+        "submarine",
+        "destroyer"
+      ],
+      "description": "ShipName names a ship of the fleet."
+    },
     "ShipSpec": {
       "properties": {
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/ShipName"
         },
         "size": {
           "type": "integer"
@@ -91,16 +111,25 @@
       ],
       "description": "ShipSpec is a ship of the fleet before it is placed."
     },
+    "ShipState": {
+      "type": "string",
+      "enum": [
+        "unplaced",
+        "afloat",
+        "sunk"
+      ],
+      "description": "ShipState is how a ship stands: not yet placed, afloat, or sunk. The\nopponent's ships are only ever afloat or sunk to the viewer."
+    },
     "ShipStatus": {
       "properties": {
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/ShipName"
         },
         "size": {
           "type": "integer"
         },
         "state": {
-          "type": "string"
+          "$ref": "#/$defs/ShipState"
         }
       },
       "additionalProperties": false,
@@ -121,10 +150,10 @@
           "$ref": "#/$defs/Square"
         },
         "outcome": {
-          "type": "string"
+          "$ref": "#/$defs/ShotOutcome"
         },
         "ship": {
-          "type": "string"
+          "$ref": "#/$defs/ShipName"
         }
       },
       "additionalProperties": false,
@@ -148,10 +177,10 @@
           "$ref": "#/$defs/Square"
         },
         "outcome": {
-          "type": "string"
+          "$ref": "#/$defs/ShotOutcome"
         },
         "ship": {
-          "type": "string"
+          "$ref": "#/$defs/ShipName"
         }
       },
       "additionalProperties": false,
@@ -163,6 +192,15 @@
         "outcome"
       ],
       "description": "ShotEvent reports By's shot at Cell of the opponent's waters; Ship names the\nship it sank, and is empty otherwise."
+    },
+    "ShotOutcome": {
+      "type": "string",
+      "enum": [
+        "miss",
+        "hit",
+        "sunk"
+      ],
+      "description": "ShotOutcome is what a shot found: water, a ship, or the last afloat square of a ship."
     },
     "Square": {
       "properties": {
@@ -181,15 +219,26 @@
       ],
       "description": "Square is a board position on the wire, 1-based: row 1 is the top, column 1 the left."
     },
+    "Tile": {
+      "type": "string",
+      "enum": [
+        "empty",
+        "ship",
+        "miss",
+        "hit",
+        "sunk"
+      ],
+      "description": "Tile is what one square of a board shows its viewer. On the viewer's own\nboard: water, a ship, or the opponent's miss, hit or sunk ship. On the target\nboard: a square not fired at, or the viewer's miss, hit or sunk ship; once\nthe game is over the opponent's ships that were never hit show as TileShip."
+    },
     "View": {
       "properties": {
         "phase": {
-          "type": "string"
+          "$ref": "#/$defs/Phase"
         },
         "own": {
           "items": {
             "items": {
-              "type": "string"
+              "$ref": "#/$defs/Tile"
             },
             "type": "array"
           },
@@ -198,7 +247,7 @@
         "target": {
           "items": {
             "items": {
-              "type": "string"
+              "$ref": "#/$defs/Tile"
             },
             "type": "array"
           },

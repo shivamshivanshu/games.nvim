@@ -34,7 +34,7 @@
           "type": "string"
         },
         "ghost": {
-          "type": "string"
+          "$ref": "#/$defs/GhostName"
         },
         "lives_left": {
           "type": "integer"
@@ -50,6 +50,16 @@
       ],
       "description": "CaughtEvent reports a ghost catching Pac-Man, and the lives left after it."
     },
+    "Direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "description": "Direction is one of the four orthogonal ways across a board, named as on the wire."
+    },
     "GhostEatenEvent": {
       "properties": {
         "kind": {
@@ -59,7 +69,7 @@
           "type": "string"
         },
         "ghost": {
-          "type": "string"
+          "$ref": "#/$defs/GhostName"
         },
         "points": {
           "type": "integer"
@@ -75,6 +85,27 @@
       ],
       "description": "GhostEatenEvent reports Pac-Man eating a frightened ghost, and the points it scored."
     },
+    "GhostMode": {
+      "type": "string",
+      "enum": [
+        "house",
+        "scatter",
+        "chase",
+        "frightened",
+        "eyes"
+      ],
+      "description": "GhostMode is what a ghost is doing."
+    },
+    "GhostName": {
+      "type": "string",
+      "enum": [
+        "blinky",
+        "pinky",
+        "inky",
+        "clyde"
+      ],
+      "description": "GhostName names a ghost, and with it how it hunts."
+    },
     "GhostView": {
       "properties": {
         "row": {
@@ -84,13 +115,13 @@
           "type": "integer"
         },
         "facing": {
-          "type": "string"
+          "$ref": "#/$defs/Direction"
         },
         "name": {
-          "type": "string"
+          "$ref": "#/$defs/GhostName"
         },
         "mode": {
-          "type": "string"
+          "$ref": "#/$defs/GhostMode"
         }
       },
       "additionalProperties": false,
@@ -134,12 +165,12 @@
           "type": "integer"
         },
         "facing": {
-          "type": "string"
+          "$ref": "#/$defs/Direction"
         },
         "next_turn": {
           "oneOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/Direction"
             },
             {
               "type": "null"

@@ -26,7 +26,7 @@
     },
     "Feedback": {
       "items": {
-        "type": "string"
+        "$ref": "#/$defs/Mark"
       },
       "type": "array",
       "maxItems": 5,
@@ -77,10 +77,19 @@
     },
     "Keyboard": {
       "additionalProperties": {
-        "type": "string"
+        "$ref": "#/$defs/Mark"
       },
       "type": "object",
       "description": "Keyboard is the best Mark each guessed letter has earned so far; a letter not yet guessed is absent."
+    },
+    "Mark": {
+      "type": "string",
+      "enum": [
+        "hit",
+        "present",
+        "miss"
+      ],
+      "description": "Mark is the feedback for one symbol of a guess."
     },
     "ResultReason": {
       "type": "string",

@@ -25,6 +25,16 @@
       ],
       "description": "ActionKind is the \"kind\" field every action object carries."
     },
+    "Direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "description": "Direction is one of the four orthogonal ways across a board, named as on the wire."
+    },
     "MovedEvent": {
       "properties": {
         "kind": {
@@ -34,7 +44,7 @@
           "type": "string"
         },
         "direction": {
-          "type": "string"
+          "$ref": "#/$defs/Direction"
         },
         "gained": {
           "type": "integer"
@@ -125,7 +135,7 @@
         },
         "movable": {
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/Direction"
           },
           "type": "array"
         }

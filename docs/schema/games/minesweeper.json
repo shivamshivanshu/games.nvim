@@ -27,6 +27,27 @@
       ],
       "description": "ActionKind is the \"kind\" field every action object carries."
     },
+    "Cell": {
+      "type": "string",
+      "enum": [
+        "hidden",
+        "flag",
+        "mine",
+        "flagged_mine",
+        "exploded",
+        "wrong_flag",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "description": "Cell is how one cell looks to the player: hidden, flagged, or revealed as the count\n\"0\" to \"8\" of the mines around it. Once the game is over every mine shows: CellExploded for\nthe one revealed, CellFlaggedMine where a flag was right, CellMine where none was; a flag on\na safe cell shows as CellWrongFlag."
+    },
     "ChordedEvent": {
       "properties": {
         "kind": {
@@ -144,7 +165,7 @@
         "cells": {
           "items": {
             "items": {
-              "type": "string"
+              "$ref": "#/$defs/Cell"
             },
             "type": "array"
           },

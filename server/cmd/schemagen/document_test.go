@@ -2,11 +2,11 @@ package main
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
-	"github.com/invopop/jsonschema"
-
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 type kindedEvent struct {
@@ -21,7 +21,7 @@ type viewHoldingEvent struct {
 }
 
 func TestEventKindIsNeverAddedToASharedDef(t *testing.T) {
-	doc := newDocument(nil, func(reflect.Type) *jsonschema.Schema { return nil })
+	doc := newDocument(nil, nil)
 	if _, err := doc.ref(reflect.TypeFor[viewHoldingEvent]()); err != nil {
 		t.Fatal(err)
 	}
@@ -53,4 +53,43 @@ func countOf(values []string, value string) int {
 		}
 	}
 	return n
+}
+
+type Cell int
+
+type viewWithTwoCells struct {
+	Board Cell      `json:"board"`
+	Last  grid.Cell `json:"last"`
+}
+
+func TestTwoTypesOfOneNameFail(t *testing.T) {
+	if _, err := newDocument(nil, nil).ref(reflect.TypeFor[viewWithTwoCells]()); err == nil {
+		t.Error("grid.Cell and Cell share a def")
+	}
+}
+
+type kindWithoutValues string
+
+type kindWithValues string
+
+func (kindWithValues) EnumValues() []string { return []string{"a", "b"} }
+
+func TestAGameKindNeedsEnumValues(t *testing.T) {
+	for _, tc := range []struct {
+		kind    reflect.Type
+		wantErr bool
+	}{
+		{reflect.TypeFor[kindWithoutValues](), true},
+		{reflect.TypeFor[kindWithValues](), false},
+		{reflect.TypeFor[game.Seat](), false},
+	} {
+		holder := reflect.StructOf([]reflect.StructField{{Name: "Field", Type: tc.kind, Tag: `json:"field"`}})
+		doc := newDocument(nil, nil)
+		if _, err := doc.ref(holder); (err != nil) != tc.wantErr {
+			t.Errorf("%s: got %v, want error %t", tc.kind, err, tc.wantErr)
+		}
+		if e, ok := doc.enums[tc.kind]; ok && !slices.Equal(e.values, []string{"a", "b"}) {
+			t.Errorf("%s: enum %v", tc.kind, e.values)
+		}
+	}
 }

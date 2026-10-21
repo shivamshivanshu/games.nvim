@@ -19,6 +19,8 @@ const (
 	ModeStudy Mode = "study"
 )
 
+func (Mode) EnumValues() []string { return game.Strings(modes()...) }
+
 // Side is the colour the solver plays; the server plays the other.
 type Side string
 
