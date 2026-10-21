@@ -368,6 +368,7 @@ An action object always carries `kind`.
   - `movable` lists `{tile, direction}` for each tile next to the blank and the way it would move; `[]` once over.
 - Actions: `slide` (`tile`: the number as text, `"1"` to `"15"`; one the board lacks is an `illegal_action`) and `move` (`direction`: `up`, `down`, `left` or `right`, the way the tile moves, so `up` moves the tile below the blank).
 - The shuffle is drawn at `game.start` from the seed, always solvable and never already solved.
+
 ### 2048
 
 - Solo: one seat, `solver`; start it with `game.start`. No options.
