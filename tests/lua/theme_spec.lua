@@ -125,16 +125,7 @@ function T.vivid_without_termguicolors_falls_back_to_theme_and_warns_once()
     package.loaded["games.ui.theme"] = nil
     local fresh_theme = require("games.ui.theme")
     package.loaded["games.ui.theme"] = theme
-    local warnings = {}
-    helpers.with_overrides({
-      {
-        vim,
-        "notify",
-        function(message)
-          warnings[#warnings + 1] = message
-        end,
-      },
-    }, function()
+    local warnings = helpers.capture_notifications(function()
       fresh_theme.setup(VIVID)
       fresh_theme.setup(VIVID)
     end)
@@ -175,26 +166,9 @@ function T.inks_contrast_with_the_background_they_sit_on()
   end)
 end
 
----Runs fn with vim.notify recorded.
----@param fn fun()
----@return string[] messages
-local function notified_during(fn)
-  local messages = {}
-  helpers.with_overrides({
-    {
-      vim,
-      "notify",
-      function(message)
-        messages[#messages + 1] = message
-      end,
-    },
-  }, fn)
-  return messages
-end
-
 function T.a_link_override_holds_across_colorschemes()
   with_display(true, "dark", function()
-    notified_during(function()
+    helpers.capture_notifications(function()
       theme.setup({ palette = "theme", highlights = { GamesCheck = { link = "Search" } } })
       for _ = 1, 2 do
         vim.cmd.colorscheme("default")
@@ -222,7 +196,7 @@ function T.an_override_is_cut_to_its_role_and_reported_once()
       palette = "theme",
       highlights = { GamesLastMove = { bg = "#123456", fg = "#ff0000", reverse = true } },
     }
-    local messages = notified_during(function()
+    local messages = helpers.capture_notifications(function()
       theme.setup(options)
       theme.setup(options)
     end)

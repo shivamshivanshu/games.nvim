@@ -69,15 +69,9 @@ end
 ---@param message_type string
 ---@return table[] bodies of the requests of that type
 local function sent(conn, message_type)
-  return vim
-    .iter(conn.requests)
-    :filter(function(request)
-      return request.type == message_type
-    end)
-    :map(function(request)
-      return request.body
-    end)
-    :totable()
+  return vim.tbl_map(function(request)
+    return request.body
+  end, conn:requests_of(message_type))
 end
 
 local function mapping(buf, lhs)
@@ -90,14 +84,6 @@ end
 
 local function first_board_line(buf)
   return board_lines(vim.api.nvim_buf_get_lines(buf, 0, -1, false))[1]
-end
-
-local function with_stub(tbl, key, value, fn)
-  local original = tbl[key]
-  tbl[key] = value
-  local ok, err = pcall(fn)
-  tbl[key] = original
-  assert(ok, err)
 end
 
 local T = {}
@@ -264,10 +250,7 @@ function T.game_actions_stay_unbound_until_the_catalog_arrives_then_every_board_
   assert(not mapping(buf, "m"), "move is bound before the catalog is known")
   assert(mapping(buf, "R"), "controls do not wait for the catalog")
 
-  local catalog_request = vim.iter(conn.requests):find(function(request)
-    return request.type == "catalog.list"
-  end)
-  catalog_request.cb(nil, {
+  conn:respond("catalog.list", {
     games = {
       { id = "chess", name = "Chess", actions = { { kind = "move" }, { kind = "claim_draw" } } },
     },
@@ -329,14 +312,10 @@ function T.an_action_with_input_prompts_and_sends_what_it_parses_while_catalogue
       end,
     },
   }
-  local prompts = {}
-  with_stub(vim.ui, "input", function(opts, on_confirm)
-    prompts[#prompts + 1] = opts.prompt
-    on_confirm("c5")
-  end, function()
+  helpers.with_input_answers({ "c5" }, function(prompts)
     flag_binding(flaggable, { flag = true }).run(board)
+    assert_eq({ { prompt = "Flag: " } }, prompts)
   end)
-  assert_eq({ "Flag: " }, prompts)
   assert_eq({ { game_id = "flag01", seq = 4, action = { kind = "flag", cell = "c5" } } }, acted)
 end
 
@@ -371,13 +350,11 @@ end
 function T.resign_confirms_then_sends_control()
   local client, conn = client_with("alice", { chess_update({ game_id = "resign01", seq = 3 }) })
   local buf = shell.open(client, "resign01")
-  local answer = 2
-  with_stub(vim.fn, "confirm", function()
-    return answer
-  end, function()
+  helpers.confirming(2, function()
     mapping(buf, "R").callback()
-    assert_eq({}, sent(conn, "game.control"))
-    answer = 1
+  end)
+  assert_eq({}, sent(conn, "game.control"))
+  helpers.confirming(1, function()
     mapping(buf, "R").callback()
   end)
 
@@ -396,14 +373,10 @@ function T.a_game_played_alone_is_named_solo_and_offers_to_give_up()
   local footer = vim.api.nvim_buf_get_lines(buf, -2, -1, false)[1]
   assert(footer:find("R give up", 1, true) and not footer:find("resign", 1, true), footer)
 
-  local asked
-  with_stub(vim.fn, "confirm", function(message)
-    asked = message
-    return 1
-  end, function()
+  local asked = helpers.confirming(1, function()
     mapping(buf, "R").callback()
   end)
-  assert_eq("Give up this game?", asked)
+  assert_eq({ "Give up this game?" }, asked)
   assert_eq({ { game_id = "solo0001", seq = 0, control = "resign" } }, sent(conn, "game.control"))
 end
 
@@ -428,9 +401,15 @@ function T.open_charges_clock_from_its_as_of_time()
   })
   local client = client_with("alice", { update })
   local header
-  with_stub(timer, "unix_ms", function()
-    return as_of_ms + 61000
-  end, function()
+  helpers.with_overrides({
+    {
+      timer,
+      "unix_ms",
+      function()
+        return as_of_ms + 61000
+      end,
+    },
+  }, function()
     local buf = shell.open(client, "clock01")
     header = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
     vim.api.nvim_buf_delete(buf, { force = true })
@@ -441,10 +420,7 @@ end
 
 function T.open_refuses_while_disconnected()
   local client = client_with(nil, { chess_update({ game_id = "offline01" }) })
-  local messages = {}
-  with_stub(vim, "notify", function(message)
-    table.insert(messages, message)
-  end, function()
+  local messages = helpers.capture_notifications(function()
     assert_eq(nil, shell.open(client, "offline01"))
   end)
 
@@ -827,9 +803,15 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
         table.insert(lines_changed, old_last - first)
       end,
     })
-    with_stub(timer, "unix_ms", function()
-      return update.clock.as_of_ms + elapsed_ms
-    end, function()
+    helpers.with_overrides({
+      {
+        timer,
+        "unix_ms",
+        function()
+          return update.clock.as_of_ms + elapsed_ms
+        end,
+      },
+    }, function()
       helpers.wait_for(function()
         return vim.deep_equal(expected_lines, (painted_header(buf, height)))
       end, "a clock tick")

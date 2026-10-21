@@ -172,6 +172,99 @@ function M.with_overrides(overrides, fn)
   end
 end
 
+---@class games.test.SelectPrompt
+---@field prompt string
+---@field labels string[]
+
+---Stubs vim.ui.select to answer each prompt with the item labelled answers[i] (none left
+---cancels), recording the prompts.
+---@param answers string[]
+---@param fn fun(prompts: games.test.SelectPrompt[])
+function M.with_select_answers(answers, fn)
+  local prompts = {}
+  M.with_overrides({
+    {
+      vim.ui,
+      "select",
+      function(items, opts, on_choice)
+        local labels = vim.tbl_map(opts.format_item or tostring, items)
+        table.insert(prompts, { prompt = opts.prompt, labels = labels })
+        local answer = answers[#prompts]
+        if not answer then
+          on_choice(nil)
+          return
+        end
+        local index = vim.fn.index(labels, answer)
+        assert(index >= 0, ("%q is not offered by %q"):format(answer, opts.prompt))
+        on_choice(items[index + 1])
+      end,
+    },
+  }, function()
+    fn(prompts)
+  end)
+end
+
+---@class games.test.InputPrompt
+---@field prompt string
+---@field default string
+
+---Stubs vim.ui.input to answer each prompt with answers[i], false cancelling, recording the prompts.
+---@param answers (string|false)[]
+---@param fn fun(prompts: games.test.InputPrompt[])
+function M.with_input_answers(answers, fn)
+  local prompts = {}
+  M.with_overrides({
+    {
+      vim.ui,
+      "input",
+      function(opts, on_confirm)
+        table.insert(prompts, { prompt = opts.prompt, default = opts.default })
+        on_confirm(answers[#prompts] or nil)
+      end,
+    },
+  }, function()
+    fn(prompts)
+  end)
+end
+
+---Stubs vim.fn.confirm to answer every question with answer while fn runs.
+---@param answer integer 1 yes, 2 no
+---@param fn fun()
+---@return string[] asked the questions, in order
+function M.confirming(answer, fn)
+  local asked = {}
+  M.with_overrides({
+    {
+      vim.fn,
+      "confirm",
+      function(message)
+        table.insert(asked, message)
+        return answer
+      end,
+    },
+  }, fn)
+  return asked
+end
+
+---Records every vim.notify message while fn runs; fn sees them as they arrive.
+---@param fn fun(messages: string[])
+---@return string[] messages
+function M.capture_notifications(fn)
+  local messages = {}
+  M.with_overrides({
+    {
+      vim,
+      "notify",
+      function(message)
+        table.insert(messages, message)
+      end,
+    },
+  }, function()
+    fn(messages)
+  end)
+  return messages
+end
+
 ---A game's view options in glyphs, drawing from its default asset pack, with extra (e.g. cursor
 ---or flipped) on top.
 ---@param game games.GameType
@@ -308,15 +401,22 @@ function M.seal(update, summary)
   return vim.tbl_extend("force", update, { summary = summary, digest = vim.fn.sha256(summary) })
 end
 
+---@class games.test.StubRequest
+---@field type string
+---@field body table|nil
+---@field cb fun(err: games.ErrorBody|nil, result: table|nil)
+---@field frame string as Conn encodes it
+
 ---@class games.test.StubConn
 ---@field handlers table<string, fun(body: table)[]>
----@field requests {type: string, body: table|nil, cb: fun(err: games.ErrorBody|nil, result: table|nil), frame: string}[] frame as Conn encodes it
+---@field requests games.test.StubRequest[]
 ---@field credentials games.Credentials
 ---@field connects integer how often connect() was called
 ---@field connecting boolean
 ---@field error? games.ErrorBody what last_error() returns
 
----Records requests instead of sending them; push() delivers an event synchronously.
+---Records requests instead of sending them; push() delivers an event synchronously. sent() and
+---respond() act on the newest request of a type.
 ---@param credentials? games.Credentials
 ---@return games.test.StubConn
 function M.stub_conn(credentials)
@@ -358,6 +458,25 @@ function M.stub_conn(credentials)
     for _, fn in ipairs(self.handlers[event]) do
       fn(body)
     end
+  end
+  function conn:requests_of(message_type)
+    return vim.tbl_filter(function(request)
+      return request.type == message_type
+    end, self.requests)
+  end
+  local function newest(message_type)
+    local of_type = conn:requests_of(message_type)
+    return of_type[#of_type]
+  end
+  function conn:sent(message_type)
+    local request = newest(message_type)
+    return request and request.body
+  end
+  function conn:requested(message_type)
+    return newest(message_type) ~= nil
+  end
+  function conn:respond(message_type, result)
+    assert(newest(message_type), "no " .. message_type .. " request").cb(nil, result)
   end
   return conn
 end

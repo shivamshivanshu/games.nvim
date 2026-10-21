@@ -96,17 +96,12 @@ end
 function T.catalog_is_requested_once_per_connection()
   local conn = stub_conn()
   local client = Client.new(conn --[[@as games.Conn]])
-  local function catalog_requests()
-    return vim.tbl_filter(function(request)
-      return request.type == "catalog.list"
-    end, conn.requests)
-  end
   local catalog = { games = { { id = "chess", name = "Chess" } } }
   client:catalog_list(nil)
-  catalog_requests()[1].cb({ code = "internal", message = "try again" }, nil)
+  conn:requests_of("catalog.list")[1].cb({ code = "internal", message = "try again" }, nil)
   client:catalog_list(nil)
-  assert(#catalog_requests() == 2, "a failed catalog request must not be cached")
-  catalog_requests()[2].cb(nil, catalog)
+  assert(#conn:requests_of("catalog.list") == 2, "a failed catalog request must not be cached")
+  conn:requests_of("catalog.list")[2].cb(nil, catalog)
   local infos
   client:game_infos(function(result)
     infos = result
@@ -117,13 +112,13 @@ function T.catalog_is_requested_once_per_connection()
 
   assert(vim.deep_equal(infos, { chess = catalog.games[1] }), vim.inspect(infos))
   assert(client:game_info("chess") == catalog.games[1])
-  assert(#catalog_requests() == 2)
+  assert(#conn:requests_of("catalog.list") == 2)
   conn:push("disconnected", { code = "disconnected", message = "lost", retrying = true })
   client:catalog_list(nil)
-  assert(#catalog_requests() == 3)
-  catalog_requests()[3].cb(nil, catalog)
+  assert(#conn:requests_of("catalog.list") == 3)
+  conn:requests_of("catalog.list")[3].cb(nil, catalog)
   conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
-  assert(#catalog_requests() == 4, "a new connection refetches the catalog")
+  assert(#conn:requests_of("catalog.list") == 4, "a new connection refetches the catalog")
   assert(client:game_info("chess") == nil)
 end
 
@@ -187,22 +182,14 @@ end
 function T.a_failing_update_handler_does_not_skip_the_others()
   local conn = stub_conn()
   local client = Client.new(conn --[[@as games.Conn]])
-  local seen, notified = {}, {}
+  local seen = {}
   client:on_update(function()
     error("boom", 0)
   end)
   client:on_update(function(stored)
     table.insert(seen, stored.seq)
   end)
-  helpers.with_overrides({
-    {
-      vim,
-      "notify",
-      function(message)
-        table.insert(notified, message)
-      end,
-    },
-  }, function()
+  local notified = helpers.capture_notifications(function()
     conn:push("game.update", update(1))
   end)
 

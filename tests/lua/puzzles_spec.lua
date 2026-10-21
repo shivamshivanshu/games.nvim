@@ -190,21 +190,11 @@ end
 
 function T.importing_a_pgn_asks_once_which_side_its_studies_play()
   with_sets_dir(function(dir)
-    local asked = {}
-    helpers.with_overrides({
-      {
-        vim.ui,
-        "select",
-        function(items, opts, on_choice)
-          table.insert(asked, { prompt = opts.prompt, items = items })
-          on_choice("black")
-        end,
-      },
-    }, function()
+    helpers.with_select_answers({ "black" }, function(asked)
       local err = import(PGN, "openings")
       assert_eq(nil, err)
+      assert_eq({ { prompt = "Side to study in 1 games:", labels = { "white", "black" } } }, asked)
     end)
-    assert_eq({ { prompt = "Side to study in 1 games:", items = { "white", "black" } } }, asked)
     local players = vim.tbl_map(function(entry)
       return entry.player
     end, saved_set(dir, "openings").entries)
@@ -292,15 +282,7 @@ end
 
 function T.cancelling_the_side_question_cancels_the_import()
   with_sets_dir(function(dir)
-    helpers.with_overrides({
-      {
-        vim.ui,
-        "select",
-        function(_, _, on_choice)
-          on_choice(nil)
-        end,
-      },
-    }, function()
+    helpers.with_select_answers({}, function()
       assert_eq("import cancelled", (import(PGN, "openings")))
     end)
     assert_eq({}, puzzles.set_names())

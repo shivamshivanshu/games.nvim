@@ -46,7 +46,7 @@ local function with_dashboard(fn)
   local client, conn = hub.client()
   local ok, err = xpcall(function()
     dashboard.open(client)
-    hub.respond(conn, "game.list", { games = { hub.FINISHED } })
+    conn:respond("game.list", { games = { hub.FINISHED } })
     vim.wait(20)
     fn(client, conn)
   end, debug.traceback)
@@ -71,19 +71,6 @@ end
 ---@return boolean whether the dashboard's autocmd group exists
 local function has_augroup()
   return (pcall(vim.api.nvim_get_autocmds, { group = "games.dashboard" }))
-end
-
----@param fn fun()
-local function confirming_yes(fn)
-  helpers.with_overrides({
-    {
-      vim.fn,
-      "confirm",
-      function()
-        return 1
-      end,
-    },
-  }, fn)
 end
 
 local T = {}
@@ -140,20 +127,20 @@ function T.keys_act_on_the_item_under_the_cursor()
   with_dashboard(function(_, conn)
     cursor_to(2)
     press("a")
-    assert_eq({ challenge_id = "c-in" }, hub.sent(conn, "challenge.accept"))
+    assert_eq({ challenge_id = "c-in" }, conn:sent("challenge.accept"))
     cursor_to(3)
     press("d")
-    assert_eq({ challenge_id = "c-out" }, hub.sent(conn, "challenge.cancel"))
+    assert_eq({ challenge_id = "c-out" }, conn:sent("challenge.cancel"))
     cursor_to(9)
-    confirming_yes(function()
+    helpers.confirming(1, function()
       press("r")
     end)
     assert_eq(
       { game_id = hub.WAITING.game_id, seq = hub.WAITING.seq, control = "resign" },
-      hub.sent(conn, "game.control")
+      conn:sent("game.control")
     )
     press("2")
-    assert_eq({ game = "sudoku", options = {} }, hub.sent(conn, "game.start"))
+    assert_eq({ game = "sudoku", options = {} }, conn:sent("game.start"))
   end)
 end
 
@@ -175,24 +162,11 @@ function T.r_on_a_solo_game_gives_it_up()
     assert(line, vim.inspect(shown_lines()))
     assert(shown_lines()[line]:find("sudoku solo", 1, true), shown_lines()[line])
     cursor_to(line)
-    local asked
-    helpers.with_overrides({
-      {
-        vim.fn,
-        "confirm",
-        function(message)
-          asked = message
-          return 1
-        end,
-      },
-    }, function()
+    local asked = helpers.confirming(1, function()
       press("r")
     end)
-    assert_eq("Give up this game?", asked)
-    assert_eq(
-      { game_id = alone.game_id, seq = 0, control = "resign" },
-      hub.sent(conn, "game.control")
-    )
+    assert_eq({ "Give up this game?" }, asked)
+    assert_eq({ game_id = alone.game_id, seq = 0, control = "resign" }, conn:sent("game.control"))
   end)
 end
 
@@ -224,7 +198,7 @@ function T.games_without_arguments_opens_the_dashboard()
     require("games.core.commands").run({})
     local ok, err = pcall(function()
       assert(dashboard.is_open(), "no dashboard")
-      assert(hub.requested(conn, "game.list"), "the dashboard did not fetch recent games")
+      assert(conn:requested("game.list"), "the dashboard did not fetch recent games")
     end)
     dashboard.close()
     assert(ok, err)
@@ -245,7 +219,7 @@ function T.a_dropped_connection_pauses_the_clock_and_shows_reconnecting_until_it
     vim.wait(20)
     assert_eq("Requests", shown_lines()[1])
     assert_eq(ticking, active_timers())
-    assert(hub.requested(conn, "game.list"), "recent games were not fetched again")
+    assert(conn:requested("game.list"), "recent games were not fetched again")
   end)
 end
 
@@ -350,12 +324,12 @@ function T.a_key_acts_on_the_item_the_cursor_was_on_after_a_live_update_moves_it
       shown_lines()[vim.api.nvim_win_get_cursor(0)[1]]:find("#8b2c", 1, true),
       "cursor lost the game"
     )
-    confirming_yes(function()
+    helpers.confirming(1, function()
       press("r")
     end)
     assert_eq(
       { game_id = moved.game_id, seq = moved.seq, control = "resign" },
-      hub.sent(conn, "game.control")
+      conn:sent("game.control")
     )
   end)
 end

@@ -185,16 +185,7 @@ return {
       package.preload[module] = function()
         return made
       end
-      local notices = {}
-      helpers.with_overrides({
-        {
-          vim,
-          "notify",
-          function(message)
-            notices[#notices + 1] = message
-          end,
-        },
-      }, function()
+      local notices = helpers.capture_notifications(function()
         for _ = 1, 2 do
           assert_eq("default", assets.load("chess", module, chess_spec).name)
         end

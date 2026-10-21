@@ -135,22 +135,14 @@ function T.actions_send_through_the_client()
   local client, conn = hub.client()
   local snapshot = hub.snapshot(client)
   run(sources.build(SourceName.REQUESTS, snapshot), "accept", hub.INCOMING)
-  assert_eq({ challenge_id = "c-in" }, hub.sent(conn, "challenge.accept"))
+  assert_eq({ challenge_id = "c-in" }, conn:sent("challenge.accept"))
   run(sources.build(SourceName.REQUESTS, snapshot), "cancel", hub.OUTGOING)
-  assert_eq({ challenge_id = "c-out" }, hub.sent(conn, "challenge.cancel"))
+  assert_eq({ challenge_id = "c-out" }, conn:sent("challenge.cancel"))
 
-  helpers.with_overrides({
-    {
-      vim.fn,
-      "confirm",
-      function()
-        return 1
-      end,
-    },
-  }, function()
+  helpers.confirming(1, function()
     run(sources.build(SourceName.GAMES, snapshot), "resign", hub.YOUR_MOVE)
   end)
-  assert_eq({ game_id = "7f3a91c2", seq = 6, control = "resign" }, hub.sent(conn, "game.control"))
+  assert_eq({ game_id = "7f3a91c2", seq = 6, control = "resign" }, conn:sent("game.control"))
 end
 
 function T.starting_a_solo_type_starts_it_and_any_other_challenges()
@@ -158,20 +150,12 @@ function T.starting_a_solo_type_starts_it_and_any_other_challenges()
   local game_types = sources.build(SourceName.TYPES, hub.snapshot(client))
   local chess, sudoku = game_types.items[1], game_types.items[2]
   run(game_types, "start", sudoku)
-  assert_eq({ game = "sudoku", options = {} }, hub.sent(conn, "game.start"))
+  assert_eq({ game = "sudoku", options = {} }, conn:sent("game.start"))
 
-  helpers.with_overrides({
-    {
-      vim.ui,
-      "select",
-      function(_, _, on_choice)
-        on_choice(nil)
-      end,
-    },
-  }, function()
+  helpers.with_select_answers({}, function()
     run(game_types, "start", chess)
     vim.wait(20)
-    assert(hub.requested(conn, "user.list"), "challenging chess asks for an opponent")
+    assert(conn:requested("user.list"), "challenging chess asks for an opponent")
   end)
 end
 
@@ -193,38 +177,11 @@ function T.a_game_played_alone_shows_solo_and_offers_to_give_up()
   assert_eq({ "open", "give up" }, applicable_names(games, shown))
   assert_eq({ "open", "resign" }, applicable_names(games, hub.YOUR_MOVE))
 
-  local asked
-  helpers.with_overrides({
-    {
-      vim.fn,
-      "confirm",
-      function(message)
-        asked = message
-        return 1
-      end,
-    },
-  }, function()
+  local asked = helpers.confirming(1, function()
     run(games, "give up", shown)
   end)
-  assert_eq("Give up this game?", asked)
-  assert_eq(
-    { game_id = alone.game_id, seq = 0, control = "resign" },
-    hub.sent(conn, "game.control")
-  )
-end
-
----@param answer integer what vim.fn.confirm answers: 1 yes, 2 no
----@param fn fun()
-local function confirming(answer, fn)
-  helpers.with_overrides({
-    {
-      vim.fn,
-      "confirm",
-      function()
-        return answer
-      end,
-    },
-  }, fn)
+  assert_eq({ "Give up this game?" }, asked)
+  assert_eq({ game_id = alone.game_id, seq = 0, control = "resign" }, conn:sent("game.control"))
 end
 
 function T.resign_sends_the_seq_the_client_holds_once_confirmed()
@@ -232,23 +189,23 @@ function T.resign_sends_the_seq_the_client_holds_once_confirmed()
   local games = sources.build(SourceName.GAMES, hub.snapshot(client))
   local built = hub.WAITING
   local moved = vim.tbl_extend("force", built, { seq = built.seq + 1 })
-  confirming(1, function()
+  helpers.confirming(1, function()
     conn:push("game.update", moved)
     run(games, "resign", built)
   end)
   assert_eq(
     { game_id = built.game_id, seq = moved.seq, control = "resign" },
-    hub.sent(conn, "game.control")
+    conn:sent("game.control")
   )
 end
 
 function T.resign_declined_sends_nothing()
   local client, conn = hub.client()
   local games = sources.build(SourceName.GAMES, hub.snapshot(client))
-  confirming(2, function()
+  helpers.confirming(2, function()
     run(games, "resign", hub.WAITING)
   end)
-  assert_eq(false, hub.requested(conn, "game.control"))
+  assert_eq(false, conn:requested("game.control"))
 end
 
 ---@type games.PuzzleEntry
@@ -308,27 +265,18 @@ function T.puzzles_list_the_saved_sets_and_start_or_restart_one()
   with_daily_set(function(dir)
     run(puzzles, "start", puzzles.items[1])
     helpers.wait_for(function()
-      return hub.requested(conn, "game.start")
+      return conn:requested("game.start")
     end, "the puzzle's game.start")
     assert_eq(
       { game = "chess_puzzle", options = require("games.core.puzzles").options(DAILY_ENTRY) },
-      hub.sent(conn, "game.start")
+      conn:sent("game.start")
     )
-    confirming(2, function()
+    helpers.confirming(2, function()
       run(puzzles, "restart", puzzles.items[1])
     end)
     assert_eq(2, daily_next(dir))
-    local said = {}
-    helpers.with_overrides({
-      {
-        vim,
-        "notify",
-        function(message)
-          table.insert(said, message)
-        end,
-      },
-    }, function()
-      confirming(1, function()
+    local said = helpers.capture_notifications(function()
+      helpers.confirming(1, function()
         run(puzzles, "restart", puzzles.items[1])
       end)
     end)

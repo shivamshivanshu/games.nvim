@@ -52,15 +52,12 @@ local function with_stub_client(credentials, fn)
         return prompts.password
       end,
     },
-    {
-      vim,
-      "notify",
-      function(message)
-        table.insert(prompts.notified, message)
-      end,
-    },
   }, function()
-    local ok, err = xpcall(fn, debug.traceback, conn, prompts)
+    local ok, err
+    helpers.capture_notifications(function(notified)
+      prompts.notified = notified
+      ok, err = xpcall(fn, debug.traceback, conn, prompts)
+    end)
     conn:push(
       "disconnected",
       { code = ErrorCode.DISCONNECTED, message = "closed", retrying = false }
@@ -77,14 +74,6 @@ local function listed_ongoing(conn)
   end)
 end
 
----@param conn games.test.StubConn
----@return boolean
-local function fetched_stats(conn)
-  return vim.iter(conn.requests):any(function(request)
-    return request.type == MessageType.STATS_GET
-  end)
-end
-
 ---@param id string
 ---@param min integer
 ---@param max integer
@@ -97,72 +86,18 @@ local CATALOG = {
   games = { game_info("chess", 2, 2), game_info("party", 3, 4), game_info("sudoku", 1, 1) },
 }
 
----Answers the newest request of message_type with result.
----@param conn games.test.StubConn
----@param message_type string
----@param result table
-local function respond(conn, message_type, result)
-  local request = vim.iter(conn.requests):rev():find(function(candidate)
-    return candidate.type == message_type
-  end)
-  assert(request, "no " .. message_type .. " request")
-  request.cb(nil, result)
-end
-
----@class games.test.SelectPrompt
----@field prompt string
----@field labels string[]
-
----Stubs vim.ui.select to answer each prompt with the item labelled answers[i], recording the prompts.
----@param answers string[]
----@param fn fun(prompts: games.test.SelectPrompt[])
-local function with_select_answers(answers, fn)
-  local prompts = {}
-  helpers.with_overrides({
-    {
-      vim.ui,
-      "select",
-      function(items, opts, on_choice)
-        local labels = vim.tbl_map(opts.format_item, items)
-        table.insert(prompts, { prompt = opts.prompt, labels = labels })
-        local answer = answers[#prompts]
-        if not answer then
-          on_choice(nil)
-          return
-        end
-        local index = vim.fn.index(labels, answer)
-        assert(index >= 0, ("%q is not offered by %q"):format(answer, opts.prompt))
-        on_choice(items[index + 1])
-      end,
-    },
-  }, function()
-    fn(prompts)
-  end)
-end
-
----@param conn games.test.StubConn
----@return games.ChallengeCreateRequest|nil
-local function sent_challenge(conn)
-  local request = vim.iter(conn.requests):find(function(candidate)
-    return candidate.type == MessageType.CHALLENGE_CREATE
-  end)
-  return request and request.body
-end
-
 local T = {}
 
 function T.challenge_with_three_invitees_sends_all_of_them()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
     commands.run({ "challenge", "party", "bob", "carol", "dave" })
-    respond(conn, MessageType.CATALOG_LIST, CATALOG)
+    conn:respond(MessageType.CATALOG_LIST, CATALOG)
     assert_eq(
       { to = { "bob", "carol", "dave" }, game = "party", options = {} },
-      sent_challenge(conn)
+      conn:sent(MessageType.CHALLENGE_CREATE)
     )
-    local frame = vim.iter(conn.requests):find(function(request)
-      return request.type == MessageType.CHALLENGE_CREATE
-    end).frame
+    local frame = conn:requests_of(MessageType.CHALLENGE_CREATE)[1].frame
     assert(frame:find('"options":{}', 1, true), frame)
   end)
 end
@@ -170,10 +105,10 @@ end
 function T.picked_opponents_limit_the_games_offered()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
-    with_select_answers({ "bob", "carol", "done", "party" }, function(prompts)
+    helpers.with_select_answers({ "bob", "carol", "done", "party" }, function(prompts)
       commands.run({ "challenge" })
-      respond(conn, MessageType.CATALOG_LIST, CATALOG)
-      respond(conn, MessageType.USER_LIST, {
+      conn:respond(MessageType.CATALOG_LIST, CATALOG)
+      conn:respond(MessageType.USER_LIST, {
         users = {
           { user = "alice", online = true },
           { user = "bob", online = false },
@@ -187,7 +122,7 @@ function T.picked_opponents_limit_the_games_offered()
         { prompt = "Add another opponent? (bob, carol)", labels = { "done", "dave (online)" } },
         { prompt = "Game:", labels = { "party" } },
       }, prompts)
-      assert_eq({ "bob", "carol" }, sent_challenge(conn).to)
+      assert_eq({ "bob", "carol" }, conn:sent(MessageType.CHALLENGE_CREATE).to)
     end)
   end)
 end
@@ -195,14 +130,14 @@ end
 function T.opponent_picking_stops_at_the_games_maximum()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
-    with_select_answers({ "bob" }, function(prompts)
+    helpers.with_select_answers({ "bob" }, function(prompts)
       commands.run({ "challenge", "chess" })
-      respond(conn, MessageType.CATALOG_LIST, CATALOG)
-      respond(conn, MessageType.USER_LIST, {
+      conn:respond(MessageType.CATALOG_LIST, CATALOG)
+      conn:respond(MessageType.USER_LIST, {
         users = { { user = "bob", online = false }, { user = "carol", online = false } },
       })
       assert_eq(1, #prompts)
-      assert_eq({ "bob" }, sent_challenge(conn).to)
+      assert_eq({ "bob" }, conn:sent(MessageType.CHALLENGE_CREATE).to)
     end)
   end)
 end
@@ -210,10 +145,10 @@ end
 function T.done_is_offered_only_once_the_named_games_minimum_is_picked()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
-    with_select_answers({ "bob", "carol", "done" }, function(prompts)
+    helpers.with_select_answers({ "bob", "carol", "done" }, function(prompts)
       commands.run({ "challenge", "party" })
-      respond(conn, MessageType.CATALOG_LIST, CATALOG)
-      respond(conn, MessageType.USER_LIST, {
+      conn:respond(MessageType.CATALOG_LIST, CATALOG)
+      conn:respond(MessageType.USER_LIST, {
         users = {
           { user = "bob", online = false },
           { user = "carol", online = false },
@@ -225,7 +160,7 @@ function T.done_is_offered_only_once_the_named_games_minimum_is_picked()
         { prompt = "Challenge whom else? (bob)", labels = { "carol", "dave" } },
         { prompt = "Add another opponent? (bob, carol)", labels = { "done", "dave" } },
       }, prompts)
-      assert_eq({ "bob", "carol" }, sent_challenge(conn).to)
+      assert_eq({ "bob", "carol" }, conn:sent(MessageType.CHALLENGE_CREATE).to)
     end)
   end)
 end
@@ -234,8 +169,8 @@ function T.challenge_reports_a_game_that_does_not_fit_the_invitees()
   with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
     conn:push("connected", LOGIN)
     commands.run({ "challenge", "chess", "bob", "carol" })
-    respond(conn, MessageType.CATALOG_LIST, CATALOG)
-    assert_eq(nil, sent_challenge(conn))
+    conn:respond(MessageType.CATALOG_LIST, CATALOG)
+    assert_eq(nil, conn:sent(MessageType.CHALLENGE_CREATE))
     assert_eq({ 'games: no 3-player game "chess"' }, prompts.notified)
   end)
 end
@@ -257,29 +192,6 @@ local SOLO_CATALOG = {
   games = vim.list_extend({ PUZZLE }, vim.list_extend({ game_info("dice", 1, 4) }, CATALOG.games)),
 }
 
----@class games.test.InputPrompt
----@field prompt string
----@field default string
-
----Stubs vim.ui.input to answer each prompt with answers[i], false cancelling, recording the prompts.
----@param answers (string|false)[]
----@param fn fun(prompts: games.test.InputPrompt[])
-local function with_input_answers(answers, fn)
-  local prompts = {}
-  helpers.with_overrides({
-    {
-      vim.ui,
-      "input",
-      function(opts, on_confirm)
-        table.insert(prompts, { prompt = opts.prompt, default = opts.default })
-        on_confirm(answers[#prompts] or nil)
-      end,
-    },
-  }, function()
-    fn(prompts)
-  end)
-end
-
 function T.solo_starts_the_game_with_the_chosen_options_and_opens_the_reply()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
@@ -293,20 +205,17 @@ function T.solo_starts_the_game_with_the_chosen_options_and_opens_the_reply()
         end,
       },
     }, function()
-      with_select_answers({ "hard" }, function()
-        with_input_answers({ "r1c1" }, function()
+      helpers.with_select_answers({ "hard" }, function()
+        helpers.with_input_answers({ "r1c1" }, function()
           commands.run({ "solo", "puzzle" })
-          respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+          conn:respond(MessageType.CATALOG_LIST, SOLO_CATALOG)
         end)
       end)
       assert_eq(
         { game = "puzzle", options = { level = "hard", note = "r1c1" } },
-        vim.iter(conn.requests):rev():find(function(request)
-          return request.type == MessageType.GAME_START
-        end).body
+        conn:sent(MessageType.GAME_START)
       )
-      respond(
-        conn,
+      conn:respond(
         MessageType.GAME_START,
         helpers.chess_update({
           game_id = "5010a1e0",
@@ -322,9 +231,9 @@ end
 function T.solo_without_a_game_offers_only_the_solo_games()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
-    with_select_answers({}, function(prompts)
+    helpers.with_select_answers({}, function(prompts)
       commands.run({ "solo" })
-      respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+      conn:respond(MessageType.CATALOG_LIST, SOLO_CATALOG)
       assert_eq({ { prompt = "Solo game:", labels = { "Puzzle", "dice", "sudoku" } } }, prompts)
     end)
   end)
@@ -334,13 +243,8 @@ function T.solo_starts_a_game_that_also_takes_opponents()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
     commands.run({ "solo", "dice" })
-    respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
-    assert_eq(
-      { game = "dice", options = {} },
-      vim.iter(conn.requests):rev():find(function(request)
-        return request.type == MessageType.GAME_START
-      end).body
-    )
+    conn:respond(MessageType.CATALOG_LIST, SOLO_CATALOG)
+    assert_eq({ game = "dice", options = {} }, conn:sent(MessageType.GAME_START))
   end)
 end
 
@@ -348,13 +252,8 @@ function T.solo_refuses_a_game_for_more_players()
   with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
     conn:push("connected", LOGIN)
     commands.run({ "solo", "chess" })
-    respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
-    assert_eq(
-      false,
-      vim.iter(conn.requests):any(function(request)
-        return request.type == MessageType.GAME_START
-      end)
-    )
+    conn:respond(MessageType.CATALOG_LIST, SOLO_CATALOG)
+    assert_eq(false, conn:requested(MessageType.GAME_START))
     assert_eq(
       { "games: chess is not a solo game; challenge someone with :Games challenge chess" },
       prompts.notified
@@ -375,18 +274,13 @@ function T.solo_reports_an_unknown_game_or_a_catalogue_without_solo_games()
   for _, case in ipairs(cases) do
     with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
       conn:push("connected", LOGIN)
-      with_select_answers({}, function(selects)
+      helpers.with_select_answers({}, function(selects)
         commands.run(case.args)
-        respond(conn, MessageType.CATALOG_LIST, case.catalog)
+        conn:respond(MessageType.CATALOG_LIST, case.catalog)
         assert_eq({}, selects)
       end)
       assert_eq({ case.notified }, prompts.notified)
-      assert_eq(
-        false,
-        vim.iter(conn.requests):any(function(request)
-          return request.type == MessageType.GAME_START
-        end)
-      )
+      assert_eq(false, conn:requested(MessageType.GAME_START))
     end)
   end
 end
@@ -394,7 +288,7 @@ end
 function T.solo_completes_the_catalogues_solo_games()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
-    respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+    conn:respond(MessageType.CATALOG_LIST, SOLO_CATALOG)
     assert_eq({ "puzzle", "dice", "sudoku" }, commands.complete("", "Games solo ", 11))
     assert_eq({ "sudoku" }, commands.complete("s", "Games solo s", 12))
   end)
@@ -428,10 +322,10 @@ function T.text_options_are_typed_within_their_limits_and_cancel_aborts()
   for _, case in ipairs(cases) do
     with_stub_client({ username = "alice", password = "pw" }, function(conn, notices)
       conn:push("connected", LOGIN)
-      with_select_answers({ "easy (default)" }, function()
-        with_input_answers(case.answers, function(prompts)
+      helpers.with_select_answers({ "easy (default)" }, function()
+        helpers.with_input_answers(case.answers, function(prompts)
           commands.run({ "solo", "puzzle" })
-          respond(conn, MessageType.CATALOG_LIST, SOLO_CATALOG)
+          conn:respond(MessageType.CATALOG_LIST, SOLO_CATALOG)
           assert_eq(
             vim.tbl_map(function(default)
               return { prompt = "note (up to 8 bytes): ", default = default }
@@ -440,10 +334,8 @@ function T.text_options_are_typed_within_their_limits_and_cancel_aborts()
           )
         end)
       end)
-      local start = vim.iter(conn.requests):find(function(request)
-        return request.type == MessageType.GAME_START
-      end)
-      assert_eq(case.sent, start and start.body.options.note)
+      local start = conn:sent(MessageType.GAME_START)
+      assert_eq(case.sent, start and start.options.note)
       assert_eq(case.notified, notices.notified)
     end)
   end
@@ -507,7 +399,7 @@ function T.a_command_during_an_open_prompt_replaces_the_pending_one_without_prom
     prompts.later[1]("alice")
     assert_eq(1, conn.connects)
     conn:push("connected", LOGIN)
-    assert(fetched_stats(conn) and not listed_ongoing(conn))
+    assert(conn:requested(MessageType.STATS_GET) and not listed_ongoing(conn))
   end)
 end
 
@@ -529,7 +421,7 @@ function T.only_the_newest_pending_command_runs()
     commands.run({ "stats" })
     assert_eq(1, #prompts.notified)
     conn:push("connected", LOGIN)
-    assert(fetched_stats(conn) and not listed_ongoing(conn))
+    assert(conn:requested(MessageType.STATS_GET) and not listed_ongoing(conn))
   end)
 end
 
@@ -598,7 +490,7 @@ function T.export_reports_written_and_present_games()
         archived(archive, listed_finished(ARCHIVED_BEFORE))
 
         commands.run({ "export" })
-        respond(conn, MessageType.GAME_LIST, {
+        conn:respond(MessageType.GAME_LIST, {
           games = {
             listed_finished(SEEN_LIVE),
             listed_finished(NEVER_SEEN),
@@ -660,9 +552,7 @@ end
 ---@param conn games.test.StubConn
 ---@return integer
 local function game_starts(conn)
-  return #vim.tbl_filter(function(request)
-    return request.type == MessageType.GAME_START
-  end, conn.requests)
+  return #conn:requests_of(MessageType.GAME_START)
 end
 
 function T.puzzle_starts_each_entry_of_the_set_in_turn_skipping_one_the_server_refuses()
@@ -693,8 +583,7 @@ function T.puzzle_starts_each_entry_of_the_set_in_turn_skipping_one_the_server_r
             player = first.player,
           },
         }, conn.requests[#conn.requests].body)
-        respond(
-          conn,
+        conn:respond(
           MessageType.GAME_START,
           helpers.chess_update({ game_id = "p1", game = "chess_puzzle" })
         )
@@ -800,8 +689,7 @@ function T.a_set_imported_again_while_a_puzzle_starts_keeps_its_new_entries()
         end, "the puzzle's game.start")
         local reimported = { entries = { PUZZLE_ENTRIES[2], PUZZLE_ENTRIES[1] }, next = 1 }
         vim.fn.writefile({ vim.json.encode(reimported) }, dir .. "/mixed.json")
-        respond(
-          conn,
+        conn:respond(
           MessageType.GAME_START,
           helpers.chess_update({ game_id = "p1", game = "chess_puzzle" })
         )

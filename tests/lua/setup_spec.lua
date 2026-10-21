@@ -6,24 +6,18 @@ local assert_eq = helpers.assert_eq
 ---Runs fn with notify recorded; the plugin's config and client are restored after.
 ---@param fn fun(notified: string[])
 local function with_plugin_state(fn)
-  local notified = {}
   helpers.with_overrides({
     { games, "config", games.config },
     { games, "client", games.client },
-    {
-      vim,
-      "notify",
-      function(message)
-        table.insert(notified, message)
-      end,
-    },
   }, function()
-    local original_client = games.client
-    local ok, err = xpcall(fn, debug.traceback, notified)
-    if games.client and games.client ~= original_client then
-      games.client.conn:close()
-    end
-    assert(ok, err)
+    helpers.capture_notifications(function(notified)
+      local original_client = games.client
+      local ok, err = xpcall(fn, debug.traceback, notified)
+      if games.client and games.client ~= original_client then
+        games.client.conn:close()
+      end
+      assert(ok, err)
+    end)
   end)
 end
 

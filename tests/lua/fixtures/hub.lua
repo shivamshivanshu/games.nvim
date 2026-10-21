@@ -96,40 +96,6 @@ M.FINISHED = helpers.chess_update({
   finished_at = M.NOW_MS - 60 * MINUTE_MS,
 })
 
----@param conn games.test.StubConn
----@param message_type string
----@return table|nil
-local function newest(conn, message_type)
-  return vim.iter(conn.requests):rev():find(function(candidate)
-    return candidate.type == message_type
-  end)
-end
-
----Answers the newest request of message_type with result.
----@param conn games.test.StubConn
----@param message_type string
----@param result table
-function M.respond(conn, message_type, result)
-  local request = newest(conn, message_type)
-  assert(request, "no " .. message_type .. " request")
-  request.cb(nil, result)
-end
-
----@param conn games.test.StubConn
----@param message_type string
----@return table|nil body of the newest request of message_type
-function M.sent(conn, message_type)
-  local request = newest(conn, message_type)
-  return request and request.body
-end
-
----@param conn games.test.StubConn
----@param message_type string
----@return boolean
-function M.requested(conn, message_type)
-  return newest(conn, message_type) ~= nil
-end
-
 ---A client logged in as alice whose cache holds the catalog, both challenges and the ongoing
 ---games; the finished game is left for a game.list finished to return.
 ---@return games.Client
@@ -138,9 +104,9 @@ function M.client()
   local conn = helpers.stub_conn({ username = M.ME, password = helpers.PASSWORD })
   local client = Client.new(conn --[[@as games.Conn]])
   conn:push("connected", { user = M.ME, heartbeat_ms = 15000 })
-  M.respond(conn, "catalog.list", { games = M.CATALOG })
-  M.respond(conn, "challenge.list", { challenges = { M.OUTGOING, M.INCOMING } })
-  M.respond(conn, "game.list", { games = { M.WAITING, M.YOUR_MOVE } })
+  conn:respond("catalog.list", { games = M.CATALOG })
+  conn:respond("challenge.list", { challenges = { M.OUTGOING, M.INCOMING } })
+  conn:respond("game.list", { games = { M.WAITING, M.YOUR_MOVE } })
   return client, conn
 end
 

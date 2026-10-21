@@ -89,22 +89,6 @@ local function archived_moves(root)
   end, lines)
 end
 
----@param fn fun(notified: string[])
-local function with_notify_recorded(fn)
-  local notified = {}
-  helpers.with_overrides({
-    {
-      vim,
-      "notify",
-      function(message)
-        table.insert(notified, message)
-      end,
-    },
-  }, function()
-    fn(notified)
-  end)
-end
-
 local T = {}
 
 function T.finishing_broadcast_archives_the_whole_game()
@@ -129,7 +113,7 @@ end
 
 function T.digest_mismatch_writes_nothing_and_notifies_once()
   helpers.with_temp_dir(function(root)
-    with_notify_recorded(function(notified)
+    helpers.capture_notifications(function(notified)
       local archive = Archive.new(root)
       local tampered =
         vim.tbl_extend("force", finishing_broadcast(), { digest = vim.fn.sha256("x") })
@@ -206,7 +190,7 @@ function T.a_failed_seal_is_written_by_the_next_finished_update()
     end
     local summary_path = game_file(root, "summary.json")
     vim.fn.mkdir(summary_path, "p")
-    with_notify_recorded(function()
+    helpers.capture_notifications(function()
       assert_eq(Outcome.FAILED, record(archive, finishing_broadcast()))
     end)
     vim.fn.delete(summary_path, "d")
@@ -237,7 +221,7 @@ function T.updates_that_would_leave_the_root_are_refused()
   }
   for _, case in ipairs(cases) do
     helpers.with_temp_dir(function(root)
-      with_notify_recorded(function(notified)
+      helpers.capture_notifications(function(notified)
         local update = ongoing(1)
         update[case.field] = case.value
         local archive = Archive.new(root)
