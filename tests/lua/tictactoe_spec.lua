@@ -19,22 +19,18 @@ end
 ---@param overrides? table
 ---@return games.TicTacToeUpdate
 local function update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "tictactoe",
+  return helpers.game_update("tictactoe", {
     seq = 3,
-    options = {},
     players = { { user = "alice", seat = "x" }, { user = "bob", seat = "o" } },
     to_act = { "bob" },
     controls = { "resign", "abort" },
-    events = {},
     view = {
       cells = { "x", "x", "", "o", "", "", "", "", "" },
       last = 2,
       winning_lines = {},
       legal_cells = { 3, 5, 6, 7, 8, 9 },
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 local T = {}

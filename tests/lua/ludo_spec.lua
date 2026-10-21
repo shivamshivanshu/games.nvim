@@ -33,11 +33,8 @@ end
 ---@param view_overrides? table
 ---@return games.LudoUpdate
 local function ludo_update(view_overrides)
-  return {
-    game_id = "0000",
-    game = "ludo",
+  return helpers.game_update("ludo", {
     seq = 3,
-    options = {},
     players = {
       { user = "alice", seat = "blue" },
       { user = "bob", seat = "yellow" },
@@ -49,7 +46,7 @@ local function ludo_update(view_overrides)
       { kind = "rolled", by = "blue", value = 4 },
       { kind = "moved", by = "blue", token = 2, from = track(6), to = track(10) },
     },
-    view = vim.tbl_extend("force", {
+    view = {
       starts = { blue = 0, red = 13, yellow = 26 },
       progress = { blue = { -1, 10, 52, 56 }, yellow = { 0, 0, -1, 40 }, red = { -1, -1, -1, 21 } },
       safe = { 0, 8, 13, 21, 26, 34, 39, 47 },
@@ -63,8 +60,8 @@ local function ludo_update(view_overrides)
       phase = "move",
       movable = { 1, 2 },
       can_roll = false,
-    }, view_overrides or {}),
-  }
+    },
+  }, { view = view_overrides })
 end
 
 ---@param rendered games.Rendered

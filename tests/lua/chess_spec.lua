@@ -52,7 +52,7 @@ end
 function T.header_shows_each_sides_surplus_in_the_opponents_glyphs_after_the_clock()
   local update = helpers.chess_update({
     clock = { remaining_ms = { alice = 300000, bob = 300000 }, running = "alice" },
-    view = { fen = PROMOTED_FEN, history_san = {}, legal_moves = {}, claimable_draw = false },
+    view = { fen = PROMOTED_FEN },
   })
   for _, case in ipairs({
     {

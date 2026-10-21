@@ -36,17 +36,14 @@ local function update(overrides)
     return false
   end, grid)
   grid[3], conflicts[1], conflicts[3] = 5, true, true
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "sudoku",
+  return helpers.game_update("sudoku", {
     seq = 1,
     options = { difficulty = "easy" },
     players = { { user = "alice", seat = "solver" } },
     to_act = { "alice" },
     controls = { "resign", "abort" },
-    events = {},
     view = { grid = grid, given = given, conflicts = conflicts, solution = {} },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@return games.SudokuUpdate alice gave up with the wrong 5 still in place

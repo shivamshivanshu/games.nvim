@@ -32,21 +32,16 @@ local function start(overrides)
     cells[r] = { "", "", "", "", "", "", "", "" }
   end
   cells[4][4], cells[4][5], cells[5][4], cells[5][5] = "white", "black", "black", "white"
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "reversi",
-    seq = 0,
-    options = {},
+  return helpers.game_update("reversi", {
     players = { { user = "alice", seat = "black" }, { user = "bob", seat = "white" } },
     to_act = { "alice" },
     controls = { "resign", "offer_draw", "abort" },
-    events = {},
     view = {
       cells = cells,
       legal_cells = vim.tbl_map(cell, { "d3", "c4", "f5", "e6" }),
       discs = { black = 2, white = 2 },
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@param update games.ReversiUpdate
@@ -88,13 +83,12 @@ function T.the_movers_legal_cells_carry_a_marker_glyph_and_tint()
   end
   assert(not vim.tbl_contains(cell_hl(mover, "a1"), "GamesMovable"), "a1 is no move")
 
-  local waiting =
-    render(start({ view = vim.tbl_extend("force", start().view, { legal_cells = {} }) }), "bob")
+  local waiting = render(start({ view = { legal_cells = {} } }), "bob")
   assert(not waiting.lines[BOARD_TOP + 3]:find("+", 1, true), "the waiting seat sees no markers")
 end
 
 function T.each_header_line_counts_its_players_discs()
-  local view = vim.tbl_extend("force", start().view, { discs = { black = 1, white = 12 } })
+  local view = { discs = { black = 1, white = 12 } }
   local lines = render(start({ view = view }), "alice").lines
   assert(lines[1]:find("alice  black  1 disc ", 1, true), lines[1])
   assert(lines[2]:find("bob    white  12 discs", 1, true), lines[2])

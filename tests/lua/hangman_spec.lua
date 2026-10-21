@@ -19,15 +19,11 @@ end
 ---@param overrides? table
 ---@return games.HangmanUpdate
 local function update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "hangman",
+  return helpers.game_update("hangman", {
     seq = 5,
-    options = {},
     players = { { user = "sam", seat = "solver" } },
     to_act = { "sam" },
     controls = { "resign" },
-    events = {},
     view = {
       pattern = { "", "b", "o", "", "" },
       guessed = {
@@ -40,7 +36,7 @@ local function update(overrides)
       misses = 3,
       remaining = 3,
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---Hanged by three more misses, so the word shows.

@@ -21,21 +21,17 @@ end
 ---@param overrides? table
 ---@return games.MancalaUpdate
 local function update_with(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "mancala",
+  return helpers.game_update("mancala", {
     seq = 3,
-    options = {},
     players = { { user = "alice", seat = "south" }, { user = "bob", seat = "north" } },
     to_act = { "bob" },
     controls = { "resign", "offer_draw" },
-    events = {},
     view = {
       south = { pits = { 0, 5, 5, 5, 5, 4 }, store = 1 },
       north = { pits = { 4, 0, 5, 5, 12, 4 }, store = 7 },
       legal_pits = { 1, 3, 4, 5, 6 },
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@param update games.MancalaUpdate
@@ -71,7 +67,7 @@ function T.the_viewer_sits_at_the_bottom_sowing_left_to_right_into_the_right_sto
     }, vim.list_slice(render(update_with(), "bob", glyphs).lines, BOARD_TOP + 1, BOARD_TOP + 3))
   end
   local waiting = update_with({
-    view = vim.tbl_extend("force", update_with().view, { legal_pits = {} }),
+    view = { legal_pits = {} },
   })
   assert_eq({
     " ( 7)   4   12    5    5    0    4         bob   top row, store on the left    ",
@@ -97,7 +93,7 @@ function T.sow_keys_are_bound_for_the_movers_legal_pits_only()
     footer(render(update_with(), "bob"))
   )
   local waiting = update_with({
-    view = vim.tbl_extend("force", update_with().view, { legal_pits = {} }),
+    view = { legal_pits = {} },
   })
   assert_eq("R resign  D offer draw  ]g next game  q close", footer(render(waiting, "alice")))
 end

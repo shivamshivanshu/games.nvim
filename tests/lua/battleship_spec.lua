@@ -57,16 +57,13 @@ local AFLOAT = fleet({ "afloat", "afloat", "afloat", "afloat", "afloat" })
 ---@param overrides? table fields over the update
 ---@return games.BattleshipUpdate
 local function update(view, overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "battleship",
+  return helpers.game_update("battleship", {
     seq = 3,
     options = { first = "me" },
     players = { { user = "alice", seat = "p1" }, { user = "bob", seat = "p2" } },
     to_act = { "alice", "bob" },
     controls = { "resign", "abort" },
-    events = {},
-    view = vim.tbl_extend("force", {
+    view = {
       phase = "setup",
       own = tiles({}),
       target = tiles({}),
@@ -74,8 +71,8 @@ local function update(view, overrides)
       enemy = AFLOAT,
       anchors = { across = {}, down = {} },
       targets = {},
-    }, view),
-  }, overrides or {})
+    },
+  }, vim.tbl_extend("force", { view = view }, overrides or {}))
 end
 
 ---alice has placed her carrier on a1-e1 and places the battleship; a2 fits it either way.

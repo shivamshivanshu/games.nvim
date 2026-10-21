@@ -36,15 +36,12 @@ end
 ---@param overrides? table
 ---@return games.MinesweeperUpdate
 local function update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "minesweeper",
+  return helpers.game_update("minesweeper", {
     seq = 2,
     options = { difficulty = "easy" },
     players = { { user = "alice", seat = "solver" } },
     to_act = { "alice" },
     controls = { "resign" },
-    events = {},
     view = {
       cells = cells_of({
         "001F1####",
@@ -61,7 +58,7 @@ local function update(overrides)
       remaining = 9,
       chordable = { { row = 1, col = 5 } },
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@return games.MinesweeperUpdate alice revealed the mine at a6 with a wrong flag on a4 and a right one on b7

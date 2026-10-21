@@ -22,16 +22,12 @@ end
 ---@param overrides? table fields of the view to replace
 ---@return games.PacmanUpdate
 local function update_with(overrides)
-  return {
-    game_id = "0000",
-    game = "pacman",
+  return helpers.game_update("pacman", {
     seq = 40,
-    options = {},
     players = { { user = "alice", seat = "player" } },
     to_act = { "alice" },
     controls = { "resign" },
-    events = {},
-    view = vim.tbl_extend("force", {
+    view = {
       maze = { "#######", "#.o...#", "#.##-##", "#.....#", "#######" },
       pacman = { row = 4, col = 3, facing = "left" },
       ghosts = {
@@ -49,8 +45,8 @@ local function update_with(overrides)
       paused = false,
       can_turn = true,
       can_pause = true,
-    }, overrides or {}),
-  }
+    },
+  }, { view = overrides })
 end
 
 ---@param update games.PacmanUpdate

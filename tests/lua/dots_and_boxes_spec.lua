@@ -74,18 +74,15 @@ end
 local function midgame(overrides)
   local view = view_of(3, { a1h = "p1", a2h = "p2", a1v = "p1", b1v = "p2" }, { a1 = "p2" }, "p2")
   view.last = { row = 1, col = 2, orientation = "down" }
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "dots_and_boxes",
+  return helpers.game_update("dots_and_boxes", {
     seq = 4,
     options = { size = "3", first = "me", time_control = "none" },
     players = { { user = "alice", seat = "p1" }, { user = "bob", seat = "p2" } },
     to_act = { "bob" },
     controls = CONTROLS,
     draw_agreed = {},
-    events = {},
     view = view,
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@param state games.DotsAndBoxesUpdate
@@ -204,6 +201,7 @@ function T.the_cursor_keeps_to_the_edges_of_the_boards_size()
     return view.cursor
   end
   local five = midgame({ view = view_of(5, {}, {}, "p2") })
+  five.view.last = nil
   for _, case in ipairs({
     { midgame(), "llllljjjjj", { row = 4, col = 3, orientation = "across" } },
     { midgame(), "llllljjjjjr", { row = 3, col = 3, orientation = "down" } },
@@ -262,6 +260,7 @@ end
 
 function T.the_largest_board_and_panel_fit_eighty_by_twenty_four_at_one_line_a_cell()
   local seven = midgame({ view = view_of(7, {}, {}, "p2") })
+  seven.view.last = nil
   seven.view.legal_edges = { { row = 1, col = 1, orientation = "across" } }
   local rendered = render(
     seven,

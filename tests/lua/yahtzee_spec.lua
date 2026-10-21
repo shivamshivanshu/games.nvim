@@ -36,16 +36,12 @@ end
 ---@param overrides? table overrides of the update
 ---@return games.YahtzeeUpdate
 local function rolled(view, overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "yahtzee",
+  return helpers.game_update("yahtzee", {
     seq = 3,
-    options = {},
     players = { { user = "alice", seat = "p1" }, { user = "bob", seat = "p2" } },
     to_act = { "alice" },
     controls = { "resign" },
-    events = {},
-    view = vim.tbl_extend("force", {
+    view = {
       round = 2,
       dice = { 3, 3, 5, 1, 3 },
       held = { true, true, false, false, true },
@@ -61,8 +57,8 @@ local function rolled(view, overrides)
         { box = "threes", score = 9 },
         { box = "three_of_a_kind", score = 15 },
       },
-    }, view or {}),
-  }, overrides or {})
+    },
+  }, vim.tbl_extend("force", { view = view }, overrides or {}))
 end
 
 ---@param update games.YahtzeeUpdate

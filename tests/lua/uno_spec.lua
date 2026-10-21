@@ -18,11 +18,8 @@ end
 ---@param view? table overrides of the view
 ---@return games.UnoUpdate
 local function playing(view)
-  return {
-    game_id = "0000",
-    game = "uno",
+  return helpers.game_update("uno", {
     seq = 3,
-    options = {},
     players = {
       { user = "alice", seat = "p1" },
       { user = "bob", seat = "p2" },
@@ -30,8 +27,7 @@ local function playing(view)
     },
     to_act = { "alice" },
     controls = { "resign" },
-    events = {},
-    view = vim.tbl_extend("force", {
+    view = {
       top = "W",
       color = "G",
       direction = "counterclockwise",
@@ -45,8 +41,8 @@ local function playing(view)
       my_hand = { "R5", "RS", "G+2", "BR", "W+4" },
       legal = { "play", "draw" },
       playable = { "G+2", "W+4" },
-    }, view or {}),
-  }
+    },
+  }, { view = view })
 end
 
 ---@param update games.UnoUpdate

@@ -17,11 +17,8 @@ end
 ---@param view? table overrides of the view
 ---@return games.HeartsUpdate
 local function playing(view)
-  return {
-    game_id = "0000",
-    game = "hearts",
+  return helpers.game_update("hearts", {
     seq = 30,
-    options = {},
     players = {
       { user = "alice", seat = "p1" },
       { user = "bob", seat = "p2" },
@@ -30,8 +27,7 @@ local function playing(view)
     },
     to_act = { "bob" },
     controls = { "resign" },
-    events = {},
-    view = vim.tbl_extend("force", {
+    view = {
       hand_no = 2,
       pass = "right",
       phase = "play",
@@ -69,8 +65,8 @@ local function playing(view)
           { seat = "p4", points = 5 },
         },
       },
-    }, view or {}),
-  }
+    },
+  }, { view = view })
 end
 
 ---The start of hand 3, which passes across: bob has still to choose, alice has chosen.

@@ -21,15 +21,11 @@ end
 ---@param overrides? table
 ---@return games.MastermindUpdate
 local function update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "mastermind",
+  return helpers.game_update("mastermind", {
     seq = 2,
-    options = {},
     players = { { user = "sam", seat = "solver" } },
     to_act = { "sam" },
     controls = { "resign" },
-    events = {},
     view = {
       palette = { "r", "g", "b", "y", "o", "p" },
       code_length = 4,
@@ -39,7 +35,7 @@ local function update(overrides)
       },
       remaining = 8,
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---Solved on the third guess, so the secret shows.

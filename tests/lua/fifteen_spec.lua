@@ -18,15 +18,12 @@ end
 ---@param overrides? table
 ---@return games.FifteenUpdate
 local function update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "fifteen",
+  return helpers.game_update("fifteen", {
     seq = 4,
     options = { size = "3x3" },
     players = { { user = "alice", seat = "solver" } },
     to_act = { "alice" },
     controls = { "resign" },
-    events = {},
     view = {
       tiles = { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 0, 8 } },
       moves = 4,
@@ -36,7 +33,7 @@ local function update(overrides)
         { tile = 8, direction = "left" },
       },
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@return games.FifteenUpdate solved by sliding 8 left

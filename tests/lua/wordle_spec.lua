@@ -20,15 +20,11 @@ end
 ---@param overrides? table
 ---@return games.WordleUpdate
 local function update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "wordle",
+  return helpers.game_update("wordle", {
     seq = 2,
-    options = {},
     players = { { user = "sam", seat = "solver" } },
     to_act = { "sam" },
     controls = { "resign" },
-    events = {},
     view = {
       guesses = {
         { word = "crane", feedback = { "miss", "present", "miss", "miss", "hit" } },
@@ -46,7 +42,7 @@ local function update(overrides)
       },
       remaining = 4,
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---Out of guesses: four more misses after crane and route.

@@ -20,11 +20,8 @@ end
 ---@param view_overrides? table
 ---@return games.PokerUpdate
 local function poker_update(view_overrides)
-  return {
-    game_id = "0000",
-    game = "poker",
+  return helpers.game_update("poker", {
     seq = 4,
-    options = {},
     players = {
       { user = "alice", seat = "p1" },
       { user = "bob", seat = "p2" },
@@ -32,8 +29,7 @@ local function poker_update(view_overrides)
     },
     to_act = { "alice" },
     controls = { "resign", "abort" },
-    events = {},
-    view = vim.tbl_extend("force", {
+    view = {
       hand_no = 3,
       button = "p2",
       blinds = { small = 10, big = 20 },
@@ -79,8 +75,8 @@ local function poker_update(view_overrides)
         shown = { { seat = "p1", cards = { "Ah", "Ac" }, category = "pair" } },
         awards = { { seat = "p1", amount = 30, pot = 0 }, { seat = "p2", amount = 10, pot = 1 } },
       },
-    }, view_overrides or {}),
-  }
+    },
+  }, { view = view_overrides })
 end
 
 ---@param update games.PokerUpdate

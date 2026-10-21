@@ -28,22 +28,18 @@ local function update_with(overrides)
   end
   cells[5] = { "yellow", "yellow", "yellow", "", "", "", "" }
   cells[6] = { "red", "red", "red", "", "", "", "" }
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "connect4",
+  return helpers.game_update("connect4", {
     seq = 6,
-    options = {},
     players = { { user = "alice", seat = "red" }, { user = "bob", seat = "yellow" } },
     to_act = { "bob" },
     controls = { "resign", "offer_draw" },
-    events = {},
     view = {
       cells = cells,
       last = { row = 5, column = 3 },
       winning_lines = {},
       legal_columns = ALL_COLUMNS,
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@param update games.Connect4Update
@@ -83,10 +79,9 @@ function T.footer_offers_the_open_columns_only_to_the_seat_to_move()
     return lines[#lines]
   end
   local column_four_full = update_with({
-    view = vim.tbl_extend("force", update_with().view, { legal_columns = { 1, 2, 3, 5, 6, 7 } }),
+    view = { legal_columns = { 1, 2, 3, 5, 6, 7 } },
   })
-  local waiting =
-    update_with({ view = vim.tbl_extend("force", update_with().view, { legal_columns = {} }) })
+  local waiting = update_with({ view = { legal_columns = {} } })
 
   assert_eq("R resign  D offer draw  1-7 drop  ]g next game  q close", footer(update_with(), "bob"))
   assert_eq(

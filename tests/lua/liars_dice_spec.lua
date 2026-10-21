@@ -17,11 +17,8 @@ end
 ---@param view? table overrides of the view
 ---@return games.LiarsDiceUpdate
 local function bidding(view)
-  return {
-    game_id = "0000",
-    game = "liars_dice",
+  return helpers.game_update("liars_dice", {
     seq = 3,
-    options = {},
     players = {
       { user = "alice", seat = "p1" },
       { user = "bob", seat = "p2" },
@@ -29,8 +26,7 @@ local function bidding(view)
     },
     to_act = { "alice" },
     controls = { "resign" },
-    events = {},
-    view = vim.tbl_extend("force", {
+    view = {
       round = 2,
       seats = {
         { seat = "p1", dice = 4, out = false },
@@ -60,8 +56,8 @@ local function bidding(view)
           { seat = "p2", dice = { 2, 2, 3, 4, 6 } },
         },
       },
-    }, view or {}),
-  }
+    },
+  }, { view = view })
 end
 
 ---@param update games.LiarsDiceUpdate

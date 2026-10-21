@@ -25,15 +25,10 @@ end
 ---@param overrides table
 ---@return games.CheckersUpdate
 local function checkers_update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "checkers",
-    seq = 0,
-    options = {},
+  return helpers.game_update("checkers", {
     players = { { user = "alice", seat = "black" }, { user = "bob", seat = "white" } },
     to_act = { "alice" },
     controls = { "resign", "offer_draw", "abort" },
-    events = {},
     view = { board = start_board(), legal = {}, last = {}, history = {} },
   }, overrides)
 end
@@ -113,7 +108,7 @@ function T.unicode_draws_hollow_white_and_solid_black_with_kings()
   local board = start_board()
   board[1], board[32] = "B", "W"
   local rendered, header_height = shell.render(
-    checkers_update({ view = { board = board, legal = {}, last = {}, history = {} } }),
+    checkers_update({ view = { board = board } }),
     checkers,
     view_options("unicode"),
     "bob"
@@ -163,8 +158,7 @@ function T.long_jump_chains_and_move_numbers_past_99_stay_inside_the_window()
     history[i] = i % 2 == 1 and "11-15" or "22-18"
   end
   vim.list_extend(history, { "10x17x26x19x10", "10x19x26x17x10" })
-  local update =
-    checkers_update({ view = { board = start_board(), legal = {}, last = {}, history = history } })
+  local update = checkers_update({ view = { history = history } })
   local area = { w = 80, h = 30 }
 
   local rendered = shell.render(

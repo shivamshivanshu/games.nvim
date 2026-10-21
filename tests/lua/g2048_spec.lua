@@ -21,22 +21,18 @@ end
 ---@param overrides? table
 ---@return games.G2048Update
 local function update_with(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "g2048",
+  return helpers.game_update("g2048", {
     seq = 12,
-    options = {},
     players = { { user = "alice", seat = "solver" } },
     to_act = { "alice" },
     controls = { "resign" },
-    events = {},
     view = {
       cells = { { 2, 0, 0, 4 }, { 16, 128, 2048, 0 }, { 0, 0, 8, 131072 }, { 1024, 0, 0, 2 } },
       score = 4436,
       reached = true,
       movable = { "down", "left", "right" },
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@return games.G2048Update stuck without a 2048: lost

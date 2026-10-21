@@ -24,15 +24,11 @@ end
 ---@param overrides? table
 ---@return games.ChessPuzzleUpdate
 local function update(mode, player, overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "chess_puzzle",
-    seq = 0,
+  return helpers.game_update("chess_puzzle", {
     options = { mode = mode, fen = SCHOLARS, moves = LINE, player = player },
     players = { { user = "alice", seat = "solver" } },
     to_act = { "alice" },
     controls = { "resign", "abort" },
-    events = {},
     view = {
       fen = AFTER_NF6,
       history_san = { "Nf6" },
@@ -43,7 +39,7 @@ local function update(mode, player, overrides)
       remaining = 1,
       solution = {},
     },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---@param state games.ChessPuzzleUpdate

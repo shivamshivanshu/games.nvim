@@ -235,19 +235,32 @@ end
 
 local CHESS_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+---An update of game 0000: fields, then overrides, over a fresh game's seq, options and events.
+---Each replaces whole envelope fields, apart from view, whose fields it replaces one by one.
+---@param game games.GameType
+---@param fields table
+---@param overrides? table
+---@return games.GameUpdate
+function M.game_update(game, fields, overrides)
+  overrides = overrides or {}
+  local update = vim.tbl_extend(
+    "force",
+    { game_id = "0000", game = game, seq = 0, options = {}, events = {} },
+    fields,
+    overrides
+  )
+  update.view = vim.tbl_extend("force", fields.view or {}, overrides.view or {})
+  return update
+end
+
 ---Game 0000 at the start position, alice (white) to move against bob, with overrides on top.
----@param overrides table
+---@param overrides? table
 ---@return games.ChessUpdate
 function M.chess_update(overrides)
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "chess",
-    seq = 0,
-    options = {},
+  return M.game_update("chess", {
     players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
     to_act = { "alice" },
     controls = { "resign", "offer_draw", "abort" },
-    events = {},
     view = { fen = CHESS_START_FEN, history_san = {}, legal_moves = {}, claimable_draw = false },
   }, overrides)
 end

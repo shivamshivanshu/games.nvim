@@ -41,17 +41,13 @@ local function update_with(overrides)
   for c = 1, 4 do
     cells[1][c] = "white"
   end
-  return vim.tbl_extend("force", {
-    game_id = "0000",
-    game = "gomoku",
+  return helpers.game_update("gomoku", {
     seq = 8,
-    options = {},
     players = { { user = "alice", seat = "black" }, { user = "bob", seat = "white" } },
     to_act = { "alice" },
     controls = { "resign", "offer_draw" },
-    events = {},
     view = { cells = cells, last = cell("d1"), winning_lines = {}, legal_cells = {} },
-  }, overrides or {})
+  }, overrides)
 end
 
 ---alice's l8 completes h8 to l8.
