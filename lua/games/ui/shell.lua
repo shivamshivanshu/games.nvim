@@ -45,6 +45,7 @@ local Control = types.Control
 
 ---@class games.GameAction
 ---@field key string
+---@field aliases? string[] more keys that do the same, mapped but left out of the footer, e.g. the arrows beside `hjkl`
 ---@field label string|fun(update: games.GameUpdate): string a function reads the label off the update, e.g. "call 40"
 ---@field action? games.Action
 ---@field input? games.GameInput prompts for text and sends the action it parses, in place of action
@@ -92,6 +93,7 @@ local Control = types.Control
 ---@field hl? games.Hl
 
 ---@class games.KeyBinding: games.KeyHint
+---@field aliases? string[] keys mapped to run too, which the footer does not list
 ---@field run fun(board: games.Board)
 
 ---@class games.ControlKey
@@ -350,6 +352,12 @@ end
 ---@type fun(board: games.Board)
 local render_board
 
+---@param entry games.GameAction|games.KeyBinding
+---@return string[] its key, then its aliases
+local function keys_of(entry)
+  return { entry.key, unpack(entry.aliases or {}) }
+end
+
 ---@param module games.GameModule
 local function check_action_keys(module)
   if checked_modules[module] then
@@ -357,12 +365,11 @@ local function check_action_keys(module)
   end
   local seen = {}
   for _, entry in ipairs(module.actions or {}) do
-    assert(
-      not CORE_KEYS[entry.key],
-      ("game action key %q is reserved by the shell"):format(entry.key)
-    )
-    assert(not seen[entry.key], ("game action key %q is bound twice"):format(entry.key))
-    seen[entry.key] = true
+    for _, key in ipairs(keys_of(entry)) do
+      assert(not CORE_KEYS[key], ("game action key %q is reserved by the shell"):format(key))
+      assert(not seen[key], ("game action key %q is bound twice"):format(key))
+      seen[key] = true
+    end
   end
   checked_modules[module] = true
 end
@@ -436,6 +443,7 @@ local function bindings_for(update, module, view, catalogued)
     if local_fn and is_available(entry, update) then
       bindings[#bindings + 1] = {
         key = entry.key,
+        aliases = entry.aliases,
         label = label_of(entry, update),
         run = function(board)
           board.view = local_fn(board.view, board.update)
@@ -445,6 +453,7 @@ local function bindings_for(update, module, view, catalogued)
     elseif ongoing and kind and is_catalogued(catalogued, kind) and is_available(entry, update) then
       bindings[#bindings + 1] = {
         key = entry.key,
+        aliases = entry.aliases,
         label = label_of(entry, update),
         run = function(board)
           if entry_input then
@@ -539,13 +548,14 @@ end
 local function map_keys(board, bindings)
   local by_key = {}
   for _, binding in ipairs(bindings) do
-    local key = binding.key
-    by_key[key] = binding
-    local mapped = board.bindings[key]
-    if not (mapped and mapped.label == binding.label) then
-      vim.keymap.set("n", key, function()
-        board.bindings[key].run(board)
-      end, { buffer = board.buf, nowait = true, desc = "games: " .. binding.label })
+    for _, key in ipairs(keys_of(binding)) do
+      by_key[key] = binding
+      local mapped = board.bindings[key]
+      if not (mapped and mapped.label == binding.label) then
+        vim.keymap.set("n", key, function()
+          board.bindings[key].run(board)
+        end, { buffer = board.buf, nowait = true, desc = "games: " .. binding.label })
+      end
     end
   end
   for key in pairs(board.bindings) do

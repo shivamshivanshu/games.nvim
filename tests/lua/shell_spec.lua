@@ -927,6 +927,59 @@ function T.a_view_key_reads_the_boards_latest_update()
   assert_eq(chess_update({}).seq, seen)
 end
 
+function T.an_alias_is_mapped_like_its_key_but_left_out_of_the_footer()
+  local looks = 0
+  package.loaded["games.games.alias_test"] = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    actions = {
+      {
+        key = "x",
+        aliases = { "<Left>" },
+        label = "look",
+        local_fn = function(view)
+          looks = looks + 1
+          return view
+        end,
+      },
+    },
+  }
+  local client =
+    client_with("alice", { chess_update({ game_id = "alias01", game = "alias_test" }) })
+  local buf = assert(shell.open(client, "alias01"))
+  mapping(buf, "<Left>").callback()
+  mapping(buf, "x").callback()
+  local footer = vim.api.nvim_buf_get_lines(buf, -2, -1, false)[1]
+  package.loaded["games.games.alias_test"] = nil
+  vim.api.nvim_buf_delete(buf, { force = true })
+  assert_eq(2, looks)
+  assert(footer:find("x look", 1, true) and not footer:find("Left", 1, true), footer)
+end
+
+function T.an_alias_may_not_take_a_shell_key()
+  package.loaded["games.games.alias_clash"] = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    actions = {
+      {
+        key = "x",
+        aliases = { "q" },
+        label = "look",
+        local_fn = function(view)
+          return view
+        end,
+      },
+    },
+  }
+  local client =
+    client_with("alice", { chess_update({ game_id = "alias02", game = "alias_clash" }) })
+  local ok, err = pcall(shell.open, client, "alias02")
+  package.loaded["games.games.alias_clash"] = nil
+  assert(not ok and tostring(err):find('"q" is reserved', 1, true), tostring(err))
+end
+
 function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
   ---@type games.GameModule
   local module = {
