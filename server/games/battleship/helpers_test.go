@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 const (
@@ -60,11 +61,7 @@ func moves(seat game.Seat, actions ...Action) []move {
 func playFrom(t *testing.T, st game.State[Action, View], seed game.Seed, ms ...move) game.State[Action, View] {
 	t.Helper()
 	for i, m := range ms {
-		next, _, err := st.Apply(m.seat, m.action, game.StepRNG(seed, game.Seq(i+1)))
-		if err != nil {
-			t.Fatalf("move %d, %s %+v: %v", i, m.seat, m.action, err)
-		}
-		st = next
+		st, _ = gametest.MustApply(t, st, m.seat, m.action, game.StepRNG(seed, game.Seq(i+1)))
 	}
 	return st
 }

@@ -1,14 +1,13 @@
 package battleship
 
 import (
-	"encoding/json"
 	"slices"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 // planner plays a game step by step with the core's step rngs, so a script
@@ -42,11 +41,7 @@ func (p *planner) applied() game.Seq {
 func (p *planner) play(seat game.Seat, actions ...Action) {
 	p.t.Helper()
 	for _, action := range actions {
-		next, _, err := p.state.Apply(seat, action, game.StepRNG(p.seed, p.applied()+1))
-		if err != nil {
-			p.t.Fatalf("plan %s %+v: %v", seat, action, err)
-		}
-		p.state = next
+		p.state, _ = gametest.MustApply(p.t, p.state, seat, action, game.StepRNG(p.seed, p.applied()+1))
 		p.steps = append(p.steps, gametest.Step[Action]{Seat: seat, Action: action})
 	}
 }
@@ -103,7 +98,7 @@ func fullGame(t *testing.T, first game.FirstMover, seed game.Seed) *planner {
 	return p
 }
 
-func TestConformance(t *testing.T) {
+func scripts(t *testing.T) []gametest.Script[Opts, Action] {
 	p1Wins := &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{p1}, Reason: ReasonFleetSunk}
 	p2Wins := &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{p2}, Reason: ReasonFleetSunk}
 
@@ -117,174 +112,74 @@ func TestConformance(t *testing.T) {
 	setup.play(p1, across("c3"))
 	setup.play(p2, random())
 
-	gametest.Run(t, Rules{}, []gametest.Script[Opts, Action]{
+	return []gametest.Script[Opts, Action]{
 		fullGame(t, game.FirstMoverMe, 1).script("p1 sinks a fleet placed by hand", game.FirstMoverMe, p1Wins),
 		bothRandom.script("both fill at random, p2 sinks p1", game.FirstMoverOpponent, p2Wins),
 		setup.script("still placing", game.FirstMoverRandom, nil),
-	})
+	}
 }
 
-// TestTheOpponentsUnhitShipsNeverReachTheOtherSeat plays one game twice with
-// p1's submarine and destroyer in different places that no shot reaches, and
-// requires every view of p2's, every event and every refusal of p2's to be the
-// same in both.
-func TestTheOpponentsUnhitShipsNeverReachTheOtherSeat(t *testing.T) {
-	fleets := [][]Action{
-		rowsFleet(),
-		{across("a1"), across("a3"), across("a5"), down("j1"), across("f9")},
+func TestConformance(t *testing.T) {
+	gametest.Run(t, Rules{}, scripts(t))
+}
+
+// TestUnhitShipsReachNoOtherSeat moves a ship no shot has touched and
+// requires the other seat to be sent the same, unless it fires at a square
+// the move changed or the game ends and shows both fleets.
+func TestUnhitShipsReachNoOtherSeat(t *testing.T) {
+	hidden := gametest.Hidden[Action, View]{Perturb: movedUnhitShip, Reveals: firedAtTheMove}
+	for _, script := range scripts(t) {
+		t.Run(script.Name, func(t *testing.T) { gametest.NonInterference(t, Rules{}, script, hidden) })
 	}
-	shots := []move{
-		{p1, fire("a1")}, {p2, fire("a1")}, {p1, fire("c3")}, {p2, fire("b1")},
-		{p1, fire("j10")}, {p2, fire("c1")}, {p1, fire("b4")}, {p2, fire("d1")},
-		{p1, fire("b5")}, {p2, fire("e1")}, {p1, fire("h8")}, {p2, fire("b3")},
-		{p1, fire("a2")}, {p2, fire("e7")},
-	}
-	type step struct {
-		move
-		refused bool
-	}
-	steps := func(refused bool, ms ...move) []step {
-		out := make([]step, len(ms))
-		for i, m := range ms {
-			out[i] = step{m, refused}
+}
+
+// movedUnhitShip is s with owner's first ship that no shot has touched moved
+// to the first other berth no shot has touched; unchanged when there is none.
+func movedUnhitShip(s game.State[Action, View], owner game.Seat) (game.State[Action, View], []game.Seat) {
+	st := s.(state)
+	own := st.waters[owner]
+	shot := func(p grid.Point) bool { return own.shot[index(p)] }
+	for i, ship := range own.ships {
+		if slices.ContainsFunc(ship.points, shot) {
+			continue
 		}
-		return out
-	}
-	p2Refusals := func(actions ...Action) []step { return steps(true, moves(p2, actions...)...) }
-	type seen struct {
-		Views   []View
-		Events  [][]json.RawMessage
-		Refused []string
-	}
-	play := func(fleet []Action) seen {
-		g := game.Adapt(Rules{})
-		opts, err := g.ResolveOptions(json.RawMessage(`{"first":"me"}`))
-		if err != nil {
-			t.Fatal(err)
-		}
-		st, _, err := g.New(opts, alice, []game.UserID{bob}, game.StepRNG(1, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		script := slices.Concat(
-			steps(false, moves(p2, columnsFleet()[:2]...)...),
-			steps(false, moves(p1, fleet...)...),
-			p2Refusals(fire("a1"), across("a1")),
-			steps(false, moves(p2, columnsFleet()[2:]...)...),
-			steps(false, shots[:3]...),
-			p2Refusals(fire("a1"), across("b2")),
-			steps(false, shots[3:]...),
-		)
-		var out seen
-		var seq game.Seq
-		for i, m := range script {
-			raw, err := json.Marshal(m.action)
-			if err != nil {
-				t.Fatal(err)
-			}
-			next, events, err := st.Apply(m.seat, raw, game.StepRNG(1, seq+1))
-			if m.refused {
-				if err == nil {
-					t.Fatalf("step %d %+v was accepted", i, m)
+		others := waters{ships: slices.Delete(slices.Clone(own.ships), i, i+1), shot: own.shot}
+		for _, o := range orientations() {
+			for _, anchor := range others.anchors(ship.spec.Size, o) {
+				points := footprint(anchor, ship.spec.Size, o)
+				if slices.Equal(points, ship.points) || slices.ContainsFunc(points, shot) {
+					continue
 				}
-				out.Refused = append(out.Refused, err.Error())
-				continue
+				ships := slices.Clone(own.ships)
+				ships[i] = placedShip{spec: ship.spec, points: points}
+				st.waters = xslices.With(st.waters, owner, waters{ships: ships, shot: own.shot})
+				return st, []game.Seat{owner}
 			}
-			if err != nil {
-				t.Fatalf("step %d %+v: %v", i, m, err)
-			}
-			st, seq = next, seq+1
-			rawView, err := st.View(p2)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var view View
-			if err := json.Unmarshal(rawView, &view); err != nil {
-				t.Fatal(err)
-			}
-			out.Views = append(out.Views, view)
-			out.Events = append(out.Events, events)
 		}
-		if _, finished := st.Outcome(); finished {
-			t.Fatal("the game finished, which reveals the fleets")
-		}
-		return out
 	}
-	first, second := play(fleets[0]), play(fleets[1])
-	if diff := cmp.Diff(first, second); diff != "" {
-		t.Errorf("p2 can tell where p1's unhit ships lie (-first +second):\n%s", diff)
-	}
-	if last := first.Views[len(first.Views)-1]; last.Target[0][0] != TileSunk || last.Target[2][1] != TileHit || last.Target[6][4] != TileMiss {
-		t.Fatal("the shots did not play as planned")
-	}
+	return s, nil
 }
 
-type persistedStep struct {
-	seat   game.Seat
-	action json.RawMessage
-}
-
-func TestRestoreReplaysRandomFleetsAndPlaysOnIdentically(t *testing.T) {
-	const seed game.Seed = 11
-	const restoreAt = 3
-	g := game.Adapt(Rules{})
-	opts, err := g.ResolveOptions(json.RawMessage(`{"first":"random"}`))
+// firedAtTheMove tells the shooter of a square the move changed, and both
+// seats of the shot that ends the game.
+func firedAtTheMove(s game.State[Action, View], step gametest.Step[Action], owners []game.Seat) []game.Seat {
+	if step.Action.Kind != ActionFire {
+		return nil
+	}
+	next, _, err := s.Apply(step.Seat, step.Action, nil)
 	if err != nil {
-		t.Fatal(err)
+		return nil
 	}
-	start := func() game.ErasedState {
-		st, _, err := g.New(opts, alice, []game.UserID{bob}, game.StepRNG(seed, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return st
+	if _, over := next.Outcome(); over {
+		return sides.Seats()
 	}
-	apply := func(st game.ErasedState, step persistedStep, seq game.Seq) (game.ErasedState, []json.RawMessage) {
-		next, events, err := st.Apply(step.seat, step.action, game.StepRNG(seed, seq))
-		if err != nil {
-			t.Fatalf("seq %d: %v", seq, err)
-		}
-		return next, events
+	owner := owners[0]
+	p, _ := coords().Parse(step.Action.Cell)
+	moved, _ := movedUnhitShip(s, owner)
+	_, wasShip := s.(state).waters[owner].shipAt(p)
+	_, isShip := moved.(state).waters[owner].shipAt(p)
+	if step.Seat != owner && wasShip != isShip {
+		return []game.Seat{step.Seat}
 	}
-	plan := newPlanner(t, game.FirstMoverRandom, seed)
-	plan.play(p2, across("a1"))
-	plan.play(p1, random())
-	plan.play(p2, random())
-	plan.sink(plan.state.ToAct()[0], bottomRows())
-	var steps []persistedStep
-	for _, step := range plan.steps {
-		raw, err := json.Marshal(step.Action)
-		if err != nil {
-			t.Fatal(err)
-		}
-		steps = append(steps, persistedStep{seat: step.Seat, action: raw})
-	}
-
-	live := start()
-	for i, step := range steps[:restoreAt] {
-		live, _ = apply(live, step, game.Seq(i)+1)
-	}
-	restored := start()
-	for i, step := range steps[:restoreAt] {
-		restored, _ = apply(restored, step, game.Seq(i)+1)
-	}
-	for i, step := range steps[restoreAt:] {
-		seq := game.Seq(restoreAt+i) + 1
-		for _, seat := range []game.Seat{p1, p2} {
-			liveView, _ := live.View(seat)
-			restoredView, _ := restored.View(seat)
-			if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
-				t.Fatalf("seq %d: %s's restored view differs (-live +restored):\n%s", seq, seat, diff)
-			}
-		}
-		var liveEvents, restoredEvents []json.RawMessage
-		live, liveEvents = apply(live, step, seq)
-		restored, restoredEvents = apply(restored, step, seq)
-		if diff := cmp.Diff(liveEvents, restoredEvents); diff != "" {
-			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
-		}
-	}
-	if got, finished := restored.Outcome(); !finished || got.Reason != ReasonFleetSunk {
-		t.Errorf("restored outcome = %+v, %t", got, finished)
-	}
+	return nil
 }

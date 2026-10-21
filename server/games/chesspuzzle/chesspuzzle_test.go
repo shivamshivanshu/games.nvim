@@ -50,15 +50,6 @@ func open(t *testing.T, opts Opts) opened {
 	return st.(opened)
 }
 
-func mustApply(t *testing.T, s state, action Action) (state, []game.Event) {
-	t.Helper()
-	next, events, err := s.Apply(game.SeatSolo, action, nil)
-	if err != nil {
-		t.Fatalf("Apply(%+v): %v", action, err)
-	}
-	return next.(state), events
-}
-
 func step(action Action) gametest.Step[Action] {
 	return gametest.Step[Action]{Seat: game.SeatSolo, Action: action}
 }
@@ -204,7 +195,7 @@ func TestStartPlaysTheOtherSideUpToTheSolversFirstMove(t *testing.T) {
 }
 
 func TestACorrectMoveIsAnsweredByTheLine(t *testing.T) {
-	s, events := mustApply(t, start(t, openingStudy), move("e2e4"))
+	s, events := gametest.MustApply(t, start(t, openingStudy), game.SeatSolo, move("e2e4"), nil)
 	want := []game.Event{MovedEvent{By: game.SeatSolo, SAN: "e4"}, RepliedEvent{By: game.SeatSolo, SAN: "e5"}}
 	if diff := cmp.Diff(want, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
@@ -258,7 +249,7 @@ func TestPuzzleEndings(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, events := mustApply(t, start(t, tt.opts), move(tt.input))
+			s, events := gametest.MustApply(t, start(t, tt.opts), game.SeatSolo, move(tt.input), nil)
 			if diff := cmp.Diff(tt.wantEvents, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
@@ -275,10 +266,10 @@ func TestPuzzleEndings(t *testing.T) {
 }
 
 func TestStudyMissesWaitForTheRightMove(t *testing.T) {
-	s, _ := mustApply(t, start(t, openingStudy), move("e4"))
+	s, _ := gametest.MustApply(t, start(t, openingStudy), game.SeatSolo, move("e4"), nil)
 	before := s.View(game.SeatSolo)
 
-	s, events := mustApply(t, s, move("Nc3"))
+	s, events := gametest.MustApply(t, s, game.SeatSolo, move("Nc3"), nil)
 	if diff := cmp.Diff([]game.Event{MissedEvent{By: game.SeatSolo, SAN: "Nc3"}}, events); diff != "" {
 		t.Errorf("miss events (-want +got):\n%s", diff)
 	}
@@ -287,18 +278,18 @@ func TestStudyMissesWaitForTheRightMove(t *testing.T) {
 		t.Errorf("after a miss: misses %d, fen %q, history %v; want 1 and the position unchanged", missed.Misses, missed.FEN, missed.HistorySAN)
 	}
 
-	s, events = mustApply(t, s, move("Qh5"))
+	s, events = gametest.MustApply(t, s, game.SeatSolo, move("Qh5"), nil)
 	if diff := cmp.Diff([]game.Event{MissedEvent{By: game.SeatSolo, SAN: "Qh5"}}, events); diff != "" {
 		t.Errorf("a miss that is not mate in study (-want +got):\n%s", diff)
 	}
 
-	s, events = mustApply(t, s, reveal())
+	s, events = gametest.MustApply(t, s, game.SeatSolo, reveal(), nil)
 	want := []game.Event{RevealedEvent{By: game.SeatSolo, SAN: "Nf3"}, RepliedEvent{By: game.SeatSolo, SAN: "Nc6"}}
 	if diff := cmp.Diff(want, events); diff != "" {
 		t.Errorf("reveal events (-want +got):\n%s", diff)
 	}
 
-	s, events = mustApply(t, s, move("Bb5"))
+	s, events = gametest.MustApply(t, s, game.SeatSolo, move("Bb5"), nil)
 	if diff := cmp.Diff([]game.Event{MovedEvent{By: game.SeatSolo, SAN: "Bb5"}}, events); diff != "" {
 		t.Errorf("last move events (-want +got):\n%s", diff)
 	}
@@ -315,7 +306,7 @@ func TestStudyMissesWaitForTheRightMove(t *testing.T) {
 func TestStudyDoesNotTakeAnAlternativeMate(t *testing.T) {
 	opts := backRank
 	opts.Mode = ModeStudy
-	s, events := mustApply(t, start(t, opts), move("Qd8"))
+	s, events := gametest.MustApply(t, start(t, opts), game.SeatSolo, move("Qd8"), nil)
 	if diff := cmp.Diff([]game.Event{MissedEvent{By: game.SeatSolo, SAN: "Qd8#"}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
@@ -348,7 +339,7 @@ func TestIllegalInputIsRejectedWithoutAMiss(t *testing.T) {
 
 func TestSolutionAndLegalMovesFollowTheEnd(t *testing.T) {
 	ongoing := start(t, scholars)
-	solved, _ := mustApply(t, ongoing, move("Qxf7#"))
+	solved, _ := gametest.MustApply(t, ongoing, game.SeatSolo, move("Qxf7#"), nil)
 	gaveUp := ongoing.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, game.SeatSolo, game.ReasonResign))
 	tests := []struct {
 		name          string
@@ -381,7 +372,7 @@ func TestSolutionAndLegalMovesFollowTheEnd(t *testing.T) {
 var mirroredBackRank = Opts{Mode: ModePuzzle, FEN: "r2q3k/6pp/8/8/8/8/4P1PP/7K w - - 0 1", Moves: "e3 h6 e4 Ra1#", Player: SideBlack}
 
 func TestAPuzzleAnswersACorrectMoveBeforeTheLast(t *testing.T) {
-	s, events := mustApply(t, start(t, mirroredBackRank), move("h6"))
+	s, events := gametest.MustApply(t, start(t, mirroredBackRank), game.SeatSolo, move("h6"), nil)
 	want := []game.Event{MovedEvent{By: game.SeatSolo, SAN: "h6"}, RepliedEvent{By: game.SeatSolo, SAN: "e4"}}
 	if diff := cmp.Diff(want, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
@@ -392,9 +383,9 @@ func TestAPuzzleAnswersACorrectMoveBeforeTheLast(t *testing.T) {
 }
 
 func TestStatesBranchedFromOneDoNotShareHistory(t *testing.T) {
-	s, _ := mustApply(t, start(t, mirroredBackRank), move("h6"))
-	queenMate, _ := mustApply(t, s, move("Qd1"))
-	rookMate, _ := mustApply(t, s, move("Ra1"))
+	s, _ := gametest.MustApply(t, start(t, mirroredBackRank), game.SeatSolo, move("h6"), nil)
+	queenMate, _ := gametest.MustApply(t, s, game.SeatSolo, move("Qd1"), nil)
+	rookMate, _ := gametest.MustApply(t, s, game.SeatSolo, move("Ra1"), nil)
 	for _, tt := range []struct {
 		state state
 		want  string
@@ -408,9 +399,9 @@ func TestStatesBranchedFromOneDoNotShareHistory(t *testing.T) {
 
 func TestEndingsScoreTheSolverByTheCoresWinOrLoss(t *testing.T) {
 	ongoing := start(t, scholars)
-	solved, _ := mustApply(t, ongoing, move("Qxf7#"))
-	failed, _ := mustApply(t, ongoing, move("Qxe5+"))
-	study, _ := mustApply(t, start(t, Opts{Mode: ModeStudy, Moves: "e4", Player: SideWhite}), move("e4"))
+	solved, _ := gametest.MustApply(t, ongoing, game.SeatSolo, move("Qxf7#"), nil)
+	failed, _ := gametest.MustApply(t, ongoing, game.SeatSolo, move("Qxe5+"), nil)
+	study, _ := gametest.MustApply(t, start(t, Opts{Mode: ModeStudy, Moves: "e4", Player: SideWhite}), game.SeatSolo, move("e4"), nil)
 	gaveUp, _ := ongoing.Eliminate(game.SeatSolo, game.ReasonResign)
 	tests := []struct {
 		name  string

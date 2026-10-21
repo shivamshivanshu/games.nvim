@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
@@ -42,12 +43,8 @@ type move struct {
 func played(t *testing.T, s state, moves ...move) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
-	for i, m := range moves {
-		next, evs, err := s.Apply(m.seat, draw(m.edge), nil)
-		if err != nil {
-			t.Fatalf("move %d, %s %s: %v", i, m.seat, m.edge, err)
-		}
-		s, events = next.(state), evs
+	for _, m := range moves {
+		s, events = gametest.MustApply(t, s, m.seat, draw(m.edge), nil)
 	}
 	return s, events
 }

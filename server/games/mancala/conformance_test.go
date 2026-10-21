@@ -22,12 +22,8 @@ func playedOutChoosing(t *testing.T, choose func(legal []int) int) ([]gametest.S
 	for !s.Over() {
 		mover := s.toMove
 		action := sow(strconv.Itoa(choose(s.View(mover).LegalPits)))
-		next, _, err := s.Apply(mover, action, nil)
-		if err != nil {
-			t.Fatalf("step %d: %v", len(steps), err)
-		}
+		s, _ = gametest.MustApply(t, s, mover, action, nil)
 		steps = append(steps, gametest.Step[Action]{Seat: mover, Action: action})
-		s = next.(state)
 	}
 	return steps, s
 }

@@ -32,11 +32,7 @@ func play(t *testing.T, cells ...Cell) game.State[Action, View] {
 	t.Helper()
 	st := newGame(t)
 	for _, c := range cells {
-		next, _, err := st.Apply(st.ToAct()[0], place(c), game.StepRNG(1, 1))
-		if err != nil {
-			t.Fatalf("place %d: %v", c, err)
-		}
-		st = next
+		st, _ = gametest.MustApply(t, st, st.ToAct()[0], place(c), game.StepRNG(1, 1))
 	}
 	return st
 }

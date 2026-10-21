@@ -48,12 +48,8 @@ func drops(columns string) []gametest.Step[Action] {
 func playColumns(t *testing.T, columns string) game.State[Action, View] {
 	t.Helper()
 	st := newState(t)
-	for i, step := range drops(columns) {
-		next, _, err := st.Apply(step.Seat, step.Action, nil)
-		if err != nil {
-			t.Fatalf("drop %d (column %s): %v", i, step.Action.Column, err)
-		}
-		st = next
+	for _, step := range drops(columns) {
+		st, _ = gametest.MustApply(t, st, step.Seat, step.Action, nil)
 	}
 	return st
 }

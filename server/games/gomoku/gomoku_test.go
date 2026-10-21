@@ -55,11 +55,7 @@ func play(t *testing.T, cells ...string) game.State[discs.Action, View] {
 	t.Helper()
 	st := newGame(t)
 	for _, step := range places(cells...) {
-		next, _, err := st.Apply(step.Seat, step.Action, nil)
-		if err != nil {
-			t.Fatalf("%s places %s: %v", step.Seat, step.Action.Cell, err)
-		}
-		st = next
+		st, _ = gametest.MustApply(t, st, step.Seat, step.Action, nil)
 	}
 	return st
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 const (
@@ -39,11 +40,7 @@ func sowAll(t *testing.T, s state, pits ...string) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, pit := range pits {
-		next, evs, err := s.Apply(s.toMove, sow(pit), nil)
-		if err != nil {
-			t.Fatalf("%s sows %s: %v", s.toMove, pit, err)
-		}
-		s, events = next.(state), evs
+		s, events = gametest.MustApply(t, s, s.toMove, sow(pit), nil)
 	}
 	return s, events
 }
