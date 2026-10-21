@@ -126,7 +126,6 @@ M.glyph_width = CELL_WIDTH
 M.MAX_SEEDS = MAX_SEEDS
 M.KeyKind = KeyKind
 M.BLANK_KEY = BLANK_KEY
-M.key_for = key_for
 
 ---@param update games.MancalaUpdate
 ---@param ctx games.LayoutCtx
