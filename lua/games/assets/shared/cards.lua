@@ -4,7 +4,6 @@ local cards = require("games.ui.cards")
 
 ---@type table<string, string> suit letter -> its symbol
 local SUIT_SYMBOLS = { c = "♣", d = "♦", h = "♥", s = "♠" }
-local GLYPH_WIDTH = 2
 local MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT = 2, 8
 
 ---An empty card slot h lines tall, outlined in block quadrants two columns narrower than its
@@ -31,8 +30,8 @@ end
 
 ---@type table<games.Glyphs, games.ArtSet>
 local GLYPHS = {
-  unicode = build.glyph_set(unicode_lines, GLYPH_WIDTH),
-  ascii = build.glyph_set(ascii_lines, GLYPH_WIDTH),
+  unicode = build.glyph_set(unicode_lines, cards.GLYPH_WIDTH),
+  ascii = build.glyph_set(ascii_lines, cards.GLYPH_WIDTH),
 }
 local ART = { empty = vim.tbl_map(frame, vim.fn.range(MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT)) }
 

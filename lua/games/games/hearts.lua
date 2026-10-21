@@ -93,7 +93,6 @@ local text_util = require("games.ui.text")
 ---@field by games.Seat
 ---@field score games.HeartsHandScore
 
-local GLYPH_WIDTH = 2
 local EMPTY_KEY = "empty"
 local BLANK_KEY = "blank"
 local CARD_HL = "GamesSquareLight"
@@ -263,7 +262,7 @@ local function hand_lines(view, ctx)
       set = ctx.art,
       cards = view.my_hand,
       marked = tables.set_of(view.legal),
-      glyph_width = GLYPH_WIDTH,
+      glyph_width = cards.GLYPH_WIDTH,
       width = PANEL_WIDTH,
       ambiwidth = ctx.ambiwidth,
     })
@@ -294,7 +293,7 @@ local M = {}
 ---and a blank
 M.asset_keys = vim.list_extend(cards.keys(), { EMPTY_KEY, BLANK_KEY })
 
-M.glyph_width = GLYPH_WIDTH
+M.glyph_width = cards.GLYPH_WIDTH
 
 ---The trick round the table, you at the bottom and the seat on your left on the left, with the
 ---table, your hand, the cards you may play marked, and the last hand's scores in the panel.
@@ -309,7 +308,7 @@ function M.layout(update, ctx)
     grid = {
       rows = 3,
       cols = 3,
-      cell_width = GLYPH_WIDTH,
+      cell_width = cards.GLYPH_WIDTH,
       cell = function(r, c)
         return cells[r][c] or { BLANK_KEY }
       end,

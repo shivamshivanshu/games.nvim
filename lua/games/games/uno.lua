@@ -81,7 +81,6 @@ local tables = require("games.core.tables")
 ---@field kind "left"
 ---@field by games.Seat
 
-local GLYPH_WIDTH = 3
 local DECK_KEY = "deck"
 local CARD_HL = "GamesSquareLight"
 local KEY_HL = "GamesKey"
@@ -168,7 +167,7 @@ local function hand_lines(view, ctx)
       set = ctx.art,
       cards = view.my_hand,
       marked = tables.set_of(view.playable),
-      glyph_width = GLYPH_WIDTH,
+      glyph_width = cards.UNO_GLYPH_WIDTH,
       width = PANEL_WIDTH,
       ambiwidth = ctx.ambiwidth,
       hl = cards.uno_hl,
@@ -181,7 +180,7 @@ local M = {}
 ---@type string[] keys every uno asset pack draws: the 54 distinct cards and the draw pile
 M.asset_keys = vim.list_extend(cards.uno_keys(), { DECK_KEY })
 
-M.glyph_width = GLYPH_WIDTH
+M.glyph_width = cards.UNO_GLYPH_WIDTH
 
 ---The discard pile's top card in the colour in play beside the draw pile, with the table and
 ---your hand, the cards you may play marked, in the panel.
@@ -194,7 +193,7 @@ function M.layout(update, ctx)
     grid = {
       rows = 1,
       cols = 2,
-      cell_width = GLYPH_WIDTH,
+      cell_width = cards.UNO_GLYPH_WIDTH,
       cell = function(_, c)
         if c == 1 then
           return { view.top, cards.uno_hl(view.color) }

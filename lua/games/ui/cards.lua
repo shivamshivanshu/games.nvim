@@ -24,6 +24,11 @@ local MARK = "^"
 ---letter and face, in their colour.
 local M = {}
 
+---Display columns of a playing card's one-line glyph.
+M.GLYPH_WIDTH = 2
+---Display columns of an Uno card's one-line glyph, as wide as "W+4".
+M.UNO_GLYPH_WIDTH = 3
+
 ---The 52 card keys, by rank then suit.
 ---@return games.CardKey[]
 function M.keys()

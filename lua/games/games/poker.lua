@@ -115,7 +115,6 @@ local text_util = require("games.ui.text")
 
 local BOARD_SIZE = 5
 local BOARD_ROW, HAND_ROW = 1, 2
-local GLYPH_WIDTH = 2
 local EMPTY_KEY = "empty"
 local BLANK_KEY = "blank"
 local BUTTON_KEY = "button"
@@ -283,7 +282,7 @@ local M = {}
 ---and the dealer button
 M.asset_keys = vim.list_extend(cards.keys(), { EMPTY_KEY, BLANK_KEY, BUTTON_KEY })
 
-M.glyph_width = GLYPH_WIDTH
+M.glyph_width = cards.GLYPH_WIDTH
 
 ---The seat's row of the seats table: the button, its stack, its bet this street and whether it
 ---folded, is all-in or out, each column as wide as its widest entry at the table.
@@ -319,7 +318,7 @@ function M.layout(update, ctx)
     grid = {
       rows = HAND_ROW,
       cols = BOARD_SIZE,
-      cell_width = GLYPH_WIDTH,
+      cell_width = cards.GLYPH_WIDTH,
       cell = function(r, c)
         return cell_for(view, r, c)
       end,
