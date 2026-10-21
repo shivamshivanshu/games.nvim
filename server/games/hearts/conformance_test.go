@@ -44,7 +44,11 @@ func playToFinish(t *testing.T, seed game.Seed) ([]gametest.Step[Action], []stat
 // all but those passed to it, which their giver saw. A card text recurs from
 // hand to hand, so the cards of the last trick, which may be the previous
 // hand's, are left out too.
-func privateCards(s state, seat game.Seat) []string {
+func privateCards(st game.State[Action, View], seat game.Seat) []string {
+	s, ok := st.(state)
+	if !ok {
+		s = st.(opened).state
+	}
 	i := slices.Index(s.order, seat)
 	var public []cards.Card
 	if s.lastTrick != nil {

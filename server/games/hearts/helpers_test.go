@@ -51,7 +51,7 @@ func newGame(t testing.TB, seed game.Seed) state {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return st.(state)
+	return st.(opened).state
 }
 
 func playing(text string) Action { return Action{Kind: ActionPlay, Card: text} }

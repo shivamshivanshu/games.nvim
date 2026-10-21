@@ -34,6 +34,18 @@ func TestNewTakesExactlyFourAndDealsThirteenEach(t *testing.T) {
 	}
 }
 
+func TestTheOpeningEventStartsHandOne(t *testing.T) {
+	st, _, err := Rules{}.New(Opts{}, users()[0], users()[1:], game.StepRNG(1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	opener, ok := st.(game.Opener)
+	want := []game.Event{HandStartedEvent{By: seat(1), HandNo: 1, Pass: PassLeft}}
+	if !ok || !cmp.Equal(opener.OpeningEvents(), want) {
+		t.Errorf("opening events %v, want %v", opener, want)
+	}
+}
+
 func TestPassesGoLeftRightAcrossThenHold(t *testing.T) {
 	tests := []struct {
 		handNo int

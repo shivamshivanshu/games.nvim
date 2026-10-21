@@ -439,7 +439,7 @@ An action object always carries `kind`.
 
 - Seats `p1`-`p4` in invite order, clockwise; exactly four players. Hands are played until a score reaches 100.
 - Reasons: `score_limit`. All four tied at the end is a draw.
-- Events: `hand_started {by, hand_no, pass}`; `pass_chosen {by, seat}`, naming no cards; `passed {by, pass}`, the cards changing hands; `played {by, seat, card}`; `trick_won {by, seat, points}`; `hand_scored {by, score: {hand_no, points: [{seat, points}], moon}}`; `left {by}`. `seat` differs from `by` for a seat that left and is played for.
+- Events: `hand_started {by, hand_no, pass}`, hand 1's in the game's first update; `pass_chosen {by, seat}`, naming no cards; `passed {by, pass}`, the cards changing hands; `played {by, seat, card}`; `trick_won {by, seat, points}`; `hand_scored {by, score: {hand_no, points: [{seat, points}], moon}}`; `left {by}`. `seat` differs from `by` for a seat that left and is played for.
 - View `{hand_no, pass, phase, score_limit, seats, trick, last_trick, hearts_broken, my_hand, legal, must_pass, pass_to, passed, received, last_hand}`:
   - `pass` is `left`, `right`, `across` or `hold`; `phase` is `pass` or `play`;
   - `seats` is every seat's `{seat, score, taken, pass_chosen, out}`;

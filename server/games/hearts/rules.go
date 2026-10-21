@@ -62,5 +62,6 @@ func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *ra
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("hearts takes exactly %d players, got %d", players, len(users))}
 	}
 	order, seats := game.NumberSeats(users)
-	return newState(order, rng.Uint64()), seats, nil
+	s := newState(order, rng.Uint64())
+	return opened{state: s, start: []game.Event{HandStartedEvent{By: order[0], HandNo: s.handNo, Pass: passOf(s.handNo)}}}, seats, nil
 }

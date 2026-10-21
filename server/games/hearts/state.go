@@ -46,6 +46,15 @@ func (s stepped) with(events ...game.Event) stepped {
 	return s
 }
 
+// opened is the state New hands over, with the start of hand 1.
+type opened struct {
+	state
+	start []game.Event
+}
+
+// OpeningEvents implements game.Opener.
+func (o opened) OpeningEvents() []game.Event { return o.start }
+
 func newState(order []game.Seat, subseed uint64) state {
 	s := state{order: order, subseed: subseed, scores: make([]int, players), out: make([]bool, players)}
 	return s.deal(1)
@@ -304,8 +313,8 @@ func (s state) finish(result game.Result) state {
 }
 
 // advance plays for the seats that left: each passes its three highest
-// cards and plays its lowest legal card, until a seat still in the game is
-// to act. Once every pass is chosen, the cards change hands.
+// cards and plays the first of its legal cards, until a seat still in the
+// game is to act. Once every pass is chosen, the cards change hands.
 func (s state) advance(by game.Seat) stepped {
 	next := stepped{state: s}
 	for !next.finished {

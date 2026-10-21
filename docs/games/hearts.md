@@ -48,7 +48,7 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
   - `trick` is the trick in play, `[{seat, card}]` in play order; `last_trick` the last one taken, `{plays, winner, points}`, or `null` before the first;
   - `my_hand`, `legal`, `must_pass`, `pass_to`, `passed` and `received` are the viewer's own: `legal` is `[]` unless it is to play, `must_pass` 0 once it has chosen, `pass_to` `null` in a hand without passing;
   - `last_hand` is the last hand's `{hand_no, points: [{seat, points}], moon}`, `moon` the seat that shot it or `null`; `null` before the first hand ends.
-- Events: `hand_started {hand_no, pass}`, `pass_chosen {seat}`, `passed {pass}` once the cards change hands, `played {seat, card}`, `trick_won {seat, points}`, `hand_scored {score}`, `left`. An event's `seat` differs from its `by` for a seat played for.
+- Events: `hand_started {hand_no, pass}`, hand 1's in the game's first update, `pass_chosen {seat}`, `passed {pass}` once the cards change hands, `played {seat, card}`, `trick_won {seat, points}`, `hand_scored {score}`, `left`. An event's `seat` differs from its `by` for a seat played for.
 
 ## Result and scoring
 - Reasons: `score_limit`, plus the core's `resign`, `timeout` and `aborted`. All four tied is a draw.
