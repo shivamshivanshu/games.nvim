@@ -7,7 +7,7 @@ Solo: open every safe cell of a board of hidden mines without opening a mine. Se
 - Every cell starts hidden. A revealed cell shows how many of its 8 neighbours are mines, 0 to 8.
 - **Reveal** a hidden cell that has no flag. A 0 floods: every neighbour of a revealed 0 opens too, repeatedly, up to the numbers around the area. A flood never opens a flagged cell.
 - **The first reveal always opens a 0.** The board has no mines until then. The first reveal places them from the game's seeded random source, on any cell except the one revealed and its neighbours, so the opening area floods open.
-- **Flag** a hidden cell, or take its flag off. Flags are only marks: they never stop a chord or a loss, and you may place more flags than there are mines.
+- **Flag** a hidden cell, or take its flag off. A flag guards its cell: a flood stops at it, a reveal on it is refused, and a chord skips it. You may place more flags than there are mines.
 - **Chord** a revealed number whose neighbours hold exactly that many flags: every hidden, unflagged neighbour is revealed at once, each flooding as a reveal would. A wrong flag means the chord reveals a mine.
 - Revealing a mine, by a reveal or a chord, loses: reason `mine`, no winner.
 - Opening every safe cell wins: reason `cleared`. Flags are not needed to win.
@@ -16,7 +16,7 @@ Solo: open every safe cell of a board of hidden mines without opening a mine. Se
 - Cells are typed as a row letter, then a column number: `c12` is row c (the third from the top), column 12. Hard has 30 columns, more than the alphabet, so columns are numbers and rows, at most 16, are letters (Battleship style). Either letter case works.
 - The mine count follows the classic Windows levels: easy 9×9 with 10 mines, medium 16×16 with 40, hard 16 rows by 30 columns with 99. Easy is the default, as it fits any window.
 - The view never holds the place of an unrevealed mine while the game is on. The server keeps the layout, and the conformance tests check that no view or event says `mine` before the end.
-- When the game ends, however it ends, the view shows every mine: the one revealed as `exploded`, the others as `mine`, and each flag on a safe cell as `wrong_flag`. Correct flags show as mines.
+- When the game ends, however it ends, the view shows every mine: the one revealed as `exploded`, the others as `mine`, each flag on a mine as `flagged_mine`, and each flag on a safe cell as `wrong_flag`.
 - The view carries `chordable`, the revealed numbers a chord can act on now (enough flags around, and something left to open), so the `c` key appears only when a chord is possible. No rule runs in the client.
 - No clock and no question-mark marks.
 
@@ -42,7 +42,7 @@ Buffer-local, normal mode, in the board buffer.
 | `]g` | next game waiting on your move |
 | `q` | close |
 
-Rows are labelled a-p and columns 1-30. A panel beside the board shows the flags placed and the mines left (mines less flags). Each cell state has its own glyph, so none rests on colour: hidden `░░` (`##` in ascii), a count `1`-`8`, a 0 blank, a flag `⚑` (`F`), and once over a mine `✱` (`*`), the exploded mine `✸` (`*!`, also tinted) and a wrong flag `✗` (`Fx`). In a roomy window counts and icons are drawn as block art and hidden cells as shaded squares.
+Rows are labelled a-p and columns 1-30. A panel beside the board shows the flags placed and the mines left (mines less flags). Each cell state has its own glyph, so none rests on colour: hidden `░░` (`##` in ascii), a count `1`-`8`, a 0 blank, a flag `⚑` (`F`), and once over a mine `✱` (`*`), a flagged mine `⚑✱` (`F*`), the exploded mine `✸` (`*!`, also tinted) and a wrong flag `✗` (`Fx`). In a roomy window counts and icons are drawn as block art and hidden cells as shaded squares.
 
 ## Errors
 | Case | Message |

@@ -350,8 +350,8 @@ An action object always carries `kind`.
   - `flagged {by: seat, row, col, flagged}`, `flagged` false when the flag came off;
   - `chorded {by: seat, row, col, opened}`, on the number chorded.
 - View `{cells, flags, remaining, chordable}`:
-  - `cells` is rows of strings, row 1 at the top: `hidden`, `flag`, or a revealed count `"0"` to `"8"`; once the game is over every mine is `mine`, the one revealed `exploded`, and a flag on a safe cell `wrong_flag`;
-  - no cell is `mine`, `exploded` or `wrong_flag` before the end, and nothing else in the view or events locates a mine;
+  - `cells` is rows of strings, row 1 at the top: `hidden`, `flag`, or a revealed count `"0"` to `"8"`; once the game is over every unflagged mine is `mine`, a flagged one `flagged_mine`, the one revealed `exploded`, and a flag on a safe cell `wrong_flag`;
+  - no cell is `mine`, `flagged_mine`, `exploded` or `wrong_flag` before the end, and nothing else in the view or events locates a mine;
   - `remaining` is the mine count less `flags`, negative with more flags than mines;
   - `chordable` lists `{row, col}` of the revealed numbers a chord acts on now; `[]` once over.
 - Actions `reveal`, `flag` and `chord`, each with `cell`: a row letter `a`-`p`, either case, then a column number `1`-`30`, e.g. `"c12"`. The catalogue gives the pattern; a cell off the chosen board is an `illegal_action`.

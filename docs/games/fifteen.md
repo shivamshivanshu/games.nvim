@@ -10,7 +10,7 @@ Solo: slide numbered tiles into the one blank square until they are in order. Se
   - **slide** a tile by its number;
   - **move** by direction: the tile moves that way into the blank, so `up` moves the tile below the blank.
 - The puzzle is solved, reason `solved`, when the tiles read 1 to the last in rows from the top left with the blank in the bottom right.
-- **Score is the move count**, shown in the view as `moves` and beside the board. Fewer is better.
+- **The move count is shown but not scored.** The view carries it as `moves` and the board shows it beside the tiles; as for every solo game the result is +1 when solved and −1 otherwise.
 
 ## Shuffle
 The shuffle is drawn when the game starts, from the game's seed, so a restart rebuilds it.
