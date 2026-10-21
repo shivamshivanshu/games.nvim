@@ -8,43 +8,56 @@ local text_util = require("games.ui.text")
 local RED_HL = "GamesCardRed"
 ---@type table<string, true> suit letters drawn red
 local RED_SUITS = { d = true, h = true }
----@type table<string, string> Uno colour letter -> the group it is drawn in
-local UNO_COLOR_HL =
-  { R = RED_HL, Y = "GamesCardYellow", G = "GamesCardGreen", B = "GamesCardBlue" }
+local RANKS = "23456789TJQKA"
+local SUITS = "cdhs"
+local UNO_FACES = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "S", "R", "+2" }
 local CARD_GAP = " "
 local MARK = "^"
+
+---@class games.UnoColorStyle
+---@field letter string as in a card key: "R" of "R5"
+---@field name string
+---@field hl string the group its cards are drawn in
 
 ---Playing cards as games and their asset packs name and draw them: one key per card, the
 ---wire's rank and suit letters, and hearts and diamonds in red; Uno cards likewise, by colour
 ---letter and face, in their colour.
 local M = {}
 
-M.RANKS = "23456789TJQKA"
-M.SUITS = "cdhs"
-
 ---The 52 card keys, by rank then suit.
 ---@return games.CardKey[]
 function M.keys()
   local keys = {}
-  for rank in M.RANKS:gmatch(".") do
-    for suit in M.SUITS:gmatch(".") do
+  for rank in RANKS:gmatch(".") do
+    for suit in SUITS:gmatch(".") do
       keys[#keys + 1] = rank .. suit
     end
   end
   return keys
 end
 
-M.UNO_COLORS = "RYGB"
-M.UNO_FACES = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "S", "R", "+2" }
+---@type games.UnoColorStyle[] in the order a deck lists them
+M.uno_colors = {
+  { letter = "R", name = "red", hl = RED_HL },
+  { letter = "Y", name = "yellow", hl = "GamesCardYellow" },
+  { letter = "G", name = "green", hl = "GamesCardGreen" },
+  { letter = "B", name = "blue", hl = "GamesCardBlue" },
+}
 M.UNO_WILDS = { "W", "W+4" }
+
+---@type table<string, string> Uno colour letter -> the group it is drawn in
+local UNO_COLOR_HL = {}
+for _, color in ipairs(M.uno_colors) do
+  UNO_COLOR_HL[color.letter] = color.hl
+end
 
 ---The 54 distinct Uno card keys: each colour's faces, then the wilds.
 ---@return games.UnoCardKey[]
 function M.uno_keys()
   local keys = {}
-  for color in M.UNO_COLORS:gmatch(".") do
-    for _, face in ipairs(M.UNO_FACES) do
-      keys[#keys + 1] = color .. face
+  for _, color in ipairs(M.uno_colors) do
+    for _, face in ipairs(UNO_FACES) do
+      keys[#keys + 1] = color.letter .. face
     end
   end
   return vim.list_extend(keys, M.UNO_WILDS)
@@ -119,12 +132,7 @@ end
 ---@param ambiwidth games.Ambiwidth
 ---@return string
 function M.text(set, cards, ambiwidth)
-  return table.concat(
-    vim.tbl_map(function(card)
-      return art.glyph(set, card, ambiwidth)
-    end, cards),
-    CARD_GAP
-  )
+  return art.glyph_line(set, cards, CARD_GAP, ambiwidth)
 end
 
 return M

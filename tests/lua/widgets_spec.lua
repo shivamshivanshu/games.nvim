@@ -3,6 +3,7 @@ local grid = require("games.ui.widgets.grid")
 local movelist = require("games.ui.widgets.movelist")
 local helpers = require("helpers")
 local key_hints = require("games.ui.widgets.key_hints")
+local kv = require("games.ui.widgets.kv")
 
 local assert_eq = helpers.assert_eq
 
@@ -426,6 +427,38 @@ function T.movelist_offset_numbers_from_the_first_place_and_marks_the_skipped_on
   assert_eq({ "12. ...  Bxg3", "13. Rxe7 Qd1+" }, list(23))
   assert_eq({ " 9. Bxg3 Rxe7", "10. Qd1+" }, list(16))
   assert_eq({ "1. Bxg3 Rxe7", "2. Qd1+" }, list(nil))
+end
+
+function T.kv_panel_draws_keys_as_keys_and_values_as_labels()
+  local rendered = compose.render(kv.panel({ { "K", "king" }, { "Q", "queen" } }))
+  assert_eq({ "K king", "Q queen" }, rendered.lines)
+  assert_eq({ "GamesKey", "GamesLabel" }, helpers.hls_on_row(rendered, 1))
+end
+
+function T.movelist_panel_keeps_its_least_width_until_the_list_needs_more_and_shows_the_last_lines()
+  local short = movelist.panel({ items = { "e4", "e5", "Nf3" }, columns = 2, min_width = 12 })
+  assert_eq(12, short.width)
+  assert_eq({ "2. Nf3" }, compose.render(short.node(1)).lines)
+
+  local long = movelist.panel({ items = { "Qxf7+", "Kxf7" }, columns = 2, min_width = 4 })
+  assert_eq(#"1. Qxf7+ Kxf7", long.width)
+end
+
+function T.grid_indexes_items_by_cell_and_marks_the_cells_hl_of_picks()
+  local items =
+    { { r = 1, c = 2, name = "a" }, { r = 2, c = 1, name = "b" }, { r = 1, c = 2, name = "c" } }
+  local by_cell = grid.cell_index(items, function(item)
+    return item.r
+  end, function(item)
+    return item.c
+  end)
+  assert_eq("c", by_cell[1][2].name)
+  assert_eq("b", by_cell[2][1].name)
+
+  local marks = grid.marks_where({ { 0, 1 }, { 1, 0 } }, function(value)
+    return value == 1 and "GamesLegal" or nil
+  end)
+  assert_eq({ grid.mark(1, 2, "GamesLegal"), grid.mark(2, 1, "GamesLegal") }, marks)
 end
 
 return T

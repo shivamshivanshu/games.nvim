@@ -81,6 +81,9 @@ end
 ---@class games.GridWidget
 ---@field is_dark fun(row: integer, col: integer): boolean
 ---@field display_order fun(n: integer, flip: boolean|nil): integer[]
+---@field cell_index fun(items: any[], row_of: fun(item: any): integer, col_of: fun(item: any): integer): table<integer, table<integer, any>>
+---@field mark fun(row: integer, col: integer, hl: games.Hl): games.GridMark
+---@field marks_where fun(rows: any[][], hl_of: fun(value: any, row: integer, col: integer): games.Hl|nil): games.GridMark[]
 ---@overload fun(props: games.GridProps): games.Node
 
 local M = {}
@@ -160,15 +163,58 @@ local function repeated(str, height, hl)
   return compose.col(lines)
 end
 
----@param marks games.GridMark[]
----@return table<integer, table<integer, games.Hl>> row -> col -> highlight
-local function marks_by_cell(marks)
+---items by the cell each lies on; of two on one cell the later wins.
+---@generic T
+---@param items T[]
+---@param row_of fun(item: T): integer
+---@param col_of fun(item: T): integer
+---@return table<integer, table<integer, T>> row -> col -> item
+function M.cell_index(items, row_of, col_of)
   local by_cell = {}
-  for _, mark in ipairs(marks) do
-    by_cell[mark.row] = by_cell[mark.row] or {}
-    by_cell[mark.row][mark.col] = mark.hl
+  for _, item in ipairs(items) do
+    local row = row_of(item)
+    by_cell[row] = by_cell[row] or {}
+    by_cell[row][col_of(item)] = item
   end
   return by_cell
+end
+
+---@param row integer
+---@param col integer
+---@param hl games.Hl
+---@return games.GridMark
+function M.mark(row, col, hl)
+  return { row = row, col = col, hl = hl }
+end
+
+---A mark on each cell of rows that hl_of gives a highlight, in row then column order.
+---@generic T
+---@param rows T[][] by row, then column
+---@param hl_of fun(value: T, row: integer, col: integer): games.Hl|nil
+---@return games.GridMark[]
+function M.marks_where(rows, hl_of)
+  local marks = {}
+  for row, values in ipairs(rows) do
+    for col, value in ipairs(values) do
+      local hl = hl_of(value, row, col)
+      if hl then
+        marks[#marks + 1] = M.mark(row, col, hl)
+      end
+    end
+  end
+  return marks
+end
+
+---@param mark games.GridMark
+---@return integer
+local function row_of(mark)
+  return mark.row
+end
+
+---@param mark games.GridMark
+---@return integer
+local function col_of(mark)
+  return mark.col
 end
 
 ---The node drawing key in a cell of size box; every cell of one grid shares box and ambiwidth.
@@ -229,13 +275,15 @@ end
 ---@param ambiwidth games.Ambiwidth
 ---@return fun(r: integer, c: integer): games.Node
 local function cell_nodes(props, geometry, ambiwidth)
-  local marks = marks_by_cell(props.marks or {})
+  ---@type table<integer, table<integer, games.GridMark>>
+  local marks = M.cell_index(props.marks or {}, row_of, col_of)
   local content = cell_contents(props, geometry.cell, ambiwidth)
   return function(r, c)
     local key, own_hl = unpack(props.cell(r, c))
-    local shade, mark = shade_hl(props.shade, r, c), marks[r] and marks[r][c]
-    local hl = own_hl and compose.layers(shade, mark, own_hl)
-      or highlights.with_ink(compose.layers(shade, mark))
+    local mark = marks[r] and marks[r][c]
+    local shade, mark_hl = shade_hl(props.shade, r, c), mark and mark.hl
+    local hl = own_hl and compose.layers(shade, mark_hl, own_hl)
+      or highlights.with_ink(compose.layers(shade, mark_hl))
     return compose.box({ w = geometry.cell.w, h = geometry.cell.h, hl = hl, child = content(key) })
   end
 end

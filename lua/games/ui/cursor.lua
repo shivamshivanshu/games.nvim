@@ -1,5 +1,7 @@
 ---A cursor a board's keys move over a grid, lying across or down, for games that place pieces
 ---longer than a cell. It lives in the board's view options, so moving it only redraws the board.
+local keys = require("games.ui.keys")
+
 local M = {}
 
 ---@enum games.Orientation
@@ -25,18 +27,6 @@ M.Orientation = { ACROSS = "across", DOWN = "down" }
 ---Where the cursor may go: fixed, or read off the board's update for a board whose size is an option.
 ---@alias games.CursorReach games.CursorBounds|games.OrientedBounds|fun(update: games.GameUpdate): games.CursorBounds|games.OrientedBounds
 
----@class (private) games.CursorMove
----@field key string
----@field d_row integer
----@field d_col integer
-
----@type games.CursorMove[]
-local MOVES = {
-  { key = "h", d_row = 0, d_col = -1 },
-  { key = "j", d_row = 1, d_col = 0 },
-  { key = "k", d_row = -1, d_col = 0 },
-  { key = "l", d_row = 0, d_col = 1 },
-}
 local MOVE_LABEL = "move"
 local ROTATE_KEY, ROTATE_LABEL = "r", "turn"
 
@@ -109,7 +99,7 @@ function M.moves(reach, available)
         )
       end,
     }
-  end, MOVES)
+  end, keys.HJKL)
 end
 
 ---Key r turning the cursor between across and down; with a reach it then moves back within

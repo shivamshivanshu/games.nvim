@@ -1,5 +1,6 @@
 local highlights = require("games.ui.highlights")
 local notify = require("games.core.notify")
+local players = require("games.core.players")
 
 ---@class games.ThemeOptions
 ---@field palette games.Palette
@@ -149,6 +150,15 @@ end
 ---@return string
 function M.seat_hl(i)
   return "GamesSeat" .. ((i - 1) % SEAT_COLOURS + 1)
+end
+
+---The highlight group of seat's colour in update, or nil while no player holds seat.
+---@param update games.GameUpdate
+---@param seat games.Seat
+---@return string|nil
+function M.seat_hl_of(update, seat)
+  local index = players.seat_index(update, seat)
+  return index and M.seat_hl(index)
 end
 
 ---@param outcome games.Outcome

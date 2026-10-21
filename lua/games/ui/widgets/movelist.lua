@@ -33,9 +33,22 @@ local function item_nodes(item, annotation, hl)
   }
 end
 
+---@class games.MovelistPanelSpec
+---@field items string[]
+---@field columns integer items per line
+---@field min_width integer display columns the panel keeps however short the list
+---@field annotation? games.MoveAnnotation
+---@field offset? integer as in games.MovelistProps
+
+---@class games.MovelistWidget
+---@field panel fun(spec: games.MovelistPanelSpec): games.BoardPanel
+---@overload fun(props: games.MovelistProps): games.Node
+
+local M = {}
+
 ---@param props games.MovelistProps
 ---@return games.Node
-return function(props)
+local function render(props)
   local columns = props.columns
   local offset = props.offset or 0
   local skipped = offset % columns
@@ -83,3 +96,31 @@ return function(props)
   end
   return compose.col(rows)
 end
+
+---A numbered move list as a board panel, min_width wide unless the whole list needs more,
+---so an ordinary game never resizes the board; it shows the last lines that fit.
+---@param spec games.MovelistPanelSpec
+---@return games.BoardPanel
+function M.panel(spec)
+  ---@param max_lines? integer
+  ---@return games.Node
+  local function node(max_lines)
+    return render({
+      items = spec.items,
+      columns = spec.columns,
+      numbered = true,
+      annotation = spec.annotation,
+      offset = spec.offset,
+      max_lines = max_lines,
+    })
+  end
+  return { width = math.max(spec.min_width, compose.measure(node()).w), node = node }
+end
+
+---@type games.MovelistWidget
+local widget = setmetatable(M, {
+  __call = function(_, props)
+    return render(props)
+  end,
+})
+return widget

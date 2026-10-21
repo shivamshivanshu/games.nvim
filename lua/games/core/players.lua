@@ -67,6 +67,17 @@ function M.stage(update, me)
   return M.is_to_act(update, me) and M.GameStage.YOUR_MOVE or M.GameStage.WAITING
 end
 
+---The entry of list that is seat's, such as a view's per-seat rows.
+---@generic T: {seat: games.Seat}
+---@param list T[]
+---@param seat games.Seat
+---@return T|nil
+function M.entry_of_seat(list, seat)
+  return vim.iter(list):find(function(entry)
+    return entry.seat == seat
+  end)
+end
+
 ---Whether the game is ongoing and waiting on user.
 ---@param update games.GameUpdate
 ---@param user games.UserID

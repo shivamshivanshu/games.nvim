@@ -12,6 +12,8 @@ local AMBIWIDTH_DOUBLE = "double"
 local M = {}
 
 M.PRINTABLE_ASCII = "^[ -~]*$"
+---Display columns per line of a cell's art: terminal cells are about twice as tall as wide.
+M.CELL_ASPECT = 2
 
 ---@type table<games.Ambiwidth, table<games.ArtEntry, boolean>> ambiwidth -> entry -> drawable
 local drawable_by_ambiwidth = vim.defaulttable(function()
@@ -127,6 +129,29 @@ end
 ---@return string
 function M.glyph(set, key, ambiwidth)
   return glyph_entry(entries_of(set, key), key, ambiwidth).lines[1]
+end
+
+---The glyphs of keys in a line, gap apart.
+---@param set games.ArtSet
+---@param keys string[]
+---@param gap string
+---@param ambiwidth games.Ambiwidth
+---@return string
+function M.glyph_line(set, keys, gap, ambiwidth)
+  return table.concat(
+    vim.tbl_map(function(key)
+      return M.glyph(set, key, ambiwidth)
+    end, keys),
+    gap
+  )
+end
+
+---The asset key of base under marker, such as "conflict:5", or base itself unmarked.
+---@param base string|integer
+---@param marker? string
+---@return string
+function M.marked_key(base, marker)
+  return marker and ("%s:%s"):format(marker, base) or tostring(base)
 end
 
 return M

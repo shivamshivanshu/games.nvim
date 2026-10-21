@@ -63,4 +63,11 @@ function T.a_key_with_no_drawable_glyph_is_an_error_not_a_misdrawn_board()
   end)
 end
 
+function T.a_glyph_line_draws_each_key_gap_apart_and_a_marked_key_prefixes_its_marker()
+  local set = { a = { DOT }, b = { PERIOD } }
+  assert_eq("·  .  ·", art.glyph_line(set, { "a", "b", "a" }, "  ", "single"))
+  assert_eq("legal:3", art.marked_key(3, "legal"))
+  assert_eq("3", art.marked_key(3))
+end
+
 return T
