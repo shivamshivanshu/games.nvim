@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "cell": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "cell"
+      ],
+      "description": "Action names its cell as a row letter then a column number: \"c12\" is row 3, column 12."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "reveal",
+        "flag",
+        "chord"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "ChordedEvent": {
+      "properties": {
+        "kind": {
+          "const": "chorded"
+        },
+        "by": {
+          "type": "string"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "opened": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "row",
+        "col",
+        "opened"
+      ],
+      "description": "ChordedEvent reports a chord on the number at Row, Col and how many cells it opened."
+    },
+    "FlaggedEvent": {
+      "properties": {
+        "kind": {
+          "const": "flagged"
+        },
+        "by": {
+          "type": "string"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "flagged": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "row",
+        "col",
+        "flagged"
+      ],
+      "description": "FlaggedEvent reports a flag placed, or removed when Flagged is false."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "mine",
+        "cleared"
+      ],
+      "description": "The result reasons Minesweeper adds to the core's."
+    },
+    "RevealedEvent": {
+      "properties": {
+        "kind": {
+          "const": "revealed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "opened": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "row",
+        "col",
+        "opened"
+      ],
+      "description": "RevealedEvent reports a reveal and how many cells it opened; Row and Col are 1-based."
+    },
+    "Square": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col"
+      ],
+      "description": "Square is a 1-based board position; row 1 is the top."
+    },
+    "View": {
+      "properties": {
+        "cells": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "flags": {
+          "type": "integer"
+        },
+        "remaining": {
+          "type": "integer"
+        },
+        "chordable": {
+          "items": {
+            "$ref": "#/$defs/Square"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "cells",
+        "flags",
+        "remaining",
+        "chordable"
+      ],
+      "description": "View holds Cells[row][col], rows from the top. Remaining is the mine count less the\nflags, negative when there are more flags than mines. Chordable lists the revealed\nnumbers a chord may act on now, empty once the game is over."
+    }
+  },
+  "title": "Minesweeper",
+  "description": "The game-specific bodies inside a minesweeper game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "chorded": {
+      "$ref": "#/$defs/ChordedEvent"
+    },
+    "flagged": {
+      "$ref": "#/$defs/FlaggedEvent"
+    },
+    "revealed": {
+      "$ref": "#/$defs/RevealedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
