@@ -4,15 +4,17 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
-func seven(t *testing.T, text string) [sevenSize]Card {
+func seven(t *testing.T, text string) [sevenSize]cards.Card {
 	t.Helper()
-	cards := parseCards(t, text)
-	if len(cards) != sevenSize {
-		t.Fatalf("%q has %d cards, want 7", text, len(cards))
+	parsed := parseCards(t, text)
+	if len(parsed) != sevenSize {
+		t.Fatalf("%q has %d cards, want 7", text, len(parsed))
 	}
-	return [sevenSize]Card(cards)
+	return [sevenSize]cards.Card(parsed)
 }
 
 func TestBestHandFindsCategoryAndTieBreakRanks(t *testing.T) {
@@ -21,21 +23,21 @@ func TestBestHandFindsCategoryAndTieBreakRanks(t *testing.T) {
 		cards string
 		want  HandValue
 	}{
-		{"high card", "As Kd 9h 7c 5s 3d 2h", HandValue{HighCard, [5]Rank{Ace, King, Nine, Seven, Five}}},
-		{"pair with three kickers", "As Ad 9h 7c 5s 3d 2h", HandValue{Pair, [5]Rank{Ace, Ace, Nine, Seven, Five}}},
-		{"best two of three pairs", "As Ad 9h 9c 5s 5d Kh", HandValue{TwoPair, [5]Rank{Ace, Ace, Nine, Nine, King}}},
-		{"trips", "7s 7d 7h Ac 5s 3d 2h", HandValue{Trips, [5]Rank{Seven, Seven, Seven, Ace, Five}}},
-		{"broadway straight", "Ts Jd Qh Kc As 2d 3h", HandValue{Straight, [5]Rank{Ace, King, Queen, Jack, Ten}}},
-		{"wheel is five-high", "As 2d 3h 4c 5s 9d Kh", HandValue{Straight, [5]Rank{Five, Four, Three, Two, Ace}}},
-		{"six-high over the wheel", "As 2d 3h 4c 5s 6d Kh", HandValue{Straight, [5]Rank{Six, Five, Four, Three, Two}}},
-		{"no wrap around the ace", "Qs Kd Ah 2c 3s 8d 9h", HandValue{HighCard, [5]Rank{Ace, King, Queen, Nine, Eight}}},
-		{"top five of six suited", "Ah Kh 9h 7h 5h 3h 2c", HandValue{Flush, [5]Rank{Ace, King, Nine, Seven, Five}}},
-		{"flush over straight", "9h Th Jh Qh 2h Kd 3c", HandValue{Flush, [5]Rank{Queen, Jack, Ten, Nine, Two}}},
-		{"full house from two trips", "Ks Kd Kh 9c 9s 9d 2h", HandValue{FullHouse, [5]Rank{King, King, King, Nine, Nine}}},
-		{"full house uses the higher pair", "5s 5d 5h 9c 9s Qd Qh", HandValue{FullHouse, [5]Rank{Five, Five, Five, Queen, Queen}}},
-		{"quads with best kicker", "8s 8d 8h 8c As Kd Kh", HandValue{Quads, [5]Rank{Eight, Eight, Eight, Eight, Ace}}},
-		{"straight flush over a higher plain straight", "5h 6h 7h 8h 9h Ts Jd", HandValue{StraightFlush, [5]Rank{Nine, Eight, Seven, Six, Five}}},
-		{"steel wheel", "Ah 2h 3h 4h 5h Kd Qc", HandValue{StraightFlush, [5]Rank{Five, Four, Three, Two, Ace}}},
+		{"high card", "As Kd 9h 7c 5s 3d 2h", HandValue{HighCard, [5]cards.Rank{cards.Ace, cards.King, cards.Nine, cards.Seven, cards.Five}}},
+		{"pair with three kickers", "As Ad 9h 7c 5s 3d 2h", HandValue{Pair, [5]cards.Rank{cards.Ace, cards.Ace, cards.Nine, cards.Seven, cards.Five}}},
+		{"best two of three pairs", "As Ad 9h 9c 5s 5d Kh", HandValue{TwoPair, [5]cards.Rank{cards.Ace, cards.Ace, cards.Nine, cards.Nine, cards.King}}},
+		{"trips", "7s 7d 7h Ac 5s 3d 2h", HandValue{Trips, [5]cards.Rank{cards.Seven, cards.Seven, cards.Seven, cards.Ace, cards.Five}}},
+		{"broadway straight", "Ts Jd Qh Kc As 2d 3h", HandValue{Straight, [5]cards.Rank{cards.Ace, cards.King, cards.Queen, cards.Jack, cards.Ten}}},
+		{"wheel is five-high", "As 2d 3h 4c 5s 9d Kh", HandValue{Straight, [5]cards.Rank{cards.Five, cards.Four, cards.Three, cards.Two, cards.Ace}}},
+		{"six-high over the wheel", "As 2d 3h 4c 5s 6d Kh", HandValue{Straight, [5]cards.Rank{cards.Six, cards.Five, cards.Four, cards.Three, cards.Two}}},
+		{"no wrap around the ace", "Qs Kd Ah 2c 3s 8d 9h", HandValue{HighCard, [5]cards.Rank{cards.Ace, cards.King, cards.Queen, cards.Nine, cards.Eight}}},
+		{"top five of six suited", "Ah Kh 9h 7h 5h 3h 2c", HandValue{Flush, [5]cards.Rank{cards.Ace, cards.King, cards.Nine, cards.Seven, cards.Five}}},
+		{"flush over straight", "9h Th Jh Qh 2h Kd 3c", HandValue{Flush, [5]cards.Rank{cards.Queen, cards.Jack, cards.Ten, cards.Nine, cards.Two}}},
+		{"full house from two trips", "Ks Kd Kh 9c 9s 9d 2h", HandValue{FullHouse, [5]cards.Rank{cards.King, cards.King, cards.King, cards.Nine, cards.Nine}}},
+		{"full house uses the higher pair", "5s 5d 5h 9c 9s Qd Qh", HandValue{FullHouse, [5]cards.Rank{cards.Five, cards.Five, cards.Five, cards.Queen, cards.Queen}}},
+		{"quads with best kicker", "8s 8d 8h 8c As Kd Kh", HandValue{Quads, [5]cards.Rank{cards.Eight, cards.Eight, cards.Eight, cards.Eight, cards.Ace}}},
+		{"straight flush over a higher plain straight", "5h 6h 7h 8h 9h Ts Jd", HandValue{StraightFlush, [5]cards.Rank{cards.Nine, cards.Eight, cards.Seven, cards.Six, cards.Five}}},
+		{"steel wheel", "Ah 2h 3h 4h 5h Kd Qc", HandValue{StraightFlush, [5]cards.Rank{cards.Five, cards.Four, cards.Three, cards.Two, cards.Ace}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

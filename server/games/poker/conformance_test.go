@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
@@ -66,14 +67,14 @@ func playToFinish(t *testing.T, players []game.UserID, seed game.Seed) ([]gamete
 	return steps, states
 }
 
-func holes(h hand) []Card {
-	var cards []Card
+func holes(h hand) []cards.Card {
+	var all []cards.Card
 	for i, dealt := range h.dealtIn {
 		if dealt {
-			cards = append(cards, h.holes[i][:]...)
+			all = append(all, h.holes[i][:]...)
 		}
 	}
-	return cards
+	return all
 }
 
 // showedDown is whether h ended with its contested hands revealed. It reads
@@ -82,7 +83,7 @@ func showedDown(h hand) bool { return h.chips.contestants() > 1 }
 
 // endedPublic is what the last hand legitimately made public: its board, and
 // the contested hands when it reached a showdown.
-func endedPublic(s state) []Card {
+func endedPublic(s state) []cards.Card {
 	ended := s.ended.hand
 	if ended.number == 0 {
 		return nil
@@ -97,14 +98,14 @@ func endedPublic(s state) []Card {
 }
 
 // undealt is the rest of the current hand's deck: no seat may see it yet.
-func undealt(s state) []Card {
-	deck := shuffledDeck(s.subseed, s.hand.number)
+func undealt(s state) []cards.Card {
+	deck := cards.Shuffled(cards.French(), s.subseed, s.hand.number)
 	seen := append(holes(s.hand), s.hand.board[:s.hand.dealt]...)
-	return slices.DeleteFunc(deck[:], func(c Card) bool { return slices.Contains(seen, c) })
+	return slices.DeleteFunc(deck, func(c cards.Card) bool { return slices.Contains(seen, c) })
 }
 
-func without(cards, drop []Card) []Card {
-	return slices.DeleteFunc(slices.Clone(cards), func(c Card) bool { return slices.Contains(drop, c) })
+func without(from, drop []cards.Card) []cards.Card {
+	return slices.DeleteFunc(slices.Clone(from), func(c cards.Card) bool { return slices.Contains(drop, c) })
 }
 
 // ranUnplayed is whether h ended with no move in its last round: every seat
@@ -126,7 +127,7 @@ func privateCards(s state, seat game.Seat) []string {
 		return nil
 	}
 	public := endedPublic(s)
-	var private []Card
+	var private []cards.Card
 	if s.hand.dealtIn[i] {
 		private = append(private, without(s.hand.holes[i][:], public)...)
 	}

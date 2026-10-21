@@ -1,4 +1,4 @@
-package poker
+package cards
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 // Rank is a card rank, Two (2) to Ace (14).
 type Rank uint8
 
-// Ranks from low to high; an Ace also plays low in the wheel straight.
+// Ranks from low to high.
 const (
 	Two Rank = iota + 2
 	Three
@@ -25,7 +25,7 @@ const (
 	Ace
 )
 
-// Suit is a card suit. Suits never break ties.
+// Suit is a card suit.
 type Suit uint8
 
 // Suits in the order of their wire letters c, d, h, s.
@@ -41,21 +41,34 @@ const (
 	suitLetters = "cdhs"
 )
 
-// Card is one playing card.
+// FrenchSize is the cards in a French deck.
+const FrenchSize = 52
+
+// Card is one card of the French deck.
 type Card struct {
 	Rank Rank
 	Suit Suit
 }
 
-const invalidCard = "??"
+// Invalid is the text of a value that is no card, such as the zero Card.
+const Invalid = "??"
+
+// French is the 52-card deck by rank, then suit.
+func French() []Card {
+	deck := make([]Card, FrenchSize)
+	for i := range deck {
+		deck[i] = Card{Rank: Two + Rank(i/4), Suit: Suit(i % 4)}
+	}
+	return deck
+}
 
 func (c Card) valid() bool { return c.Rank >= Two && c.Rank <= Ace && c.Suit <= Spades }
 
 // String is the card's wire form: rank letter then suit letter, e.g. "As" or
-// "Td"; "??" for a value that is no card, such as the zero Card.
+// "Td"; Invalid for a value that is no card.
 func (c Card) String() string {
 	if !c.valid() {
-		return invalidCard
+		return Invalid
 	}
 	return string([]byte{rankLetters[c.Rank-Two], suitLetters[c.Suit]})
 }
@@ -73,7 +86,7 @@ func (Card) JSONSchemaAlias() any { return "" }
 
 // UnmarshalText decodes a card from its wire form.
 func (c *Card) UnmarshalText(text []byte) error {
-	parsed, err := parseCard(string(text))
+	parsed, err := Parse(string(text))
 	if err != nil {
 		return err
 	}
@@ -81,7 +94,8 @@ func (c *Card) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func parseCard(text string) (Card, error) {
+// Parse reads a card in its wire form, e.g. "As".
+func Parse(text string) (Card, error) {
 	if len(text) != 2 {
 		return Card{}, fmt.Errorf("card %q: want a rank letter and a suit letter, e.g. \"As\"", text)
 	}

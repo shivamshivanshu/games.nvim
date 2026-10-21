@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
 // TypePoker is the game type on the wire.
@@ -94,14 +95,14 @@ type View struct {
 	HandNo     int          `json:"hand_no"`
 	Button     game.Seat    `json:"button"`
 	Blinds     Blinds       `json:"blinds"`
-	Board      []Card       `json:"board"`
+	Board      []cards.Card `json:"board"`
 	Pots       []PotView    `json:"pots"`
 	Seats      []SeatView   `json:"seats"`
 	Legal      []MoveKind   `json:"legal"`
 	ToCall     Chips        `json:"to_call"`
 	MinRaiseTo Chips        `json:"min_raise_to"`
 	MaxRaiseTo Chips        `json:"max_raise_to"`
-	MyCards    []Card       `json:"my_cards"`
+	MyCards    []cards.Card `json:"my_cards"`
 	LastHand   *HandSummary `json:"last_hand" jsonschema:"nullable"`
 }
 
@@ -125,17 +126,17 @@ type PotView struct {
 // HandSummary is how the previous hand ended: its board, the hands shown at
 // showdown (none when everyone else folded) and the pots won.
 type HandSummary struct {
-	HandNo int         `json:"hand_no"`
-	Board  []Card      `json:"board"`
-	Shown  []ShownHand `json:"shown"`
-	Awards []Award     `json:"awards"`
+	HandNo int          `json:"hand_no"`
+	Board  []cards.Card `json:"board"`
+	Shown  []ShownHand  `json:"shown"`
+	Awards []Award      `json:"awards"`
 }
 
 // ShownHand is a hand revealed at showdown.
 type ShownHand struct {
-	Seat     game.Seat `json:"seat"`
-	Cards    []Card    `json:"cards"`
-	Category Category  `json:"category"`
+	Seat     game.Seat    `json:"seat"`
+	Cards    []cards.Card `json:"cards"`
+	Category Category     `json:"category"`
 }
 
 func cloneShown(hands []ShownHand) []ShownHand {

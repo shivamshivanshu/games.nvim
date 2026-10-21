@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
 // state is the whole table. Its arrays make every copy independent, so a
@@ -177,7 +178,7 @@ func (s state) View(seat game.Seat) View {
 		Pots:     s.potViews(),
 		Seats:    s.seatViews(),
 		Legal:    []MoveKind{},
-		MyCards:  []Card{},
+		MyCards:  []cards.Card{},
 		LastHand: s.ended.summary(),
 	}
 	i, ok := s.seatIndex(seat)

@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/room"
@@ -224,7 +225,7 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 
 // unrevealed is what u's own view shows that only u may see: its hole cards,
 // less any card a showdown or the board has made public.
-func unrevealed(v View) []Card {
+func unrevealed(v View) []cards.Card {
 	public := slices.Clone(v.Board)
 	if v.LastHand != nil {
 		public = append(public, v.LastHand.Board...)
@@ -232,7 +233,7 @@ func unrevealed(v View) []Card {
 			public = append(public, shown.Cards...)
 		}
 	}
-	return slices.DeleteFunc(slices.Clone(v.MyCards), func(c Card) bool { return slices.Contains(public, c) })
+	return slices.DeleteFunc(slices.Clone(v.MyCards), func(c cards.Card) bool { return slices.Contains(public, c) })
 }
 
 func TestWireUpdateNeverCarriesAnotherSeatsHoleCards(t *testing.T) {

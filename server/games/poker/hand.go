@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
 // endedHand is the hand that ended last, as it ended: its cards and seats,
@@ -34,8 +35,8 @@ type hand struct {
 	blinds  Blinds
 	button  int
 	dealtIn [maxPlayers]bool
-	holes   [maxPlayers][holeCardsPerSeat]Card
-	board   [boardSize]Card
+	holes   [maxPlayers][holeCardsPerSeat]cards.Card
+	board   [boardSize]cards.Card
 	dealt   int
 	chips   betting
 	// toAct is the seat to act or, between moves, where the search for it starts.
@@ -63,7 +64,7 @@ func (s state) dealHand(by game.Seat, number, button int) (state, []game.Event) 
 	chips, bigPosted := chips.post(big, blinds.Big)
 	chips.currentBet = blinds.Big
 	h.chips = chips
-	h.holes, h.board = dealCards(shuffledDeck(s.subseed, number), s.aliveFrom(button+1))
+	h.holes, h.board = dealCards(cards.Shuffled(cards.French(), s.subseed, number), s.aliveFrom(button+1))
 	h.toAct = (big + 1) % s.n
 	s.hand = h
 	return s, []game.Event{
@@ -83,7 +84,7 @@ func (s state) blindSeats(button int) (small, big int) {
 }
 
 // dealCards deals one card at a time in order, twice round, then the board.
-func dealCards(deck Deck, order []int) (holes [maxPlayers][holeCardsPerSeat]Card, board [boardSize]Card) {
+func dealCards(deck []cards.Card, order []int) (holes [maxPlayers][holeCardsPerSeat]cards.Card, board [boardSize]cards.Card) {
 	next := 0
 	for round := range holeCardsPerSeat {
 		for _, i := range order {
@@ -191,7 +192,7 @@ func (s state) handValues() [maxPlayers]HandValue {
 	var values [maxPlayers]HandValue
 	for i := range s.n {
 		if s.hand.chips.contesting[i] {
-			var seven [sevenSize]Card
+			var seven [sevenSize]cards.Card
 			copy(seven[:], s.hand.holes[i][:])
 			copy(seven[holeCardsPerSeat:], s.hand.board[:])
 			values[i] = bestHand(seven)

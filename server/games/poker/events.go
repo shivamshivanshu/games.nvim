@@ -1,6 +1,9 @@
 package poker
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+)
 
 // Event kinds. Every event's By is the seat whose step caused it, so a deal,
 // blind or award that follows a move is by that move's author.
@@ -41,9 +44,9 @@ type ActedEvent struct {
 
 // BoardEvent deals a street's board cards.
 type BoardEvent struct {
-	By     game.Seat `json:"by"`
-	Street Street    `json:"street"`
-	Cards  []Card    `json:"cards"`
+	By     game.Seat    `json:"by"`
+	Street Street       `json:"street"`
+	Cards  []cards.Card `json:"cards"`
 }
 
 // ShownEvent reveals every hand still live once no more betting is possible.

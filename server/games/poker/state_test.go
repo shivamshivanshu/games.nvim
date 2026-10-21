@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
 func full(n int) []Chips {
@@ -494,14 +495,14 @@ func TestMutatingAViewOrEventLeavesTheStateUnchanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := s.View("p1")
-	v.Board = append(v.Board[:0], Card{Ace, Spades})
-	v.MyCards[0] = Card{Two, Clubs}
-	v.LastHand.Board[0] = Card{Two, Clubs}
-	v.LastHand.Shown[0].Cards[0] = Card{Two, Clubs}
+	v.Board = append(v.Board[:0], cards.Card{Rank: cards.Ace, Suit: cards.Spades})
+	v.MyCards[0] = cards.Card{Rank: cards.Two, Suit: cards.Clubs}
+	v.LastHand.Board[0] = cards.Card{Rank: cards.Two, Suit: cards.Clubs}
+	v.LastHand.Shown[0].Cards[0] = cards.Card{Rank: cards.Two, Suit: cards.Clubs}
 	v.LastHand.Awards[0].Amount = 1
 	shown := eventsOf[ShownEvent](events)[0]
-	shown.Hands[0].Cards[0] = Card{Two, Clubs}
-	eventsOf[BoardEvent](events)[0].Cards[0] = Card{Two, Clubs}
+	shown.Hands[0].Cards[0] = cards.Card{Rank: cards.Two, Suit: cards.Clubs}
+	eventsOf[BoardEvent](events)[0].Cards[0] = cards.Card{Rank: cards.Two, Suit: cards.Clubs}
 	if after, _ := json.Marshal(s.View("p1")); string(after) != string(before) {
 		t.Errorf("view changed through a returned view or event:\n%s\n%s", before, after)
 	}

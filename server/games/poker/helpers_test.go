@@ -7,19 +7,20 @@ import (
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
-func parseCards(t testing.TB, text string) []Card {
+func parseCards(t testing.TB, text string) []cards.Card {
 	t.Helper()
-	var cards []Card
+	var parsed []cards.Card
 	for field := range strings.FieldsSeq(text) {
-		c, err := parseCard(field)
+		c, err := cards.Parse(field)
 		if err != nil {
 			t.Fatal(err)
 		}
-		cards = append(cards, c)
+		parsed = append(parsed, c)
 	}
-	return cards
+	return parsed
 }
 
 // table deals hand handNo with the button on button; a zero stack is a seat already out.

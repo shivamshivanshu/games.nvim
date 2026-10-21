@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
 // Category is a poker hand category, ordered from weakest to strongest.
@@ -55,7 +57,7 @@ const (
 // ties within it, most significant first.
 type HandValue struct {
 	Category Category
-	Ranks    [handSize]Rank
+	Ranks    [handSize]cards.Rank
 }
 
 // Compare orders hand values: negative when v loses to o, 0 on a tie.
@@ -67,13 +69,13 @@ func (v HandValue) Compare(o HandValue) int {
 }
 
 // bestHand is the best five-card value among all 21 choices from seven cards.
-func bestHand(cards [sevenSize]Card) HandValue {
+func bestHand(seven [sevenSize]cards.Card) HandValue {
 	var best HandValue
 	for skipA := range sevenSize {
 		for skipB := skipA + 1; skipB < sevenSize; skipB++ {
-			var five [handSize]Card
+			var five [handSize]cards.Card
 			k := 0
-			for i, c := range cards {
+			for i, c := range seven {
 				if i != skipA && i != skipB {
 					five[k] = c
 					k++
@@ -87,19 +89,19 @@ func bestHand(cards [sevenSize]Card) HandValue {
 	return best
 }
 
-func evaluate5(hand [handSize]Card) HandValue {
-	var count [Ace + 1]int
+func evaluate5(hand [handSize]cards.Card) HandValue {
+	var count [cards.Ace + 1]int
 	for _, c := range hand {
 		count[c.Rank]++
 	}
-	distinct := make([]Rank, 0, handSize)
-	for r := Ace; r >= Two; r-- {
+	distinct := make([]cards.Rank, 0, handSize)
+	for r := cards.Ace; r >= cards.Two; r-- {
 		if count[r] > 0 {
 			distinct = append(distinct, r)
 		}
 	}
-	slices.SortStableFunc(distinct, func(a, b Rank) int { return cmp.Compare(count[b], count[a]) })
-	var grouped [handSize]Rank
+	slices.SortStableFunc(distinct, func(a, b cards.Rank) int { return cmp.Compare(count[b], count[a]) })
+	var grouped [handSize]cards.Rank
 	k := 0
 	for _, r := range distinct {
 		for range count[r] {
@@ -131,7 +133,7 @@ func evaluate5(hand [handSize]Card) HandValue {
 	return HandValue{HighCard, grouped}
 }
 
-func isFlush(hand [handSize]Card) bool {
+func isFlush(hand [handSize]cards.Card) bool {
 	for _, c := range hand[1:] {
 		if c.Suit != hand[0].Suit {
 			return false
@@ -142,26 +144,26 @@ func isFlush(hand [handSize]Card) bool {
 
 // straightHigh reads five distinct ranks, highest first. The wheel A-5-4-3-2
 // is five-high, and straights do not wrap around the ace.
-func straightHigh(distinct []Rank) (Rank, bool) {
+func straightHigh(distinct []cards.Rank) (cards.Rank, bool) {
 	if len(distinct) != handSize {
 		return 0, false
 	}
 	if distinct[0]-distinct[handSize-1] == handSize-1 {
 		return distinct[0], true
 	}
-	if slices.Equal(distinct, []Rank{Ace, Five, Four, Three, Two}) {
-		return Five, true
+	if slices.Equal(distinct, []cards.Rank{cards.Ace, cards.Five, cards.Four, cards.Three, cards.Two}) {
+		return cards.Five, true
 	}
 	return 0, false
 }
 
-func straightRanks(high Rank) [handSize]Rank {
-	var ranks [handSize]Rank
+func straightRanks(high cards.Rank) [handSize]cards.Rank {
+	var ranks [handSize]cards.Rank
 	for i := range ranks {
-		ranks[i] = high - Rank(i)
+		ranks[i] = high - cards.Rank(i)
 	}
-	if high == Five {
-		ranks[handSize-1] = Ace
+	if high == cards.Five {
+		ranks[handSize-1] = cards.Ace
 	}
 	return ranks
 }
