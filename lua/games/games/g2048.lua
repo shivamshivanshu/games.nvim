@@ -8,7 +8,8 @@ local kv = require("games.ui.widgets.kv")
 ---@class games.G2048View
 ---@field cells integer[][] rows from the top; 0 for an empty cell
 ---@field score integer the sum of every merge so far
----@field reached boolean whether a 2048 tile has been made; play goes on after it
+---@field goal integer the tile that marks the game reached
+---@field reached boolean whether a goal tile has been made; play goes on after it
 ---@field movable games.Direction[] the directions that would change the board; empty once over
 
 ---@class games.G2048Update: games.GameUpdate
@@ -36,10 +37,9 @@ local EMPTY = 0
 local EMPTY_KEY = "empty"
 ---2^17, the largest tile a 4x4 board can hold.
 local MAX_EXPONENT = 17
-local GOAL = 2048
 local MOVE_KIND = "move"
 local GOAL_HL = "GamesWin"
-local SCORE_LABEL, GOAL_LABEL = "score", tostring(GOAL)
+local SCORE_LABEL = "score"
 local REACHED, NOT_YET = "reached", "not yet"
 ---Display columns the status panel reserves: the longer label, a space, and the widest value.
 local PANEL_WIDTH = #SCORE_LABEL + 1 + #NOT_YET
@@ -48,7 +48,7 @@ local PANEL_WIDTH = #SCORE_LABEL + 1 + #NOT_YET
 ---@return games.GridMark[] every tile of the goal or above
 local function marks_for(view)
   return grid.marks_where(view.cells, function(value)
-    return value >= GOAL and GOAL_HL or nil
+    return value >= view.goal and GOAL_HL or nil
   end)
 end
 
@@ -89,7 +89,7 @@ function M.layout(update, ctx)
         node = function()
           return kv.panel({
             { SCORE_LABEL, tostring(view.score) },
-            { GOAL_LABEL, view.reached and REACHED or NOT_YET },
+            { tostring(view.goal), view.reached and REACHED or NOT_YET },
           })
         end,
       },

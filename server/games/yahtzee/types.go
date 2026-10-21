@@ -55,12 +55,14 @@ type Action struct {
 
 // View is the table, the same for every seat but for what the seat to act may do.
 //
-// Dice is empty before the turn's first roll. CanRoll, CanHold and Options
-// are the viewer's own: false and empty unless it is to act. Options lists
-// the boxes it may score now, with what each would get; under the joker rule
-// that is only the boxes the rule allows.
+// Round runs from 1 to Rounds. Dice is empty before the turn's first roll.
+// CanRoll, CanHold and Options are the viewer's own: false and empty unless
+// it is to act. Options lists the boxes it may score now, with what each
+// would get; under the joker rule that is only the boxes the rule allows.
+// BonusAt is the upper total that earns the upper bonus.
 type View struct {
 	Round     int         `json:"round"`
+	Rounds    int         `json:"rounds"`
 	Dice      []dice.Face `json:"dice"`
 	Held      []bool      `json:"held"`
 	RollsLeft int         `json:"rolls_left"`
@@ -68,6 +70,7 @@ type View struct {
 	CanRoll   bool        `json:"can_roll"`
 	CanHold   bool        `json:"can_hold"`
 	Options   []Option    `json:"options"`
+	BonusAt   int         `json:"bonus_at"`
 }
 
 // Card is one seat's scorecard, in seat order. Scores holds the filled boxes

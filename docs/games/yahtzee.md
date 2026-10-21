@@ -58,11 +58,11 @@ A box's letter shows on the scorecard, and is mapped, only while that box is one
 ## Display
 - **Header.** One line per player: user, seat, `total N`, and `out` once they left. The seat to act is marked `← to move`, or `← your move`.
 - **Dice.** Five dice in a row, `⚀`–`⚅` (ascii `1`–`6`), `·` (ascii `.`) before the first roll. A mark under a die shows it held: `▲` (ascii `^`), and a held die is tinted `GamesMovable`. On bigger windows each die is framed, and drawn with pips on the biggest.
-- **Scorecard.** One row per box, then Upper, Bonus at 63, Yahtzee bonus and Total; one column per seat, `-` for an open box. On your turn a `now` column shows what each box you may score would get. Below: `Round X of 13, N rolls left`.
+- **Scorecard.** One row per box, then Upper, Bonus at 63, Yahtzee bonus and Total; one column per seat, `-` for an open box. On your turn a `now` column shows what each box you may score would get. Below: `Round X of 13, N rolls left`. The bonus threshold and the round count come from the view's `bonus_at` and `rounds`.
 
 **Wire:** `{"kind":"roll"}`, `{"kind":"hold","die":"1".."5"}`, `{"kind":"score","box":"full_house"}`.
 - `die` and `box` are strings because the action catalogue describes inputs as string fields with their values.
-- The view `{round, dice, held, rolls_left, cards, can_roll, can_hold, options}`:
+- The view `{round, rounds, dice, held, rolls_left, cards, can_roll, can_hold, options, bonus_at}`, `rounds` the 13 rounds of a game and `bonus_at` the upper total (63) that earns the upper bonus:
   - `dice` is `[]` before the turn's first roll, then all five faces;
   - `cards` holds every seat's `{seat, scores, upper_total, upper_bonus, yahtzee_bonus, total, out}`, `scores` keyed by box and holding the filled boxes only;
   - `can_roll`, `can_hold` and `options` are the viewer's own: false and `[]` unless it is to act.

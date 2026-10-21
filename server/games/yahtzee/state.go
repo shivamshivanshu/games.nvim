@@ -174,6 +174,7 @@ func (s state) View(viewer game.Seat) View {
 	}
 	return View{
 		Round:     min(s.cards[s.turn].boxesFilled()+1, Rounds),
+		Rounds:    Rounds,
 		Dice:      shown,
 		Held:      slices.Clone(s.held[:]),
 		RollsLeft: s.rollsLeft,
@@ -181,6 +182,7 @@ func (s state) View(viewer game.Seat) View {
 		CanRoll:   toAct && s.rollsLeft > 0 && !s.allHeld(),
 		CanHold:   toAct && s.rolled() && s.rollsLeft > 0,
 		Options:   options,
+		BonusAt:   upperBonusAt,
 	}
 }
 

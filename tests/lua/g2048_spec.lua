@@ -30,6 +30,7 @@ local function update_with(overrides)
     view = {
       cells = { { 2, 0, 0, 4 }, { 16, 128, 2048, 0 }, { 0, 0, 8, 131072 }, { 1024, 0, 0, 2 } },
       score = 4436,
+      goal = 2048,
       reached = true,
       movable = { "down", "left", "right" },
     },
@@ -45,6 +46,7 @@ local function lost()
     view = {
       cells = { { 2, 4, 2, 4 }, { 4, 2, 4, 2 }, { 2, 4, 2, 4 }, { 4, 2, 4, 2 } },
       score = 60,
+      goal = 2048,
       reached = false,
       movable = {},
     },

@@ -151,6 +151,9 @@
         "round": {
           "type": "integer"
         },
+        "rounds": {
+          "type": "integer"
+        },
         "dice": {
           "items": {
             "type": "integer"
@@ -183,21 +186,26 @@
             "$ref": "#/$defs/Option"
           },
           "type": "array"
+        },
+        "bonus_at": {
+          "type": "integer"
         }
       },
       "additionalProperties": false,
       "type": "object",
       "required": [
         "round",
+        "rounds",
         "dice",
         "held",
         "rolls_left",
         "cards",
         "can_roll",
         "can_hold",
-        "options"
+        "options",
+        "bonus_at"
       ],
-      "description": "View is the table, the same for every seat but for what the seat to act may do.\n\nDice is empty before the turn's first roll. CanRoll, CanHold and Options\nare the viewer's own: false and empty unless it is to act. Options lists\nthe boxes it may score now, with what each would get; under the joker rule\nthat is only the boxes the rule allows."
+      "description": "View is the table, the same for every seat but for what the seat to act may do.\n\nRound runs from 1 to Rounds. Dice is empty before the turn's first roll.\nCanRoll, CanHold and Options are the viewer's own: false and empty unless\nit is to act. Options lists the boxes it may score now, with what each\nwould get; under the joker rule that is only the boxes the rule allows.\nBonusAt is the upper total that earns the upper bonus."
     }
   },
   "title": "Yahtzee",

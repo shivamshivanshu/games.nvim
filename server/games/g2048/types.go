@@ -31,11 +31,12 @@ type Action struct {
 const Empty = 0
 
 // View holds Cells[row][col], rows from the top, each a tile's value or Empty. Score is the sum
-// of every merge's value so far. Reached is true once a Goal tile has been made. Movable lists
-// the directions that would change the board, empty once the game is over.
+// of every merge's value so far. Goal is the Goal tile, and Reached is true once one has been
+// made. Movable lists the directions that would change the board, empty once the game is over.
 type View struct {
 	Cells   [][]int          `json:"cells"`
 	Score   int              `json:"score"`
+	Goal    int              `json:"goal"`
 	Reached bool             `json:"reached"`
 	Movable []grid.Direction `json:"movable"`
 }

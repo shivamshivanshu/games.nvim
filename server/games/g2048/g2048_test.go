@@ -299,7 +299,7 @@ func TestViewWire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"cells":[[2,0,0,4],[0,0,0,0],[0,0,0,0],[0,0,0,0]],"score":8,"reached":false,"movable":["down","left","right"]}`
+	want := `{"cells":[[2,0,0,4],[0,0,0,0],[0,0,0,0],[0,0,0,0]],"score":8,"goal":2048,"reached":false,"movable":["down","left","right"]}`
 	if string(raw) != want {
 		t.Errorf("view\n got %s\nwant %s", raw, want)
 	}

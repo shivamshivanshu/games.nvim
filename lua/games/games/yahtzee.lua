@@ -13,7 +13,7 @@ local text_util = require("games.ui.text")
 ---@field seat games.Seat
 ---@field scores table<games.YahtzeeBox, integer> the filled boxes alone
 ---@field upper_total integer
----@field upper_bonus integer 35 once upper_total reaches 63
+---@field upper_bonus integer 35 once upper_total reaches the view's bonus_at
 ---@field yahtzee_bonus integer
 ---@field total integer
 ---@field out boolean the seat left the game; its card stays
@@ -23,7 +23,8 @@ local text_util = require("games.ui.text")
 ---@field score integer what the box would get now
 
 ---@class games.YahtzeeView
----@field round integer
+---@field round integer 1 to rounds
+---@field rounds integer
 ---@field dice games.DieFace[] empty before the turn's first roll
 ---@field held boolean[] one per die
 ---@field rolls_left integer
@@ -31,6 +32,7 @@ local text_util = require("games.ui.text")
 ---@field can_roll boolean the viewer's own
 ---@field can_hold boolean the viewer's own
 ---@field options games.YahtzeeOption[] the viewer's own: the boxes it may score now
+---@field bonus_at integer the upper total that earns the upper bonus
 
 ---@class games.YahtzeeUpdate: games.GameUpdate
 ---@field view games.YahtzeeView
@@ -53,7 +55,7 @@ local text_util = require("games.ui.text")
 ---@field label string
 
 ---@class (private) games.YahtzeeTotalRow
----@field label string
+---@field label string|fun(view: games.YahtzeeView): string
 ---@field field "upper_total"|"upper_bonus"|"yahtzee_bonus"|"total"
 
 ---@alias games.YahtzeeRow games.YahtzeeBoxRow|games.YahtzeeTotalRow
@@ -86,7 +88,12 @@ local ROWS = {
   { box = "fives", key = "e", label = "Fives" },
   { box = "sixes", key = "f", label = "Sixes" },
   { label = "Upper", field = "upper_total" },
-  { label = "Bonus at 63", field = "upper_bonus" },
+  {
+    label = function(view)
+      return ("Bonus at %d"):format(view.bonus_at)
+    end,
+    field = "upper_bonus",
+  },
   { box = "three_of_a_kind", key = "g", label = "3 of a kind" },
   { box = "four_of_a_kind", key = "h", label = "4 of a kind" },
   { box = "full_house", key = "i", label = "Full house" },
@@ -159,6 +166,17 @@ local function heading(update)
   return compose.row(parts)
 end
 
+---@param view games.YahtzeeView
+---@param row games.YahtzeeRow
+---@return string
+local function row_label(view, row)
+  local label = row.label
+  if type(label) == "function" then
+    return label(view)
+  end
+  return label
+end
+
 ---One scorecard line: an offered box's key and what it would score now, then every seat's entry.
 ---@param view games.YahtzeeView
 ---@param row games.YahtzeeRow
@@ -167,7 +185,10 @@ local function scorecard_line(view, row)
   local option = row.box and option_for(view, row.box)
   local parts = {
     compose.text(text_util.pad_to_width(option and row.key or "", KEY_WIDTH), KEY_HL),
-    compose.text(text_util.pad_to_width(row.label, LABEL_WIDTH), row.box and LABEL_HL or KEY_HL),
+    compose.text(
+      text_util.pad_to_width(row_label(view, row), LABEL_WIDTH),
+      row.box and LABEL_HL or KEY_HL
+    ),
   }
   for _, card in ipairs(view.cards) do
     parts[#parts + 1] = compose.text(text_util.align_right(card_value(card, row), SEAT_WIDTH))
@@ -181,7 +202,7 @@ end
 ---@return games.Node
 local function turn_line(update)
   local view = update.view
-  local round = ("Round %d of %d"):format(view.round, #BOX_ROWS)
+  local round = ("Round %d of %d"):format(view.round, view.rounds)
   if not update.result then
     round = round
       .. (", %d roll%s left"):format(view.rolls_left, view.rolls_left == 1 and "" or "s")

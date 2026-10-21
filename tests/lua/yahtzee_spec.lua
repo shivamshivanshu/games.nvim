@@ -44,6 +44,7 @@ local function rolled(view, overrides)
     controls = { "resign" },
     view = {
       round = 2,
+      rounds = 13,
       dice = { 3, 3, 5, 1, 3 },
       held = { true, true, false, false, true },
       rolls_left = 1,
@@ -58,6 +59,7 @@ local function rolled(view, overrides)
         { box = "threes", score = 9 },
         { box = "three_of_a_kind", score = 15 },
       },
+      bonus_at = 63,
     },
   }, vim.tbl_extend("force", { view = view }, overrides or {}))
 end
@@ -177,6 +179,12 @@ function T.a_finished_game_shows_the_round_without_rolls()
   local lines = render(rolled({ round = 13, rolls_left = 3 }, finished), "alice")
   assert(shows(lines, "Round 13 of 13"), table.concat(lines, "\n"))
   assert(not shows(lines, "rolls left"), table.concat(lines, "\n"))
+end
+
+function T.the_round_count_and_the_bonus_threshold_are_the_views()
+  local lines = render(rolled({ round = 3, rounds = 7, bonus_at = 40 }), "alice")
+  assert(shows(lines, "Round 3 of 7"), table.concat(lines, "\n"))
+  assert(shows(lines, "Bonus at 40"), table.concat(lines, "\n"))
 end
 
 function T.on_a_big_window_each_die_is_outlined_apart_from_the_next()

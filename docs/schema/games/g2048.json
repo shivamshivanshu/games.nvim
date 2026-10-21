@@ -117,6 +117,9 @@
         "score": {
           "type": "integer"
         },
+        "goal": {
+          "type": "integer"
+        },
         "reached": {
           "type": "boolean"
         },
@@ -132,10 +135,11 @@
       "required": [
         "cells",
         "score",
+        "goal",
         "reached",
         "movable"
       ],
-      "description": "View holds Cells[row][col], rows from the top, each a tile's value or Empty. Score is the sum\nof every merge's value so far. Reached is true once a Goal tile has been made. Movable lists\nthe directions that would change the board, empty once the game is over."
+      "description": "View holds Cells[row][col], rows from the top, each a tile's value or Empty. Score is the sum\nof every merge's value so far. Goal is the Goal tile, and Reached is true once one has been\nmade. Movable lists the directions that would change the board, empty once the game is over."
     }
   },
   "title": "2048",

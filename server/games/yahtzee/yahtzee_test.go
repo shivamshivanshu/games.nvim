@@ -360,9 +360,9 @@ func TestWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"round":1,"dice":[],"held":[false,false,false,false,false],"rolls_left":3,` +
+	want := `{"round":1,"rounds":13,"dice":[],"held":[false,false,false,false,false],"rolls_left":3,` +
 		`"cards":[{"seat":"p1","scores":{},"upper_total":0,"upper_bonus":0,"yahtzee_bonus":0,"total":0,"out":false}],` +
-		`"can_roll":true,"can_hold":false,"options":[]}`
+		`"can_roll":true,"can_hold":false,"options":[],"bonus_at":63}`
 	if string(raw) != want {
 		t.Errorf("view\n got %s\nwant %s", raw, want)
 	}

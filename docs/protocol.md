@@ -389,10 +389,10 @@ An action object always carries `kind`.
 - Events:
   - `moved {by: seat, direction, gained, spawned: {row, col, value}}`: `gained` is the sum of the tiles the move merged; `spawned` is the 2 or 4 that appeared after it, `row` and `col` 1-4 from the top left;
   - `reached {by: seat, tile: 2048}`, once, after the `moved` of the move that first made a 2048.
-- View `{cells, score, reached, movable}`:
+- View `{cells, score, goal, reached, movable}`:
   - `cells` is 4 rows of 4, row 1 at the top; each is a tile's value, or 0 when empty;
   - `score` is the sum of every merge so far;
-  - `reached` is true once a 2048 has been made; play goes on;
+  - `goal` is the goal tile, 2048; `reached` is true once one has been made; play goes on;
   - `movable` lists the directions that would change the board, in the order `up`, `down`, `left`, `right`; `[]` once the game is over.
 - Actions: `move` (`direction`: `"up"`, `"down"`, `"left"` or `"right"`). A move that changes nothing is an `illegal_action`. The spawned tile comes from the step's seeded rng, so a restore replays it.
 
@@ -414,7 +414,8 @@ An action object always carries `kind`.
 - Seats `p1`-`p4` in invite order, `p1` first; one player starts it solo with `game.start`.
 - Reasons: `scorecards_full`. A tie of every seat is a `draw`; a tie at the top otherwise, including every seat still playing after one left, gives several winners.
 - Events: `rolled {by: seat, dice}`, all five faces after the roll; `scored {by: seat, box, score, yahtzee_bonus}`, `yahtzee_bonus` 0 or 100. `hold` sends no event.
-- View `{round, dice, held, rolls_left, cards, can_roll, can_hold, options}`:
+- View `{round, rounds, dice, held, rolls_left, cards, can_roll, can_hold, options, bonus_at}`:
+  - `round` runs from 1 to `rounds` (13); `bonus_at` is the upper total (63) that earns the upper bonus;
   - `dice` is `[]` before the turn's first roll, then 5 faces 1-6; `held` is always 5 booleans;
   - `cards` is every seat's `{seat, scores, upper_total, upper_bonus, yahtzee_bonus, total, out}` in seat order; `scores` maps each filled box to its points;
   - `can_roll` (false with all five held), `can_hold` and `options` are the viewer's own: `options` lists `{box, score}` for every box it may fill now, under the forced joker rule, and is `[]` unless the viewer is to act.

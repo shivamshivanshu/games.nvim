@@ -51,7 +51,7 @@ func (s state) View(game.Seat) View {
 	if !s.Over() {
 		movable = s.board.movable()
 	}
-	return View{Cells: s.board.cells(), Score: s.score, Reached: s.reached, Movable: movable}
+	return View{Cells: s.board.cells(), Score: s.score, Goal: Goal, Reached: s.reached, Movable: movable}
 }
 
 func (s state) ToAct() []game.Seat {
