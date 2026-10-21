@@ -100,6 +100,11 @@ local GAME_CLASS = {
     Square = "games.MinesweeperSquare",
     View = "games.MinesweeperView",
   },
+  fifteen = {
+    Movable = "games.FifteenMovable",
+    SlidEvent = "games.FifteenSlidEvent",
+    View = "games.FifteenView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
