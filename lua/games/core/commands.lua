@@ -16,7 +16,6 @@ local stats = require("games.core.stats")
 local summary = require("games.core.summary")
 local tables = require("games.core.tables")
 local text = require("games.ui.text")
-local timer = require("games.core.timer")
 local types = require("games.types")
 
 local GameStatus = types.GameStatus
@@ -34,10 +33,6 @@ local PUZZLE_GAME = "chess_puzzle"
 ---@field run? games.SubcommandRun
 ---@field run_offline? fun(args: string[]) in place of run, for a subcommand that needs no server
 ---@field arg_choices? fun(arg_lead: string): string[] completions for the first argument
-
----@class (private) games.ChallengeAction
----@field label string
----@field send fun(client: games.Client, ref: games.ChallengeRef, cb: games.ReplyCallback)
 
 local M = {}
 
@@ -408,122 +403,6 @@ local function solo_game_types()
   end, solo_games)
 end
 
----@type games.ChallengeAction[]
-local INCOMING_ACTIONS = {
-  {
-    label = "accept",
-    send = function(client, ref, cb)
-      notify.open_when_started(client, ref.challenge_id)
-      client:challenge_accept(ref, cb)
-    end,
-  },
-  {
-    label = "decline",
-    send = function(client, ref, cb)
-      client:challenge_decline(ref, cb)
-    end,
-  },
-}
-
----@type games.ChallengeAction[]
-local OUTGOING_ACTIONS = {
-  {
-    label = "cancel",
-    send = function(client, ref, cb)
-      client:challenge_cancel(ref, cb)
-    end,
-  },
-}
-
----@param client games.Client
----@param me games.UserID
----@param picked games.Challenge
-local function resolve_challenge(client, me, picked)
-  local actions = picked.from == me and OUTGOING_ACTIONS or INCOMING_ACTIONS
-  picker.pick(actions, {
-    prompt = "Challenge:",
-    format_item = function(action)
-      return action.label
-    end,
-  }, function(action)
-    action.send(client, { challenge_id = picked.challenge_id }, on_ok())
-  end)
-end
-
----Sends the action labelled label that applies to challenge, as me sees it.
----@param client games.Client
----@param me games.UserID
----@param challenge games.Challenge
----@param label string
-function M.respond(client, me, challenge, label)
-  local actions = challenge.from == me and OUTGOING_ACTIONS or INCOMING_ACTIONS
-  local action = vim.iter(actions):find(function(candidate)
-    return candidate.label == label
-  end)
-  if not action then
-    say(("cannot %s this challenge"):format(label), ERROR)
-    return
-  end
-  action.send(client, { challenge_id = challenge.challenge_id }, on_ok())
-end
-
----@type games.SubcommandRun
-local function challenges(client, me)
-  client:challenge_list(
-    nil,
-    on_ok(function()
-      local pending = client:pending_challenges()
-      if #pending == 0 then
-        say("no pending challenges")
-        return
-      end
-      table.sort(pending, sources.incoming_first(me))
-      client:game_infos(function(infos)
-        picker.pick(pending, {
-          prompt = "Pending challenges:",
-          format_item = function(item)
-            return summary.format_challenge(item, me, infos[item.game])
-          end,
-        }, function(item)
-          resolve_challenge(client, me, item)
-        end)
-      end)
-    end)
-  )
-end
-
----@type games.SubcommandRun
-local function list(client, me, args)
-  local status = args[1] or GameStatus.ONGOING
-  if not vim.tbl_contains(GAME_STATUSES, status) then
-    say(("list takes %s, not %q"):format(table.concat(GAME_STATUSES, " or "), status), ERROR)
-    return
-  end
-  client:game_list(
-    { status = status },
-    on_ok(
-      ---@param result games.GameListResult
-      function(result)
-        if #result.games == 0 then
-          say(("no %s games"):format(status))
-          return
-        end
-        client:game_infos(function(infos)
-          local now_ms = timer.unix_ms()
-          picker.pick(result.games, {
-            prompt = ("%s games:"):format(status),
-            format_item = function(update)
-              return summary.format_game(update, me, infos[update.game], now_ms)
-            end,
-          }, function(update)
-            shell.open(client, update.game_id)
-          end)
-        end)
-      end
-    )
-  )
-end
-
 ---@param title string
 ---@param empty_message string
 ---@param rows games.KvPair[]
@@ -661,6 +540,11 @@ local EXTRA_FETCHES = {
   end,
 }
 
+---@param source games.Source
+local function open_finder(source)
+  finder.open(source, assert(require("games").config).picker)
+end
+
 ---Opens the finder over source name once what it lists is fetched.
 ---@param client games.Client
 ---@param me games.UserID
@@ -670,9 +554,45 @@ function M.find(client, me, name)
     done({})
   end
   fetch(client, function(extra)
-    local picker = assert(require("games").config).picker
-    finder.open(sources.build(name, sources.snapshot(client, me, extra)), picker)
+    open_finder(sources.build(name, sources.snapshot(client, me, extra)))
   end)
+end
+
+---Opens the finder over the challenges the server lists, once the catalog naming their games is in.
+---@type games.SubcommandRun
+local function challenges(client, me)
+  client:challenge_list(
+    nil,
+    on_ok(function()
+      client:game_infos(function()
+        open_finder(sources.build(sources.SourceName.REQUESTS, sources.snapshot(client, me)))
+      end)
+    end)
+  )
+end
+
+---Opens the finder over the games of status args[1], ongoing by default, as game.list returns them,
+---once the catalog naming their games is in.
+---@type games.SubcommandRun
+local function list(client, me, args)
+  local status = args[1] or GameStatus.ONGOING
+  if not vim.tbl_contains(GAME_STATUSES, status) then
+    say(("list takes %s, not %q"):format(table.concat(GAME_STATUSES, " or "), status), ERROR)
+    return
+  end
+  client:game_list(
+    { status = status },
+    on_ok(
+      ---@param result games.GameListResult
+      function(result)
+        client:game_infos(function()
+          local snapshot =
+            vim.tbl_extend("force", sources.snapshot(client, me), { games = result.games })
+          open_finder(sources.build(sources.SourceName.GAMES, snapshot))
+        end)
+      end
+    )
+  )
 end
 
 ---@type games.SubcommandRun

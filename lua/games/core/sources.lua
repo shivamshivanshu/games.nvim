@@ -1,7 +1,9 @@
+local Client = require("games.core.client")
 local compose = require("games.ui.compose")
 local controls = require("games.core.controls")
 local describe = require("games.core.describe")
 local kv = require("games.ui.widgets.kv")
+local notify = require("games.core.notify")
 local players = require("games.core.players")
 local stats = require("games.core.stats")
 local summary = require("games.core.summary")
@@ -106,7 +108,7 @@ end
 ---Incoming first, then the soonest to expire.
 ---@param me games.UserID
 ---@return fun(a: games.Challenge, b: games.Challenge): boolean
-function M.incoming_first(me)
+local function incoming_first(me)
   return function(a, b)
     local a_incoming, b_incoming = a.from ~= me, b.from ~= me
     if a_incoming ~= b_incoming then
@@ -206,6 +208,18 @@ local function is_incoming(challenge, me)
   return challenge.from ~= me
 end
 
+---@alias (private) games.ChallengeResponse fun(client: games.Client, ref: games.ChallengeRef, cb: games.ReplyCallback)
+
+---@type table<games.SourceActionName, games.ChallengeResponse>
+local RESPONSES = {
+  [ActionName.ACCEPT] = function(client, ref, cb)
+    notify.open_when_started(client, ref.challenge_id)
+    client:challenge_accept(ref, cb)
+  end,
+  [ActionName.DECLINE] = Client.challenge_decline,
+  [ActionName.CANCEL] = Client.challenge_cancel,
+}
+
 ---@param options games.Options
 ---@return string
 local function options_text(options)
@@ -221,7 +235,7 @@ local function requests(snapshot)
   local me, client = snapshot.me, snapshot.client
   local infos = snapshot.infos
   local pending = vim.list_slice(snapshot.challenges)
-  table.sort(pending, M.incoming_first(me))
+  table.sort(pending, incoming_first(me))
   ---@param name games.SourceActionName
   ---@param incoming boolean whether it answers a challenge to me, or withdraws mine
   ---@return games.SourceAction
@@ -232,7 +246,7 @@ local function requests(snapshot)
         return is_incoming(challenge, me) == incoming
       end,
       run = function(challenge)
-        commands().respond(client, me, challenge, name)
+        RESPONSES[name](client, { challenge_id = challenge.challenge_id }, controls.report_message)
       end,
     }
   end

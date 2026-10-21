@@ -235,8 +235,8 @@ same `dir` can both append the same events to `events.jsonl`.
                         then for a game that fits that many players, then
                         for options.
 
-:Games challenges       Pick a pending challenge: accept or decline
-                        (incoming), or cancel (outgoing).
+:Games challenges       The `requests` finder: accept or decline a pending
+                        challenge (incoming), or cancel it (outgoing).
 
 :Games solo [game]                                              *:Games-solo*
                         Start a one-player game and open its board.
@@ -246,7 +246,8 @@ same `dir` can both append the same events to `events.jsonl`.
                         someone instead.
 
 :Games list [ongoing|finished]
-                        Pick a game and open its board. Default `ongoing`.
+                        The `games` finder over the games of that status
+                        alone. Default `ongoing`.
 
 :Games stats [user]     Win/loss/draw float. Default: you.
 

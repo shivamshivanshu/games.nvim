@@ -224,9 +224,9 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 | Command | Does |
 |---|---|
 | `:Games challenge [game] [user…]` | challenge one or more users; prompts for missing opponents (pick "done" to stop), a game that fits that many players, and options |
-| `:Games challenges` | pick a pending challenge: accept/decline (incoming) or cancel (outgoing) |
+| `:Games challenges` | the `requests` finder: accept/decline (incoming) or cancel (outgoing) a pending challenge |
 | `:Games solo [game]` | start a one-player game and open its board; prompts for a game that seats one player when none is given, then its options. A game for two or more players is refused: challenge someone instead |
-| `:Games list [ongoing\|finished]` | pick a game and open its board (default `ongoing`) |
+| `:Games list [ongoing\|finished]` | the `games` finder over the games of that status alone (default `ongoing`) |
 | `:Games stats [user]` | W/L/D float (default: you) |
 | `:Games leaderboard [game]` | leaderboard float, optionally for one game type; the all-games total leaves games played alone out |
 | `:Games next` | open the next game waiting on your move |

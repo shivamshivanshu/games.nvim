@@ -508,6 +508,113 @@ function T.export_reports_written_and_present_games()
   end)
 end
 
+---@param challenge_id string
+---@param from games.UserID
+---@param to games.UserID
+---@return games.Challenge
+local function pending_challenge(challenge_id, from, to)
+  return {
+    challenge_id = challenge_id,
+    from = from,
+    to = { to },
+    accepted = {},
+    game = "chess",
+    options = {},
+    state = "pending",
+    expires_at = 1792584000000,
+  }
+end
+
+function T.challenges_opens_the_requests_finder_once_the_challenges_and_catalog_are_in()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    helpers.with_select_answers({ "bob → you: Chess", "accept" }, function(prompts)
+      commands.run({ "challenges" })
+      assert_eq({}, prompts)
+      conn:respond(MessageType.CHALLENGE_LIST, {
+        challenges = {
+          pending_challenge("c-out", "alice", "carol"),
+          pending_challenge("c-in", "bob", "alice"),
+        },
+      })
+      assert_eq({}, prompts)
+      conn:respond(
+        MessageType.CATALOG_LIST,
+        { games = { vim.tbl_extend("force", game_info("chess", 2, 2), { name = "Chess" }) } }
+      )
+      assert_eq({
+        { prompt = "Challenges:", labels = { "bob → you: Chess", "you → carol: Chess" } },
+        { prompt = "bob → you: Chess:", labels = { "accept", "decline" } },
+      }, prompts)
+    end)
+    assert_eq({ challenge_id = "c-in" }, conn:sent(MessageType.CHALLENGE_ACCEPT))
+  end)
+end
+
+function T.challenges_and_list_report_what_they_cannot_show()
+  local cases = {
+    {
+      args = { "challenges" },
+      replies = {
+        { MessageType.CHALLENGE_LIST, { challenges = {} } },
+        { MessageType.CATALOG_LIST, CATALOG },
+      },
+      notified = "games: no challenges",
+    },
+    {
+      args = { "list", "finished" },
+      replies = { { MessageType.GAME_LIST, { games = {} } }, { MessageType.CATALOG_LIST, CATALOG } },
+      notified = "games: no games",
+    },
+    {
+      args = { "list", "paused" },
+      notified = 'games: list takes ongoing or finished, not "paused"',
+    },
+  }
+  for _, case in ipairs(cases) do
+    with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
+      conn:push("connected", LOGIN)
+      helpers.with_select_answers({}, function(selects)
+        commands.run(case.args)
+        for _, reply in ipairs(case.replies or {}) do
+          conn:respond(unpack(reply))
+        end
+        assert_eq({}, selects)
+      end)
+      assert_eq({ case.notified }, prompts.notified)
+    end)
+  end
+end
+
+function T.list_opens_the_games_finder_over_the_games_of_that_status_alone()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn)
+    conn:push("connected", LOGIN)
+    conn:push("game.update", chess_game(SEEN_LIVE, 1))
+    local finished = listed_finished(NEVER_SEEN)
+    local line = require("games.core.summary").format_game(finished, "alice", nil, 0)
+    local opened = {}
+    helpers.with_overrides({
+      {
+        shell,
+        "open",
+        function(_, game_id)
+          table.insert(opened, game_id)
+        end,
+      },
+    }, function()
+      helpers.with_select_answers({ line }, function(prompts)
+        commands.run({ "list", "finished" })
+        assert_eq({ status = "finished" }, conn:sent(MessageType.GAME_LIST))
+        conn:respond(MessageType.GAME_LIST, { games = { finished } })
+        assert_eq({}, prompts)
+        conn:respond(MessageType.CATALOG_LIST, CATALOG)
+        assert_eq({ { prompt = "Games:", labels = { line } } }, prompts)
+      end)
+    end)
+    assert_eq({ NEVER_SEEN }, opened)
+  end)
+end
+
 ---@type games.PuzzleEntry[]
 local PUZZLE_ENTRIES = {
   {

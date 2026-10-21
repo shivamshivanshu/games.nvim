@@ -136,6 +136,8 @@ function T.actions_send_through_the_client()
   local snapshot = hub.snapshot(client)
   run(sources.build(SourceName.REQUESTS, snapshot), "accept", hub.INCOMING)
   assert_eq({ challenge_id = "c-in" }, conn:sent("challenge.accept"))
+  run(sources.build(SourceName.REQUESTS, snapshot), "decline", hub.INCOMING)
+  assert_eq({ challenge_id = "c-in" }, conn:sent("challenge.decline"))
   run(sources.build(SourceName.REQUESTS, snapshot), "cancel", hub.OUTGOING)
   assert_eq({ challenge_id = "c-out" }, conn:sent("challenge.cancel"))
 
