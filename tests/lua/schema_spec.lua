@@ -68,6 +68,13 @@ local GAME_CLASS = {
     PlacedEvent = "games.GomokuPlacedEvent",
     View = "games.GomokuView",
   },
+  reversi = {
+    Cell = "games.DiscCell",
+    DiscCount = "games.ReversiDiscCount",
+    PassedEvent = "games.ReversiPassedEvent",
+    PlacedEvent = "games.ReversiPlacedEvent",
+    View = "games.ReversiView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
