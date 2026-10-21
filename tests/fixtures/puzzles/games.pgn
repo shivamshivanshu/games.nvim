@@ -1,0 +1,31 @@
+[Event "Casual game"]
+[Site "https://lichess.org/abcdefgh"]
+[White "alice"]
+[Black "bob"]
+[Result "1-0"]
+
+1. e4 {Best by test} e5 2. Nf3 Nc6 (2... d6 3. d4 (3. Bc4) exd4) 3. Bb5 $1 a6?! 4. Ba4
+; the main line
+Nf6 5. O-O Be7 1-0
+
+[Event "Back rank"]
+[SetUp "1"]
+[FEN "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1"]
+[Result "1-0"]
+
+1. Ra8# 1-0
+
+[Event "Black to move"]
+[SetUp "1"]
+[FEN "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"]
+
+3... Nf6 4. Qxf7# 1-0
+
+[Event "Broken"]
+
+1. e4 { never closed e5 2. Nf3 *
+
+[Event "Empty"]
+[Result "*"]
+
+*

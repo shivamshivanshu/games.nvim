@@ -598,4 +598,155 @@ function T.export_reports_written_and_present_games()
   end)
 end
 
+---@type games.PuzzleEntry[]
+local PUZZLE_ENTRIES = {
+  {
+    id = "SCHOL",
+    mode = "puzzle",
+    fen = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+    moves = "g8f6 h5f7",
+    player = "white",
+  },
+  { id = "game 1", mode = "study", fen = "", moves = "e4 e5 Ke3", player = "black" },
+}
+
+---Runs fn with the puzzle sets in a temp dir holding set "mixed", the latest, at its first entry.
+---@param fn fun(dir: string)
+local function with_puzzle_set(fn)
+  local puzzles = require("games.core.puzzles")
+  helpers.with_temp_dir(function(dir)
+    vim.fn.mkdir(dir, "p")
+    vim.fn.writefile(
+      { vim.json.encode({ entries = PUZZLE_ENTRIES, next = 1 }) },
+      dir .. "/mixed.json"
+    )
+    vim.fn.writefile({ "mixed" }, dir .. "/latest")
+    helpers.with_overrides({
+      {
+        puzzles,
+        "dir",
+        function()
+          return dir
+        end,
+      },
+    }, function()
+      fn(dir)
+    end)
+  end)
+end
+
+---@param dir string
+---@return integer
+local function next_puzzle(dir)
+  return vim.json.decode(table.concat(vim.fn.readfile(dir .. "/mixed.json"), "\n")).next
+end
+
+---@param conn games.test.StubConn
+---@return integer
+local function game_starts(conn)
+  return #vim.tbl_filter(function(request)
+    return request.type == MessageType.GAME_START
+  end, conn.requests)
+end
+
+function T.puzzle_starts_each_entry_of_the_set_in_turn_skipping_one_the_server_refuses()
+  with_puzzle_set(function(dir)
+    with_stub_client({ username = "alice", password = "pw" }, function(conn, notices)
+      conn:push("connected", LOGIN)
+      local opened = {}
+      helpers.with_overrides({
+        {
+          shell,
+          "open",
+          function(_, game_id)
+            table.insert(opened, game_id)
+          end,
+        },
+      }, function()
+        commands.run({ "puzzle" })
+        helpers.wait_for(function()
+          return game_starts(conn) == 1
+        end, "the first puzzle's game.start")
+        local first = PUZZLE_ENTRIES[1]
+        assert_eq({
+          game = "chess_puzzle",
+          options = {
+            mode = first.mode,
+            fen = first.fen,
+            moves = first.moves,
+            player = first.player,
+          },
+        }, conn.requests[#conn.requests].body)
+        respond(
+          conn,
+          MessageType.GAME_START,
+          helpers.chess_update({ game_id = "p1", game = "chess_puzzle" })
+        )
+        helpers.wait_for(function()
+          return next_puzzle(dir) == 2
+        end, "the set to move past its first entry")
+        assert_eq({ "p1" }, opened)
+
+        commands.run({ "puzzle", "mixed" })
+        helpers.wait_for(function()
+          return game_starts(conn) == 2
+        end, "the second puzzle's game.start")
+        assert_eq("e4 e5 Ke3", conn.requests[#conn.requests].body.options.moves)
+        conn.requests[#conn.requests].cb(
+          { code = ErrorCode.BAD_REQUEST, message = "ply 3: illegal move: Ke3" },
+          nil
+        )
+        helpers.wait_for(function()
+          return next_puzzle(dir) == 3
+        end, "the set to move past the refused entry")
+        assert_eq({ "p1" }, opened)
+
+        commands.run({ "puzzle" })
+        helpers.wait_for(function()
+          return #notices.notified == 3
+        end, "the done notice")
+      end)
+      assert_eq({
+        "games: puzzle mixed 1/2 (SCHOL)",
+        "games: skipped mixed 2/2 (game 1): ply 3: illegal move: Ke3",
+        "games: puzzle set mixed is done, all 2 played; :Games import it again to restart",
+      }, notices.notified)
+      assert_eq(2, game_starts(conn))
+    end)
+  end)
+end
+
+function T.puzzle_completes_the_saved_sets_and_import_completes_files()
+  with_puzzle_set(function()
+    assert_eq({ "mixed" }, commands.complete("", "Games puzzle ", 13))
+    assert_eq({ "mixed" }, commands.complete("m", "Games puzzle m", 14))
+  end)
+  local fixtures = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h")
+    .. "/fixtures/puzzles/"
+  local lead = fixtures .. "li"
+  assert_eq(
+    { fixtures .. "lichess.csv" },
+    commands.complete(lead, "Games import " .. lead, 13 + #lead)
+  )
+end
+
+function T.import_needs_no_server()
+  with_puzzle_set(function(dir)
+    with_stub_client(nil, function(conn, notices)
+      local csv = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h")
+        .. "/fixtures/puzzles/lichess.csv"
+      commands.run({ "import", csv, "daily" })
+      helpers.wait_for(function()
+        return #notices.notified == 1
+      end, "the import notice")
+      assert_eq(0, conn.connects)
+      assert_eq({}, notices.asked)
+      assert(
+        vim.startswith(notices.notified[1], "games: imported 4 into puzzle set daily, 2 failed:")
+      )
+      assert_eq({ "daily" }, vim.fn.readfile(dir .. "/latest"))
+    end)
+  end)
+end
+
 return T

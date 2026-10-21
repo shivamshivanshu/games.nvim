@@ -10,6 +10,7 @@ local picker = require("games.ui.picker")
 local players = require("games.core.players")
 local predicates = require("games.core.predicates")
 local prompt = require("games.ui.prompt")
+local puzzles = require("games.core.puzzles")
 local shell = require("games.ui.shell")
 local sources = require("games.core.sources")
 local stats = require("games.core.stats")
@@ -21,14 +22,17 @@ local GameStatus = types.GameStatus
 local OptionType = types.OptionType
 local ERROR = vim.log.levels.ERROR
 local GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
+---@type games.GameType
+local PUZZLE_GAME = "chess_puzzle"
 
 ---@alias games.SubcommandRun fun(client: games.Client, me: games.UserID, args: string[])
 
 ---@class (private) games.Subcommand
 ---@field name string
 ---@field usage string
----@field run games.SubcommandRun
----@field arg_choices? fun(): string[] completions for the first argument
+---@field run? games.SubcommandRun
+---@field run_offline? fun(args: string[]) in place of run, for a subcommand that needs no server
+---@field arg_choices? fun(arg_lead: string): string[] completions for the first argument
 
 ---@class (private) games.ChallengeAction
 ---@field label string
@@ -721,6 +725,80 @@ local function open_dashboard(client)
   dashboard.open(client)
 end
 
+---Imports args[1] into the puzzle set args[2], or one named after the file.
+---@param args string[]
+local function import(args)
+  local path = args[1]
+  if not path then
+    say("games: import takes a file: :Games import <file.csv|file.pgn> [set]", ERROR)
+    return
+  end
+  puzzles.import(vim.fn.expand(path), args[2], function(err, result)
+    if err then
+      say("games: import: " .. err, ERROR)
+      return
+    end
+    ---@cast result games.PuzzleImport
+    say(puzzles.import_summary(result), #result.failures > 0 and vim.log.levels.WARN or nil)
+  end)
+end
+
+---Starts the next entry of the puzzle set args[1], or of the latest imported one, then moves the
+---set past it; an entry the server refuses is reported and skipped.
+---@type games.SubcommandRun
+local function puzzle(client, _, args)
+  puzzles.load(args[1], function(err, name, set)
+    if err then
+      say("games: " .. err, ERROR)
+      return
+    end
+    ---@cast name string
+    ---@cast set games.PuzzleSet
+    local entry = set.entries[set.next]
+    if not entry then
+      say(
+        ("games: puzzle set %s is done, all %d played; :Games import it again to restart"):format(
+          name,
+          #set.entries
+        )
+      )
+      return
+    end
+    local label = ("%s %d/%d (%s)"):format(name, set.next, #set.entries, entry.id)
+    client:game_start(
+      { game = PUZZLE_GAME, options = puzzles.options(entry) },
+      ---@param update games.GameUpdate|nil
+      function(start_err, update)
+        if start_err and start_err.code ~= types.ErrorCode.BAD_REQUEST then
+          say("games: " .. start_err.message, ERROR)
+          return
+        end
+        if not (start_err or update) then
+          return
+        end
+        puzzles.advance(name, set, function(save_err)
+          if save_err then
+            say(("games: puzzle set %s: %s"):format(name, save_err), ERROR)
+          end
+        end)
+        if start_err then
+          say(("games: skipped %s: %s"):format(label, start_err.message), ERROR)
+          return
+        end
+        ---@cast update games.GameUpdate
+        say("games: puzzle " .. label)
+        shell.open(client, update.game_id)
+      end
+    )
+  end)
+end
+
+---@param arg_lead string
+---@return string[]
+local function file_choices(arg_lead)
+  return vim.fn.getcompletion(arg_lead, "file")
+end
+
 ---@param choices string[]
 ---@return fun(): string[]
 local function always(choices)
@@ -745,6 +823,13 @@ local SUBCOMMANDS = {
   { name = "next", usage = "next", run = next_game },
   { name = "export", usage = "export", run = export },
   { name = "find", usage = "find [source]", run = find, arg_choices = always(sources.NAMES) },
+  {
+    name = "import",
+    usage = "import <file> [set]",
+    run_offline = import,
+    arg_choices = file_choices,
+  },
+  { name = "puzzle", usage = "puzzle [set]", run = puzzle, arg_choices = puzzles.set_names },
 }
 
 ---@param name string
@@ -787,7 +872,12 @@ function M.run(fargs)
     say(("games: unknown subcommand %q"):format(name), ERROR)
     return
   end
-  run_connected(client, fargs, subcommand.run, vim.list_slice(fargs, 2))
+  local args = vim.list_slice(fargs, 2)
+  if subcommand.run_offline then
+    subcommand.run_offline(args)
+    return
+  end
+  run_connected(client, fargs, assert(subcommand.run), args)
 end
 
 ---Completes subcommand names, then the first argument where its choices are fixed.
@@ -805,7 +895,7 @@ function M.complete(arg_lead, cmd_line, cursor_pos)
     end, SUBCOMMANDS)
   elseif completing == 3 then
     local subcommand = find_subcommand(words[2])
-    candidates = subcommand and subcommand.arg_choices and subcommand.arg_choices() or {}
+    candidates = subcommand and subcommand.arg_choices and subcommand.arg_choices(arg_lead) or {}
   end
   return vim.tbl_filter(function(candidate)
     return vim.startswith(candidate, arg_lead)
