@@ -13,6 +13,7 @@ Only chess exists today. The server owns all state and rules; Neovim renders wha
 | Connect4 | 2 | [docs/games/connect4.md](docs/games/connect4.md) |
 | Checkers | 2 | [docs/games/checkers.md](docs/games/checkers.md) |
 | Ludo | 2–4 | [docs/games/ludo.md](docs/games/ludo.md) |
+| Wordle | 1 (solo) | [docs/games/wordle.md](docs/games/wordle.md) |
 
 ## Requirements
 
@@ -260,7 +261,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 
 | Key | Action |
 |---|---|
-| `m` | enter a move (chess: SAN or UCI) |
+| `m` | enter a move (chess: SAN or UCI; wordle: a five-letter guess) |
 | `R` | resign, or give up a solo game (confirms) |
 | `D` | offer draw (the opponent's `D` agrees) |
 | `X` | decline draw |

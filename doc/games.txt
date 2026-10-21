@@ -324,7 +324,7 @@ Buffer-local, Normal mode, in a `games://` board buffer. Only keys valid for
 the current state are mapped; the footer lists them.
 
     Key     Action ~
-    m       enter a move (chess: SAN or UCI)
+    m       enter a move (chess: SAN or UCI; wordle: a five-letter guess)
     R       resign, or give up a solo game (confirms)
     D       offer draw (the opponent's D agrees)
     X       decline draw

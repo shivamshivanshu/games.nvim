@@ -249,6 +249,19 @@ An action object always carries `kind`.
   - `legal_columns` holds the viewer's own: the open columns, empty unless the viewer is to move.
 - Actions: `drop` (`column`: `"1"` to `"7"`).
 
+### Wordle
+
+- Solo: started with `game.start`; the only seat is `solver`.
+- Reasons: `solved`, `out_of_guesses`.
+- Events: `guessed {by: seat, word, feedback}`.
+- View `{guesses, keyboard, remaining, answer?}`:
+  - `guesses` lists each valid guess, oldest first, as `{word, feedback}`; `[]` at the start;
+  - `feedback` is always 5 marks, one per letter: `hit` (right place), `present` (elsewhere in the word) or `miss`;
+  - `keyboard` maps each guessed letter to its best mark so far (`hit` over `present` over `miss`); letters not yet guessed are absent;
+  - `remaining` is the number of guesses left, 6 at the start;
+  - `answer` is absent until the game finishes, however it ends.
+- Actions: `guess` (`text`: five letters, any case; surrounding spaces are ignored). A word outside the list is an `illegal_action` and costs no guess.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
