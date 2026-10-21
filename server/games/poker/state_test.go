@@ -187,11 +187,11 @@ func TestFoldWinRevealsNothing(t *testing.T) {
 	if len(eventsOf[ShownEvent](events)) != 0 || len(last.Shown) != 0 {
 		t.Errorf("a fold win showed hands: events %v, last %+v", events, last)
 	}
-	if diff := cmp.Diff([]Award{{Seat: "p2", Amount: 20}}, last.Awards); diff != "" {
+	if diff := cmp.Diff([]Award{{Seat: "p2", Amount: 10}}, last.Awards); diff != "" {
 		t.Errorf("awards (-want +got):\n%s", diff)
 	}
-	if returned := eventsOf[ReturnedEvent](events); len(returned) != 1 || returned[0].Amount != 10 {
-		t.Errorf("returned %+v, want the big blind's uncalled 10", returned)
+	if returned := eventsOf[ReturnedEvent](events); len(returned) != 1 || returned[0].Amount != 20 {
+		t.Errorf("returned %+v, want the big blind's whole 20: a folded blind matches nothing", returned)
 	}
 }
 
@@ -285,11 +285,11 @@ func TestEliminateFoldsTheSeatAndLeavesEveryChipItPutInInThePot(t *testing.T) {
 		t.Fatalf("after p3 left: seats %+v, to act p%d", v.Seats, s.hand.toAct+1)
 	}
 	s, events = play(t, s, 0, "fold")
-	if diff := cmp.Diff([]WonEvent{{By: "p1", Seat: "p2", Amount: 30}}, eventsOf[WonEvent](events)); diff != "" {
-		t.Errorf("p2 must win its 10 and all of p3's 20 (-want +got):\n%s", diff)
+	if diff := cmp.Diff([]WonEvent{{By: "p1", Seat: "p2", Amount: 20}}, eventsOf[WonEvent](events)); diff != "" {
+		t.Errorf("p2 must win all of p3's 20 (-want +got):\n%s", diff)
 	}
-	if len(eventsOf[ReturnedEvent](events)) != 0 {
-		t.Error("nothing is uncalled: a seat that left gets none of its chips back")
+	if diff := cmp.Diff([]ReturnedEvent{{By: "p1", Seat: "p2", Amount: 10}}, eventsOf[ReturnedEvent](events)); diff != "" {
+		t.Errorf("only p2 gets its own chips back, never the seat that left (-want +got):\n%s", diff)
 	}
 	if s.hand.number != 2 || s.hand.dealtIn[2] {
 		t.Errorf("hand 2 must be dealt without p3")
@@ -300,11 +300,11 @@ func TestEliminateAnAllInSeatLeavesItsUncalledRaiseInThePot(t *testing.T) {
 	s, _ := playAll(t, table(t, 1, 0, 1000, 300, 1000), "p1:allin, p2:allin")
 	next, _ := s.Eliminate("p1", game.ReasonResign)
 	_, events := play(t, next.(state), 2, "fold")
-	if diff := cmp.Diff([]WonEvent{{By: "p3", Seat: "p2", Amount: 1320}}, eventsOf[WonEvent](events)); diff != "" {
-		t.Errorf("p2 must win p1's whole 1000, its own 300 and p3's 20 (-want +got):\n%s", diff)
+	if diff := cmp.Diff([]WonEvent{{By: "p3", Seat: "p2", Amount: 1020}}, eventsOf[WonEvent](events)); diff != "" {
+		t.Errorf("p2 must win p1's whole 1000 and p3's 20 (-want +got):\n%s", diff)
 	}
-	if len(eventsOf[ReturnedEvent](events)) != 0 {
-		t.Error("p1's uncalled raise must stay in the pot")
+	if diff := cmp.Diff([]ReturnedEvent{{By: "p3", Seat: "p2", Amount: 300}}, eventsOf[ReturnedEvent](events)); diff != "" {
+		t.Errorf("only p2's own 300 comes back; p1's uncalled raise stays in the pot (-want +got):\n%s", diff)
 	}
 }
 
@@ -335,6 +335,33 @@ func TestALeaversDeadChipsAreContestedByTheSeatsStillInTheHand(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// A bets 500, B calls and leaves, and C is all-in for 300. B's dead 500
+// matches nothing: A gets back the 200 above C, and the rest is one pot that
+// A and C contest.
+func TestADeadCallMatchesNothing(t *testing.T) {
+	tests := []struct {
+		name  string
+		holes map[int]string
+		best  game.Seat
+	}{
+		{"the all-in seat has the best hand", map[int]string{0: "Ks Kd", 1: "2s 3d", 2: "As Ad"}, "p3"},
+		{"the bettor has the best hand", map[int]string{0: "As Ad", 1: "2s 3d", 2: "Ks Kd"}, "p1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := withCards(t, table(t, 1, 0, 1000, 1000, 300), tt.holes, "2c 7h 9h Js 4c")
+			s, _ = playAll(t, s, "p1:raise 500, p2:call, p3:allin")
+			_, events := s.Eliminate("p2", game.ReasonResign)
+			if diff := cmp.Diff([]ReturnedEvent{{By: "p2", Seat: "p1", Amount: 200}}, eventsOf[ReturnedEvent](events)); diff != "" {
+				t.Errorf("returned (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff([]WonEvent{{By: "p2", Seat: tt.best, Amount: 1100}}, eventsOf[WonEvent](events)); diff != "" {
+				t.Errorf("one pot of 300 each from p1 and p3 and p2's whole 500 (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

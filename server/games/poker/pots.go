@@ -10,13 +10,16 @@ type pot struct {
 	eligible []int
 }
 
-// uncalled is the part of the single largest contribution above the second
-// largest: no one matched it, so it goes back to its owner.
-func uncalled(contributions []Chips) (seat int, amount Chips) {
+// uncalled is the part of the largest contesting contribution above the
+// second largest contesting one: no live seat matched it, so it goes back to
+// its owner. Chips of a seat that folded or left never count as matching, or
+// the owner would win them uncontested.
+func uncalled(contributions []Chips, contesting []bool) (seat int, amount Chips) {
 	seat = -1
 	var top, second Chips
 	for i, c := range contributions {
 		switch {
+		case !contesting[i]:
 		case c > top:
 			seat, top, second = i, c, top
 		case c > second:

@@ -201,13 +201,13 @@ func (s state) handValues() [maxPlayers]HandValue {
 }
 
 // settle returns the uncalled bet and pays the pots from the last side pot to
-// the main pot. A seat that has left gets nothing back: every chip it put in
-// stays in the pots for the seats still contesting them.
+// the main pot. A seat that has folded or left gets nothing back: every chip
+// it put in stays in the pots for the seats still contesting them.
 func (s state) settle(by game.Seat, values [maxPlayers]HandValue) (state, []game.Event, []Award) {
 	chips := s.hand.chips
 	contributions := chips.committed
 	var events []game.Event
-	if seat, back := uncalled(contributions[:s.n]); back > 0 && !s.out[seat] {
+	if seat, back := uncalled(contributions[:s.n], chips.contesting[:s.n]); back > 0 {
 		contributions[seat] -= back
 		chips.stack[seat] += back
 		events = append(events, ReturnedEvent{By: by, Seat: seatName(seat), Amount: back})

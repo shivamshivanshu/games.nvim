@@ -24,7 +24,7 @@ No-Limit Texas Hold'em, a sit-and-go for 2 to 6 players, played until one player
 - **Pots.**
   - Each all-in level caps a pot layer.
   - Folded and departed players' chips stay in the layers they reached, but those players cannot win them. Dead chips above every live player's level join the top layer that live players contest, so dead money is always contested by the players still in the hand.
-  - A bet no one called is returned to its owner (event `returned`). The exception is a player who has left the table, whose uncalled chips stay in the pot.
+  - The part of the biggest live bet above the next biggest live bet is returned to its owner (event `returned`). Folded and departed players' chips never count as calling it; they stay in the pot.
   - Pots are awarded from the last side pot down to the main pot, each to the best eligible hand or hands.
   - A split pot is shared equally. Odd chips go one at a time to the tied winners, clockwise from the left of the button.
 - **Showdown.**
@@ -58,6 +58,7 @@ No-Limit Texas Hold'em, a sit-and-go for 2 to 6 players, played until one player
     Every other viewer gets `[]` and zeros. The client shows these numbers and does no betting arithmetic of its own. A finished or aborted game offers no moves. These fields replace the spec's `can_raise`: `legal` says whether a bet or raise is possible, and `max_raise_to` how far.
 12. **No uncontested dead money (TDA).** Say A shoves 1000 and then leaves, B is all-in for 300, and C has 1000 behind. C's `call` and C's `allin` both commit 300; A's dead 1000 joins the one pot that B and C contest, and C keeps 700. Before this ruling, C's `allin` committed 1000 and won A's 700 above B's level uncontested. The case is reachable, since a player may resign on anyone's turn.
 13. **The effective-stack cap applies in every hand.** No seat ever commits more than the most that any contesting opponent can match. `allin` commits up to that amount, and a `bet` or `raise` above it is rejected rather than trimmed. Online clients cap at the effective stack the same way. `max_raise_to` shows the cap.
+14. **Dead chips never match a bet.** Say A bets 500, B calls and then leaves, and C is all-in for 300. A gets back the 200 above C. B's 500 fills the layers up to C's level, and the part above it joins the top layer, so A and C contest one pot of 1100. Pots are cut only at live players' levels, so no live player ever wins a layer uncontested while another live player is still in the hand. The same rule means a player that everyone folds to gets their whole bet back and wins the folded chips.
 
 ## Controls and keys
 Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapped.
