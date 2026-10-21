@@ -32,3 +32,16 @@ func TestParseDirectionRejectsOtherText(t *testing.T) {
 		}
 	}
 }
+
+func TestDirectionStepsOneCellAndOppositeStepsBack(t *testing.T) {
+	from := Point{Row: 3, Col: 5}
+	want := map[Direction]Point{Up: {2, 5}, Down: {4, 5}, Left: {3, 4}, Right: {3, 6}}
+	for _, d := range Directions() {
+		if got := d.From(from); got != want[d] {
+			t.Errorf("%s.From(%v) = %v, want %v", d, from, got, want[d])
+		}
+		if back := d.Opposite().From(d.From(from)); back != from || d.Opposite() == d || d.Opposite().Opposite() != d {
+			t.Errorf("%s.Opposite() = %s does not step back to %v", d, d.Opposite(), from)
+		}
+	}
+}

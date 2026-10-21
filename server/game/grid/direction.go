@@ -37,3 +37,29 @@ func ParseDirection(text string) (Direction, error) {
 	}
 	return "", game.IllegalActionError{Msg: fmt.Sprintf("want up, down, left or right; got %q", text)}
 }
+
+// From is the point one cell from p toward d, row 0 at the top; it may lie off the board.
+func (d Direction) From(p Point) Point {
+	switch d {
+	case Up:
+		return Point{Row: p.Row - 1, Col: p.Col}
+	case Down:
+		return Point{Row: p.Row + 1, Col: p.Col}
+	case Left:
+		return Point{Row: p.Row, Col: p.Col - 1}
+	}
+	return Point{Row: p.Row, Col: p.Col + 1}
+}
+
+// Opposite is the way back: up for down, left for right.
+func (d Direction) Opposite() Direction {
+	switch d {
+	case Up:
+		return Down
+	case Down:
+		return Up
+	case Left:
+		return Right
+	}
+	return Left
+}
