@@ -109,18 +109,19 @@ func (s state) Pause() game.State[Action, View] {
 
 // Tick implements game.Ticking: Pac-Man moves and eats, then the ghosts move, and either
 // catching the other settles it; then the fright and the scatter-chase schedule run on, and
-// waiting ghosts leave the house when their time comes.
+// waiting ghosts leave the house when their time comes. The level clears once Pac-Man has
+// met the ghosts on the cell of its last dot and is still free.
 func (s state) Tick(rng *rand.Rand) (game.State[Action, View], []game.Event) {
 	s.tick++
 	s.round.ticks++
 	s.pacman = s.pacman.moved(s.maze)
 	s = s.fed()
-	if s.maze.food() == 0 {
-		return s.cleared()
-	}
 	s, events, caught := s.collided(nil)
 	if caught {
 		return s, events
+	}
+	if s.maze.food() == 0 {
+		return s.cleared(events)
 	}
 	s = s.ghostsMoved(rng)
 	if s, events, caught = s.collided(events); caught {
@@ -187,9 +188,10 @@ func (s state) caughtBy(g ghost) (state, game.Event) {
 	return s.newRound(), event
 }
 
-// cleared is the next level, paused until the next turn, or the game won after the last.
-func (s state) cleared() (game.State[Action, View], []game.Event) {
-	events := []game.Event{LevelClearedEvent{By: SeatPlayer, Level: s.level}}
+// cleared is the next level, paused until the next turn, or the game won after the last;
+// events are the tick's so far.
+func (s state) cleared(events []game.Event) (game.State[Action, View], []game.Event) {
+	events = append(events, LevelClearedEvent{By: SeatPlayer, Level: s.level})
 	if s.level == Levels {
 		return s.over(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatPlayer}, Reason: ReasonCleared}), events
 	}

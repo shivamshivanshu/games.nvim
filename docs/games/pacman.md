@@ -17,7 +17,7 @@ Solo, in real time: steer Pac-Man through the arcade maze, eating every dot whil
 - **The house.** Blinky starts outside it; Pinky leaves at once, Inky after 30 dots or 4 seconds of the round, Clyde after 60 dots or 8 seconds.
 - **Collisions** are checked after Pac-Man moves and again after the ghosts move. A frightened ghost Pac-Man meets is eaten: it scores 200, 400, 800, then 1600 for each next ghost of the same fright, and becomes eyes. Eyes pass by. Any other ghost catches Pac-Man.
 - **Caught.** Pac-Man loses a life. With lives left, Pac-Man and the ghosts go back to their starts, the dots stay eaten, the round's schedule restarts, and the game pauses until the next turn. With none left the game ends, reason `game_over`: a loss.
-- **Level cleared.** Eating the last dot or pellet clears the level. Levels 1 and 2 go on to the next level, faster, with a full maze, paused until the next turn. Clearing level 3 ends the game, reason `cleared`: a win.
+- **Level cleared.** Eating the last dot or pellet clears the level, once Pac-Man has met the ghosts on that cell: a frightened ghost there is eaten first, and a ghost that catches Pac-Man there takes a life, the dot staying eaten, so the level clears on the first tick of the next round. Levels 1 and 2 go on to the next level, faster, with a full maze, paused until the next turn. Clearing level 3 ends the game, reason `cleared`: a win.
 - **Pause.** `p` pauses a running game; any turn resumes it. The server also pauses the game when your last session closes and when it restarts; no ticks come while paused.
 
 ## Randomness

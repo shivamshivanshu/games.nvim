@@ -392,6 +392,31 @@ func TestClearingALevelSpeedsUpAndTheLastWins(t *testing.T) {
 	}
 }
 
+func TestTheGhostsOnTheLastDotAreMetBeforeTheLevelClears(t *testing.T) {
+	lastDot := func(frightened bool) state {
+		s := alone(running())
+		s.pacman = pacman{at: pt(1, 2), facing: grid.Left}
+		s = emptied(s, pt(1, 1))
+		s.ghosts[0] = ghost{name: Blinky, at: pt(1, 1), facing: grid.Right, activity: roaming, frightened: frightened}
+		return s
+	}
+
+	s, events := tickOnce(lastDot(false), 1)
+	if diff := cmp.Diff([]game.Event{CaughtEvent{By: SeatPlayer, Ghost: Blinky, LivesLeft: 2}}, events); diff != "" || s.level != 1 {
+		t.Fatalf("caught on the last dot: level %d; events (-want +got):\n%s", s.level, diff)
+	}
+	s.paused = false
+	if s, events = tickOnce(s, 2); s.level != 2 {
+		t.Fatalf("the round after: level %d, events %v; want the level cleared", s.level, events)
+	}
+
+	s, events = tickOnce(lastDot(true), 1)
+	want := []game.Event{GhostEatenEvent{By: SeatPlayer, Ghost: Blinky, Points: GhostPoints}, LevelClearedEvent{By: SeatPlayer, Level: 1}}
+	if diff := cmp.Diff(want, events); diff != "" || s.score != GhostPoints+DotPoints {
+		t.Fatalf("a frightened ghost on the last dot: score %d; events (-want +got):\n%s", s.score, diff)
+	}
+}
+
 func TestPauseTurnAndTheirLegality(t *testing.T) {
 	s := newState()
 	if _, due := s.NextTick(); due || !s.View(SeatPlayer).Paused || s.View(SeatPlayer).CanPause {
