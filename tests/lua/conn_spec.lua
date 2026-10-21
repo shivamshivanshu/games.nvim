@@ -318,6 +318,49 @@ local function scripted_login_server(replies)
   end
 end
 
+function T.the_connection_sends_each_frame_at_once_with_nagle_off()
+  local port, stop = scripted_login_server({
+    { type = "auth.login", body = { user = "alice", heartbeat_ms = 60000 } },
+  })
+  local new_tcp, nodelay = vim.uv.new_tcp, nil
+  local conn_socket_made = false
+  helpers.with_overrides({
+    {
+      vim.uv,
+      "new_tcp",
+      function()
+        local socket = assert(new_tcp())
+        if conn_socket_made then
+          return socket
+        end
+        conn_socket_made = true
+        return setmetatable({
+          nodelay = function(_, enable)
+            nodelay = enable
+            return socket:nodelay(enable)
+          end,
+        }, {
+          __index = function(_, method)
+            return function(_, ...)
+              return socket[method](socket, ...)
+            end
+          end,
+        })
+      end,
+    },
+  }, function()
+    local conn = Conn.new({ host = "127.0.0.1", port = port, username = "alice", password = "pw" })
+    local log = helpers.record_lifecycle(conn)
+    conn:connect()
+    helpers.wait_for(function()
+      return #log.connected == 1
+    end, "the login")
+    conn:close()
+  end)
+  stop()
+  helpers.assert_eq(true, nodelay)
+end
+
 function T.prompted_credentials_are_forgotten_when_a_later_login_is_rejected()
   local port, stop = scripted_login_server({
     { type = "auth.login", body = { user = "alice", heartbeat_ms = 60000 } },

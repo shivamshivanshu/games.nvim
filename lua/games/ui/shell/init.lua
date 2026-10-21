@@ -27,6 +27,7 @@ local types = require("games.types")
 ---@field dirty boolean holds an update it has not drawn
 ---@field painted? games.Painted what its last paint drew; nil while one is underway or after one raised
 ---@field request_refit fun() refits it on the next tick, once however often it is asked
+---@field request_render fun() draws it on the next tick while it is dirty and shown, once however often it is asked
 ---@field seats integer players in its first update, which size the header for its whole life
 
 local CLOCK_TICK_MS = 1000
@@ -245,10 +246,9 @@ end
 ---@param update games.GameUpdate
 local function apply_update(board, update)
   board.update = update
+  board.dirty = true
   if shell_windows.is_shown(board.buf) then
-    render_board(board)
-  else
-    board.dirty = true
+    board.request_render()
   end
   sync_clock_timer()
 end
@@ -426,6 +426,12 @@ open_update = function(client, update, me, opts)
       local open = boards[buf]
       if open then
         refit(open)
+      end
+    end),
+    request_render = timer.coalesced(function()
+      local open = boards[buf]
+      if open and open.dirty and shell_windows.is_shown(buf) then
+        render_board(open)
       end
     end),
     seats = #update.players,

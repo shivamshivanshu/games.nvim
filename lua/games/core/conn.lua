@@ -326,6 +326,7 @@ function Conn:try_address(attempt, addresses, index, password)
       return
     end
     attempt.phase = Phase.OPEN
+    socket:nodelay(true)
     socket:read_start(function(read_err, chunk)
       self:receive(attempt, read_err, chunk)
     end)

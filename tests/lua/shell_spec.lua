@@ -347,7 +347,52 @@ function T.controls_drive_keymaps()
       draw_agreed = { "bob" },
     })
   )
-  assert(mapping(buf, "X") and not mapping(buf, "A"))
+  helpers.wait_for(function()
+    return mapping(buf, "X") ~= nil
+  end, "the update's keys")
+  assert(not mapping(buf, "A"))
+end
+
+function T.updates_that_come_before_the_board_draws_cost_one_draw_of_the_latest()
+  local client, conn = client_with("alice", { chess_update({ game_id = "burst01" }) })
+  local buf = assert(shell.open(client, "burst01"))
+  local function settle()
+    local settled = false
+    vim.schedule(function()
+      settled = true
+    end)
+    helpers.wait_for(function()
+      return settled
+    end, "what is scheduled now")
+  end
+  settle()
+  local paint_update, paints = paint.update, 0
+  helpers.with_overrides({
+    {
+      paint,
+      "update",
+      function(...)
+        paints = paints + 1
+        return paint_update(...)
+      end,
+    },
+  }, function()
+    local latest
+    for seq, view in ipairs({ { fen = AFTER_E4_FEN }, {}, { fen = AFTER_E4_FEN } }) do
+      latest = chess_update({ game_id = "burst01", seq = seq, view = view })
+      conn:push("game.update", latest)
+    end
+    assert_eq(0, paints)
+    settle()
+    assert_eq(1, paints)
+    local board = shell.board(buf)
+    local expected = shell.render(latest, chess, board.view, "alice", 0, {
+      text_area = board.text_area,
+      ambiwidth = vim.o.ambiwidth,
+      seats = board.seats,
+    }, client:action_specs("chess"))
+    assert_eq(expected.lines, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+  end)
 end
 
 function T.resign_confirms_then_sends_control()
@@ -1222,8 +1267,10 @@ function T.help_shows_the_legend_and_every_bound_key_while_the_board_redraws_und
     "game.update",
     chess_update({ game_id = "legend01", seq = 1, view = { fen = AFTER_E4_FEN } })
   )
+  helpers.wait_for(function()
+    return not vim.deep_equal(before, lines_of(buf))
+  end, "the board to redraw under the help")
   assert(vim.api.nvim_win_is_valid(win))
-  assert(not vim.deep_equal(before, lines_of(buf)), "the board did not redraw under the help")
   vim.api.nvim_win_close(win, true)
   vim.api.nvim_buf_delete(buf, { force = true })
 end
