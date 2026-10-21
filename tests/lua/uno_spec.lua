@@ -147,7 +147,7 @@ function T.the_seat_to_act_sees_what_to_do_in_each_phase()
     local lines = render(playing(case.view), "alice")
     assert(shows(lines, "Now       " .. case.now), table.concat(lines, "\n"))
     assert_eq(
-      ("R resign  m play, e.g. r5 or w g  %s  ]g next game  q close"):format(case.keys),
+      ("R resign  m play, e.g. r5 or w g  %s  ]g next game  ? help  q close"):format(case.keys),
       lines[#lines]
     )
   end
@@ -165,7 +165,7 @@ function T.a_waiting_seat_sees_no_hint_marks_or_moves()
   assert(not shows(lines, "Now"))
   local hand = assert(line_of(lines, "Y1  B2"))
   assert_eq("", vim.trim(lines[hand + 1]))
-  assert_eq("R resign  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.colour_keys_name_their_colour()

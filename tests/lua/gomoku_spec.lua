@@ -141,10 +141,13 @@ function T.m_types_a_cell_while_the_game_is_on()
     return lines[#lines]
   end
   assert_eq(
-    "R resign  D offer draw  m place, e.g. h8  ]g next game  q close",
+    "R resign  D offer draw  m place, e.g. h8  ]g next game  ? help  q close",
     footer(update_with())
   )
-  assert_eq("]g next game  q close", footer(vim.tbl_extend("force", won(), { controls = {} })))
+  assert_eq(
+    "]g next game  ? help  q close",
+    footer(vim.tbl_extend("force", won(), { controls = {} }))
+  )
 end
 
 function T.events_name_the_player_and_cell()

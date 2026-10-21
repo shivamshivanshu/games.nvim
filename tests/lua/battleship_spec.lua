@@ -240,16 +240,16 @@ function T.a_finished_board_shows_the_opponents_ships_and_offers_nothing()
     "      your fleet                 target           game over",
     "1  . . . . . . . . . .   1  # # # # # . . . . .",
   }, lines_of(rendered, FIRST_BOARD_ROW - 1, 2))
-  assert_eq("]g next game  q close", rendered.lines[#rendered.lines])
+  assert_eq("]g next game  ? help  q close", rendered.lines[#rendered.lines])
 end
 
-function T.an_80_column_window_fits_the_setup_footer_on_one_line()
+function T.an_80_column_window_wraps_the_setup_footer_before_close()
   local display = { text_area = { w = 80, h = 40 } }
   local rendered =
     shell.render(placing(), battleship, view_options("ascii"), "alice", 0, display, CATALOGUED)
   assert_eq({
-    "",
-    "R resign  A abort  hjkl move  r turn  <CR> place  f fill  ]g next game  q close",
+    "R resign  A abort  hjkl move  r turn  <CR> place  f fill  ]g next game  ? help",
+    "q close",
   }, vim.list_slice(rendered.lines, #rendered.lines - 1))
 end
 
@@ -259,21 +259,20 @@ function T.keys_follow_the_phase_and_the_catalogue()
     {
       placing(),
       CATALOGUED,
-      "R resign  A abort  hjkl move  r turn  <CR> place  f fill  ]g next game  q close",
+      "R resign  A abort  hjkl move  r turn  <CR> place  f fill  ]g next game  ? help  q close",
     },
     {
       firing(),
       CATALOGUED,
-      "R resign  m fire at, e.g. c5  hjkl move  <CR> fire  ]g next game  q close",
+      "R resign  m fire at, e.g. c5  hjkl move  <CR> fire  ]g next game  ? help  q close",
     },
-    { waiting, CATALOGUED, "R resign  ]g next game  q close" },
-    { placing(), nil, "R resign  A abort  hjkl move  r turn  ]g next game  q close" },
+    { waiting, CATALOGUED, "R resign  ]g next game  ? help  q close" },
+    { placing(), nil, "R resign  A abort  hjkl move  r turn  ]g next game  ? help  q close" },
   }
   for _, case in ipairs(cases) do
     local rendered = render(case[1], view_options("ascii"), case[2])
     local footer = rendered.lines[#rendered.lines]
     assert_eq(case[3], footer)
-    assert(vim.fn.strdisplaywidth(footer) <= 80, footer)
   end
 end
 

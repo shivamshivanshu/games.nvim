@@ -1,5 +1,6 @@
 local controls = require("games.core.controls")
 local describe = require("games.core.describe")
+local help = require("games.ui.shell.help")
 local players = require("games.core.players")
 local shell_windows = require("games.ui.shell.windows")
 local types = require("games.types")
@@ -39,11 +40,12 @@ local CONTROL_KEYS = {
 local INPUT_KEY = "m"
 local FLIP_KEY = "F"
 local NEXT_GAME_KEY = "]g"
+local HELP_KEY = "?"
 local CLOSE_KEY = "q"
 
 ---@type table<string, true> keys the shell owns whether or not they are active
 local CORE_KEYS = vim.iter(CONTROL_KEYS):fold(
-  { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [CLOSE_KEY] = true },
+  { [INPUT_KEY] = true, [NEXT_GAME_KEY] = true, [HELP_KEY] = true, [CLOSE_KEY] = true },
   function(keys, spec)
     return vim.tbl_extend("error", keys, { [spec.key] = true })
   end
@@ -88,6 +90,28 @@ end
 ---@return string[] its key, then its aliases
 local function keys_of(entry)
   return { entry.key, unpack(entry.aliases or {}) }
+end
+
+---@param bindings games.KeyBinding[]
+---@return games.KvPair[] each binding's keys, its aliases after its key, and its label
+local function key_pairs(bindings)
+  return vim.tbl_map(function(binding)
+    return { table.concat(keys_of(binding), ","), binding.label }
+  end, bindings)
+end
+
+---@param board games.Board
+---@param bindings games.KeyBinding[] every key the board binds now
+local function toggle_help(board, bindings)
+  help.toggle({
+    game = board.update.game,
+    legend = board.module.legend({
+      art = board.view.art,
+      ambiwidth = vim.o.ambiwidth --[[@as games.Ambiwidth]],
+    }),
+    keys = key_pairs(bindings),
+    toggle_key = HELP_KEY,
+  })
 end
 
 ---@param module games.GameModule
@@ -220,6 +244,13 @@ function M.bindings_for(update, module, view, me, catalogued, ops)
     key = NEXT_GAME_KEY,
     label = "next game",
     run = ops.open_next,
+  }
+  bindings[#bindings + 1] = {
+    key = HELP_KEY,
+    label = "help",
+    run = function(board)
+      toggle_help(board, bindings)
+    end,
   }
   bindings[#bindings + 1] = { key = CLOSE_KEY, label = "close", run = shell_windows.close_window }
   return bindings

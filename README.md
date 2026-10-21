@@ -333,6 +333,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `h` `j` `k` `l` or the arrows (pacman) | turn Pac-Man left, down, up or right at the first cell where it can; starts a paused game; the footer lists only `hjkl` |
 | `p` (pacman) | pause, while the game runs |
 | `]g` | next game waiting on your move |
+| `?` | help: what each mark on the board means, and every key bound now; `?`, `q` or `<Esc>` closes it |
 | `q` | close |
 
 Chess move input is case-insensitive (`nf3`, `o-o`); the capital `B` is needed only when `bxc4` could be a bishop or a b-pawn.

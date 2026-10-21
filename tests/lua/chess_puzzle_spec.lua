@@ -133,18 +133,18 @@ function T.reveal_is_offered_only_in_a_running_study()
   for _, case in ipairs({
     {
       state = update("puzzle", "white"),
-      footer = "R give up  A abort  m move  F flip  ]g next game  q close",
+      footer = "R give up  A abort  m move  F flip  ]g next game  ? help  q close",
     },
     {
       state = update("study", "white"),
-      footer = "R give up  A abort  m move  n reveal  F flip  ]g next game  q close",
+      footer = "R give up  A abort  m move  n reveal  F flip  ]g next game  ? help  q close",
     },
     {
       state = finished(
         update("study", "white"),
         { kind = "decisive", winners = {}, reason = "resign" }
       ),
-      footer = "F flip  ]g next game  q close",
+      footer = "F flip  ]g next game  ? help  q close",
     },
   }) do
     local rendered, _, bindings =

@@ -205,7 +205,7 @@ function T.a_seat_yet_to_pass_is_told_whom_to_and_may_press_p()
   assert(lines[1]:find("alice  p1  13 pts  right  passed", 1, true), lines[1])
   local hand = assert(line_of(lines, "2c 7c Td Qd 4s Ks 3h 8h Ah"))
   assert_eq("", vim.trim(lines[hand + 1]))
-  assert_eq("R resign  m play, e.g. qs  p pass cards  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  m play, e.g. qs  p pass cards  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.a_seat_that_has_passed_waits_for_the_others()
@@ -214,7 +214,7 @@ function T.a_seat_that_has_passed_waits_for_the_others()
   local lines = render(update, "bob")
   assert(shows(lines, "Now        wait for the others to pass"), table.concat(lines, "\n"))
   assert(shows(lines, "Passed     As Kd Qh to dave"))
-  assert_eq("R resign  m play, e.g. qs  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  m play, e.g. qs  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.a_hand_without_passing_says_so()

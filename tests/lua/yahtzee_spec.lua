@@ -106,7 +106,7 @@ function T.before_the_first_roll_the_dice_are_empty_places()
   local lines =
     render(rolled(vim.tbl_extend("force", view, { can_hold = false, options = {} })), "alice")
   assert_eq(" . . . . .", lines[DICE_TOP]:sub(1, 10))
-  assert_eq("R resign  r roll  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  r roll  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.only_the_offered_boxes_show_their_key_and_what_they_would_score()
@@ -117,14 +117,14 @@ function T.only_the_offered_boxes_show_their_key_and_what_they_would_score()
   assert_eq("Sixes                 -     18", scorecard_line(lines, "Sixes"))
   assert_eq("Chance               17      -", scorecard_line(lines, "Chance"))
   assert_eq("Total                17     18", scorecard_line(lines, "Total"))
-  assert_eq("R resign  r roll  1-5 hold  acg score  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  r roll  1-5 hold  acg score  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.the_waiting_seat_sees_the_cards_but_no_keys()
   local view = { can_roll = false, can_hold = false, options = {} }
   local lines = render(rolled(view), "bob")
   assert_eq("Ones                  -      -", scorecard_line(lines, "Ones"))
-  assert_eq("R resign  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.each_key_sends_its_action()

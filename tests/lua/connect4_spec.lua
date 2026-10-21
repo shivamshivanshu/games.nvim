@@ -83,12 +83,15 @@ function T.footer_offers_the_open_columns_only_to_the_seat_to_move()
   })
   local waiting = update_with({ view = { legal_columns = {} } })
 
-  assert_eq("R resign  D offer draw  1-7 drop  ]g next game  q close", footer(update_with(), "bob"))
   assert_eq(
-    "R resign  D offer draw  1-3,5-7 drop  ]g next game  q close",
+    "R resign  D offer draw  1-7 drop  ]g next game  ? help  q close",
+    footer(update_with(), "bob")
+  )
+  assert_eq(
+    "R resign  D offer draw  1-3,5-7 drop  ]g next game  ? help  q close",
     footer(column_four_full, "bob")
   )
-  assert_eq("R resign  D offer draw  ]g next game  q close", footer(waiting, "alice"))
+  assert_eq("R resign  D offer draw  ]g next game  ? help  q close", footer(waiting, "alice"))
 end
 
 function T.discs_take_their_players_header_colour_and_marks_tint_last_and_winning_cells()

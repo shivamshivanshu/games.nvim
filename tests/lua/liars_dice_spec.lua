@@ -101,7 +101,7 @@ function T.before_any_bid_the_seat_to_act_opens()
   local lines = render(update, "alice")
   assert(shows(lines, "Bid   none yet"))
   assert(shows(lines, "Open  1x2  1x6"))
-  assert_eq("R resign  m bid, e.g. 3x5  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  m bid, e.g. 3x5  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.the_last_reveal_shows_every_cup()
@@ -115,12 +115,12 @@ end
 function T.a_waiting_seat_has_no_raise_line_and_cannot_call_dudo()
   local lines = render(bidding({ min_bids = {}, can_dudo = false }), "bob")
   assert(not shows(lines, "Raise"))
-  assert_eq("R resign  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  ]g next game  ? help  q close", lines[#lines])
 end
 
 function T.the_seat_to_act_may_bid_or_call_dudo()
   local lines = render(bidding(), "alice")
-  assert_eq("R resign  m bid, e.g. 3x5  d dudo  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  m bid, e.g. 3x5  d dudo  ]g next game  ? help  q close", lines[#lines])
   local dudo = vim.iter(liars_dice.actions):find(function(entry)
     return entry.key == "d"
   end)

@@ -107,7 +107,7 @@ end
 function T.m_types_a_cell()
   local lines = render(start(), "alice").lines
   assert_eq(
-    "R resign  D offer draw  A abort  m place, e.g. d3  ]g next game  q close",
+    "R resign  D offer draw  A abort  m place, e.g. d3  ]g next game  ? help  q close",
     lines[#lines]
   )
 end

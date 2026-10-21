@@ -1058,8 +1058,8 @@ function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
     return rendered.lines[#rendered.lines]
   end
   local controls = "R resign  D offer draw  A abort  "
-  assert_eq(controls .. "m go to  r rotate  ]g next game  q close", footer(true))
-  assert_eq(controls .. "]g next game  q close", footer(false))
+  assert_eq(controls .. "m go to  r rotate  ]g next game  ? help  q close", footer(true))
+  assert_eq(controls .. "]g next game  ? help  q close", footer(false))
 end
 
 function T.typed_input_goes_in_the_field_the_catalogue_names_and_only_for_the_player_to_act()
@@ -1161,6 +1161,94 @@ function T.a_game_with_asset_keys_needs_its_art()
   local ok, err = pcall(shell.render, chess_update({}), chess, { glyphs = "ascii" }, "alice", 0)
 
   assert(not ok and tostring(err):find("chess draws from an asset pack", 1, true), tostring(err))
+end
+
+function T.a_game_may_not_bind_the_help_key()
+  package.loaded["games.games.help_clash"] = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    actions = { { key = "?", label = "hint", action = { kind = "hint" } } },
+  }
+  local client = client_with("alice", { chess_update({ game_id = "help00", game = "help_clash" }) })
+  local ok, err = pcall(shell.open, client, "help00")
+  package.loaded["games.games.help_clash"] = nil
+  assert(not ok and tostring(err):find('"?" is reserved', 1, true), tostring(err))
+end
+
+---@return integer[] the floating windows open
+local function floats()
+  return vim.tbl_filter(function(win)
+    return vim.api.nvim_win_get_config(win).relative ~= ""
+  end, vim.api.nvim_list_wins())
+end
+
+---@param buf integer
+---@return string[]
+local function lines_of(buf)
+  return vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+end
+
+---@param lines string[]
+---@param pattern string
+---@return boolean
+local function some_line_matches(lines, pattern)
+  return vim.iter(lines):any(function(line)
+    return line:find(pattern) ~= nil
+  end)
+end
+
+function T.help_shows_the_legend_and_every_bound_key_while_the_board_redraws_under_it()
+  local client, conn = client_with("alice", { chess_update({ game_id = "legend01" }) })
+  local buf = shell.open(client, "legend01")
+  mapping(buf, "?").callback()
+  local win = assert(floats()[1], "no help float")
+  assert_eq("chess — help", vim.api.nvim_win_get_config(win).title[1][1])
+  local help = lines_of(vim.api.nvim_win_get_buf(win))
+
+  local legend = chess.legend({ art = ASCII.art, ambiwidth = "single" })
+  for _, entry in ipairs(legend) do
+    assert(some_line_matches(help, vim.pesc(entry.meaning) .. "$"), entry.meaning)
+  end
+  local bound = shell.board(buf).bindings
+  for key, binding in pairs(bound) do
+    local row = "^%s*" .. vim.pesc(key) .. "%s+" .. vim.pesc(binding.label) .. "$"
+    assert(some_line_matches(help, row), vim.inspect({ key = key, help = help }))
+  end
+  assert(bound["?"] and bound["?"].label == "help")
+
+  local before = lines_of(buf)
+  conn:push(
+    "game.update",
+    chess_update({ game_id = "legend01", seq = 1, view = { fen = AFTER_E4_FEN } })
+  )
+  assert(vim.api.nvim_win_is_valid(win))
+  assert(not vim.deep_equal(before, lines_of(buf)), "the board did not redraw under the help")
+  vim.api.nvim_win_close(win, true)
+  vim.api.nvim_buf_delete(buf, { force = true })
+end
+
+function T.question_mark_q_and_escape_close_the_help_and_it_never_opens_twice()
+  local client = client_with("alice", { chess_update({ game_id = "toggle01" }) })
+  local buf = shell.open(client, "toggle01")
+  local board_win = vim.api.nvim_get_current_win()
+  for _, close_key in ipairs({ "?", "q", "<Esc>" }) do
+    mapping(buf, "?").callback()
+    local win = floats()[1]
+    assert_eq(1, #floats())
+    mapping(vim.api.nvim_win_get_buf(win), close_key).callback()
+    assert_eq({}, floats())
+  end
+
+  mapping(buf, "?").callback()
+  vim.api.nvim_set_current_win(board_win)
+  mapping(buf, "?").callback()
+  assert_eq({}, floats())
+  mapping(buf, "?").callback()
+  require("games.ui.float").open("stats", require("games.ui.compose").text("x"))
+  assert_eq(1, #floats())
+  vim.api.nvim_win_close(floats()[1], true)
+  vim.api.nvim_buf_delete(buf, { force = true })
 end
 
 return T

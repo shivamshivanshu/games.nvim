@@ -429,6 +429,8 @@ the current state are mapped; the footer lists them.
             the footer lists only h j k l
     p       pacman: pause, while the game runs
     ]g      next game waiting on your move
+    ?       help: what each mark on the board means, and every key
+            bound now; `?`, `q` or <Esc> closes it
     q       close
 
 Chess move input is case-insensitive (`nf3`, `o-o`); the capital `B` is

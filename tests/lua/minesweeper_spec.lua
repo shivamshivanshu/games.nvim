@@ -150,14 +150,14 @@ function T.keys_follow_the_catalogue_the_chordable_cells_and_the_end()
   local nothing_to_chord = update()
   nothing_to_chord.view = vim.tbl_extend("force", nothing_to_chord.view, { chordable = {} })
   assert_eq(
-    "R give up  m reveal, e.g. c5  f flag  c chord  ]g next game  q close",
+    "R give up  m reveal, e.g. c5  f flag  c chord  ]g next game  ? help  q close",
     footer(update(), CATALOGUED)
   )
   assert_eq(
-    "R give up  m reveal, e.g. c5  f flag  ]g next game  q close",
+    "R give up  m reveal, e.g. c5  f flag  ]g next game  ? help  q close",
     footer(nothing_to_chord, CATALOGUED)
   )
-  assert_eq("]g next game  q close", footer(lost(), CATALOGUED))
+  assert_eq("]g next game  ? help  q close", footer(lost(), CATALOGUED))
 end
 
 function T.a_lost_board_tells_flagged_unflagged_and_exploded_mines_and_wrong_flags_by_glyph()

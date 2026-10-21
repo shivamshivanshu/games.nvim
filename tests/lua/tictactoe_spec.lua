@@ -63,14 +63,14 @@ function T.place_keys_are_the_movers_legal_cells_and_need_the_catalogue()
     {
       me = "bob",
       catalogued = CATALOGUED,
-      footer = "R resign  A abort  3,5-9 place  ]g next game  q close",
+      footer = "R resign  A abort  3,5-9 place  ]g next game  ? help  q close",
     },
-    { me = "bob", catalogued = nil, footer = "R resign  A abort  ]g next game  q close" },
+    { me = "bob", catalogued = nil, footer = "R resign  A abort  ]g next game  ? help  q close" },
     {
       me = "alice",
       catalogued = CATALOGUED,
       legal_cells = {},
-      footer = "R resign  A abort  ]g next game  q close",
+      footer = "R resign  A abort  ]g next game  ? help  q close",
     },
   }) do
     local state = update()

@@ -219,7 +219,7 @@ function T.an_80_column_window_wraps_the_footer_while_abort_is_offered()
   assert_eq({
     "",
     "R resign  D offer draw  A abort  hjkl move  r turn  <CR> draw  ]g next game",
-    "q close",
+    "? help  q close",
   }, vim.list_slice(rendered.lines, #rendered.lines - 2))
 end
 
@@ -245,15 +245,15 @@ function T.keys_follow_the_turn()
     {
       midgame(),
       "bob",
-      "R resign  D offer draw  hjkl move  r turn  <CR> draw  ]g next game  q close",
+      "R resign  D offer draw  hjkl move  r turn  <CR> draw  ]g next game  ? help  q close",
     },
     {
       opening,
       "bob",
-      "R resign  D offer draw  A abort  hjkl move  r turn  <CR> draw  ]g next game  q close",
+      "R resign  D offer draw  A abort  hjkl move  r turn  <CR> draw  ]g next game  ? help  q close",
     },
-    { waiting, "alice", "R resign  D offer draw  ]g next game  q close" },
-    { over, "bob", "]g next game  q close" },
+    { waiting, "alice", "R resign  D offer draw  ]g next game  ? help  q close" },
+    { over, "bob", "]g next game  ? help  q close" },
   }) do
     local state, me, want = case[1], case[2], case[3]
     if me == "alice" then

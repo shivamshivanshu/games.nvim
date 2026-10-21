@@ -89,13 +89,16 @@ end
 
 function T.sow_keys_are_bound_for_the_movers_legal_pits_only()
   assert_eq(
-    "R resign  D offer draw  1,3-6 sow  ]g next game  q close",
+    "R resign  D offer draw  1,3-6 sow  ]g next game  ? help  q close",
     footer(render(update_with(), "bob"))
   )
   local waiting = update_with({
     view = { legal_pits = {} },
   })
-  assert_eq("R resign  D offer draw  ]g next game  q close", footer(render(waiting, "alice")))
+  assert_eq(
+    "R resign  D offer draw  ]g next game  ? help  q close",
+    footer(render(waiting, "alice"))
+  )
 end
 
 function T.a_sow_key_sends_its_pit_as_text()
