@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local minesweeper = require("games.games.minesweeper")
 local shell = require("games.ui.shell")
@@ -190,7 +191,7 @@ function T.a_lost_board_tells_flagged_unflagged_and_exploded_mines_and_wrong_fla
   }, hls)
 end
 
-function T.describe_event_names_the_cell_as_typed()
+function T.events_name_the_cell_as_typed()
   local cases = {
     {
       { kind = "revealed", by = "solver", row = 3, col = 12, opened = 14 },
@@ -210,10 +211,9 @@ function T.describe_event_names_the_cell_as_typed()
       { kind = "flagged", by = "solver", row = 1, col = 2, flagged = false },
       "alice unflagged a2",
     },
-    { { kind = "other", by = "solver" }, nil },
   }
   for _, case in ipairs(cases) do
-    assert_eq(case[2], minesweeper.describe_event(case[1], update()))
+    assert_eq(case[2], describe.events(update({ events = { case[1] } })))
   end
 end
 

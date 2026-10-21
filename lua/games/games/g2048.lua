@@ -1,6 +1,5 @@
 local board = require("games.ui.widgets.board")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 
 ---@alias games.G2048Seat "solver"
 
@@ -143,21 +142,17 @@ end
 ---@type games.GameAction[]
 M.actions = vim.tbl_map(move_action, DIRECTION_KEYS)
 
----@param event games.Event
----@param update games.G2048Update
----@return string|nil
-function M.describe_event(event, update)
-  local who = players.user_of_seat(update, event.by) or event.by
-  if event.kind == "moved" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  moved = function(event, talk)
     ---@cast event games.G2048MovedEvent
     local gained = event.gained > 0 and (" +%d"):format(event.gained) or ""
-    return ("%s moved %s%s"):format(who, event.direction, gained)
-  end
-  if event.kind == "reached" then
+    return ("%s moved %s%s"):format(talk.name(event.by), event.direction, gained)
+  end,
+  reached = function(event, talk)
     ---@cast event games.G2048ReachedEvent
-    return ("%s made %d"):format(who, event.tile)
-  end
-  return nil
-end
+    return ("%s made %d"):format(talk.name(event.by), event.tile)
+  end,
+}
 
 return M

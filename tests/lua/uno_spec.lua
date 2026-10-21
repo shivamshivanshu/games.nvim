@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local uno = require("games.games.uno")
@@ -215,8 +216,7 @@ function T.the_pile_and_the_draw_pile_draw_on_a_card_background()
   assert_eq({ "W  ", "###" }, backed)
 end
 
-function T.describe_event_tells_each_step()
-  local ctx = { art = view_options("unicode").art, ambiwidth = "single" }
+function T.events_tell_each_step()
   local update = playing()
   for _, case in ipairs({
     { { kind = "started", by = "p2", dealer = "p2", top = "Y7" }, "bob deals and turns up Y7" },
@@ -239,9 +239,9 @@ function T.describe_event_tells_each_step()
       "the discards are shuffled into a new draw pile of 40 cards",
     },
     { { kind = "left", by = "p3" }, "carol left the game" },
-    { { kind = "other" }, nil },
   }) do
-    assert_eq(case[2], uno.describe_event(case[1], update, ctx))
+    update.events = { case[1] }
+    assert_eq(case[2], describe.events(update))
   end
 end
 

@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local hearts = require("games.games.hearts")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -226,8 +227,7 @@ function T.unicode_cards_draw_their_suits()
   assert(shows(lines, "2♣ 7♣ T♦ Q♦ 4♠ K♠ 3♥ 8♥ A♥"), table.concat(lines, "\n"))
 end
 
-function T.describe_event_tells_each_step()
-  local ctx = { art = view_options("unicode").art, ambiwidth = "single" }
+function T.events_tell_each_step()
   local update = playing()
   for _, case in ipairs({
     { { kind = "hand_started", by = "p1", hand_no = 4, pass = "hold" }, "hand 4, no passing" },
@@ -259,9 +259,9 @@ function T.describe_event_tells_each_step()
       "hand 3: bob shoots the moon",
     },
     { { kind = "left", by = "p4" }, "dave left the game; its cards are played for it" },
-    { { kind = "other" }, nil },
   }) do
-    assert_eq(case[2], hearts.describe_event(case[1], update, ctx))
+    update.events = { case[1] }
+    assert_eq(case[2], describe.events(update))
   end
 end
 

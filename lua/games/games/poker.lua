@@ -38,10 +38,14 @@ local text_util = require("games.ui.text")
 ---@field shown games.PokerShownHand[]
 ---@field awards games.PokerAward[]
 
+---@class games.PokerBlinds
+---@field small integer
+---@field big integer
+
 ---@class games.PokerView
 ---@field hand_no integer
 ---@field button games.Seat
----@field blinds {small: integer, big: integer}
+---@field blinds games.PokerBlinds
 ---@field board games.PokerCard[]
 ---@field pots games.PokerPot[] settled on earlier streets
 ---@field seats games.PokerSeatView[]
@@ -54,6 +58,59 @@ local text_util = require("games.ui.text")
 
 ---@class games.PokerUpdate: games.GameUpdate
 ---@field view games.PokerView
+
+---@class games.PokerHandStartedEvent: games.Event
+---@field kind "hand_started"
+---@field by games.Seat
+---@field hand_no integer
+---@field button games.Seat
+---@field blinds games.PokerBlinds
+
+---@class games.PokerPostedEvent: games.Event
+---@field kind "posted"
+---@field by games.Seat
+---@field seat games.Seat
+---@field blind string "small" or "big"
+---@field amount integer less than the blind when it put the seat all-in
+
+---@class games.PokerActedEvent: games.Event
+---@field kind "acted"
+---@field by games.Seat
+---@field move games.PokerMove
+---@field amount integer the seat's total for the street after it, 0 for fold and check
+
+---@class games.PokerBoardEvent: games.Event
+---@field kind "board"
+---@field by games.Seat
+---@field street string
+---@field cards games.PokerCard[]
+
+---@class games.PokerShownEvent: games.Event
+---@field kind "shown"
+---@field by games.Seat
+---@field hands games.PokerShownHand[]
+
+---@class games.PokerReturnedEvent: games.Event
+---@field kind "returned"
+---@field by games.Seat
+---@field seat games.Seat
+---@field amount integer the part of its bet no one called
+
+---@class games.PokerWonEvent: games.Event
+---@field kind "won"
+---@field by games.Seat
+---@field seat games.Seat
+---@field amount integer
+---@field pot integer 0 for the main pot
+
+---@class games.PokerBustedEvent: games.Event
+---@field kind "busted"
+---@field by games.Seat
+---@field seat games.Seat
+
+---@class games.PokerLeftEvent: games.Event
+---@field kind "left"
+---@field by games.Seat
 
 local BOARD_SIZE = 5
 local BOARD_ROW, HAND_ROW = 1, 2
@@ -121,8 +178,7 @@ end
 ---@param seat games.Seat
 ---@return string
 local function name_of(update, seat)
-  local user = players.user_of_seat(update, seat) or seat
-  return vim.fn.strcharpart(user, 0, NAME_WIDTH)
+  return vim.fn.strcharpart(players.name_of_seat(update, seat), 0, NAME_WIDTH)
 end
 
 ---@param pots games.PokerPot[]
@@ -339,12 +395,8 @@ M.actions = {
   },
 }
 
----@class (private) games.PokerTalk how events name seats and cards
----@field name fun(seat: games.Seat): string
----@field cards fun(cards: games.PokerCard[]): string
-
----@type table<string, fun(event: table, talk: games.PokerTalk): string>
-local DESCRIBERS = {
+---@type table<games.EventKind, games.Describer>
+M.describers = {
   hand_started = function(event)
     return ("hand %d, blinds %d/%d"):format(event.hand_no, event.blinds.small, event.blinds.big)
   end,
@@ -377,26 +429,5 @@ local DESCRIBERS = {
     return ("%s left the table"):format(talk.name(event.by))
   end,
 }
-
----@param event games.Event
----@param update games.PokerUpdate
----@param ctx games.DescribeCtx with art, which a module with asset_keys always gets
----@return string|nil
-function M.describe_event(event, update, ctx)
-  local describer = DESCRIBERS[event.kind]
-  if not describer then
-    return nil
-  end
-  ---@type games.PokerTalk
-  local talk = {
-    name = function(seat)
-      return players.user_of_seat(update, seat) or seat
-    end,
-    cards = function(shown)
-      return cards.text(ctx.art --[[@as games.ArtSet]], shown, ctx.ambiwidth)
-    end,
-  }
-  return describer(event, talk)
-end
 
 return M

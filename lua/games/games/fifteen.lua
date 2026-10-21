@@ -1,6 +1,5 @@
 local board = require("games.ui.widgets.board")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 
 ---@alias games.FifteenSeat "solver"
 
@@ -159,16 +158,12 @@ M.input = {
 ---@type games.GameAction[]
 M.actions = vim.tbl_map(move_action, DIRECTION_KEYS)
 
----@param event games.Event
----@param update games.FifteenUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "slid" then
-    return nil
-  end
-  ---@cast event games.FifteenSlidEvent
-  local who = players.user_of_seat(update, event.by) or event.by
-  return ("%s slid %d %s"):format(who, event.tile, event.direction)
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  slid = function(event, talk)
+    ---@cast event games.FifteenSlidEvent
+    return ("%s slid %d %s"):format(talk.name(event.by), event.tile, event.direction)
+  end,
+}
 
 return M

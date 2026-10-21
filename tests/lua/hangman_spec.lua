@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local hangman = require("games.games.hangman")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -128,19 +129,15 @@ function T.hanged_board_draws_the_whole_figure_and_frames_the_unfound_letters()
   assert_eq(3, #unfound)
 end
 
-function T.describe_event_names_the_player_the_guess_and_whether_it_hit()
+function T.events_name_the_player_the_guess_and_whether_it_hit()
+  local events = {
+    { kind = "guessed", by = "solver", guess = "e", hit = false },
+    { kind = "guessed", by = "solver", guess = "about", hit = true },
+  }
   assert_eq(
-    "sam guessed E: miss",
-    hangman.describe_event({ kind = "guessed", by = "solver", guess = "e", hit = false }, update())
+    "sam guessed E: miss; sam guessed ABOUT: hit",
+    describe.events(update({ events = events }))
   )
-  assert_eq(
-    "sam guessed ABOUT: hit",
-    hangman.describe_event(
-      { kind = "guessed", by = "solver", guess = "about", hit = true },
-      update()
-    )
-  )
-  assert_eq(nil, hangman.describe_event({ kind = "other", by = "solver" }, update()))
 end
 
 return T

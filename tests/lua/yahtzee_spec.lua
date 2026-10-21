@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local yahtzee = require("games.games.yahtzee")
@@ -145,20 +146,22 @@ function T.each_header_line_shows_the_seats_total_and_whether_it_left()
   assert(lines[2]:find("bob    p2  total 18 out", 1, true), lines[2])
 end
 
-function T.describe_event_names_the_dice_and_the_box()
-  local ctx = { art = view_options("ascii").art, ambiwidth = "single" }
-  assert_eq(
-    "alice rolled 3 3 5 1 3",
-    yahtzee.describe_event({ kind = "rolled", by = "p1", dice = { 3, 3, 5, 1, 3 } }, rolled(), ctx)
-  )
+function T.events_name_the_dice_and_the_box()
   local scored = { kind = "scored", by = "p2", box = "full_house", score = 25, yahtzee_bonus = 0 }
-  assert_eq("bob scored 25 in full house", yahtzee.describe_event(scored, rolled(), ctx))
-  scored = vim.tbl_extend("force", scored, { box = "fours", score = 20, yahtzee_bonus = 100 })
+  local update = rolled()
+  update.events = {
+    { kind = "rolled", by = "p1", dice = { 3, 3, 5, 1, 3 } },
+    scored,
+    vim.tbl_extend("force", scored, { box = "fours", score = 20, yahtzee_bonus = 100 }),
+  }
   assert_eq(
-    "bob scored 20 in fours and a 100 Yahtzee bonus",
-    yahtzee.describe_event(scored, rolled(), ctx)
+    table.concat({
+      "alice rolled ⚂ ⚂ ⚄ ⚀ ⚂",
+      "bob scored 25 in full house",
+      "bob scored 20 in fours and a 100 Yahtzee bonus",
+    }, "; "),
+    describe.events(update)
   )
-  assert_eq(nil, yahtzee.describe_event({ kind = "other" }, rolled(), ctx))
 end
 
 function T.unicode_dice_draw_their_faces()

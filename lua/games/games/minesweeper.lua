@@ -1,6 +1,5 @@
 local board = require("games.ui.widgets.board")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 
 ---@alias games.MinesweeperSeat "solver"
 
@@ -155,23 +154,32 @@ M.actions = {
   },
 }
 
----@param event games.Event
----@param update games.MinesweeperUpdate
----@return string|nil
-function M.describe_event(event, update)
-  local who = players.user_of_seat(update, event.by) or event.by
-  local at = event.row and address(event.row, event.col)
-  if event.kind == "revealed" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  revealed = function(event, talk)
     ---@cast event games.MinesweeperRevealedEvent
-    return ("%s revealed %s%s"):format(who, at, opened_text(event))
-  elseif event.kind == "chorded" then
+    return ("%s revealed %s%s"):format(
+      talk.name(event.by),
+      address(event.row, event.col),
+      opened_text(event)
+    )
+  end,
+  chorded = function(event, talk)
     ---@cast event games.MinesweeperChordedEvent
-    return ("%s chorded %s%s"):format(who, at, opened_text(event))
-  elseif event.kind == "flagged" then
+    return ("%s chorded %s%s"):format(
+      talk.name(event.by),
+      address(event.row, event.col),
+      opened_text(event)
+    )
+  end,
+  flagged = function(event, talk)
     ---@cast event games.MinesweeperFlaggedEvent
-    return ("%s %s %s"):format(who, event.flagged and "flagged" or "unflagged", at)
-  end
-  return nil
-end
+    return ("%s %s %s"):format(
+      talk.name(event.by),
+      event.flagged and "flagged" or "unflagged",
+      address(event.row, event.col)
+    )
+  end,
+}
 
 return M

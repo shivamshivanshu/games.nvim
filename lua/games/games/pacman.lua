@@ -1,6 +1,5 @@
 local board = require("games.ui.widgets.board")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 
 ---@alias games.PacmanSeat "player"
 
@@ -235,25 +234,21 @@ M.actions = vim.list_extend(vim.tbl_map(turn_action, DIRECTION_KEYS), {
   },
 })
 
----@param event games.Event
----@param update games.PacmanUpdate
----@return string|nil
-function M.describe_event(event, update)
-  local who = players.user_of_seat(update, event.by) or event.by
-  if event.kind == "ghost_eaten" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  ghost_eaten = function(event, talk)
     ---@cast event games.PacmanGhostEatenEvent
-    return ("%s ate %s +%d"):format(who, event.ghost, event.points)
-  end
-  if event.kind == "caught" then
+    return ("%s ate %s +%d"):format(talk.name(event.by), event.ghost, event.points)
+  end,
+  caught = function(event, talk)
     ---@cast event games.PacmanCaughtEvent
     local lives = event.lives_left == 1 and "1 life" or ("%d lives"):format(event.lives_left)
-    return ("%s caught %s, %s left"):format(event.ghost, who, lives)
-  end
-  if event.kind == "level_cleared" then
+    return ("%s caught %s, %s left"):format(event.ghost, talk.name(event.by), lives)
+  end,
+  level_cleared = function(event, talk)
     ---@cast event games.PacmanLevelClearedEvent
-    return ("%s cleared level %d"):format(who, event.level)
-  end
-  return nil
-end
+    return ("%s cleared level %d"):format(talk.name(event.by), event.level)
+  end,
+}
 
 return M

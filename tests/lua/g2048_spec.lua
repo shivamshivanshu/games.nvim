@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local g2048 = require("games.games.g2048")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -139,28 +140,17 @@ function T.each_key_sends_its_direction_as_text()
   }, sent)
 end
 
-function T.describe_event_names_the_move_its_gain_and_the_goal()
-  local update = update_with()
+function T.events_name_the_move_its_gain_and_the_goal()
   local spawned = { row = 1, col = 2, value = 2 }
+  local events = {
+    { kind = "moved", by = "solver", direction = "left", gained = 8, spawned = spawned },
+    { kind = "moved", by = "solver", direction = "up", gained = 0, spawned = spawned },
+    { kind = "reached", by = "solver", tile = 2048 },
+  }
   assert_eq(
-    "alice moved left +8",
-    g2048.describe_event(
-      { kind = "moved", by = "solver", direction = "left", gained = 8, spawned = spawned },
-      update
-    )
+    "alice moved left +8; alice moved up; alice made 2048",
+    describe.events(update_with({ events = events }))
   )
-  assert_eq(
-    "alice moved up",
-    g2048.describe_event(
-      { kind = "moved", by = "solver", direction = "up", gained = 0, spawned = spawned },
-      update
-    )
-  )
-  assert_eq(
-    "alice made 2048",
-    g2048.describe_event({ kind = "reached", by = "solver", tile = 2048 }, update)
-  )
-  assert_eq(nil, g2048.describe_event({ kind = "other", by = "solver" }, update))
 end
 
 return T

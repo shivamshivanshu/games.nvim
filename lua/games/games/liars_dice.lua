@@ -1,8 +1,8 @@
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
+local describe = require("games.core.describe")
 local dice = require("games.ui.dice")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 local text_util = require("games.ui.text")
 
 ---@class games.LiarsDiceBid
@@ -73,47 +73,21 @@ local NAME_WIDTH = 10
 ---longer name.
 local PANEL_WIDTH = 40
 
----@param update games.LiarsDiceUpdate
----@param seat games.Seat
----@return string
-local function name_of(update, seat)
-  return players.user_of_seat(update, seat) or seat
-end
-
 ---@param n integer
 ---@return string
 local function dice_count(n)
   return n == 1 and "1 die" or ("%d dice"):format(n)
 end
 
----@class (private) games.LiarsDiceTalk how text names seats and dice
----@field name fun(seat: games.Seat): string
----@field faces fun(faces: games.DieFace[]): string
-
----@param talk games.LiarsDiceTalk
----@param bid games.LiarsDiceBid
+---@param talk games.Talk
+---@param bid games.LiarsDiceBid|games.LiarsDiceBidEvent
 ---@return string
 local function bid_text(talk, bid)
   return ("%d x %s"):format(bid.quantity, talk.faces({ bid.face }))
 end
 
----@param update games.LiarsDiceUpdate
----@param ctx games.LayoutCtx|games.DescribeCtx
----@return games.LiarsDiceTalk
-local function talk_for(update, ctx)
-  local set = assert(ctx.art, "liar's dice draws from an asset pack")
-  return {
-    name = function(seat)
-      return name_of(update, seat)
-    end,
-    faces = function(faces)
-      return dice.text(set, faces, ctx.ambiwidth)
-    end,
-  }
-end
-
 ---@param view games.LiarsDiceView
----@param talk games.LiarsDiceTalk
+---@param talk games.Talk
 ---@return games.KvPair[]
 local function table_pairs(view, talk)
   local pairs = {
@@ -135,7 +109,7 @@ end
 
 ---The previous challenge in words, then every cup it revealed.
 ---@param reveal games.LiarsDiceReveal|nil
----@param talk games.LiarsDiceTalk
+---@param talk games.Talk
 ---@return games.Node[]
 local function reveal_lines(reveal, talk)
   if not reveal then
@@ -175,7 +149,7 @@ M.asset_keys = vim.list_extend(dice.keys(), { NO_DIE_KEY })
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local talk = talk_for(update, ctx)
+  local talk = describe.talk(update, { art = ctx.art, ambiwidth = ctx.ambiwidth })
   return board({
     grid = {
       rows = 1,
@@ -234,9 +208,10 @@ M.actions = {
   },
 }
 
----@type table<string, fun(event: table, talk: games.LiarsDiceTalk): string>
-local DESCRIBERS = {
+---@type table<games.EventKind, games.Describer>
+M.describers = {
   bid = function(event, talk)
+    ---@cast event games.LiarsDiceBidEvent
     return ("%s bids %s"):format(talk.name(event.by), bid_text(talk, event))
   end,
   challenged = function(event, talk)
@@ -251,14 +226,5 @@ local DESCRIBERS = {
     return ("%s has no dice left"):format(talk.name(event.seat))
   end,
 }
-
----@param event games.Event
----@param update games.LiarsDiceUpdate
----@param ctx games.DescribeCtx with art, which a module with asset_keys always gets
----@return string|nil
-function M.describe_event(event, update, ctx)
-  local describer = DESCRIBERS[event.kind]
-  return describer and describer(event, talk_for(update, ctx))
-end
 
 return M

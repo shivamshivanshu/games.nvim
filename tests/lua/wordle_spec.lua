@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local wordle = require("games.games.wordle")
@@ -136,17 +137,14 @@ function T.finished_game_shows_the_answer_in_place_of_the_guesses_left()
   assert(not panel:find("guesses left", 1, true), panel)
 end
 
-function T.describe_event_names_the_player_and_the_word()
-  assert_eq(
-    "sam guessed CRANE",
-    wordle.describe_event({
-      kind = "guessed",
-      by = "solver",
-      word = "crane",
-      feedback = { "miss", "miss", "miss", "miss", "hit" },
-    }, update())
-  )
-  assert_eq(nil, wordle.describe_event({ kind = "other", by = "solver" }, update()))
+function T.events_name_the_player_and_the_word()
+  local guessed = {
+    kind = "guessed",
+    by = "solver",
+    word = "crane",
+    feedback = { "miss", "miss", "miss", "miss", "hit" },
+  }
+  assert_eq("sam guessed CRANE", describe.events(update({ events = { guessed } })))
 end
 
 return T

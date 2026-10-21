@@ -3,7 +3,6 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 
 ---@alias games.WordleMark "hit"|"present"|"miss"
 
@@ -159,18 +158,12 @@ M.input = {
   prompt = "Guess: ",
 }
 
----@param event games.Event
----@param update games.WordleUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "guessed" then
-    return nil
-  end
-  ---@cast event games.WordleGuessedEvent
-  return ("%s guessed %s"):format(
-    players.user_of_seat(update, event.by) or event.by,
-    event.word:upper()
-  )
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  guessed = function(event, talk)
+    ---@cast event games.WordleGuessedEvent
+    return ("%s guessed %s"):format(talk.name(event.by), event.word:upper())
+  end,
+}
 
 return M

@@ -1,5 +1,4 @@
 local board = require("games.ui.widgets.board")
-local players = require("games.core.players")
 local theme = require("games.ui.theme")
 
 ---@alias games.SudokuSeat "solver"
@@ -139,19 +138,16 @@ M.input = {
   prompt = "Set, e.g. 53 7: ",
 }
 
----@param event games.Event
----@param update games.SudokuUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "cell_set" then
-    return nil
-  end
-  ---@cast event games.SudokuCellSetEvent
-  local who = players.user_of_seat(update, event.by) or event.by
-  if event.digit == 0 then
-    return ("%s cleared row %d, column %d"):format(who, event.row, event.col)
-  end
-  return ("%s set row %d, column %d to %d"):format(who, event.row, event.col, event.digit)
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  cell_set = function(event, talk)
+    ---@cast event games.SudokuCellSetEvent
+    local who = talk.name(event.by)
+    if event.digit == 0 then
+      return ("%s cleared row %d, column %d"):format(who, event.row, event.col)
+    end
+    return ("%s set row %d, column %d to %d"):format(who, event.row, event.col, event.digit)
+  end,
+}
 
 return M

@@ -102,13 +102,6 @@ local BOX_LABEL = vim.iter(BOX_ROWS):fold({}, function(labels, row)
   return labels
 end)
 
----@param update games.YahtzeeUpdate
----@param seat games.Seat
----@return string
-local function name_of(update, seat)
-  return players.user_of_seat(update, seat) or seat
-end
-
 ---@param view games.YahtzeeView
 ---@param row integer
 ---@param col integer
@@ -153,7 +146,7 @@ end
 local function heading(update)
   local parts = { compose.text(text_util.spaces(KEY_WIDTH + LABEL_WIDTH)) }
   for _, card in ipairs(update.view.cards) do
-    local name = vim.fn.strcharpart(name_of(update, card.seat), 0, SEAT_WIDTH - 1)
+    local name = vim.fn.strcharpart(players.name_of_seat(update, card.seat), 0, SEAT_WIDTH - 1)
     parts[#parts + 1] = compose.text(text_util.align_right(name, SEAT_WIDTH), LABEL_HL)
   end
   parts[#parts + 1] = compose.text(text_util.align_right(NOW_HEADING, NOW_WIDTH), LABEL_HL)
@@ -289,29 +282,24 @@ M.actions = vim.list_extend(
   )
 )
 
----@param event games.Event
----@param update games.YahtzeeUpdate
----@param ctx games.DescribeCtx with art, which a module with asset_keys always gets
----@return string|nil
-function M.describe_event(event, update, ctx)
-  if event.kind == "rolled" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  rolled = function(event, talk)
     ---@cast event games.YahtzeeRolledEvent
-    local faces = dice.text(ctx.art --[[@as games.ArtSet]], event.dice, ctx.ambiwidth)
-    return ("%s rolled %s"):format(name_of(update, event.by), faces)
-  end
-  if event.kind == "scored" then
+    return ("%s rolled %s"):format(talk.name(event.by), talk.faces(event.dice))
+  end,
+  scored = function(event, talk)
     ---@cast event games.YahtzeeScoredEvent
     local bonus = event.yahtzee_bonus > 0
         and (" and a %d Yahtzee bonus"):format(event.yahtzee_bonus)
       or ""
     return ("%s scored %d in %s%s"):format(
-      name_of(update, event.by),
+      talk.name(event.by),
       event.score,
       BOX_LABEL[event.box],
       bonus
     )
-  end
-  return nil
-end
+  end,
+}
 
 return M

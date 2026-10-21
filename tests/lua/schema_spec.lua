@@ -40,29 +40,11 @@ local CLASS_EXCEPTIONS = {
 ---catalogue.
 local UNANNOTATED_IN_EVERY_GAME = { Action = true }
 
----Per game, the definitions no Lua class annotates: events the client only describes.
-local UNANNOTATED = {
-  hearts = { LeftEvent = true },
-  poker = {
-    ActedEvent = true,
-    Blinds = true,
-    BoardEvent = true,
-    BustedEvent = true,
-    HandStartedEvent = true,
-    LeftEvent = true,
-    PostedEvent = true,
-    ReturnedEvent = true,
-    ShownEvent = true,
-    WonEvent = true,
-  },
-  uno = { LeftEvent = true, PassedEvent = true },
-}
-
 ---@param game string
 ---@param def_name string
 ---@return string|nil class nil for a definition no class annotates
 local function game_class(game, def_name)
-  if UNANNOTATED_IN_EVERY_GAME[def_name] or (UNANNOTATED[game] or {})[def_name] then
+  if UNANNOTATED_IN_EVERY_GAME[def_name] then
     return nil
   end
   local pascal = game:gsub("^%l", string.upper):gsub("_(%w)", string.upper)

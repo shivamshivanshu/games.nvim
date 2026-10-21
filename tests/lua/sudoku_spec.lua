@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local sudoku = require("games.games.sudoku")
@@ -126,22 +127,15 @@ function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_confl
   )
 end
 
-function T.describe_event_names_the_cell_and_digit()
+function T.events_name_the_cell_and_digit()
+  local events = {
+    { kind = "cell_set", by = "solver", row = 5, col = 3, digit = 7 },
+    { kind = "cell_set", by = "solver", row = 5, col = 3, digit = 0 },
+  }
   assert_eq(
-    "alice set row 5, column 3 to 7",
-    sudoku.describe_event(
-      { kind = "cell_set", by = "solver", row = 5, col = 3, digit = 7 },
-      update()
-    )
+    "alice set row 5, column 3 to 7; alice cleared row 5, column 3",
+    describe.events(update({ events = events }))
   )
-  assert_eq(
-    "alice cleared row 5, column 3",
-    sudoku.describe_event(
-      { kind = "cell_set", by = "solver", row = 5, col = 3, digit = 0 },
-      update()
-    )
-  )
-  assert_eq(nil, sudoku.describe_event({ kind = "other", by = "solver" }, update()))
 end
 
 return T

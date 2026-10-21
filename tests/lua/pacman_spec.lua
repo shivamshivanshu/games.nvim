@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local pacman = require("games.games.pacman")
 local shell = require("games.ui.shell")
@@ -177,34 +178,23 @@ function T.taller_cells_keep_the_walls_joined()
   end
 end
 
-function T.describe_event_names_the_ghost_the_points_and_the_lives_left()
+function T.events_name_the_ghost_the_points_and_the_lives_left()
   local update = update_with()
+  update.events = {
+    { kind = "ghost_eaten", by = "player", ghost = "pinky", points = 400 },
+    { kind = "caught", by = "player", ghost = "blinky", lives_left = 2 },
+    { kind = "caught", by = "player", ghost = "clyde", lives_left = 1 },
+    { kind = "level_cleared", by = "player", level = 1 },
+  }
   assert_eq(
-    "alice ate pinky +400",
-    pacman.describe_event(
-      { kind = "ghost_eaten", by = "player", ghost = "pinky", points = 400 },
-      update
-    )
+    table.concat({
+      "alice ate pinky +400",
+      "blinky caught alice, 2 lives left",
+      "clyde caught alice, 1 life left",
+      "alice cleared level 1",
+    }, "; "),
+    describe.events(update)
   )
-  assert_eq(
-    "blinky caught alice, 2 lives left",
-    pacman.describe_event(
-      { kind = "caught", by = "player", ghost = "blinky", lives_left = 2 },
-      update
-    )
-  )
-  assert_eq(
-    "clyde caught alice, 1 life left",
-    pacman.describe_event(
-      { kind = "caught", by = "player", ghost = "clyde", lives_left = 1 },
-      update
-    )
-  )
-  assert_eq(
-    "alice cleared level 1",
-    pacman.describe_event({ kind = "level_cleared", by = "player", level = 1 }, update)
-  )
-  assert_eq(nil, pacman.describe_event({ kind = "other", by = "player" }, update))
 end
 
 return T

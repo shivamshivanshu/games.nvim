@@ -215,14 +215,6 @@ function T.events_read_as_table_talk_with_users_for_seats()
   )
 end
 
-function T.event_cards_draw_from_the_ctx_art()
-  local event = { kind = "board", by = "p1", street = "river", cards = { "Td", "2c" } }
-  for glyphs, expected in pairs({ unicode = "river T♦ 2♣", ascii = "river Td 2c" }) do
-    local ctx = { art = poker_view(glyphs).art, ambiwidth = "single" }
-    assert_eq(expected, poker.describe_event(event, poker_update(), ctx))
-  end
-end
-
 function T.event_cards_take_the_users_glyph_mode()
   local update = poker_update()
   update.events = { { kind = "board", by = "p1", street = "turn", cards = { "Qh" } } }

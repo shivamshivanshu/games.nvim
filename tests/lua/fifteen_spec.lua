@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local fifteen = require("games.games.fifteen")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -100,12 +101,9 @@ function T.keys_send_the_slide_by_number_and_the_move_by_direction()
   }, sent)
 end
 
-function T.describe_event_names_the_tile_and_its_way()
-  assert_eq(
-    "alice slid 8 left",
-    fifteen.describe_event({ kind = "slid", by = "solver", tile = 8, direction = "left" }, update())
-  )
-  assert_eq(nil, fifteen.describe_event({ kind = "other", by = "solver" }, update()))
+function T.events_name_the_tile_and_its_way()
+  local slid = { kind = "slid", by = "solver", tile = 8, direction = "left" }
+  assert_eq("alice slid 8 left", describe.events(update({ events = { slid } })))
 end
 
 return T

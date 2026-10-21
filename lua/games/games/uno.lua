@@ -2,7 +2,6 @@ local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 
 ---@alias games.UnoColor "R"|"Y"|"G"|"B"|"" none only before the colour of a Wild turned up is named
 ---@alias games.UnoPhase "color"|"play"|"drawn"|"challenge"
@@ -45,6 +44,10 @@ local players = require("games.core.players")
 ---@field seat games.Seat
 ---@field count integer
 
+---@class games.UnoPassedEvent: games.Event
+---@field kind "passed"
+---@field by games.Seat
+
 ---@class games.UnoSkippedEvent: games.Event
 ---@field kind "skipped"
 ---@field by games.Seat
@@ -70,6 +73,10 @@ local players = require("games.core.players")
 ---@field kind "reshuffled"
 ---@field by games.Seat
 ---@field cards integer
+
+---@class games.UnoLeftEvent: games.Event
+---@field kind "left"
+---@field by games.Seat
 
 local GLYPH_WIDTH = 3
 local DECK_KEY = "deck"
@@ -270,17 +277,20 @@ for _, color in ipairs(COLORS) do
   }
 end
 
----@class (private) games.UnoTalk how events name seats and cards
----@field name fun(seat: games.Seat): string
----@field card fun(card: games.UnoCardKey): string
+---@param talk games.Talk
+---@param card games.UnoCardKey
+---@return string its glyph, without the padding that lines a hand up
+local function card_text(talk, card)
+  return vim.trim(talk.cards({ card }))
+end
 
----@type table<string, fun(event: table, talk: games.UnoTalk): string>
-local DESCRIBERS = {
+---@type table<games.EventKind, games.Describer>
+M.describers = {
   started = function(event, talk)
-    return ("%s deals and turns up %s"):format(talk.name(event.dealer), talk.card(event.top))
+    return ("%s deals and turns up %s"):format(talk.name(event.dealer), card_text(talk, event.top))
   end,
   played = function(event, talk)
-    local text = ("%s plays %s"):format(talk.name(event.by), talk.card(event.card))
+    local text = ("%s plays %s"):format(talk.name(event.by), card_text(talk, event.card))
     if not vim.tbl_contains(cards.UNO_WILDS, event.card) then
       return text
     end
@@ -315,27 +325,5 @@ local DESCRIBERS = {
     return ("%s left the game"):format(talk.name(event.by))
   end,
 }
-
----@param event games.Event
----@param update games.UnoUpdate
----@param ctx games.DescribeCtx with art, which a module with asset_keys always gets
----@return string|nil
-function M.describe_event(event, update, ctx)
-  local describer = DESCRIBERS[event.kind]
-  if not describer then
-    return nil
-  end
-  local set = assert(ctx.art, "uno draws from an asset pack")
-  ---@type games.UnoTalk
-  local talk = {
-    name = function(seat)
-      return players.user_of_seat(update, seat) or seat
-    end,
-    card = function(card)
-      return vim.trim(cards.text(set, { card }, ctx.ambiwidth))
-    end,
-  }
-  return describer(event, talk)
-end
 
 return M

@@ -2,7 +2,6 @@ local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local kv = require("games.ui.widgets.kv")
-local players = require("games.core.players")
 
 ---@alias games.MastermindColour "r"|"g"|"b"|"y"|"o"|"p"
 
@@ -201,20 +200,17 @@ M.input = {
   prompt = "Guess: ",
 }
 
----@param event games.Event
----@param update games.MastermindUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "guessed" then
-    return nil
-  end
-  ---@cast event games.MastermindGuessedEvent
-  return ("%s guessed %s: %d black, %d white"):format(
-    players.user_of_seat(update, event.by) or event.by,
-    event.code:upper(),
-    event.black,
-    event.white
-  )
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  guessed = function(event, talk)
+    ---@cast event games.MastermindGuessedEvent
+    return ("%s guessed %s: %d black, %d white"):format(
+      talk.name(event.by),
+      event.code:upper(),
+      event.black,
+      event.white
+    )
+  end,
+}
 
 return M

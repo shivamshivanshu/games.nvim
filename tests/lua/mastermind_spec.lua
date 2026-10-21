@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local mastermind = require("games.games.mastermind")
 local shell = require("games.ui.shell")
@@ -188,15 +189,9 @@ function T.panel_lists_the_palette_the_key_pegs_and_guesses_left()
   end
 end
 
-function T.describe_event_names_the_player_the_code_and_the_pegs()
-  assert_eq(
-    "sam guessed RGBY: 1 black, 2 white",
-    mastermind.describe_event(
-      { kind = "guessed", by = "solver", code = "rgby", black = 1, white = 2 },
-      update()
-    )
-  )
-  assert_eq(nil, mastermind.describe_event({ kind = "other", by = "solver" }, update()))
+function T.events_name_the_player_the_code_and_the_pegs()
+  local guessed = { kind = "guessed", by = "solver", code = "rgby", black = 1, white = 2 }
+  assert_eq("sam guessed RGBY: 1 black, 2 white", describe.events(update({ events = { guessed } })))
 end
 
 return T

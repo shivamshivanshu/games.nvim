@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local liars_dice = require("games.games.liars_dice")
 local shell = require("games.ui.shell")
@@ -143,30 +144,28 @@ function T.one_die_is_not_dice()
   assert(shows(lines, "Round 2, 1 die in play"), table.concat(lines, "\n"))
 end
 
-function T.describe_event_tells_the_bid_the_challenge_and_who_is_out()
-  local ctx = { art = view_options("unicode").art, ambiwidth = "single" }
+function T.events_tell_the_bid_the_challenge_and_who_is_out()
   local update = bidding()
-  assert_eq(
-    "alice bids 3 x ⚄",
-    liars_dice.describe_event({ kind = "bid", by = "p1", quantity = 3, face = 5 }, update, ctx)
-  )
-  local challenged = {
-    kind = "challenged",
-    by = "p2",
-    bid = { by = "p1", quantity = 3, face = 5 },
-    counted = 2,
-    loser = "p1",
-    cups = {},
+  update.events = {
+    { kind = "bid", by = "p1", quantity = 3, face = 5 },
+    {
+      kind = "challenged",
+      by = "p2",
+      bid = { by = "p1", quantity = 3, face = 5 },
+      counted = 2,
+      loser = "p1",
+      cups = {},
+    },
+    { kind = "out", seat = "p3" },
   }
   assert_eq(
-    "bob calls dudo on 3 x ⚄: 2 counted, alice loses a die",
-    liars_dice.describe_event(challenged, update, ctx)
+    table.concat({
+      "alice bids 3 x ⚄",
+      "bob calls dudo on 3 x ⚄: 2 counted, alice loses a die",
+      "carol has no dice left",
+    }, "; "),
+    describe.events(update)
   )
-  assert_eq(
-    "carol has no dice left",
-    liars_dice.describe_event({ kind = "out", seat = "p3" }, update, ctx)
-  )
-  assert_eq(nil, liars_dice.describe_event({ kind = "other" }, update, ctx))
 end
 
 function T.unicode_dice_draw_their_faces()

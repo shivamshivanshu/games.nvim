@@ -1,6 +1,7 @@
 local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
+local describe = require("games.core.describe")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
@@ -81,6 +82,10 @@ local text_util = require("games.ui.text")
 ---@field seat games.Seat
 ---@field points integer
 
+---@class games.HeartsLeftEvent: games.Event
+---@field kind "left"
+---@field by games.Seat
+
 ---@class games.HeartsHandScoredEvent: games.Event
 ---@field kind "hand_scored"
 ---@field by games.Seat
@@ -115,13 +120,6 @@ local PASS_OFFSETS = { left = 1, across = 2, right = 3 }
 local PLACE_WIDTH = text_util.max_display_width(vim.tbl_map(function(place)
   return place.name
 end, vim.tbl_values(PLACES)))
-
----@param update games.HeartsUpdate
----@param seat games.Seat
----@return string
-local function name_of(update, seat)
-  return players.user_of_seat(update, seat) or seat
-end
 
 ---@param n integer
 ---@return string
@@ -195,27 +193,8 @@ local function trick_cells(update, me)
   return cells, marks
 end
 
----@class (private) games.HeartsTalk how text names seats and cards
----@field name fun(seat: games.Seat): string
----@field cards fun(cards: games.CardKey[]): string
-
----@param update games.HeartsUpdate
----@param ctx games.LayoutCtx|games.DescribeCtx
----@return games.HeartsTalk
-local function talk_for(update, ctx)
-  local set = assert(ctx.art, "hearts draws from an asset pack")
-  return {
-    name = function(seat)
-      return name_of(update, seat)
-    end,
-    cards = function(shown)
-      return cards.text(set, shown, ctx.ambiwidth)
-    end,
-  }
-end
-
 ---@param view games.HeartsView
----@param talk games.HeartsTalk
+---@param talk games.Talk
 ---@return string|nil what the viewer is to do now
 local function hint(view, talk)
   if view.must_pass > 0 and view.pass_to then
@@ -232,7 +211,7 @@ end
 
 ---@param update games.HeartsUpdate
 ---@param me games.UserID
----@param talk games.HeartsTalk
+---@param talk games.Talk
 ---@return games.KvPair[]
 local function table_pairs(update, me, talk)
   local view = update.view
@@ -296,7 +275,7 @@ local function hand_lines(view, ctx)
 end
 
 ---@param last games.HeartsHandScore|nil
----@param talk games.HeartsTalk
+---@param talk games.Talk
 ---@return games.Node[]
 local function last_hand_lines(last, talk)
   if not last then
@@ -329,7 +308,7 @@ M.glyph_width = GLYPH_WIDTH
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local talk = talk_for(update, ctx)
+  local talk = describe.talk(update, { art = ctx.art, ambiwidth = ctx.ambiwidth })
   local cells, marks = trick_cells(update, ctx.me)
   return board({
     grid = {
@@ -432,8 +411,8 @@ M.actions = {
   },
 }
 
----@type table<string, fun(event: table, talk: games.HeartsTalk): string>
-local DESCRIBERS = {
+---@type table<games.EventKind, games.Describer>
+M.describers = {
   hand_started = function(event)
     return ("hand %d, %s"):format(event.hand_no, passing_text(event.pass))
   end,
@@ -463,14 +442,5 @@ local DESCRIBERS = {
     return ("%s left the game; its cards are played for it"):format(talk.name(event.by))
   end,
 }
-
----@param event games.Event
----@param update games.HeartsUpdate
----@param ctx games.DescribeCtx with art, which a module with asset_keys always gets
----@return string|nil
-function M.describe_event(event, update, ctx)
-  local describer = DESCRIBERS[event.kind]
-  return describer and describer(event, talk_for(update, ctx))
-end
 
 return M
