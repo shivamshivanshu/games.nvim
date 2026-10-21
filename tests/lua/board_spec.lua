@@ -39,6 +39,31 @@ end
 
 local T = {}
 
+function T.each_grid_of_a_board_keeps_its_own_rows()
+  ---@param glyph string
+  ---@return games.GridProps
+  local function same_keyed(glyph)
+    return {
+      rows = 2,
+      cols = 3,
+      cell = function()
+        return { glyph }
+      end,
+      row_key = function()
+        return "same"
+      end,
+    }
+  end
+  local props = { grid = same_keyed("o"), beside = { same_keyed("x") } }
+  local function draw(grid_rows)
+    local ctx = { me = "alice", ambiwidth = "single", grid_rows = grid_rows }
+    return compose.render(board(props, ctx --[[@as games.LayoutCtx]])).lines
+  end
+  local afresh, grid_rows = draw(nil), {}
+  assert_eq(afresh, draw(grid_rows))
+  assert_eq(afresh, draw(grid_rows))
+end
+
 function T.board_fills_its_window_by_cell_height()
   local start = with_history({})
   for _, case in ipairs({

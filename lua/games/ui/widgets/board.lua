@@ -28,10 +28,10 @@ local TITLE_HL = Group.LABEL
 ---@param set games.ArtSet|nil
 ---@param cell_height integer
 ---@param ctx games.LayoutCtx
+---@param kept games.GridRows|nil
 ---@return games.Node
-local function grid_at(grid_props, set, cell_height, ctx)
-  local scaled =
-    { cell_height = cell_height, art = set, ambiwidth = ctx.ambiwidth, kept = ctx.grid_rows }
+local function grid_at(grid_props, set, cell_height, ctx, kept)
+  local scaled = { cell_height = cell_height, art = set, ambiwidth = ctx.ambiwidth, kept = kept }
   if cell_height > 1 then
     scaled.cell_width = math.max(grid_props.cell_width or 1, art.CELL_ASPECT * cell_height)
   end
@@ -58,8 +58,12 @@ end
 local function grids_at(props, set, cell_height, ctx)
   local titles = props.titles or {}
   local parts = {}
+  local kept = ctx.grid_rows
   for i, grid_props in ipairs(vim.list_extend({ props.grid }, props.beside or {})) do
-    local node = titled(grid_at(grid_props, set, cell_height, ctx), titles[i])
+    if kept then
+      kept[i] = kept[i] or {}
+    end
+    local node = titled(grid_at(grid_props, set, cell_height, ctx, kept and kept[i]), titles[i])
     parts[i] = i > 1 and compose.pad(GRID_GAP, node) or node
   end
   return #parts == 1 and parts[1] or compose.row(parts)

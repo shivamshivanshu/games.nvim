@@ -115,6 +115,23 @@ function T.grid_redraws_a_kept_row_only_when_its_key_changes()
   assert_eq({ "2 p q", "1 r y", "  a b" }, draw())
 end
 
+function T.flipped_grid_keeps_no_row_across_a_change_of_its_row_count()
+  local kept = {}
+  local function draw(rows, labels, kept_rows)
+    return helpers.extmarks(compose.render(small_grid({
+      rows = rows,
+      flip = true,
+      labels = { cols = "ab", rows = labels },
+      kept = kept_rows,
+      row_key = function()
+        return "same"
+      end,
+    })))
+  end
+  draw(2, "21", kept)
+  assert_eq(draw(3, "321", nil), draw(3, "321", kept))
+end
+
 function T.grid_gap_sets_the_columns_between_one_line_cells()
   local touching = compose.render(small_grid({
     gap = 0,

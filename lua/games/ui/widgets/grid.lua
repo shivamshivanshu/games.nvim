@@ -437,6 +437,8 @@ local function kept_rows(props, geometry, ambiwidth)
     return nil
   end
   local drawn_at = table.concat({
+    props.rows,
+    props.cols,
     geometry.cell.w,
     geometry.cell.h,
     geometry.gap,
