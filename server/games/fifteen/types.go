@@ -1,6 +1,10 @@
 package fifteen
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+)
 
 // TypeFifteen is the game type on the wire.
 const TypeFifteen game.GameType = "fifteen"
@@ -42,24 +46,13 @@ type Action struct {
 	Direction string          `json:"direction,omitempty"`
 }
 
-// Direction is the way a tile moves into the blank: up moves the tile below the blank.
-type Direction string
-
-// The directions.
-const (
-	DirectionUp    Direction = "up"
-	DirectionDown  Direction = "down"
-	DirectionLeft  Direction = "left"
-	DirectionRight Direction = "right"
-)
-
 // Blank is the empty square's value in View.Tiles.
 const Blank = 0
 
 // Movable is a tile next to the blank and the way it would move.
 type Movable struct {
-	Tile      int       `json:"tile"`
-	Direction Direction `json:"direction"`
+	Tile      int            `json:"tile"`
+	Direction grid.Direction `json:"direction"`
 }
 
 // View holds Tiles[row][col], rows from the top, with Blank for the empty square. Moves counts
@@ -73,9 +66,9 @@ type View struct {
 
 // SlidEvent reports a tile slid into the blank and the way it moved.
 type SlidEvent struct {
-	By        game.Seat `json:"by"`
-	Tile      int       `json:"tile"`
-	Direction Direction `json:"direction"`
+	By        game.Seat      `json:"by"`
+	Tile      int            `json:"tile"`
+	Direction grid.Direction `json:"direction"`
 }
 
 // EventSlid is the kind of SlidEvent.

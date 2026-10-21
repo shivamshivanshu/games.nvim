@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 type state struct {
@@ -22,7 +23,7 @@ func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[
 	if action.Kind != ActionMove {
 		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
 	}
-	direction, err := parseDirection(action.Direction)
+	direction, err := grid.ParseDirection(action.Direction)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -52,7 +53,7 @@ func noMovesResult(reached bool) game.Result {
 }
 
 func (s state) View(game.Seat) View {
-	movable := []Direction{}
+	movable := []grid.Direction{}
 	if !s.finished {
 		movable = s.board.movable()
 	}

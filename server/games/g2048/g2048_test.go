@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 const solver game.UserID = "alice"
@@ -101,14 +102,14 @@ func TestSlidMergesTowardTheMove(t *testing.T) {
 		{2, 0, 0, 0},
 	}
 	cases := []struct {
-		direction Direction
+		direction grid.Direction
 		want      board
 		gained    int
 	}{
-		{DirectionLeft, board{{4, 2, 0, 0}, {0, 0, 0, 0}, {2, 0, 0, 0}, {2, 0, 0, 0}}, 4},
-		{DirectionRight, board{{0, 0, 2, 4}, {0, 0, 0, 0}, {0, 0, 0, 2}, {0, 0, 0, 2}}, 4},
-		{DirectionUp, board{{4, 2, 2, 0}, {2, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}, 4},
-		{DirectionDown, board{{0, 0, 0, 0}, {0, 0, 0, 0}, {2, 0, 0, 0}, {4, 2, 2, 0}}, 4},
+		{grid.Left, board{{4, 2, 0, 0}, {0, 0, 0, 0}, {2, 0, 0, 0}, {2, 0, 0, 0}}, 4},
+		{grid.Right, board{{0, 0, 2, 4}, {0, 0, 0, 0}, {0, 0, 0, 2}, {0, 0, 0, 2}}, 4},
+		{grid.Up, board{{4, 2, 2, 0}, {2, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}, 4},
+		{grid.Down, board{{0, 0, 0, 0}, {0, 0, 0, 0}, {2, 0, 0, 0}, {4, 2, 2, 0}}, 4},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.direction), func(t *testing.T) {
@@ -124,11 +125,11 @@ func TestMovableListsOnlyDirectionsThatChangeTheBoard(t *testing.T) {
 	cases := []struct {
 		name  string
 		board board
-		want  []Direction
+		want  []grid.Direction
 	}{
-		{"one tile in the top-left corner", board{{2}}, []Direction{DirectionDown, DirectionRight}},
-		{"a full row that can merge", board{{2, 2, 4, 8}}, []Direction{DirectionDown, DirectionLeft, DirectionRight}},
-		{"a full board with no equal neighbours", stuck(), []Direction{}},
+		{"one tile in the top-left corner", board{{2}}, []grid.Direction{grid.Down, grid.Right}},
+		{"a full row that can merge", board{{2, 2, 4, 8}}, []grid.Direction{grid.Down, grid.Left, grid.Right}},
+		{"a full board with no equal neighbours", stuck(), []grid.Direction{}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -177,7 +178,7 @@ func TestApplySlidesSpawnsAndScores(t *testing.T) {
 	next, events := apply(t, s, move("left"), seed, 1)
 	slid := board{{4, 8}}
 	moved := events[0].(MovedEvent)
-	if len(events) != 1 || moved.By != SeatSolver || moved.Direction != DirectionLeft || moved.Gained != 12 {
+	if len(events) != 1 || moved.By != SeatSolver || moved.Direction != grid.Left || moved.Gained != 12 {
 		t.Fatalf("events %+v, want one moved left gaining 12", events)
 	}
 	at := moved.Spawned

@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 const solo game.UserID = "alice"
@@ -23,8 +24,10 @@ func fixture(tiles ...int) state {
 // nearlySolved has the blank at row 3, column 2: 8 sliding left solves it.
 func nearlySolved() state { return fixture(1, 2, 3, 4, 5, 6, 7, Blank, 8) }
 
-func slide(tile int) Action           { return Action{Kind: ActionSlide, Tile: strconv.Itoa(tile)} }
-func move(direction Direction) Action { return Action{Kind: ActionMove, Direction: string(direction)} }
+func slide(tile int) Action { return Action{Kind: ActionSlide, Tile: strconv.Itoa(tile)} }
+func move(direction grid.Direction) Action {
+	return Action{Kind: ActionMove, Direction: string(direction)}
+}
 
 func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 	t.Helper()
@@ -135,10 +138,10 @@ func TestSlideAndMoveShiftATileIntoTheBlank(t *testing.T) {
 		wantTiles [][]int
 		wantEvent SlidEvent
 	}{
-		{"slide by number", slide(5), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: SeatSolver, Tile: 5, Direction: DirectionDown}},
-		{"slide with spaces", Action{Kind: ActionSlide, Tile: " 7 "}, [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: SeatSolver, Tile: 7, Direction: DirectionRight}},
-		{"move down", move(DirectionDown), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: SeatSolver, Tile: 5, Direction: DirectionDown}},
-		{"move right", move(DirectionRight), [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: SeatSolver, Tile: 7, Direction: DirectionRight}},
+		{"slide by number", slide(5), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: SeatSolver, Tile: 5, Direction: grid.Down}},
+		{"slide with spaces", Action{Kind: ActionSlide, Tile: " 7 "}, [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: SeatSolver, Tile: 7, Direction: grid.Right}},
+		{"move down", move(grid.Down), [][]int{{1, 2, 3}, {4, Blank, 6}, {7, 5, 8}}, SlidEvent{By: SeatSolver, Tile: 5, Direction: grid.Down}},
+		{"move right", move(grid.Right), [][]int{{1, 2, 3}, {4, 5, 6}, {Blank, 7, 8}}, SlidEvent{By: SeatSolver, Tile: 7, Direction: grid.Right}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -158,12 +161,12 @@ func TestSlideAndMoveShiftATileIntoTheBlank(t *testing.T) {
 }
 
 func TestViewListsTheMovableTilesUntilTheEnd(t *testing.T) {
-	want := []Movable{{Tile: 5, Direction: DirectionDown}, {Tile: 7, Direction: DirectionRight}, {Tile: 8, Direction: DirectionLeft}}
+	want := []Movable{{Tile: 5, Direction: grid.Down}, {Tile: 7, Direction: grid.Right}, {Tile: 8, Direction: grid.Left}}
 	if diff := cmp.Diff(want, nearlySolved().View(SeatSolver).Movable); diff != "" {
 		t.Errorf("movable (-want +got):\n%s", diff)
 	}
 	corner := fixture(Blank, 1, 2, 3, 4, 5, 6, 7, 8)
-	want = []Movable{{Tile: 1, Direction: DirectionLeft}, {Tile: 3, Direction: DirectionUp}}
+	want = []Movable{{Tile: 1, Direction: grid.Left}, {Tile: 3, Direction: grid.Up}}
 	if diff := cmp.Diff(want, corner.View(SeatSolver).Movable); diff != "" {
 		t.Errorf("corner movable (-want +got):\n%s", diff)
 	}
@@ -174,7 +177,7 @@ func TestViewListsTheMovableTilesUntilTheEnd(t *testing.T) {
 }
 
 func TestSolvingWinsAndCountsTheMoves(t *testing.T) {
-	s, _ := mustApply(t, nearlySolved(), slide(5), slide(5), move(DirectionLeft))
+	s, _ := mustApply(t, nearlySolved(), slide(5), slide(5), move(grid.Left))
 	want := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
 	if got, finished := s.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
@@ -198,7 +201,7 @@ func TestIllegalActionsAreRefusedWithAReason(t *testing.T) {
 		{Action{Kind: ActionSlide, Tile: "0"}, `want a tile number, e.g. "7"; got "0"`},
 		{Action{Kind: ActionSlide, Tile: "16"}, `want a tile number, e.g. "7"; got "16"`},
 		{Action{Kind: ActionSlide}, `want a tile number, e.g. "7"; got ""`},
-		{move(DirectionUp), "no tile can move up"},
+		{move(grid.Up), "no tile can move up"},
 		{Action{Kind: ActionMove, Direction: "Up"}, `want up, down, left or right; got "Up"`},
 		{Action{Kind: "jump"}, "unknown action: jump"},
 	}

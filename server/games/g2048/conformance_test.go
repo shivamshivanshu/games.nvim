@@ -8,14 +8,15 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 // playedOut moves the first movable direction at every step from seed's start, as the core
 // would number the steps, until the board is stuck or limit moves are made.
-func playedOut(t *testing.T, seed game.Seed, limit int) ([]Direction, state) {
+func playedOut(t *testing.T, seed game.Seed, limit int) ([]grid.Direction, state) {
 	t.Helper()
 	s := newState(t, seed)
-	var moves []Direction
+	var moves []grid.Direction
 	for !s.finished && len(moves) < limit {
 		d := s.board.movable()[0]
 		s, _ = apply(t, s, move(string(d)), seed, game.Seq(len(moves)+1))
@@ -24,7 +25,7 @@ func playedOut(t *testing.T, seed game.Seed, limit int) ([]Direction, state) {
 	return moves, s
 }
 
-func moveSteps(moves []Direction) []gametest.Step[Action] {
+func moveSteps(moves []grid.Direction) []gametest.Step[Action] {
 	steps := make([]gametest.Step[Action], len(moves))
 	for i, d := range moves {
 		steps[i] = gametest.Step[Action]{Seat: SeatSolver, Action: move(string(d))}
@@ -44,7 +45,7 @@ func TestConformance(t *testing.T) {
 		moves, _ := playedOut(t, seed, unlimited)
 		start := newState(t, seed).board
 		steps := []gametest.Step[Action]{rejected(move("north")), rejected(Action{Kind: "slide", Direction: "up"})}
-		for _, d := range directions() {
+		for _, d := range grid.Directions() {
 			if next, _ := start.slid(d); next == start {
 				steps = append(steps, rejected(move(string(d))))
 			}

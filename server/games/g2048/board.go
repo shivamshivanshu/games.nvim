@@ -17,17 +17,17 @@ const (
 type board [side][side]int
 
 // lineToward lists the cells of row or column i, nearest the edge the tiles slide toward first.
-func lineToward(d Direction, i int) [side]grid.Point {
+func lineToward(d grid.Direction, i int) [side]grid.Point {
 	var line [side]grid.Point
 	for k := range side {
 		switch d {
-		case DirectionUp:
+		case grid.Up:
 			line[k] = grid.Point{Row: k, Col: i}
-		case DirectionDown:
+		case grid.Down:
 			line[k] = grid.Point{Row: side - 1 - k, Col: i}
-		case DirectionLeft:
+		case grid.Left:
 			line[k] = grid.Point{Row: i, Col: k}
-		case DirectionRight:
+		case grid.Right:
 			line[k] = grid.Point{Row: i, Col: side - 1 - k}
 		}
 	}
@@ -35,7 +35,7 @@ func lineToward(d Direction, i int) [side]grid.Point {
 }
 
 // slid moves every tile toward d and returns the board and the sum of the merged tiles.
-func (b board) slid(d Direction) (board, int) {
+func (b board) slid(d grid.Direction) (board, int) {
 	var next board
 	gained := 0
 	for i := range side {
@@ -80,9 +80,9 @@ func merged(line [side]int) ([side]int, int) {
 	return out, gained
 }
 
-// movable lists the directions that would change the board, in the order of directions().
-func (b board) movable() []Direction {
-	return slices.DeleteFunc(directions(), func(d Direction) bool {
+// movable lists the directions that would change the board, in the order of grid.Directions().
+func (b board) movable() []grid.Direction {
+	return slices.DeleteFunc(grid.Directions(), func(d grid.Direction) bool {
 		next, _ := b.slid(d)
 		return next == b
 	})

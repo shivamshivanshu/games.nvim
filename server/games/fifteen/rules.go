@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 // Rules is the solo sliding puzzle: put the tiles in order from a seeded, solvable shuffle.
@@ -42,7 +43,7 @@ func (Rules) Info() game.Info {
 			{
 				Kind:        ActionMove,
 				Description: "Slide the tile that moves this way into the blank: up moves the tile below it.",
-				Input:       &game.ActionInput{Field: directionField, Description: "The way the tile moves.", Values: directionTexts()},
+				Input:       &game.ActionInput{Field: directionField, Description: "The way the tile moves.", Values: grid.DirectionNames()},
 			},
 		},
 	}

@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
-	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 const directionField = "direction"
@@ -33,7 +33,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       directionField,
 				Description: "The way the tiles slide.",
-				Values:      xslices.Map(directions(), func(d Direction) string { return string(d) }),
+				Values:      grid.DirectionNames(),
 			},
 		}},
 	}
@@ -47,17 +47,4 @@ func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *ra
 	first, _ := board{}.spawned(rng)
 	second, _ := first.spawned(rng)
 	return state{board: second}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
-}
-
-func directions() []Direction {
-	return []Direction{DirectionUp, DirectionDown, DirectionLeft, DirectionRight}
-}
-
-func parseDirection(text string) (Direction, error) {
-	for _, d := range directions() {
-		if text == string(d) {
-			return d, nil
-		}
-	}
-	return "", game.IllegalActionError{Msg: fmt.Sprintf("want up, down, left or right; got %q", text)}
 }

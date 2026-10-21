@@ -1,6 +1,10 @@
 package g2048
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+)
 
 // TypeG2048 is the game type on the wire.
 const TypeG2048 game.GameType = "g2048"
@@ -26,17 +30,6 @@ type Action struct {
 	Direction string          `json:"direction"`
 }
 
-// Direction is the way every tile slides.
-type Direction string
-
-// The directions.
-const (
-	DirectionUp    Direction = "up"
-	DirectionDown  Direction = "down"
-	DirectionLeft  Direction = "left"
-	DirectionRight Direction = "right"
-)
-
 // Empty is an empty cell's value in View.Cells.
 const Empty = 0
 
@@ -44,10 +37,10 @@ const Empty = 0
 // of every merge's value so far. Reached is true once a Goal tile has been made. Movable lists
 // the directions that would change the board, empty once the game is over.
 type View struct {
-	Cells   [][]int     `json:"cells"`
-	Score   int         `json:"score"`
-	Reached bool        `json:"reached"`
-	Movable []Direction `json:"movable"`
+	Cells   [][]int          `json:"cells"`
+	Score   int              `json:"score"`
+	Reached bool             `json:"reached"`
+	Movable []grid.Direction `json:"movable"`
 }
 
 // Tile is a 1-based cell, row 1 at the top, and the value it holds.
@@ -59,10 +52,10 @@ type Tile struct {
 
 // MovedEvent reports a move: the score it gained and the tile that appeared after it.
 type MovedEvent struct {
-	By        game.Seat `json:"by"`
-	Direction Direction `json:"direction"`
-	Gained    int       `json:"gained"`
-	Spawned   Tile      `json:"spawned"`
+	By        game.Seat      `json:"by"`
+	Direction grid.Direction `json:"direction"`
+	Gained    int            `json:"gained"`
+	Spawned   Tile           `json:"spawned"`
 }
 
 // EventMoved is the kind of MovedEvent.

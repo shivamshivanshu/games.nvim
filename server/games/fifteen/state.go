@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 type state struct {
@@ -46,7 +47,7 @@ func (s state) chosen(action Action) (Movable, error) {
 		}
 		return movable[i], nil
 	case ActionMove:
-		direction, err := parseDirection(action.Direction)
+		direction, err := grid.ParseDirection(action.Direction)
 		if err != nil {
 			return Movable{}, err
 		}

@@ -98,16 +98,16 @@ func (b board) movable() []Movable {
 	return out
 }
 
-func towards(from, to grid.Point) Direction {
+func towards(from, to grid.Point) grid.Direction {
 	switch {
 	case to.Row < from.Row:
-		return DirectionUp
+		return grid.Up
 	case to.Row > from.Row:
-		return DirectionDown
+		return grid.Down
 	case to.Col < from.Col:
-		return DirectionLeft
+		return grid.Left
 	}
-	return DirectionRight
+	return grid.Right
 }
 
 // slid moves tile into the blank.
