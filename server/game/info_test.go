@@ -11,18 +11,22 @@ type otherEvent struct{}
 
 func (otherEvent) EventKind() game.EventKind { return "other" }
 
+// validInfo is the smallest Info that passes Check, after edit.
+func validInfo(edit func(*game.Info)) game.Info {
+	info := game.Info{Type: "stub", Actions: []game.ActionSpec{{Kind: "pass"}}, Events: []game.Event{gametest.CountedEvent{}}}
+	edit(&info)
+	return info
+}
+
 func TestInfoCheck(t *testing.T) {
-	valid := func(edit func(*game.Info)) game.Info {
-		info := game.Info{Type: "stub", Actions: []game.ActionSpec{{Kind: "pass"}}}
-		edit(&info)
-		return info
-	}
+	valid := validInfo
 	clocked := []game.Capability{game.CapResign, game.CapClock}
 	for name, tc := range map[string]struct {
 		info    game.Info
 		wantErr bool
 	}{
-		"actions alone":                  {valid(func(*game.Info) {}), false},
+		"an action and an event":         {valid(func(*game.Info) {}), false},
+		"no events":                      {valid(func(i *game.Info) { i.Events = nil }), true},
 		"distinct events":                {valid(func(i *game.Info) { i.Events = []game.Event{gametest.CountedEvent{}, otherEvent{}} }), false},
 		"a duplicate event kind":         {valid(func(i *game.Info) { i.Events = []game.Event{gametest.CountedEvent{}, gametest.CountedEvent{}} }), true},
 		"a clock with a time control":    {valid(func(i *game.Info) { i.Capabilities, i.Options = clocked, []game.OptionSpec{game.TimeControlOption()} }), false},

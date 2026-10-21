@@ -272,7 +272,7 @@ func TestSinkingTheLastShipWins(t *testing.T) {
 func TestConcludeClearsOffersAndRevealsTheFleets(t *testing.T) {
 	imposed := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
 	setup := playFrom(t, newGame(t), 1, moves(p1, across("a1"))...)
-	concluded := setup.(game.Concluder[Action, View]).Conclude(imposed)
+	concluded := setup.Conclude(imposed)
 	for _, seat := range []game.Seat{p1, p2} {
 		v := concluded.View(seat)
 		if v.Next != nil || len(v.Anchors.Across)+len(v.Anchors.Down)+len(v.Targets) != 0 || v.Phase != PhaseOver {
@@ -282,7 +282,7 @@ func TestConcludeClearsOffersAndRevealsTheFleets(t *testing.T) {
 	if got := concluded.View(p2).Target[0][4]; got != TileShip {
 		t.Errorf("p2 sees p1's carrier end as %s once over", got)
 	}
-	battle := placed(t).(game.Concluder[Action, View]).Conclude(imposed)
+	battle := placed(t).Conclude(imposed)
 	if v := battle.View(p1); len(v.Targets) != 0 {
 		t.Errorf("targets %d after an imposed end", len(v.Targets))
 	}
@@ -291,7 +291,7 @@ func TestConcludeClearsOffersAndRevealsTheFleets(t *testing.T) {
 	if got, finished := resigned.Outcome(); !finished || !cmp.Equal(want, got) || len(events) != 0 {
 		t.Errorf("resign: %+v %t %v", got, finished, events)
 	}
-	if got, _ := resigned.(game.Concluder[Action, View]).Conclude(imposed).Outcome(); !cmp.Equal(want, got) {
+	if got, _ := resigned.Conclude(imposed).Outcome(); !cmp.Equal(want, got) {
 		t.Errorf("a reached result was replaced by %+v", got)
 	}
 }

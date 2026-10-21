@@ -349,7 +349,7 @@ func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 
 func TestLegalCellsClearOnAnImposedResult(t *testing.T) {
 	imposed := game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
-	concluded := newGame(t).(game.Concluder[discs.Action, View]).Conclude(imposed)
+	concluded := newGame(t).Conclude(imposed)
 	if got := concluded.View(discs.SeatBlack).LegalCells; len(got) != 0 {
 		t.Errorf("legal cells %v after an imposed result", got)
 	}
@@ -357,7 +357,7 @@ func TestLegalCellsClearOnAnImposedResult(t *testing.T) {
 		t.Errorf("result %+v", got)
 	}
 	won := play(t, wipeout()...)
-	if got, _ := won.(game.Concluder[discs.Action, View]).Conclude(imposed).Outcome(); got.Reason != ReasonMoreDiscs {
+	if got, _ := won.Conclude(imposed).Outcome(); got.Reason != ReasonMoreDiscs {
 		t.Errorf("a reached result was replaced by %+v", got)
 	}
 }

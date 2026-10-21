@@ -77,9 +77,9 @@ func TestResolveOptionsChecksTextOptions(t *testing.T) {
 	}
 }
 
-func TestCheckOptionsRejectsInvalidSpecs(t *testing.T) {
+func TestInfoCheckRejectsInvalidOptions(t *testing.T) {
 	enum := game.OptionSpec{Name: "e", Values: game.OptionValues("x", "y"), Default: "x"}
-	if err := (game.Info{Options: []game.OptionSpec{enum, game.TextOption("t", 4)}}).CheckOptions(); err != nil {
+	if err := validInfo(func(i *game.Info) { i.Options = []game.OptionSpec{enum, game.TextOption("t", 4)} }).Check(); err != nil {
 		t.Fatalf("valid specs: %v", err)
 	}
 	longDefault := game.TextOption("t", 4)
@@ -92,7 +92,7 @@ func TestCheckOptionsRejectsInvalidSpecs(t *testing.T) {
 		"text with values":         withValues,
 		"unknown kind":             {Name: "k", Kind: game.OptionKind(9)},
 	} {
-		if err := (game.Info{Options: []game.OptionSpec{spec}}).CheckOptions(); err == nil {
+		if err := validInfo(func(i *game.Info) { i.Options = []game.OptionSpec{spec} }).Check(); err == nil {
 			t.Errorf("%s: want error", name)
 		}
 	}
@@ -176,6 +176,10 @@ func (unguardedState) ToAct() []game.Seat      { return []game.Seat{"a"} }
 func (s unguardedState) Eliminate(game.Seat, game.ResultReason) (game.State[gametest.CounterAction, struct{}], []game.Event) {
 	return s, nil
 }
+func (s unguardedState) Conclude(r game.Result) game.State[gametest.CounterAction, struct{}] {
+	s.Ending = s.Concluded(r)
+	return s
+}
 
 func TestAdaptDecodesAnActionBeforeCheckingTheTurn(t *testing.T) {
 	st, _, err := game.Adapt(unguardedRules{}).New(game.Options{}, "u", nil, game.StepRNG(1, 1))
@@ -239,48 +243,10 @@ func TestForfeitToRemaining(t *testing.T) {
 	}
 }
 
-type uncataloguedCounterRules struct{ gametest.CounterRules }
-
-func (uncataloguedCounterRules) Info() game.Info {
-	info := gametest.CounterRules{}.Info()
-	info.Events = nil
-	return info
-}
-
-type cataloguedCounterRules struct{ uncataloguedCounterRules }
-
-func (cataloguedCounterRules) EventTypes() []game.Event { return []game.Event{gametest.CountedEvent{}} }
-func (cataloguedCounterRules) Reasons() []game.ResultReason {
-	return []game.ResultReason{gametest.ReasonTargetReached}
-}
-
-type declaredCounterRules struct{ cataloguedCounterRules }
-
-func (declaredCounterRules) Info() game.Info {
-	info := gametest.CounterRules{}.Info()
-	info.Events = []game.Event{gametest.CountedEvent{}, gametest.CountedEvent{}}
-	info.Reasons = []game.ResultReason{"declared"}
-	return info
-}
-
-func TestAdaptFillsTheInfoFromTheRulesCatalogs(t *testing.T) {
+func TestAdaptGivesTheRulesWireTypes(t *testing.T) {
 	action, view := game.Adapt(gametest.CounterRules{}).WireTypes()
 	if action != reflect.TypeFor[gametest.CounterAction]() || view != reflect.TypeFor[gametest.CounterView]() {
 		t.Errorf("wire types %v, %v", action, view)
-	}
-	for name, tc := range map[string]struct {
-		rules       game.Game
-		wantEvents  int
-		wantReasons []game.ResultReason
-	}{
-		"no catalogs":                  {game.Adapt(uncataloguedCounterRules{}), 0, nil},
-		"catalogs":                     {game.Adapt(cataloguedCounterRules{}), 1, []game.ResultReason{gametest.ReasonTargetReached}},
-		"the Info's own over catalogs": {game.Adapt(declaredCounterRules{}), 2, []game.ResultReason{"declared"}},
-	} {
-		info := tc.rules.Info()
-		if len(info.Events) != tc.wantEvents || !slices.Equal(info.Reasons, tc.wantReasons) {
-			t.Errorf("%s: events %v, reasons %v", name, info.Events, info.Reasons)
-		}
 	}
 }
 

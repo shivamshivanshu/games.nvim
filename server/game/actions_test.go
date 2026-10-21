@@ -7,7 +7,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
-func TestCheckActions(t *testing.T) {
+func TestInfoCheckRejectsInvalidActions(t *testing.T) {
 	tests := []struct {
 		name    string
 		actions []game.ActionSpec
@@ -24,7 +24,7 @@ func TestCheckActions(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := game.Info{Type: "stub", Actions: tc.actions}.CheckActions()
+			err := validInfo(func(i *game.Info) { i.Actions = tc.actions }).Check()
 			if (err != nil) != tc.wantErr {
 				t.Errorf("got %v, want error %t", err, tc.wantErr)
 			}

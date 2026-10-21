@@ -40,9 +40,8 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[c
 	return s.with(played), events
 }
 
-// Conclude implements game.Concluder with chess's, which every chess state is.
 func (s state) Conclude(result game.Result) game.State[chess.Action, View] {
-	return s.with(s.chess.(game.Concluder[chess.Action, chess.View]).Conclude(result))
+	return s.with(s.chess.Conclude(result))
 }
 
 // Exports implements game.Exporter with chess's PGN, which tags the variant.

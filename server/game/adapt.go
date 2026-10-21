@@ -20,18 +20,7 @@ func Adapt[Opts, Action, View any](rules Rules[Opts, Action, View]) Game {
 	return adapted[Opts, Action, View]{rules: rules}
 }
 
-// Info fills the Events and Reasons the rules' Info leaves out from their
-// EventCatalog and ReasonCatalog.
-func (g adapted[Opts, Action, View]) Info() Info {
-	info := g.rules.Info()
-	if catalog, ok := any(g.rules).(EventCatalog); ok && len(info.Events) == 0 {
-		info.Events = catalog.EventTypes()
-	}
-	if catalog, ok := any(g.rules).(ReasonCatalog); ok && len(info.Reasons) == 0 {
-		info.Reasons = catalog.Reasons()
-	}
-	return info
-}
+func (g adapted[Opts, Action, View]) Info() Info { return g.rules.Info() }
 
 func (g adapted[Opts, Action, View]) WireTypes() (action, view reflect.Type) {
 	return reflect.TypeFor[Action](), reflect.TypeFor[View]()
@@ -203,11 +192,7 @@ func (e erased[Action, View]) Exports(ctx ExportContext) map[string][]byte {
 }
 
 func (e erased[Action, View]) Conclude(result Result) ErasedState {
-	concluder, ok := e.state.(Concluder[Action, View])
-	if !ok {
-		return erased[Action, View]{state: e.state}
-	}
-	return erased[Action, View]{state: concluder.Conclude(result)}
+	return erased[Action, View]{state: e.state.Conclude(result)}
 }
 
 func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedState, []json.RawMessage, error) {

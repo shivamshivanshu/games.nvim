@@ -142,10 +142,6 @@ func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 
 func TestLegalCellsAreTheMoversOwn(t *testing.T) {
 	imposed := game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed}
-	concluded, ok := play(t, 5).(game.Concluder[Action, View])
-	if !ok {
-		t.Fatal("state is not a game.Concluder")
-	}
 	tests := []struct {
 		name         string
 		state        game.State[Action, View]
@@ -154,7 +150,7 @@ func TestLegalCellsAreTheMoversOwn(t *testing.T) {
 		{"start", play(t), []Cell{1, 2, 3, 4, 5, 6, 7, 8, 9}, []Cell{}},
 		{"after X plays 5", play(t, 5), []Cell{}, []Cell{1, 2, 3, 4, 6, 7, 8, 9}},
 		{"after a win", play(t, 1, 4, 2, 5, 3), []Cell{}, []Cell{}},
-		{"after an imposed result", concluded.Conclude(imposed), []Cell{}, []Cell{}},
+		{"after an imposed result", play(t, 5).Conclude(imposed), []Cell{}, []Cell{}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -180,7 +176,7 @@ func TestConcludeKeepsAReachedResult(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			st := play(t, tc.played...).(game.Concluder[Action, View]).Conclude(imposed)
+			st := play(t, tc.played...).Conclude(imposed)
 			got, finished := st.Outcome()
 			if !finished || len(st.ToAct()) != 0 {
 				t.Fatalf("finished %t, to act %v", finished, st.ToAct())

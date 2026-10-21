@@ -26,9 +26,9 @@ type ActionInput struct {
 	Values      []string
 }
 
-// CheckActions reports an empty catalogue, a duplicate kind, or an input that
+// checkActions reports an empty catalogue, a duplicate kind, or an input that
 // has both or neither of Pattern and Values, or whose Pattern does not compile.
-func (i Info) CheckActions() error {
+func (i Info) checkActions() error {
 	if len(i.Actions) == 0 {
 		return fmt.Errorf("game %s: declares no actions", i.Type)
 	}

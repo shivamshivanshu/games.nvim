@@ -7,13 +7,16 @@ import (
 )
 
 // Check reports a catalogue the core cannot serve: its options, actions or
-// events are malformed, or it offers a clock without a time control option or
-// the other way round.
+// events are malformed or missing, or it offers a clock without a time control
+// option or the other way round.
 func (i Info) Check() error {
-	return errors.Join(i.CheckOptions(), i.CheckActions(), i.checkEvents(), i.checkClock())
+	return errors.Join(i.checkOptions(), i.checkActions(), i.checkEvents(), i.checkClock())
 }
 
 func (i Info) checkEvents() error {
+	if len(i.Events) == 0 {
+		return fmt.Errorf("game %s: declares no events", i.Type)
+	}
 	seen := make(map[EventKind]bool, len(i.Events))
 	for _, e := range i.Events {
 		if seen[e.EventKind()] {

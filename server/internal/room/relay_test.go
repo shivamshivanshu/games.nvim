@@ -38,6 +38,13 @@ type relayAction struct {
 	Move relayMove       `json:"move"`
 }
 
+// relayPassed reports By passing the turn on.
+type relayPassed struct {
+	By game.Seat `json:"by"`
+}
+
+func (relayPassed) EventKind() game.EventKind { return "passed" }
+
 type relayView struct {
 	Turn   game.Seat `json:"turn"`
 	Viewer game.Seat `json:"viewer"`
@@ -57,6 +64,7 @@ func (relayRules) Info() game.Info {
 		Capabilities: []game.Capability{game.CapResign, game.CapDraw, game.CapClock, game.CapAbort},
 		Options:      []game.OptionSpec{game.TimeControlOption()},
 		Actions:      []game.ActionSpec{{Kind: relayMoveKind, Description: "Keep the turn, pass it, or bow out."}},
+		Events:       []game.Event{relayPassed{}},
 	}
 }
 
@@ -71,12 +79,7 @@ func (relayRules) New(_ struct{}, challenger game.UserID, invitees []game.UserID
 }
 
 func (s relayState) Apply(seat game.Seat, a relayAction, _ *rand.Rand) (game.State[relayAction, relayView], []game.Event, error) {
-	switch {
-	case s.Over():
-		return nil, nil, game.IllegalActionError{Msg: "game is over"}
-	case seat != s.order[s.turn]:
-		return nil, nil, game.ErrNotYourTurn
-	case a.Move != relayKeep && a.Move != relayPass && a.Move != relayOut:
+	if a.Move != relayKeep && a.Move != relayPass && a.Move != relayOut {
 		return nil, nil, game.IllegalActionError{Msg: "unknown move " + string(a.Move)}
 	}
 	if a.Move == relayOut {
@@ -86,6 +89,7 @@ func (s relayState) Apply(seat game.Seat, a relayAction, _ *rand.Rand) (game.Sta
 	}
 	if a.Move == relayPass {
 		s.turn = (s.turn + 1) % len(s.order)
+		return s, []game.Event{relayPassed{By: seat}}, nil
 	}
 	return s, nil, nil
 }
@@ -111,6 +115,11 @@ func (s relayState) Eliminate(seat game.Seat, reason game.ResultReason) (game.St
 		return s, nil
 	}
 	return s.without(seat, reason), nil
+}
+
+func (s relayState) Conclude(r game.Result) game.State[relayAction, relayView] {
+	s.Ending = s.Concluded(r)
+	return s
 }
 
 func (s relayState) without(seat game.Seat, reason game.ResultReason) relayState {

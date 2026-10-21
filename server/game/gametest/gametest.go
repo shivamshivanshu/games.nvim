@@ -76,7 +76,7 @@ func Run[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, Vi
 
 func conform[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) {
 	t.Helper()
-	info := game.Adapt(rules).Info()
+	info := rules.Info()
 	if err := info.Check(); err != nil {
 		t.Fatalf("Info: %v", err)
 	}
@@ -232,17 +232,13 @@ func checkPause[Action, View any](t testing.TB, state game.State[Action, View], 
 	}
 }
 
-// checkConclude imposes an ending on a game.Concluder, as the core does on
-// an agreed draw or an abort: the game must end on that result.
+// checkConclude imposes an ending, as the core does on an agreed draw or an
+// abort: the game must end on that result.
 func checkConclude[Action, View any](t testing.TB, state game.State[Action, View], seats []game.Seat, where string) {
 	t.Helper()
-	concluder, ok := state.(game.Concluder[Action, View])
-	if !ok {
-		return
-	}
 	imposed := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
 	before := observe(t, state, seats)
-	concluded := observe(t, concluder.Conclude(imposed), seats)
+	concluded := observe(t, state.Conclude(imposed), seats)
 	if diff := cmp.Diff(before, observe(t, state, seats)); diff != "" {
 		t.Fatalf("%s: Conclude mutated its receiver (-before +after):\n%s", where, diff)
 	}

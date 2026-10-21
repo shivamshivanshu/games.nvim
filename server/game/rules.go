@@ -19,6 +19,10 @@ type State[Action, View any] interface {
 	ToAct() []Seat
 	Outcome() (Result, bool)
 	Eliminate(seat Seat, reason ResultReason) (State[Action, View], []Event)
+	// Conclude takes a result the core imposed, such as an agreed draw or an
+	// abort, so that the state stops offering moves: ToAct is empty and the
+	// views show none.
+	Conclude(result Result) State[Action, View]
 }
 
 // Scorer is optionally implemented by a finished state to report each seat's
@@ -39,13 +43,6 @@ type ExportContext struct {
 // record the game, such as a PGN, by file name. The files are text.
 type Exporter interface {
 	Exports(ctx ExportContext) map[string][]byte
-}
-
-// Concluder is optionally implemented by a state to take a result the core
-// imposed, such as an agreed draw or an abort, so that it stops offering
-// moves: ToAct is empty and the views show none.
-type Concluder[Action, View any] interface {
-	Conclude(result Result) State[Action, View]
 }
 
 // Opener is optionally implemented by a state fresh from New to give the
@@ -76,18 +73,6 @@ type Knockout interface {
 	KnockedOut() []Seat
 }
 
-// EventCatalog is optionally implemented by Rules to list one value of each
-// event type its states emit, for an Info that lists no Events.
-type EventCatalog interface {
-	EventTypes() []Event
-}
-
-// ReasonCatalog is optionally implemented by Rules to list the result reasons
-// it adds to the core's, for an Info that lists no Reasons.
-type ReasonCatalog interface {
-	Reasons() []ResultReason
-}
-
 // Game is the type-erased side the server core uses.
 type Game interface {
 	Info() Info
@@ -106,7 +91,6 @@ type ErasedState interface {
 	Scores() (map[Seat]int64, bool)
 	// Exports is empty for a state that is not an Exporter.
 	Exports(ctx ExportContext) map[string][]byte
-	// Conclude is the state itself for a state that is not a Concluder.
 	Conclude(result Result) ErasedState
 	// OpeningEvents are the encoded events of an Opener fresh from New, and
 	// empty otherwise.

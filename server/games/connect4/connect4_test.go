@@ -207,7 +207,7 @@ func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 }
 
 func TestLegalColumns(t *testing.T) {
-	concluded := playColumns(t, "4").(game.Concluder[Action, View]).Conclude(game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
+	concluded := playColumns(t, "4").Conclude(game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
 	cases := []struct {
 		name   string
 		state  game.State[Action, View]
@@ -235,7 +235,7 @@ func TestLegalColumns(t *testing.T) {
 func TestConcludeKeepsAWinAlreadyReached(t *testing.T) {
 	won := playColumns(t, "1122334")
 	want, _ := won.Outcome()
-	after := won.(game.Concluder[Action, View]).Conclude(game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
+	after := won.Conclude(game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
 	got, finished := after.Outcome()
 	if diff := cmp.Diff(want, got); !finished || diff != "" {
 		t.Errorf("finished=%t, result (-want +got):\n%s", finished, diff)

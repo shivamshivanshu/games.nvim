@@ -13,9 +13,9 @@ func TextOption(name OptionName, maxLen int) OptionSpec {
 	return OptionSpec{Name: name, Kind: OptionKindText, Values: []OptionValue{}, MaxLen: maxLen}
 }
 
-// CheckOptions reports a spec whose kind is unknown, whose default its own
+// checkOptions reports a spec whose kind is unknown, whose default its own
 // check rejects, or that gives a text option Values.
-func (i Info) CheckOptions() error {
+func (i Info) checkOptions() error {
 	for _, spec := range i.Options {
 		if spec.Kind == OptionKindText && len(spec.Values) > 0 {
 			return fmt.Errorf("game %s: text option %q has values", i.Type, spec.Name)

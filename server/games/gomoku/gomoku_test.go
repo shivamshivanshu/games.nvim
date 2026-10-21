@@ -237,7 +237,7 @@ func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 }
 
 func TestLegalCellsAreTheMoversOwn(t *testing.T) {
-	concluded := play(t, "h8").(game.Concluder[discs.Action, View]).Conclude(game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
+	concluded := play(t, "h8").Conclude(game.Result{Kind: game.ResultDraw, Reason: game.ReasonDrawAgreed})
 	tests := []struct {
 		name         string
 		state        game.State[discs.Action, View]
@@ -273,7 +273,7 @@ func TestConcludeKeepsAReachedResult(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, finished := play(t, tc.played...).(game.Concluder[discs.Action, View]).Conclude(imposed).Outcome()
+			got, finished := play(t, tc.played...).Conclude(imposed).Outcome()
 			if diff := cmp.Diff(tc.want, got); !finished || diff != "" {
 				t.Errorf("finished %t, result (-want +got):\n%s", finished, diff)
 			}

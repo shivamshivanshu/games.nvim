@@ -21,8 +21,8 @@ func gameFile(t game.GameType) string { return path.Join("games", string(t)+".js
 // by x-action, x-view and x-events; the core's enums stay in the protocol schema.
 func gameSchema(g game.Game, comments map[string]string) (*jsonschema.Schema, error) {
 	info := g.Info()
-	if len(info.Events) == 0 {
-		return nil, errors.New("it declares no events")
+	if err := info.Check(); err != nil {
+		return nil, err
 	}
 	actionKinds := closed(xslices.Map(info.Actions, func(a game.ActionSpec) game.ActionKind { return a.Kind })...)
 	local, core := enumRefs([]enum{actionKinds}, ""), enumRefs(coreEnums(), "../"+protocolFile)
