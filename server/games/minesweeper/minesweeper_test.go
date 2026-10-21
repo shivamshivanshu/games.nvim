@@ -135,9 +135,6 @@ func TestDifficultiesSetTheBoardAndMines(t *testing.T) {
 	if _, _, err := (Rules{}).New(Opts{Difficulty: "huge"}, solo, nil, game.StepRNG(1, 0)); !errors.As(err, new(game.BadRequestError)) {
 		t.Errorf("unknown difficulty: got %v, want a bad request", err)
 	}
-	if _, _, err := (Rules{}).New(Opts{Difficulty: DifficultyEasy}, solo, []game.UserID{"bob"}, game.StepRNG(1, 0)); !errors.As(err, new(game.BadRequestError)) {
-		t.Errorf("an opponent: got %v, want a bad request", err)
-	}
 }
 
 func TestFirstRevealAlwaysOpensAZeroWithTheMinesPlacedAfterIt(t *testing.T) {
@@ -365,13 +362,6 @@ func TestIllegalActionsAreRefusedWithAReason(t *testing.T) {
 		if !errors.As(err, new(game.IllegalActionError)) || err.Error() != tt.want {
 			t.Errorf("%+v after %+v: got %v, want illegal action %q", tt.action, tt.before, err, tt.want)
 		}
-	}
-	if _, _, err := oneMine().Apply("bob", reveal("a1"), nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("another seat: got %v, want not your turn", err)
-	}
-	lost, _ := mustApply(t, oneMine(), reveal("c4"))
-	if _, _, err := lost.Apply(SeatSolver, reveal("a1"), nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("after the end: got %v, want not your turn", err)
 	}
 }
 

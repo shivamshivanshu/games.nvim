@@ -42,10 +42,7 @@ func (Rules) Info() game.Info {
 }
 
 // New seats the challenger alone and draws the secret from rng; colours may repeat.
-func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("mastermind is solo, got %d opponents", len(invitees))}
-	}
+func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	secret := make([]byte, CodeLength)
 	for i := range secret {
 		secret[i] = Palette[rng.IntN(len(Palette))]

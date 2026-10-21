@@ -75,9 +75,6 @@ func (s state) newRound() state {
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if s.finished || seat != SeatPlayer {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	switch action.Kind {
 	case ActionTurn:
 		d, err := grid.ParseDirection(action.Direction)

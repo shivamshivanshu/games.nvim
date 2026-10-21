@@ -76,21 +76,19 @@ func TestRejectedActions(t *testing.T) {
 	st := newState(t, 1)
 	tests := []struct {
 		name   string
-		seat   game.Seat
 		action Action
 		want   error
 	}{
-		{"too short", SeatSolver, guess("rgb"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "rgb"`}},
-		{"too long", SeatSolver, guess("rgbyo"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "rgbyo"`}},
-		{"empty", SeatSolver, guess(""), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got ""`}},
-		{"not a colour", SeatSolver, guess("rgbw"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "rgbw"`}},
-		{"spaces between pegs", SeatSolver, guess("r g b y"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "r g b y"`}},
-		{"unknown kind", SeatSolver, Action{Kind: "peek"}, game.IllegalActionError{Msg: "unknown action: peek"}},
-		{"not a seat", "white", guess("rgby"), game.ErrNotYourTurn},
+		{"too short", guess("rgb"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "rgb"`}},
+		{"too long", guess("rgbyo"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "rgbyo"`}},
+		{"empty", guess(""), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got ""`}},
+		{"not a colour", guess("rgbw"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "rgbw"`}},
+		{"spaces between pegs", guess("r g b y"), game.IllegalActionError{Msg: `a guess is 4 colours from rgbyop, got "r g b y"`}},
+		{"unknown kind", Action{Kind: "peek"}, game.IllegalActionError{Msg: "unknown action: peek"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := st.Apply(tt.seat, tt.action, nil)
+			_, _, err := st.Apply(SeatSolver, tt.action, nil)
 			if !errors.Is(err, tt.want) {
 				t.Errorf("got %v, want %v", err, tt.want)
 			}
@@ -143,9 +141,6 @@ func TestTenWrongGuessesLose(t *testing.T) {
 	}
 	if got := end.View(SeatSolver).Secret; got != st.secret {
 		t.Errorf("secret = %q, want %q", got, st.secret)
-	}
-	if _, _, err := end.Apply(SeatSolver, guess(string(st.secret)), nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("guess after the end: %v, want %v", err, game.ErrNotYourTurn)
 	}
 }
 
@@ -209,13 +204,6 @@ func TestImposedEndingsRevealTheSecretAndKeepAReachedResult(t *testing.T) {
 				t.Errorf("view %+v, to act %v; want the secret %q and nobody to act", view, tt.state.ToAct(), st.secret)
 			}
 		})
-	}
-}
-
-func TestNewRejectsOpponents(t *testing.T) {
-	_, _, err := Rules{}.New(Opts{}, solver, []game.UserID{"bob"}, game.StepRNG(1, 0))
-	if want := (game.BadRequestError{Msg: "mastermind is solo, got 1 opponents"}); err != want {
-		t.Errorf("got %v, want %v", err, want)
 	}
 }
 

@@ -2,7 +2,6 @@
 package g2048
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -40,10 +39,7 @@ func (Rules) Info() game.Info {
 }
 
 // New seats the challenger alone on a board with two tiles spawned from rng.
-func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("2048 is solo, got %d opponents", len(invitees))}
-	}
+func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	first, _ := board{}.spawned(rng)
 	second, _ := first.spawned(rng)
 	return state{board: second}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil

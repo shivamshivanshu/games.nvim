@@ -3,7 +3,6 @@
 package pacman
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -46,9 +45,6 @@ func (Rules) Info() game.Info {
 }
 
 // New seats the challenger alone at level 1, paused until the first turn.
-func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("pacman is solo, got %d opponents", len(invitees))}
-	}
+func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	return newState(), map[game.UserID]game.Seat{challenger: SeatPlayer}, nil
 }

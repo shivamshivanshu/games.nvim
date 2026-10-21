@@ -27,9 +27,6 @@ func newState(lvl level) state {
 }
 
 func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if s.finished || seat != SeatSolver {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	apply, ok := map[game.ActionKind]func(int, *rand.Rand) (state, game.Event, error){
 		ActionReveal: s.reveal,
 		ActionFlag:   s.toggleFlag,

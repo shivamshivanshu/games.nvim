@@ -88,26 +88,24 @@ func TestRejectedActions(t *testing.T) {
 	}
 	tests := []struct {
 		name   string
-		seat   game.Seat
 		action Action
 		want   error
 	}{
-		{"empty", SeatSolver, guess(""), shape("")},
-		{"two letters", SeatSolver, guess("ab"), shape("ab")},
-		{"too long", SeatSolver, guess("cranes"), shape("cranes")},
-		{"digit", SeatSolver, guess("4"), shape("4")},
-		{"non-ascii letter", SeatSolver, guess("é"), shape("é")},
-		{"spaced letters", SeatSolver, guess("a b"), shape("a b")},
-		{"not a word", SeatSolver, guess("ZZZZZ"), game.IllegalActionError{Msg: "not in word list: zzzzz"}},
-		{"a missed letter again", SeatSolver, guess(strings.ToUpper(missed)), game.IllegalActionError{Msg: "already guessed: " + missed}},
-		{"a found letter again", SeatSolver, guess(st.word[:1]), game.IllegalActionError{Msg: "already guessed: " + st.word[:1]}},
-		{"a missed word again", SeatSolver, guess(" " + wrongWord), game.IllegalActionError{Msg: "already guessed: " + wrongWord}},
-		{"unknown kind", SeatSolver, Action{Kind: "peek"}, game.IllegalActionError{Msg: "unknown action: peek"}},
-		{"not a seat", "white", guess("e"), game.ErrNotYourTurn},
+		{"empty", guess(""), shape("")},
+		{"two letters", guess("ab"), shape("ab")},
+		{"too long", guess("cranes"), shape("cranes")},
+		{"digit", guess("4"), shape("4")},
+		{"non-ascii letter", guess("é"), shape("é")},
+		{"spaced letters", guess("a b"), shape("a b")},
+		{"not a word", guess("ZZZZZ"), game.IllegalActionError{Msg: "not in word list: zzzzz"}},
+		{"a missed letter again", guess(strings.ToUpper(missed)), game.IllegalActionError{Msg: "already guessed: " + missed}},
+		{"a found letter again", guess(st.word[:1]), game.IllegalActionError{Msg: "already guessed: " + st.word[:1]}},
+		{"a missed word again", guess(" " + wrongWord), game.IllegalActionError{Msg: "already guessed: " + wrongWord}},
+		{"unknown kind", Action{Kind: "peek"}, game.IllegalActionError{Msg: "unknown action: peek"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := played.Apply(tt.seat, tt.action, nil)
+			_, _, err := played.Apply(SeatSolver, tt.action, nil)
 			if !errors.Is(err, tt.want) {
 				t.Errorf("got %v, want %v", err, tt.want)
 			}
@@ -204,9 +202,6 @@ func TestSixMissesHang(t *testing.T) {
 	if view.Word != st.word || view.Misses != MaxMisses || view.Remaining != 0 || strings.Join(view.Pattern, "") == st.word {
 		t.Errorf("view = %+v; want the word %q, %d misses, none left, and only the found letters in the pattern", view, st.word, MaxMisses)
 	}
-	if _, _, err := end.Apply(SeatSolver, guess(st.word), nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("guess after the end: %v, want %v", err, game.ErrNotYourTurn)
-	}
 }
 
 func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
@@ -266,13 +261,6 @@ func TestImposedEndingsRevealTheWordAndKeepAReachedResult(t *testing.T) {
 				t.Errorf("view %+v, to act %v; want the word %q and nobody to act", view, tt.state.ToAct(), st.word)
 			}
 		})
-	}
-}
-
-func TestNewRejectsOpponents(t *testing.T) {
-	_, _, err := Rules{}.New(Opts{}, solver, []game.UserID{"bob"}, game.StepRNG(1, 0))
-	if want := (game.BadRequestError{Msg: "hangman is solo, got 1 opponents"}); err != want {
-		t.Errorf("got %v, want %v", err, want)
 	}
 }
 

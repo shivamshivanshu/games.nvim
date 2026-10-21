@@ -443,20 +443,16 @@ func TestPauseTurnAndTheirLegality(t *testing.T) {
 	rejected := []struct {
 		name   string
 		state  game.State[Action, View]
-		seat   game.Seat
 		action Action
 		want   string
 	}{
-		{"a pause while paused", paused, SeatPlayer, Action{Kind: ActionPause}, "already paused"},
-		{"an unknown way", next, SeatPlayer, Action{Kind: ActionTurn, Direction: "north"}, `want up, down, left or right; got "north"`},
-		{"an unknown action", next, SeatPlayer, Action{Kind: "jump"}, "unknown action: jump"},
-		{"another seat", next, "ghost", turn(grid.Up), game.ErrNotYourTurn.Error()},
-		{"a finished game", next.(state).Conclude(game.Result{Kind: game.ResultAborted}), SeatPlayer, turn(grid.Up), game.ErrNotYourTurn.Error()},
+		{"a pause while paused", paused, Action{Kind: ActionPause}, "already paused"},
+		{"an unknown way", next, Action{Kind: ActionTurn, Direction: "north"}, `want up, down, left or right; got "north"`},
+		{"an unknown action", next, Action{Kind: "jump"}, "unknown action: jump"},
 	}
 	for _, tt := range rejected {
-		_, _, err := tt.state.Apply(tt.seat, tt.action, nil)
-		var illegal game.IllegalActionError
-		if err == nil || !strings.Contains(err.Error(), tt.want) || !errors.As(err, &illegal) && !errors.Is(err, game.ErrNotYourTurn) {
+		_, _, err := tt.state.Apply(SeatPlayer, tt.action, nil)
+		if !errors.As(err, new(game.IllegalActionError)) || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("%s: error %v, want %q", tt.name, err, tt.want)
 		}
 	}

@@ -112,23 +112,6 @@ func TestIllegalSets(t *testing.T) {
 	}
 }
 
-func TestOnlyTheSolverActsAndOnlyWhileUnfinished(t *testing.T) {
-	gaveUp, _ := wikipedia(t).Eliminate(SeatSolver, game.ReasonResign)
-	tests := []struct {
-		name  string
-		state game.State[Action, View]
-		seat  game.Seat
-	}{
-		{"another seat", wikipedia(t), "bob"},
-		{"after giving up", gaveUp, SeatSolver},
-	}
-	for _, tt := range tests {
-		if _, _, err := tt.state.Apply(tt.seat, set("13 4"), nil); !errors.Is(err, game.ErrNotYourTurn) {
-			t.Errorf("%s: got %v, want %v", tt.name, err, game.ErrNotYourTurn)
-		}
-	}
-}
-
 func lastCellOpen(t *testing.T) state {
 	t.Helper()
 	s := wikipedia(t)
@@ -195,19 +178,9 @@ func TestApplyAndEliminateLeaveTheEarlierStateUnchanged(t *testing.T) {
 	}
 }
 
-func TestNewRejects(t *testing.T) {
-	tests := []struct {
-		name     string
-		opts     Opts
-		invitees []game.UserID
-	}{
-		{"an opponent", Opts{Difficulty: DifficultyEasy}, []game.UserID{"bob"}},
-		{"an unknown difficulty", Opts{Difficulty: "expert"}, nil},
-	}
-	for _, tt := range tests {
-		if _, _, err := (Rules{}).New(tt.opts, solo, tt.invitees, game.StepRNG(1, 0)); !errors.As(err, new(game.BadRequestError)) {
-			t.Errorf("%s: got %v, want a bad request", tt.name, err)
-		}
+func TestNewRejectsAnUnknownDifficulty(t *testing.T) {
+	if _, _, err := (Rules{}).New(Opts{Difficulty: "expert"}, solo, nil, game.StepRNG(1, 0)); !errors.As(err, new(game.BadRequestError)) {
+		t.Errorf("got %v, want a bad request", err)
 	}
 }
 

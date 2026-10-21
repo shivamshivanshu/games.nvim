@@ -50,10 +50,7 @@ func (Rules) Info() game.Info {
 }
 
 // New seats the challenger alone and shuffles the tiles from rng.
-func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("fifteen is solo, got %d opponents", len(invitees))}
-	}
+func (Rules) New(opts Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	side, ok := opts.Size.side()
 	if !ok {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown size %q", opts.Size)}

@@ -14,9 +14,6 @@ type state struct {
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if s.finished || seat != SeatSolver {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	if action.Kind != ActionSet {
 		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
 	}

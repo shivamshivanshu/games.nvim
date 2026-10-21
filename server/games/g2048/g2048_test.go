@@ -61,13 +61,6 @@ func TestNewSpawnsTwoTilesOfTwoOrFour(t *testing.T) {
 	}
 }
 
-func TestNewRefusesOpponents(t *testing.T) {
-	_, _, err := Rules{}.New(Opts{}, solver, []game.UserID{"bob"}, game.StepRNG(1, 0))
-	if !errors.As(err, new(game.BadRequestError)) {
-		t.Errorf("got %v, want a bad request", err)
-	}
-}
-
 func TestMergedPacksAndMergesEachTileOnceNearestTheEdgeFirst(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -199,24 +192,19 @@ func TestApplySlidesSpawnsAndScores(t *testing.T) {
 }
 
 func TestRejectedActions(t *testing.T) {
-	finished := state{board: stuck(), result: noMovesResult(false), finished: true}
 	cases := []struct {
 		name    string
-		state   state
-		seat    game.Seat
 		action  Action
 		wantErr error
 	}{
-		{"a move that changes nothing", state{board: board{{2}}}, SeatSolver, move("up"), game.IllegalActionError{Msg: "no tile can move up"}},
-		{"unknown direction", state{board: board{{2}}}, SeatSolver, move("north"), game.IllegalActionError{Msg: `want up, down, left or right; got "north"`}},
-		{"direction is case sensitive like the catalogue", state{board: board{{2}}}, SeatSolver, move("Down"), game.IllegalActionError{Msg: `want up, down, left or right; got "Down"`}},
-		{"unknown kind", state{board: board{{2}}}, SeatSolver, Action{Kind: "slide", Direction: "down"}, game.IllegalActionError{Msg: "unknown action: slide"}},
-		{"another seat", state{board: board{{2}}}, "other", move("down"), game.ErrNotYourTurn},
-		{"after the game ends", finished, SeatSolver, move("down"), game.ErrNotYourTurn},
+		{"a move that changes nothing", move("up"), game.IllegalActionError{Msg: "no tile can move up"}},
+		{"unknown direction", move("north"), game.IllegalActionError{Msg: `want up, down, left or right; got "north"`}},
+		{"direction is case sensitive like the catalogue", move("Down"), game.IllegalActionError{Msg: `want up, down, left or right; got "Down"`}},
+		{"unknown kind", Action{Kind: "slide", Direction: "down"}, game.IllegalActionError{Msg: "unknown action: slide"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, _, err := tc.state.Apply(tc.seat, tc.action, game.StepRNG(1, 1))
+			_, _, err := state{board: board{{2}}}.Apply(SeatSolver, tc.action, game.StepRNG(1, 1))
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got %v, want %v", err, tc.wantErr)
 			}

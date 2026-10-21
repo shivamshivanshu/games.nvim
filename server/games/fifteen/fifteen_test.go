@@ -211,16 +211,9 @@ func TestIllegalActionsAreRefusedWithAReason(t *testing.T) {
 			t.Errorf("%+v: got %v, want illegal action %q", tt.action, err, tt.want)
 		}
 	}
-	if _, _, err := nearlySolved().Apply("bob", slide(8), nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("another seat: got %v, want not your turn", err)
-	}
-	solved, _ := mustApply(t, nearlySolved(), slide(8))
-	if _, _, err := solved.Apply(SeatSolver, slide(8), nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("after the end: got %v, want not your turn", err)
-	}
 }
 
-func TestNewSeatsOneAndRefusesOpponentsAndUnknownSizes(t *testing.T) {
+func TestNewSeatsOneAndRefusesUnknownSizes(t *testing.T) {
 	for _, size := range sizes() {
 		st, seats, err := Rules{}.New(Opts{Size: size}, solo, nil, game.StepRNG(1, 0))
 		side, _ := size.side()
@@ -230,8 +223,5 @@ func TestNewSeatsOneAndRefusesOpponentsAndUnknownSizes(t *testing.T) {
 	}
 	if _, _, err := (Rules{}).New(Opts{Size: "5x5"}, solo, nil, game.StepRNG(1, 0)); !errors.As(err, new(game.BadRequestError)) {
 		t.Errorf("unknown size: got %v, want a bad request", err)
-	}
-	if _, _, err := (Rules{}).New(Opts{Size: Size4}, solo, []game.UserID{"bob"}, game.StepRNG(1, 0)); !errors.As(err, new(game.BadRequestError)) {
-		t.Errorf("an opponent: got %v, want a bad request", err)
 	}
 }

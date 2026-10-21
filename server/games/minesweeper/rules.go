@@ -50,10 +50,7 @@ func (Rules) Info() game.Info {
 }
 
 // New seats the challenger alone on an empty board; the mines are placed by the first reveal.
-func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("minesweeper is solo, got %d opponents", len(invitees))}
-	}
+func (Rules) New(opts Opts, challenger game.UserID, _ []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	lvl, ok := opts.Difficulty.level()
 	if !ok {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown difficulty %q", opts.Difficulty)}

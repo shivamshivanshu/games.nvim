@@ -51,22 +51,20 @@ func TestRejectedActions(t *testing.T) {
 	st := newState(t, 1)
 	tests := []struct {
 		name   string
-		seat   game.Seat
 		action Action
 		want   error
 	}{
-		{"too short", SeatSolver, guess("abc"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "abc"`}},
-		{"too long", SeatSolver, guess("cranes"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "cranes"`}},
-		{"empty", SeatSolver, guess(""), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got ""`}},
-		{"digit", SeatSolver, guess("cr4ne"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "cr4ne"`}},
-		{"non-ascii letter", SeatSolver, guess("crané"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "crané"`}},
-		{"not a word", SeatSolver, guess("ZZZZZ"), game.IllegalActionError{Msg: "not in word list: zzzzz"}},
-		{"unknown kind", SeatSolver, Action{Kind: "set", Text: "crane"}, game.IllegalActionError{Msg: "unknown action: set"}},
-		{"not a seat", "white", guess("crane"), game.ErrNotYourTurn},
+		{"too short", guess("abc"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "abc"`}},
+		{"too long", guess("cranes"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "cranes"`}},
+		{"empty", guess(""), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got ""`}},
+		{"digit", guess("cr4ne"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "cr4ne"`}},
+		{"non-ascii letter", guess("crané"), game.IllegalActionError{Msg: `a guess is 5 letters a-z, got "crané"`}},
+		{"not a word", guess("ZZZZZ"), game.IllegalActionError{Msg: "not in word list: zzzzz"}},
+		{"unknown kind", Action{Kind: "set", Text: "crane"}, game.IllegalActionError{Msg: "unknown action: set"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := st.Apply(tt.seat, tt.action, nil)
+			_, _, err := st.Apply(SeatSolver, tt.action, nil)
 			if !errors.Is(err, tt.want) {
 				t.Errorf("got %v, want %v", err, tt.want)
 			}
@@ -140,13 +138,6 @@ func guessedWords(v View) []string {
 		out[i] = g.Word
 	}
 	return out
-}
-
-func TestNewRejectsOpponents(t *testing.T) {
-	_, _, err := Rules{}.New(Opts{}, solver, []game.UserID{"bob"}, game.StepRNG(1, 0))
-	if want := (game.BadRequestError{Msg: "wordle is solo, got 1 opponents"}); err != want {
-		t.Errorf("got %v, want %v", err, want)
-	}
 }
 
 func TestAnswerIsDrawnFromSeed(t *testing.T) {
