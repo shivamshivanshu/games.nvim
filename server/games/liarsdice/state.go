@@ -1,7 +1,6 @@
 package liarsdice
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 
@@ -10,14 +9,13 @@ import (
 )
 
 type state struct {
-	order    []game.Seat
-	cups     [][]dice.Face
-	turn     int
-	round    int
-	bid      *Bid
-	reveal   *Reveal
-	result   game.Result
-	finished bool
+	order  []game.Seat
+	cups   [][]dice.Face
+	turn   int
+	round  int
+	bid    *Bid
+	reveal *Reveal
+	game.Ending
 }
 
 // rollCups rolls every cup that still holds dice, in seat order, each sorted.
@@ -47,16 +45,13 @@ func (s state) totalDice() int {
 }
 
 func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	switch action.Kind {
 	case ActionBid:
 		return s.applyBid(action.Bid)
 	case ActionDudo:
 		return s.applyDudo(rng)
 	}
-	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	return nil, nil, game.UnknownAction(action.Kind)
 }
 
 func (s state) applyBid(text string) (game.State[Action, View], []game.Event, error) {
@@ -67,11 +62,11 @@ func (s state) applyBid(text string) (game.State[Action, View], []game.Event, er
 	least, ok := minQuantity(s.bid, bid.Face)
 	switch {
 	case !ok:
-		return nil, nil, game.IllegalActionError{Msg: "the opening bid cannot be on ones"}
+		return nil, nil, game.Illegalf("the opening bid cannot be on ones")
 	case bid.Quantity < least:
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("a bid on %ds needs at least %d dice", bid.Face, least)}
+		return nil, nil, game.Illegalf("a bid on %ds needs at least %d dice", bid.Face, least)
 	case bid.Quantity > s.totalDice():
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("only %d dice are in play", s.totalDice())}
+		return nil, nil, game.Illegalf("only %d dice are in play", s.totalDice())
 	}
 	next := s
 	next.bid = &bid
@@ -84,7 +79,7 @@ func (s state) applyBid(text string) (game.State[Action, View], []game.Event, er
 // every cup rerolled, or the next seat with dice if the loser has none.
 func (s state) applyDudo(rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if s.bid == nil {
-		return nil, nil, game.IllegalActionError{Msg: "there is no bid to challenge: open the bidding"}
+		return nil, nil, game.Illegalf("there is no bid to challenge: open the bidding")
 	}
 	challenger := s.turn
 	n := counted(s.cups, s.bid.Face)
@@ -107,7 +102,7 @@ func (s state) applyDudo(rng *rand.Rand) (game.State[Action, View], []game.Event
 	}
 	next.cups = rollCups(sizes, rng)
 	if winner, alone := next.lastWithDice(); alone {
-		return next.finish(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{winner}, Reason: ReasonLastWithDice}), events, nil
+		return next.finish(game.WinFor(ReasonLastWithDice, winner)), events, nil
 	}
 	next.round++
 	next.turn = loser
@@ -129,12 +124,7 @@ func (s state) seatDice() []SeatDice {
 
 // nextWithDice is the first seat after from, clockwise, that still has dice.
 func (s state) nextWithDice(from int) int {
-	for step := 1; step < len(s.order); step++ {
-		if i := (from + step) % len(s.order); len(s.cups[i]) > 0 {
-			return i
-		}
-	}
-	return from
+	return game.NextSeat(len(s.order), from, func(i int) bool { return len(s.cups[i]) > 0 })
 }
 
 func (s state) lastWithDice() (game.Seat, bool) {
@@ -151,7 +141,7 @@ func (s state) lastWithDice() (game.Seat, bool) {
 }
 
 func (s state) finish(result game.Result) state {
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }
 
@@ -211,13 +201,11 @@ func (s state) revealView() *Reveal {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
 	return []game.Seat{s.order[s.turn]}
 }
-
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 // KnockedOut are the seats left without dice, by a challenge or by leaving.
 func (s state) KnockedOut() []game.Seat {
@@ -231,19 +219,14 @@ func (s state) KnockedOut() []game.Seat {
 }
 
 // Conclude takes a result the core imposed, such as an abort.
-func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	return s.finish(result)
-}
+func (s state) Conclude(result game.Result) game.State[Action, View] { return s.finish(result) }
 
 // Eliminate takes the seat's dice off the table. The last seat with dice
 // wins; otherwise the round's bidding starts over on the same dice, opened by
 // the seat to act, or the next seat with dice if the leaver was to act.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	i := slices.Index(s.order, seat)
-	if s.finished || i < 0 || len(s.cups[i]) == 0 {
+	if s.Over() || i < 0 || len(s.cups[i]) == 0 {
 		return s, nil
 	}
 	next := s
@@ -251,7 +234,7 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 	next.cups[i] = nil
 	next.bid = nil
 	if winner, alone := next.lastWithDice(); alone {
-		return next.finish(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{winner}, Reason: reason}), nil
+		return next.finish(game.WinFor(reason, winner)), nil
 	}
 	if s.turn == i {
 		next.turn = next.nextWithDice(i)

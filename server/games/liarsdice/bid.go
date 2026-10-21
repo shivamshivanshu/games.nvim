@@ -1,7 +1,6 @@
 package liarsdice
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 
@@ -17,7 +16,7 @@ var bidSyntax = regexp.MustCompile(bidPattern)
 func parseBid(by game.Seat, text string) (Bid, error) {
 	m := bidSyntax.FindStringSubmatch(text)
 	if m == nil {
-		return Bid{}, game.IllegalActionError{Msg: fmt.Sprintf("a bid is quantity x face, e.g. 3x5, got %q", text)}
+		return Bid{}, game.Illegalf("a bid is quantity x face, e.g. 3x5, got %q", text)
 	}
 	quantity, _ := strconv.Atoi(m[1])
 	face, _ := strconv.Atoi(m[2])

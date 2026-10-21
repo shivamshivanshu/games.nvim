@@ -1,7 +1,6 @@
 package liarsdice
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -16,9 +15,7 @@ import (
 
 const maxGameSteps = 5000
 
-func users(n int) []game.UserID {
-	return []game.UserID{"alice", "bob", "carol", "dave", "erin", "frank"}[:n]
-}
+var playerRange = Rules{}.Info().Players
 
 func seat(n int) game.Seat { return game.NumberedSeat(n - 1) }
 
@@ -28,7 +25,8 @@ func dudo() Action { return Action{Kind: ActionDudo} }
 
 func newGame(t *testing.T, n int, seed game.Seed) state {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{}, users(n)[0], users(n)[1:], game.StepRNG(seed, 0))
+	users := gametest.Users(n)
+	st, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,11 +41,7 @@ func withCups(s state, cups ...[]dice.Face) state {
 
 func apply(t *testing.T, s state, by game.Seat, action Action, seq game.Seq) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(by, action, game.StepRNG(1, seq))
-	if err != nil {
-		t.Fatalf("%s %+v: %v", by, action, err)
-	}
-	return next.(state), events
+	return gametest.MustApply(t, s, by, action, game.StepRNG(1, seq))
 }
 
 // choose is a deterministic player: it calls dudo on a bid above what its own
@@ -77,38 +71,25 @@ func likely(v View, face dice.Face) int {
 	return mine + others/3
 }
 
-// playToFinish plays choose for every seat with the rng each step gets in the
-// server, and returns the steps and every state from the first to the final one.
+// playToFinish plays choose for every seat of n from seed, and returns the
+// steps and every state from the first to the final one.
 func playToFinish(t *testing.T, n int, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
-	var st game.State[Action, View] = newGame(t, n, seed)
-	states := []state{st.(state)}
-	var steps []gametest.Step[Action]
-	for seq := game.Seq(1); len(st.ToAct()) > 0; seq++ {
-		if seq > maxGameSteps {
-			t.Fatalf("%d players: no finish within %d steps", n, maxGameSteps)
-		}
-		by := st.ToAct()[0]
-		action := choose(st.View(by))
-		var err error
-		if st, _, err = st.Apply(by, action, game.StepRNG(seed, seq)); err != nil {
-			t.Fatalf("seq %d %s %+v: %v", seq, by, action, err)
-		}
-		steps = append(steps, gametest.Step[Action]{Seat: by, Action: action})
-		states = append(states, st.(state))
+	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, gametest.Users(n), seed, func(v View, _ game.Seat) Action { return choose(v) }, maxGameSteps)
+	states := []state{newGame(t, n, seed)}
+	for i, step := range steps {
+		next, _ := gametest.MustApply(t, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
+		states = append(states, next)
 	}
 	return steps, states
 }
 
 func TestNewSeatsTwoToSixPlayersWithFiveDiceEach(t *testing.T) {
-	for n := 1; n <= maxPlayers+1; n++ {
-		all := append(users(min(n, maxPlayers)), "grace")[:n]
-		st, seats, err := Rules{}.New(Opts{}, all[0], all[1:], game.StepRNG(1, 0))
-		if ok := n >= minPlayers && n <= maxPlayers; ok != (err == nil) {
-			t.Fatalf("%d players: err %v", n, err)
-		}
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
+		users := gametest.Users(n)
+		st, seats, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(1, 0))
 		if err != nil {
-			continue
+			t.Fatalf("%d players: %v", n, err)
 		}
 		s := st.(state)
 		if seats["alice"] != seat(1) || !cmp.Equal(s.ToAct(), []game.Seat{seat(1)}) || s.totalDice() != n*StartingDice {
@@ -139,7 +120,6 @@ func TestApplyRejects(t *testing.T) {
 		action Action
 		want   string
 	}{
-		{"out of turn", fresh, seat(2), bid("1x2"), ""},
 		{"unknown kind", fresh, seat(1), Action{Kind: "calza"}, "unknown action: calza"},
 		{"not a bid", fresh, seat(1), bid("3 fives"), `a bid is quantity x face, e.g. 3x5, got "3 fives"`},
 		{"opening on ones", fresh, seat(1), bid("1x1"), "the opening bid cannot be on ones"},
@@ -152,11 +132,7 @@ func TestApplyRejects(t *testing.T) {
 	}
 	for _, tc := range cases {
 		_, _, err := tc.state.Apply(tc.by, tc.action, game.StepRNG(1, 1))
-		var illegal game.IllegalActionError
-		switch {
-		case tc.want == "" && !errors.Is(err, game.ErrNotYourTurn):
-			t.Errorf("%s: err %v, want not your turn", tc.name, err)
-		case tc.want != "" && (!errors.As(err, &illegal) || illegal.Msg != tc.want):
+		if illegal, ok := errors.AsType[game.IllegalActionError](err); !ok || illegal.Msg != tc.want {
 			t.Errorf("%s: err %v, want %q", tc.name, err, tc.want)
 		}
 	}
@@ -266,7 +242,7 @@ func TestOnlyTheSeatToActIsOfferedBids(t *testing.T) {
 // minimum and the dice in play bound the bids Apply takes, dudo is legal
 // exactly when offered, and no other seat is offered anything.
 func TestViewLegalityIsWhatApplyAccepts(t *testing.T) {
-	for n := minPlayers; n <= maxPlayers; n++ {
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
 		_, states := playToFinish(t, n, game.Seed(n))
 		for _, s := range states[:len(states)-1] {
 			by := s.ToAct()[0]
@@ -293,73 +269,40 @@ func TestViewLegalityIsWhatApplyAccepts(t *testing.T) {
 	}
 }
 
-// otherDice is s with seat owner's dice changed, each face moved up by one.
-func otherDice(s state, owner int) state {
+// otherDice is s with the dice of seat owner changed, each face moved up by
+// one, and owner as the one seat that may see it; none if owner has no dice.
+func otherDice(st game.State[Action, View], owner game.Seat) (game.State[Action, View], []game.Seat) {
+	s := st.(state)
+	i := slices.Index(s.order, owner)
+	if len(s.cups[i]) == 0 {
+		return s, nil
+	}
 	s.cups = slices.Clone(s.cups)
-	s.cups[owner] = slices.Clone(s.cups[owner])
-	for i, f := range s.cups[owner] {
-		s.cups[owner][i] = f%dice.Six + 1
+	s.cups[i] = slices.Clone(s.cups[i])
+	for k, f := range s.cups[i] {
+		s.cups[i][k] = f%dice.Six + 1
 	}
-	return s
+	return s, []game.Seat{owner}
 }
 
-func encoded(t *testing.T, v any) string {
-	t.Helper()
-	raw, err := json.Marshal(v)
-	if err != nil {
-		t.Fatal(err)
+// dudoTellsEverySeat reveals every cup.
+func dudoTellsEverySeat(st game.State[Action, View], step gametest.Step[Action], _ []game.Seat) []game.Seat {
+	if step.Action.Kind != ActionDudo {
+		return nil
 	}
-	return string(raw)
-}
-
-func encodedEvents(t *testing.T, events []game.Event) []string {
-	t.Helper()
-	out := make([]string, len(events))
-	for i, e := range events {
-		raw, err := game.EncodeEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		out[i] = string(raw)
-	}
-	return out
+	return st.(state).order
 }
 
 // TestASeatsDiceReachNoOtherSeatUntilRevealed changes one seat's hidden dice
-// and requires every other seat's wire view, and the events of a bid, to stay
-// byte for byte the same: what a seat is sent never depends on another's cup.
+// and requires what every other seat is sent to stay byte for byte the same
+// until a dudo reveals them.
 func TestASeatsDiceReachNoOtherSeatUntilRevealed(t *testing.T) {
-	checked := 0
-	for n := minPlayers; n <= maxPlayers; n++ {
-		steps, states := playToFinish(t, n, game.Seed(100+n))
-		for k, s := range states[:len(states)-1] {
-			for owner := range s.order {
-				if len(s.cups[owner]) == 0 {
-					continue
-				}
-				changed := otherDice(s, owner)
-				for viewer, seat := range s.order {
-					if viewer == owner {
-						continue
-					}
-					if a, b := encoded(t, s.View(seat)), encoded(t, changed.View(seat)); a != b {
-						t.Fatalf("%d players step %d: %s's view depends on %s's dice:\n%s\n%s", n, k, seat, s.order[owner], a, b)
-					}
-					checked++
-				}
-				if steps[k].Action.Kind != ActionBid {
-					continue
-				}
-				_, events, _ := s.Apply(steps[k].Seat, steps[k].Action, nil)
-				_, changedEvents, _ := changed.Apply(steps[k].Seat, steps[k].Action, nil)
-				if diff := cmp.Diff(encodedEvents(t, events), encodedEvents(t, changedEvents)); diff != "" {
-					t.Fatalf("%d players step %d: a bid's events depend on %s's dice:\n%s", n, k, s.order[owner], diff)
-				}
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no view was checked")
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
+		seed := game.Seed(100 + n)
+		steps, _ := playToFinish(t, n, seed)
+		users := gametest.Users(n)
+		script := gametest.Script[Opts, Action]{Challenger: users[0], Invitees: users[1:], Seed: seed, Steps: steps}
+		gametest.NonInterference(t, Rules{}, script, gametest.Hidden[Action, View]{Perturb: otherDice, Reveals: dudoTellsEverySeat})
 	}
 }
 
@@ -394,11 +337,11 @@ func TestEliminate(t *testing.T) {
 		}
 	}
 	once, _ := s.Eliminate(seat(2), game.ReasonResign)
-	if raw := encoded(t, once.View(seat(2)).MyDice); raw != "[]" {
+	if raw := gametest.ViewJSON(t, once.View(seat(2)).MyDice); raw != "[]" {
 		t.Errorf("the leaver's dice encode as %s, want []", raw)
 	}
 	twice, events := once.Eliminate(seat(2), game.ReasonResign)
-	if len(events) != 0 || !cmp.Equal(once, twice, cmp.AllowUnexported(state{})) {
+	if len(events) != 0 || !cmp.Equal(once, twice, cmp.AllowUnexported(state{}, game.Ending{})) {
 		t.Errorf("eliminating a seat with no dice is not a no-op")
 	}
 }
@@ -421,7 +364,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 	s.bid, s.turn = &Bid{By: seat(3), Quantity: 2, Face: 3}, 0
 	before := map[game.Seat]string{}
 	for _, seat := range s.order {
-		before[seat] = encoded(t, s.View(seat))
+		before[seat] = gametest.ViewJSON(t, s.View(seat))
 	}
 	for _, action := range []Action{bid("3x3"), dudo()} {
 		next, _ := apply(t, s, seat(1), action, 1)
@@ -431,7 +374,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 			mutated.LastReveal.Cups[0].Dice[0] = 9
 		}
 		for _, seat := range s.order {
-			if got := encoded(t, s.View(seat)); got != before[seat] {
+			if got := gametest.ViewJSON(t, s.View(seat)); got != before[seat] {
 				t.Errorf("%+v changed %s's earlier view:\n%s\n%s", action, seat, before[seat], got)
 			}
 		}
@@ -440,7 +383,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 
 func TestWireShape(t *testing.T) {
 	s := withCups(newGame(t, 2, 1), []dice.Face{2, 5}, []dice.Face{1, 3, 6})
-	raw := encoded(t, s.View(seat(2)))
+	raw := gametest.ViewJSON(t, s.View(seat(2)))
 	want := `{"round":1,"seats":[{"seat":"p1","dice":2,"out":false},{"seat":"p2","dice":3,"out":false}],` +
 		`"bid":null,"total_dice":5,"my_dice":[1,3,6],"min_bids":[],"can_dudo":false,"last_reveal":null}`
 	if raw != want {
@@ -456,7 +399,8 @@ func TestCataloguePatternIsTheParsersOwn(t *testing.T) {
 
 func TestConformance(t *testing.T) {
 	var scripts []gametest.Script[Opts, Action]
-	for n := minPlayers; n <= maxPlayers; n++ {
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
+		users := gametest.Users(n)
 		for _, seed := range []game.Seed{3, 8} {
 			steps, states := playToFinish(t, n, seed)
 			illegal := []gametest.Step[Action]{
@@ -467,8 +411,8 @@ func TestConformance(t *testing.T) {
 			result, _ := states[len(states)-1].Outcome()
 			scripts = append(scripts, gametest.Script[Opts, Action]{
 				Name:       fmt.Sprintf("%d players seed %d", n, seed),
-				Challenger: users(n)[0],
-				Invitees:   users(n)[1:],
+				Challenger: users[0],
+				Invitees:   users[1:],
 				Seed:       seed,
 				Steps:      append(illegal, steps...),
 				WantResult: &game.Result{Kind: game.ResultDecisive, Winners: result.Winners, Reason: ReasonLastWithDice},
@@ -476,91 +420,4 @@ func TestConformance(t *testing.T) {
 		}
 	}
 	gametest.Run(t, Rules{}, scripts)
-}
-
-type persistedStep struct {
-	seat   game.Seat
-	action json.RawMessage
-}
-
-func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
-	const (
-		seed      game.Seed = 11
-		restoreAt game.Seq  = 25
-		players             = 4
-	)
-	g := game.Adapt(Rules{})
-	opts, err := g.ResolveOptions(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	start := func() game.ErasedState {
-		st, _, err := g.New(opts, users(players)[0], users(players)[1:], game.StepRNG(seed, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return st
-	}
-	apply := func(st game.ErasedState, step persistedStep, seq game.Seq) (game.ErasedState, []json.RawMessage) {
-		next, events, err := st.Apply(step.seat, step.action, game.StepRNG(seed, seq))
-		if err != nil {
-			t.Fatalf("seq %d: %v", seq, err)
-		}
-		return next, events
-	}
-	next := func(st game.ErasedState) persistedStep {
-		by := st.ToAct()[0]
-		raw, err := st.View(by)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var view View
-		if err := json.Unmarshal(raw, &view); err != nil {
-			t.Fatal(err)
-		}
-		action, err := json.Marshal(choose(view))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return persistedStep{seat: by, action: action}
-	}
-
-	live := start()
-	var persisted []persistedStep
-	for seq := game.Seq(1); seq <= restoreAt; seq++ {
-		step := next(live)
-		live, _ = apply(live, step, seq)
-		persisted = append(persisted, step)
-	}
-	if _, finished := live.Outcome(); finished {
-		t.Fatalf("game finished before the restore point %d", restoreAt)
-	}
-	restored := start()
-	for i, step := range persisted {
-		restored, _ = apply(restored, step, game.Seq(i)+1)
-	}
-	for seq := restoreAt + 1; seq <= maxGameSteps; seq++ {
-		for i := range players {
-			liveView, _ := live.View(seat(i + 1))
-			restoredView, _ := restored.View(seat(i + 1))
-			if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
-				t.Fatalf("seq %d: %s's restored view differs (-live +restored):\n%s", seq, seat(i+1), diff)
-			}
-		}
-		if len(live.ToAct()) == 0 {
-			break
-		}
-		step := next(live)
-		var liveEvents, restoredEvents []json.RawMessage
-		live, liveEvents = apply(live, step, seq)
-		restored, restoredEvents = apply(restored, step, seq)
-		if diff := cmp.Diff(liveEvents, restoredEvents); diff != "" {
-			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
-		}
-	}
-	liveResult, _ := live.Outcome()
-	restoredResult, finished := restored.Outcome()
-	if diff := cmp.Diff(liveResult, restoredResult); !finished || diff != "" {
-		t.Errorf("restored finished=%t, result (-live +restored):\n%s", finished, diff)
-	}
 }
