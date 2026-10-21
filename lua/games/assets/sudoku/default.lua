@@ -1,8 +1,4 @@
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 1, lines = { line } }
-end
+local GLYPH_WIDTH = 3
 
 ---3x5 pixel digits, "#" lit.
 ---@type table<string, string[]>
@@ -23,7 +19,7 @@ local HALF_BLOCKS =
   { [" "] = { [" "] = " ", ["#"] = "▄" }, ["#"] = { [" "] = "▀", ["#"] = "█" } }
 
 ---@param pixels string[]
----@return games.ArtEntry the pixels at one column each, two rows to a line
+---@return string[] the pixels at one column each, two rows to a line
 local function half_height(pixels)
   local lines = {}
   for row = 1, #pixels, 2 do
@@ -34,29 +30,100 @@ local function half_height(pixels)
     end
     lines[#lines + 1] = table.concat(line)
   end
-  return { h = #lines, w = #pixels[1], lines = lines }
+  return lines
 end
 
 ---@param pixels string[]
----@return games.ArtEntry the pixels at two full-block columns each, one row to a line
+---@return string[] the pixels at two full-block columns each, one row to a line
 local function full_size(pixels)
-  local lines = vim.tbl_map(function(row)
+  return vim.tbl_map(function(row)
     return (row:gsub(" ", "  "):gsub("#", "██"))
   end, pixels)
-  return { h = #lines, w = 2 * #pixels[1], lines = lines }
+end
+
+---How a marker frames a digit, without colour: the one-line glyph, and the columns either side
+---of the art, by line.
+---@class (private) games.SudokuFrame
+---@field glyph fun(digit: string): string
+---@field sides fun(line: integer, lines: integer): string, string
+
+---@type table<string, games.SudokuFrame>
+local FRAMES = {
+  plain = {
+    glyph = function(digit)
+      return (" %s "):format(digit)
+    end,
+    sides = function()
+      return " ", " "
+    end,
+  },
+  conflict = {
+    glyph = function(digit)
+      return ("[%s]"):format(digit)
+    end,
+    sides = function()
+      return "▐", "▌"
+    end,
+  },
+  revealed = {
+    glyph = function(digit)
+      return ("(%s)"):format(digit)
+    end,
+    sides = function(line, lines)
+      if line == lines then
+        return "▝", "▘"
+      end
+      return " ", " "
+    end,
+  },
+}
+
+---@param digit string
+---@param frame string
+---@return string
+local function key_of(digit, frame)
+  return frame == "plain" and digit or ("%s:%s"):format(frame, digit)
+end
+
+---@param body string[]
+---@param frame games.SudokuFrame
+---@return games.ArtEntry
+local function framed(body, frame)
+  local lines = {}
+  for i, line in ipairs(body) do
+    local left, right = frame.sides(i, #body)
+    lines[i] = left .. line .. right
+  end
+  return { h = #lines, w = vim.fn.strchars(lines[1]), lines = lines }
 end
 
 ---@param empty string
----@return games.ArtSet each digit as itself, and the empty cell
+---@return games.ArtSet each digit plain and framed per marker, and the empty cell
 local function glyph_set(empty)
-  local set = { empty = { glyph(empty) } }
+  local set = { empty = { { h = 1, w = GLYPH_WIDTH, lines = { (" %s "):format(empty) } } } }
   for digit in pairs(FONT) do
-    set[digit] = { glyph(digit) }
+    for name, frame in pairs(FRAMES) do
+      set[key_of(digit, name)] = { { h = 1, w = GLYPH_WIDTH, lines = { frame.glyph(digit) } } }
+    end
   end
   return set
 end
 
----Sudoku digits: the digits themselves, with block-pixel art for cells 3 lines tall and up.
+---@return games.ArtSet
+local function art_set()
+  local set = {}
+  for digit, pixels in pairs(FONT) do
+    for name, frame in pairs(FRAMES) do
+      set[key_of(digit, name)] =
+        { framed(half_height(pixels), frame), framed(full_size(pixels), frame) }
+    end
+  end
+  return set
+end
+
+---Sudoku digits: plain, [5] for a conflict and (5) for a digit the solution revealed, so a
+---cell's state never rests on colour alone; block-pixel art for cells 3 lines tall and up, with
+---bars either side for a conflict and corner ticks for a revealed digit.
 ---@type games.AssetPack
 return {
   name = "default",
@@ -65,8 +132,5 @@ return {
     unicode = glyph_set("·"),
     ascii = glyph_set("."),
   },
-  art = vim.iter(FONT):fold({}, function(set, digit, pixels)
-    set[digit] = { half_height(pixels), full_size(pixels) }
-    return set
-  end),
+  art = art_set(),
 }

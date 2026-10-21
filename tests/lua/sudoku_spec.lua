@@ -15,7 +15,7 @@ local FOOTER_ROW = 16
 ---@param glyphs games.Glyphs
 ---@return games.ViewOptions
 local function view_options(glyphs)
-  local spec = { keys = sudoku.asset_keys, glyph_width = 1 }
+  local spec = { keys = sudoku.asset_keys, glyph_width = sudoku.glyph_width }
   local pack = assets.load("sudoku", assets.DEFAULT_PACK, spec)
   return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
 end
@@ -79,40 +79,40 @@ end
 
 local T = {}
 
-function T.board_draws_the_grid_in_boxes_with_row_and_column_labels()
+function T.board_draws_the_grid_in_boxes_with_labels_and_frames_conflicts_without_colour()
   for _, case in ipairs({
     {
       glyphs = "unicode",
       board = {
-        "1 5 3 5│· 7 ·│· · ·",
-        "2 6 · ·│1 9 5│· · ·",
-        "3 · 9 8│· · ·│· 6 ·",
-        "  ─────┼─────┼─────",
-        "4 8 · ·│· 6 ·│· · 3",
-        "5 4 · ·│8 · 3│· · 1",
-        "6 7 · ·│· 2 ·│· · 6",
-        "  ─────┼─────┼─────",
-        "7 · 6 ·│· · ·│2 8 ·",
-        "8 · · ·│4 1 9│· · 5",
-        "9 · · ·│· 8 ·│· 7 9",
-        "  1 2 3 4 5 6 7 8 9",
+        "1 [5]  3  [5]│ ·   7   · │ ·   ·   · ",
+        "2  6   ·   · │ 1   9   5 │ ·   ·   · ",
+        "3  ·   9   8 │ ·   ·   · │ ·   6   · ",
+        "  ───────────┼───────────┼───────────",
+        "4  8   ·   · │ ·   6   · │ ·   ·   3 ",
+        "5  4   ·   · │ 8   ·   3 │ ·   ·   1 ",
+        "6  7   ·   · │ ·   2   · │ ·   ·   6 ",
+        "  ───────────┼───────────┼───────────",
+        "7  ·   6   · │ ·   ·   · │ 2   8   · ",
+        "8  ·   ·   · │ 4   1   9 │ ·   ·   5 ",
+        "9  ·   ·   · │ ·   8   · │ ·   7   9 ",
+        "   1   2   3   4   5   6   7   8   9 ",
       },
     },
     {
       glyphs = "ascii",
       board = {
-        "1 5 3 5|. 7 .|. . .",
-        "2 6 . .|1 9 5|. . .",
-        "3 . 9 8|. . .|. 6 .",
-        "  -----+-----+-----",
-        "4 8 . .|. 6 .|. . 3",
-        "5 4 . .|8 . 3|. . 1",
-        "6 7 . .|. 2 .|. . 6",
-        "  -----+-----+-----",
-        "7 . 6 .|. . .|2 8 .",
-        "8 . . .|4 1 9|. . 5",
-        "9 . . .|. 8 .|. 7 9",
-        "  1 2 3 4 5 6 7 8 9",
+        "1 [5]  3  [5]| .   7   . | .   .   . ",
+        "2  6   .   . | 1   9   5 | .   .   . ",
+        "3  .   9   8 | .   .   . | .   6   . ",
+        "  -----------+-----------+-----------",
+        "4  8   .   . | .   6   . | .   .   3 ",
+        "5  4   .   . | 8   .   3 | .   .   1 ",
+        "6  7   .   . | .   2   . | .   .   6 ",
+        "  -----------+-----------+-----------",
+        "7  .   6   . | .   .   . | 2   8   . ",
+        "8  .   .   . | 4   1   9 | .   .   5 ",
+        "9  .   .   . | .   8   . | .   7   9 ",
+        "   1   2   3   4   5   6   7   8   9 ",
       },
     },
   }) do
@@ -162,20 +162,23 @@ end
 function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_conflicts_clear()
   local rendered =
     shell.render(gave_up(), sudoku, view_options("unicode"), "alice", 0, nil, CATALOGUED)
-  assert_eq("1 5 3 4│6 7 8│9 1 2", rendered.lines[FIRST_BOARD_ROW + 1])
+  assert_eq(
+    { "1  5   3  (4)│(6)  7  (8)│(9) (1) (2)", "2  6  (7) (2)│ 1   9   5 │(3) (4) (8)" },
+    vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + 2)
+  )
   assert_eq(
     { "GamesMuted", "GamesMuted", { "GamesMiss", "GamesMuted" } },
     vim.list_slice(row_hls(rendered, FIRST_BOARD_ROW), 1, 3)
   )
 end
 
-function T.a_roomy_window_draws_the_digits_as_art()
+function T.a_roomy_window_draws_the_digits_as_art_with_the_conflict_bars()
   local rendered = shell.render(update(), sudoku, view_options("unicode"), "alice", 0, {
     text_area = { w = 120, h = 50 },
   }, CATALOGUED)
   assert(
     vim.iter(rendered.lines):any(function(line)
-      return line:find("█▀█", 1, true) ~= nil
+      return line:find("▐█▀▀▌", 1, true) ~= nil
     end),
     table.concat(rendered.lines, "\n")
   )

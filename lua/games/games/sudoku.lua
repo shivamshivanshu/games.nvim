@@ -21,9 +21,12 @@ local theme = require("games.ui.theme")
 ---@field digit integer 0 when the cell was cleared
 
 local SIZE = 9
+local CELL_WIDTH = 3
 local BOX_SIZE = 3
 local LABELS = "123456789"
 local EMPTY_KEY = "empty"
+---@enum games.SudokuMarker drawn into the glyph, so a cell's state never rests on colour alone
+local Marker = { CONFLICT = "conflict", REVEALED = "revealed" }
 local SET_KIND = "set"
 local SOLVER_SEAT_INDEX = 1
 
@@ -49,17 +52,27 @@ local function revealed(view, i)
   end
 end
 
+---@param digit integer
+---@param marker? games.SudokuMarker
+---@return string the asset key: the digit itself when unmarked, else "conflict:5" and so on
+local function key_for(digit, marker)
+  return marker and ("%s:%d"):format(marker, digit) or tostring(digit)
+end
+
 ---@param view games.SudokuView
 ---@param i integer
 ---@return games.GridCell
 local function cell_for(view, i)
   local correction = revealed(view, i)
-  local digit = correction or view.grid[i]
+  if correction then
+    return { key_for(correction, Marker.REVEALED), GIVEN_HL }
+  end
+  local digit = view.grid[i]
   if digit == 0 then
     return { EMPTY_KEY, EMPTY_HL }
   end
-  local muted = view.given[i] or correction ~= nil
-  return { tostring(digit), muted and GIVEN_HL or theme.seat_hl(SOLVER_SEAT_INDEX) }
+  local marker = #view.solution == 0 and view.conflicts[i] and Marker.CONFLICT or nil
+  return { key_for(digit, marker), view.given[i] and GIVEN_HL or theme.seat_hl(SOLVER_SEAT_INDEX) }
 end
 
 ---@param view games.SudokuView
@@ -82,8 +95,19 @@ end
 
 local M = {}
 
----@type string[] keys every sudoku asset pack draws: each digit and the empty cell
-M.asset_keys = vim.list_extend(vim.tbl_map(tostring, vim.fn.range(1, SIZE)), { EMPTY_KEY })
+---@type string[] keys every sudoku asset pack draws: each digit plain and per marker, and the empty cell
+M.asset_keys = vim.list_extend(
+  vim
+    .iter(vim.fn.range(1, SIZE))
+    :map(function(digit)
+      return { key_for(digit), key_for(digit, Marker.CONFLICT), key_for(digit, Marker.REVEALED) }
+    end)
+    :flatten()
+    :totable(),
+  { EMPTY_KEY }
+)
+
+M.glyph_width = CELL_WIDTH
 
 ---@param update games.SudokuUpdate
 ---@param ctx games.LayoutCtx
@@ -96,6 +120,7 @@ function M.layout(update, ctx)
       cols = SIZE,
       shade = "plain",
       blocks = BOX_SIZE,
+      cell_width = CELL_WIDTH,
       glyphs = ctx.glyphs,
       labels = { rows = LABELS, cols = LABELS },
       cell = function(r, c)
