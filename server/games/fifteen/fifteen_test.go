@@ -34,7 +34,7 @@ func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, action := range actions {
-		s, events = gametest.MustApply(t, s, game.SeatSolo, action, nil)
+		s, events = gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, action, nil)
 	}
 	return s, events
 }

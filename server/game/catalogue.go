@@ -147,3 +147,24 @@ func (c catalogue) checkInput(a actionFields) error {
 	}
 	return nil
 }
+
+// CheckCatalogued is the core's check of action, as encoding/json sends it,
+// against info's catalogue: its field names, then its input.
+func CheckCatalogued[Action any](info Info, action Action) error {
+	actions, err := compileCatalogue(info.Actions, reflect.TypeFor[Action]())
+	if err != nil {
+		return err
+	}
+	raw, err := json.Marshal(action)
+	if err != nil {
+		return err
+	}
+	fields, err := decodeActionFields(raw)
+	if err != nil {
+		return err
+	}
+	if err := actions.checkFields(fields); err != nil {
+		return err
+	}
+	return actions.checkInput(fields)
+}

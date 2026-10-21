@@ -25,9 +25,13 @@ func ViewJSON(t testing.TB, v any) string {
 }
 
 // MustApply is s after seat applies action, failing t unless the adapter
-// would let seat act and the rules accept it with an S as the next state.
-func MustApply[S game.State[Action, View], Action, View any](t testing.TB, s S, seat game.Seat, action Action, rng *rand.Rand) (S, []game.Event) {
+// would take action, as info catalogues it, from seat, and the rules accept
+// it with an S as the next state.
+func MustApply[S game.State[Action, View], Action, View any](t testing.TB, info game.Info, s S, seat game.Seat, action Action, rng *rand.Rand) (S, []game.Event) {
 	t.Helper()
+	if err := game.CheckCatalogued(info, action); err != nil {
+		t.Fatalf("%s %+v: %v", seat, action, err)
+	}
 	if err := game.CheckTurn(s, seat); err != nil {
 		t.Fatalf("%s %+v: %v", seat, action, err)
 	}
@@ -59,20 +63,20 @@ func PlayToFinish[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, A
 		}
 		seat := state.ToAct()[0]
 		action := choose(state.View(seat), seat)
-		state, _ = MustApply(t, state, seat, action, game.StepRNG(seed, seq))
+		state, _ = MustApply(t, rules.Info(), state, seat, action, game.StepRNG(seed, seq))
 		steps = append(steps, Step[Action]{Seat: seat, Action: action})
 	}
 	return steps
 }
 
 // Replay is first and every state after it as steps, such as PlayToFinish's,
-// are applied in turn through MustApply, each with the rng the core gives that
-// step of a game from seed.
-func Replay[S game.State[Action, View], Action, View any](t testing.TB, first S, steps []Step[Action], seed game.Seed) []S {
+// are applied in turn through MustApply with info, each with the rng the core
+// gives that step of a game from seed.
+func Replay[S game.State[Action, View], Action, View any](t testing.TB, info game.Info, first S, steps []Step[Action], seed game.Seed) []S {
 	t.Helper()
 	states := []S{first}
 	for i, step := range steps {
-		next, _ := MustApply(t, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
+		next, _ := MustApply(t, info, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
 		states = append(states, next)
 	}
 	return states

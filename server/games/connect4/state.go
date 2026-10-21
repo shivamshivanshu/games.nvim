@@ -3,8 +3,6 @@ package connect4
 import (
 	"math/rand/v2"
 	"slices"
-	"strconv"
-	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
@@ -27,8 +25,8 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 }
 
 func (s state) drop(seat game.Seat, input string) (game.State[Action, View], []game.Event, error) {
-	column, err := strconv.Atoi(strings.TrimSpace(input))
-	if err != nil || column < 1 || column > boardColumns {
+	column, ok := game.ParseNumbered(input, boardColumns)
+	if !ok {
 		return nil, nil, game.Illegalf("column must be 1 to %d, got %q", boardColumns, input)
 	}
 	row, ok := s.board.landingRow(column - 1)

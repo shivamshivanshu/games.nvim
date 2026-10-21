@@ -41,7 +41,7 @@ func wrongCodes(secret Code, n int) []string {
 func play(t *testing.T, st game.State[Action, View], codes ...string) game.State[Action, View] {
 	t.Helper()
 	for _, code := range codes {
-		st, _ = gametest.MustApply(t, st, game.SeatSolo, guess(code), nil)
+		st, _ = gametest.MustApply(t, Rules{}.Info(), st, game.SeatSolo, guess(code), nil)
 	}
 	return st
 }

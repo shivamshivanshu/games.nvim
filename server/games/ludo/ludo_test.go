@@ -45,7 +45,7 @@ func rngRolling(t *testing.T, roll Roll) *rand.Rand {
 
 func mustApply(t *testing.T, s state, action Action, rng *rand.Rand) (state, []game.Event) {
 	t.Helper()
-	return gametest.MustApply(t, s, s.turn, action, rng)
+	return gametest.MustApply(t, Rules{}.Info(), s, s.turn, action, rng)
 }
 
 func TestNewSeatsInColourOrderAndTurnsGoClockwiseFromADrawnFirstSeat(t *testing.T) {

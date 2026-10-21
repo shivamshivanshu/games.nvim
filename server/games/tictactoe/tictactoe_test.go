@@ -34,7 +34,7 @@ func play(t *testing.T, cells ...CellNumber) game.State[Action, View] {
 	t.Helper()
 	st := newGame(t)
 	for _, c := range cells {
-		st, _ = gametest.MustApply(t, st, st.ToAct()[0], place(c), game.StepRNG(1, 1))
+		st, _ = gametest.MustApply(t, Rules{}.Info(), st, st.ToAct()[0], place(c), game.StepRNG(1, 1))
 	}
 	return st
 }

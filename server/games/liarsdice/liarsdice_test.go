@@ -41,7 +41,7 @@ func withCups(s state, cups ...[]dice.Face) state {
 
 func apply(t *testing.T, s state, by game.Seat, action Action, seq game.Seq) (state, []game.Event) {
 	t.Helper()
-	return gametest.MustApply(t, s, by, action, game.StepRNG(1, seq))
+	return gametest.MustApply(t, Rules{}.Info(), s, by, action, game.StepRNG(1, seq))
 }
 
 // choose is a deterministic player: it calls dudo on a bid above what its own
@@ -76,7 +76,7 @@ func likely(v View, face dice.Face) int {
 func playToFinish(t *testing.T, n int, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
 	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, gametest.Users(n), seed, func(v View, _ game.Seat) Action { return choose(v) }, maxGameSteps)
-	return steps, gametest.Replay(t, newGame(t, n, seed), steps, seed)
+	return steps, gametest.Replay(t, Rules{}.Info(), newGame(t, n, seed), steps, seed)
 }
 
 func TestNewSeatsTwoToSixPlayersWithFiveDiceEach(t *testing.T) {

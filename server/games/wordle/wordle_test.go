@@ -39,7 +39,7 @@ func wrongGuesses(answer string, n int) []string {
 func play(t *testing.T, st game.State[Action, View], texts ...string) game.State[Action, View] {
 	t.Helper()
 	for _, text := range texts {
-		st, _ = gametest.MustApply(t, st, game.SeatSolo, guess(text), nil)
+		st, _ = gametest.MustApply(t, Rules{}.Info(), st, game.SeatSolo, guess(text), nil)
 	}
 	return st
 }

@@ -60,7 +60,7 @@ func passing(text string) Action { return Action{Kind: ActionPass, Cards: text} 
 
 func apply(t testing.TB, s state, by game.Seat, a Action) (state, []game.Event) {
 	t.Helper()
-	return gametest.MustApply(t, s, by, a, nil)
+	return gametest.MustApply(t, Rules{}.Info(), s, by, a, nil)
 }
 
 func texts(hand []cards.Card) string {

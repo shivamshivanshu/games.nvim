@@ -16,7 +16,7 @@ func playedOut(t *testing.T, seed game.Seed, limit int) ([]grid.Direction, state
 	var moves []grid.Direction
 	for !s.Over() && len(moves) < limit {
 		d := s.board.movable()[0]
-		s, _ = gametest.MustApply(t, s, game.SeatSolo, move(string(d)), game.StepRNG(seed, game.Seq(len(moves)+1)))
+		s, _ = gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, move(string(d)), game.StepRNG(seed, game.Seq(len(moves)+1)))
 		moves = append(moves, d)
 	}
 	return moves, s

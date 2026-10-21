@@ -95,13 +95,13 @@ is defined in [Game updates](#game-updates).
 
 | Code | When |
 |---|---|
-| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that cannot seat one player, an unknown or already resolved challenge, a challenge the user may not resolve, an action the game cannot parse, a second `auth.login`. |
+| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that cannot seat one player, an unknown or already resolved challenge, a challenge the user may not resolve, an action with a field its game's actions lack or with another kind's input field, an action the game cannot parse, a second `auth.login`. |
 | `version_mismatch` | `auth.login` with another protocol version. |
 | `unauthenticated` | Any request but `auth.login` before login. |
 | `auth_failed` | Wrong credentials, or the IP is locked out. |
 | `not_found` | No such game, the user is not one of its players, or `game.act`/`game.control` on a finished game the server has dropped (see below). |
 | `not_your_turn` | `game.act` when the user is not in `to_act`. |
-| `illegal_action` | The game rejects the action, the control is not in `controls`, or the game is over but the server still holds it. |
+| `illegal_action` | The action's input is off its catalogued `pattern` or `values`, the game rejects the action, the control is not in `controls`, or the game is over but the server still holds it. |
 | `stale` | `seq` is not the game's current seq; in a real-time game, only a control past it, or a seq past the game's, counts (see [Ticks](#ticks)). Nothing changed. |
 | `internal` | A server fault, or `server full` before login. |
 | `summary_mismatch` | `game.verify` with a summary the server did not seal. |
@@ -139,7 +139,7 @@ Arrays are never `null`. Every field is always present.
 - `game.act` and `game.control` carry the seq the client acted on. If it differs from the current seq, the reply is `stale` and nothing changes. A real-time game is the exception: see [Ticks](#ticks). The reply's `seq` is the step's new seq, and the matching `game.update` push carries the same seq.
 - Updates with equal seq hold the same state. Keep the update with the highest seq, and ignore any update whose seq is not higher than the one held.
 - A push whose seq jumps by more than 1 means steps were missed. Their events are lost, so take a `game.snapshot` rather than relying on the push.
-- Error-checking order for `game.act` and `game.control`: `not_found`, then `stale`, then the game's verdict (`not_your_turn`, `illegal_action`, `bad_request`).
+- Error-checking order for `game.act` and `game.control`: `not_found`, then `stale`. A `game.act` then gets, in turn: `bad_request` for a field its game's actions lack or another kind's input field; `not_your_turn`; `illegal_action` for input off the catalogue; and last the game's own verdict (`illegal_action`, or `bad_request` for an action it cannot parse). A `game.control` gets `illegal_action` for a control not in `controls`.
 - On a finished game they get `illegal_action` for a short while after the finishing step, then `not_found` once the server drops the game. Treat either as "the game is over" and take a `game.snapshot`.
 
 ### Clock
@@ -209,6 +209,8 @@ An action object always carries `kind`.
 
 - `input` is `null` for an action that is its kind alone, e.g. chess `{"kind": "claim_draw"}`.
 - Otherwise, `input` is `{field, description, pattern?, values}`: the action takes one text field named `field`. Its text matches `pattern` (RE2 syntax) or is one of `values`, never both. For example, chess `move` has the field `move`: `{"kind": "move", "move": "Nf3"}`.
+- Field names are exact and case-sensitive. A field no action of the game has, or another kind's input field, gets `bad_request`.
+- The core checks the text before the game sees it: text that does not match `pattern`, or is not one of `values`, gets `illegal_action`. A missing input is empty text.
 - Whether an action is available now is in the view, e.g. chess `claimable_draw`.
 
 ## Open enums

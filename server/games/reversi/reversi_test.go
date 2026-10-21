@@ -45,7 +45,7 @@ func play(t *testing.T, cells ...string) game.State[discs.Action, View] {
 func playFrom(t *testing.T, st game.State[discs.Action, View], cells ...string) game.State[discs.Action, View] {
 	t.Helper()
 	for _, cell := range cells {
-		st, _ = gametest.MustApply(t, st, st.ToAct()[0], place(cell), nil)
+		st, _ = gametest.MustApply(t, Rules{}.Info(), st, st.ToAct()[0], place(cell), nil)
 	}
 	return st
 }

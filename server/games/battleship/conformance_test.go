@@ -41,7 +41,7 @@ func (p *planner) applied() game.Seq {
 func (p *planner) play(seat game.Seat, actions ...Action) {
 	p.t.Helper()
 	for _, action := range actions {
-		p.state, _ = gametest.MustApply(p.t, p.state, seat, action, game.StepRNG(p.seed, p.applied()+1))
+		p.state, _ = gametest.MustApply(p.t, Rules{}.Info(), p.state, seat, action, game.StepRNG(p.seed, p.applied()+1))
 		p.steps = append(p.steps, gametest.Step[Action]{Seat: seat, Action: action})
 	}
 }

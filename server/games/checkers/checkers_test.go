@@ -75,8 +75,8 @@ func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {
 	earlier := []string{"11-15", "23-19", "8-11"}
 	before.history = append(make([]string, 0, len(earlier)+1), earlier...)
 	want := before.View(SeatBlack)
-	first, _ := gametest.MustApply(t, before, SeatBlack, move("9-13"), nil)
-	second, _ := gametest.MustApply(t, before, SeatBlack, move("12-16"), nil)
+	first, _ := gametest.MustApply(t, Rules{}.Info(), before, SeatBlack, move("9-13"), nil)
+	second, _ := gametest.MustApply(t, Rules{}.Info(), before, SeatBlack, move("12-16"), nil)
 	for text, after := range map[string]game.State[Action, View]{"9-13": first, "12-16": second} {
 		if got := after.View(SeatBlack).History; !slices.Equal(got, append(slices.Clone(earlier), text)) {
 			t.Errorf("after %s: history %v", text, got)
@@ -128,14 +128,14 @@ func TestRejectedActions(t *testing.T) {
 }
 
 func TestAcceptsSurroundingSpace(t *testing.T) {
-	next, _ := gametest.MustApply(t, newState(StartBoard(), SeatBlack, 0), SeatBlack, move(" 11-15 "), nil)
+	next, _ := gametest.MustApply(t, Rules{}.Info(), newState(StartBoard(), SeatBlack, 0), SeatBlack, move(" 11-15 "), nil)
 	if got := next.View(SeatWhite).History; !slices.Equal(got, []string{"11-15"}) {
 		t.Errorf("history %v", got)
 	}
 }
 
 func TestMoveEventAndView(t *testing.T) {
-	st, events := gametest.MustApply(t, newState(boardOf(t, "b:22 w:26,27 W:4"), SeatBlack, 0), SeatBlack, move("22x31"), nil)
+	st, events := gametest.MustApply(t, Rules{}.Info(), newState(boardOf(t, "b:22 w:26,27 W:4"), SeatBlack, 0), SeatBlack, move("22x31"), nil)
 	if diff := cmp.Diff([]game.Event{MovedEvent{By: SeatBlack, Move: "22x31", Crowned: true}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
@@ -234,7 +234,7 @@ func TestEndings(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			st, _ := gametest.MustApply(t, newState(boardOf(t, c.layout), SeatBlack, c.quietPlies), SeatBlack, move(c.move), nil)
+			st, _ := gametest.MustApply(t, Rules{}.Info(), newState(boardOf(t, c.layout), SeatBlack, c.quietPlies), SeatBlack, move(c.move), nil)
 			got, finished := st.Outcome()
 			if c.want == nil {
 				if finished {
@@ -265,7 +265,7 @@ func selfPlay(t *testing.T, choose pick) []gametest.Step[Action] {
 	var steps []gametest.Step[Action]
 	for !st.Over() {
 		step := gametest.Step[Action]{Seat: st.toMove, Action: move(choose(st.legal).Text())}
-		st, _ = gametest.MustApply(t, st, step.Seat, step.Action, nil)
+		st, _ = gametest.MustApply(t, Rules{}.Info(), st, step.Seat, step.Action, nil)
 		steps = append(steps, step)
 	}
 	return steps

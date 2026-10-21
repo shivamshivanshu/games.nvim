@@ -19,7 +19,7 @@ const maxGameSteps = 5000
 func playToFinish(t *testing.T, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
 	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, users(), seed, func(v View, _ game.Seat) Action { return choose(v) }, maxGameSteps)
-	return steps, gametest.Replay(t, newGame(t, seed), steps, seed)
+	return steps, gametest.Replay(t, Rules{}.Info(), newGame(t, seed), steps, seed)
 }
 
 // stateOf is st unwrapped from the opened New hands over.

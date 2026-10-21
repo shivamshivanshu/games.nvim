@@ -51,7 +51,7 @@ func TestOnlyTheSeatToActIsOffered(t *testing.T) {
 					t.Fatalf("%d players, step %d: %s to act, but %s's view has can_roll %t, movable %v", n, i, step.Seat, other, view.CanRoll, view.Movable)
 				}
 			}
-			s, _ = gametest.MustApply(t, s, step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
+			s, _ = gametest.MustApply(t, Rules{}.Info(), s, step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
 		}
 	}
 }

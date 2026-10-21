@@ -44,7 +44,7 @@ func played(t *testing.T, s state, moves ...move) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, m := range moves {
-		s, events = gametest.MustApply(t, s, m.seat, draw(m.edge), nil)
+		s, events = gametest.MustApply(t, Rules{}.Info(), s, m.seat, draw(m.edge), nil)
 	}
 	return s, events
 }

@@ -11,8 +11,8 @@ import (
 
 type cataloguedAction struct {
 	Kind game.ActionKind `json:"kind"`
-	Cell string          `json:"cell"`
-	Way  string          `json:"way"`
+	Cell string          `json:"cell,omitempty"`
+	Way  string          `json:"way,omitempty"`
 }
 
 // cataloguedRules take any action their catalogue lets through.
@@ -74,6 +74,25 @@ func TestAdaptTakesOnlyActionsTheCatalogueAllows(t *testing.T) {
 		"an input in another case":   {`{"kind":"place","Cell":"b2"}`, isBadRequest},
 	} {
 		if _, _, err := st.Apply("a", json.RawMessage(tc.action), game.StepRNG(1, 1)); !tc.wantErr(err) {
+			t.Errorf("%s: got %v", name, err)
+		}
+	}
+}
+
+func TestCheckCataloguedChecksATypedActionAsTheAdapterDoes(t *testing.T) {
+	info := cataloguedRules{}.Info()
+	accepted := func(err error) bool { return err == nil }
+	for name, tc := range map[string]struct {
+		action  cataloguedAction
+		wantErr func(error) bool
+	}{
+		"a matching input":         {cataloguedAction{Kind: "place", Cell: "b2"}, accepted},
+		"a kind alone":             {cataloguedAction{Kind: "stop"}, accepted},
+		"an input off its pattern": {cataloguedAction{Kind: "place", Cell: "d9"}, isIllegal},
+		"a padded value":           {cataloguedAction{Kind: "turn", Way: "up "}, isIllegal},
+		"another kind's input":     {cataloguedAction{Kind: "stop", Cell: "b2"}, isBadRequest},
+	} {
+		if err := game.CheckCatalogued(info, tc.action); !tc.wantErr(err) {
 			t.Errorf("%s: got %v", name, err)
 		}
 	}

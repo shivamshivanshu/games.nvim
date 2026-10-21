@@ -40,9 +40,6 @@ func TestDirectionStepsOneCellAndOppositeStepsBack(t *testing.T) {
 		if got := d.From(from); got != want[d] {
 			t.Errorf("%s.From(%v) = %v, want %v", d, from, got, want[d])
 		}
-		if dRow, dCol := d.Delta(); (Point{Row: from.Row + dRow, Col: from.Col + dCol}) != want[d] {
-			t.Errorf("%s.Delta() = %d, %d", d, dRow, dCol)
-		}
 		if back := d.Opposite().From(d.From(from)); back != from || d.Opposite() == d || d.Opposite().Opposite() != d {
 			t.Errorf("%s.Opposite() = %s does not step back to %v", d, d.Opposite(), from)
 		}

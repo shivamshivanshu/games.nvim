@@ -160,7 +160,7 @@ func TestSpawnedFillsAnEmptyCellWithATwoNineTimesInTen(t *testing.T) {
 func TestApplySlidesSpawnsAndScores(t *testing.T) {
 	const seed game.Seed = 3
 	s := state{board: board{{2, 2, 4, 4}}, score: 10}
-	next, events := gametest.MustApply(t, s, game.SeatSolo, move("left"), game.StepRNG(seed, 1))
+	next, events := gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, move("left"), game.StepRNG(seed, 1))
 	slid := board{{4, 8}}
 	moved := events[0].(MovedEvent)
 	if len(events) != 1 || moved.By != game.SeatSolo || moved.Direction != grid.Left || moved.Gained != 12 {
@@ -177,7 +177,7 @@ func TestApplySlidesSpawnsAndScores(t *testing.T) {
 	if next.score != 22 {
 		t.Errorf("score %d, want 22", next.score)
 	}
-	again, _ := gametest.MustApply(t, s, game.SeatSolo, move("left"), game.StepRNG(seed, 1))
+	again, _ := gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, move("left"), game.StepRNG(seed, 1))
 	if again.board != next.board {
 		t.Error("the same step's rng spawned differently")
 	}
@@ -216,7 +216,7 @@ func lastMove(row0 [side]int) board {
 
 func TestReachingTheGoalIsMarkedOnceAndPlayGoesOn(t *testing.T) {
 	s := state{board: board{{1024, 1024}, {2048}}}
-	next, events := gametest.MustApply(t, s, game.SeatSolo, move("left"), game.StepRNG(1, 1))
+	next, events := gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, move("left"), game.StepRNG(1, 1))
 	if !next.reached || next.Over() {
 		t.Fatalf("reached %t finished %t, want reached and playing on", next.reached, next.Over())
 	}
@@ -226,11 +226,11 @@ func TestReachingTheGoalIsMarkedOnceAndPlayGoesOn(t *testing.T) {
 	if !next.View(game.SeatSolo).Reached {
 		t.Error("view does not mark the goal reached")
 	}
-	again, events := gametest.MustApply(t, next, game.SeatSolo, move("up"), game.StepRNG(1, 2))
+	again, events := gametest.MustApply(t, Rules{}.Info(), next, game.SeatSolo, move("up"), game.StepRNG(1, 2))
 	if len(events) != 1 || !again.reached {
 		t.Errorf("a move after the goal: events %+v, reached %t; want one moved event and still reached", events, again.reached)
 	}
-	before, _ := gametest.MustApply(t, state{board: board{{512, 512}}}, game.SeatSolo, move("left"), game.StepRNG(1, 1))
+	before, _ := gametest.MustApply(t, Rules{}.Info(), state{board: board{{512, 512}}}, game.SeatSolo, move("left"), game.StepRNG(1, 1))
 	if before.reached || before.View(game.SeatSolo).Reached {
 		t.Error("a 1024 marks the goal reached")
 	}
@@ -264,7 +264,7 @@ func TestNoMovesEndsTheGame(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			for seq := range game.Seq(20) {
-				next, _ := gametest.MustApply(t, tc.state, game.SeatSolo, move("left"), game.StepRNG(1, seq))
+				next, _ := gametest.MustApply(t, Rules{}.Info(), tc.state, game.SeatSolo, move("left"), game.StepRNG(1, seq))
 				got, finished := next.Outcome()
 				if diff := cmp.Diff(tc.want, got); !finished || diff != "" {
 					t.Fatalf("seq %d: finished %t, result (-want +got):\n%s", seq, finished, diff)

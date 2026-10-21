@@ -50,7 +50,7 @@ func playColumns(t *testing.T, columns string) game.State[Action, View] {
 	t.Helper()
 	st := newState(t)
 	for _, step := range drops(columns) {
-		st, _ = gametest.MustApply(t, st, step.Seat, step.Action, nil)
+		st, _ = gametest.MustApply(t, Rules{}.Info(), st, step.Seat, step.Action, nil)
 	}
 	return st
 }
@@ -175,6 +175,7 @@ func TestRejectedActions(t *testing.T) {
 		{"column above range", "", SeatRed, drop("8"), game.IllegalActionError{Msg: `column must be 1 to 7, got "8"`}},
 		{"column missing", "", SeatRed, drop(""), game.IllegalActionError{Msg: `column must be 1 to 7, got ""`}},
 		{"column not a number", "", SeatRed, drop("a"), game.IllegalActionError{Msg: `column must be 1 to 7, got "a"`}},
+		{"column padded", "", SeatRed, drop(" 3 "), game.IllegalActionError{Msg: `column must be 1 to 7, got " 3 "`}},
 		{"unknown kind", "", SeatRed, Action{Kind: "place", Column: "1"}, game.IllegalActionError{Msg: "unknown action: place"}},
 	}
 	for _, tc := range cases {
@@ -185,16 +186,6 @@ func TestRejectedActions(t *testing.T) {
 				t.Errorf("got %v, want %v", err, tc.wantErr)
 			}
 		})
-	}
-}
-
-func TestColumnTextIsTrimmed(t *testing.T) {
-	next, _, err := newState(t).Apply(SeatRed, drop(" 3 "), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := next.View(SeatRed).Last; got == nil || *got != (grid.Cell{Row: 6, Col: 3}) {
-		t.Errorf("last %+v, want row 6 column 3", got)
 	}
 }
 

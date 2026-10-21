@@ -42,12 +42,6 @@ func ParseDirection(text string) (Direction, error) {
 // From is the point one cell from p toward d, row 0 at the top; it may lie off the board.
 func (d Direction) From(p Point) Point { return p.step(d.delta(), 1) }
 
-// Delta is the change in row and column of one cell toward d, row 0 at the top.
-func (d Direction) Delta() (dRow, dCol int) {
-	step := d.delta()
-	return step.dRow, step.dCol
-}
-
 func (d Direction) delta() delta {
 	switch d {
 	case Up:

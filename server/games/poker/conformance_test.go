@@ -47,7 +47,7 @@ func playToFinish(t *testing.T, players []game.UserID, seed game.Seed) ([]gamete
 	if err != nil {
 		t.Fatal(err)
 	}
-	return steps, gametest.Replay(t, st.(state), steps, seed)
+	return steps, gametest.Replay(t, Rules{}.Info(), st.(state), steps, seed)
 }
 
 func holes(h hand) []cards.Card {

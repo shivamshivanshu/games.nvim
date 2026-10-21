@@ -50,7 +50,7 @@ func withCards(t testing.TB, s state, holes map[int]string, board string) state 
 
 func play(t testing.TB, s state, seat int, text string) (state, []game.Event) {
 	t.Helper()
-	return gametest.MustApply(t, s, seatName(seat), Action{Kind: ActionAct, Text: text}, nil)
+	return gametest.MustApply(t, Rules{}.Info(), s, seatName(seat), Action{Kind: ActionAct, Text: text}, nil)
 }
 
 // playAll plays "p1:call p2:check" style moves in order.

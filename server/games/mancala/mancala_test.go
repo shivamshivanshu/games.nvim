@@ -40,7 +40,7 @@ func sowAll(t *testing.T, s state, pits ...string) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, pit := range pits {
-		s, events = gametest.MustApply(t, s, s.toMove, sow(pit), nil)
+		s, events = gametest.MustApply(t, Rules{}.Info(), s, s.toMove, sow(pit), nil)
 	}
 	return s, events
 }

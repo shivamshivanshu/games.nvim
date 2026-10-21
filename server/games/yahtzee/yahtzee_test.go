@@ -38,7 +38,7 @@ func newGameFrom(t *testing.T, n int, seed game.Seed) state {
 
 func apply(t *testing.T, s state, by game.Seat, action Action, seq game.Seq) (state, []game.Event) {
 	t.Helper()
-	return gametest.MustApply(t, s, by, action, game.StepRNG(1, seq))
+	return gametest.MustApply(t, Rules{}.Info(), s, by, action, game.StepRNG(1, seq))
 }
 
 // rolledTo is s with its seat to act having rolled once and shown h.
@@ -79,7 +79,7 @@ func commonest(faces []dice.Face) dice.Face {
 func playToFinish(t *testing.T, n int, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
 	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, gametest.Users(n), seed, func(v View, _ game.Seat) Action { return choose(v) }, maxGameSteps)
-	return steps, gametest.Replay(t, newGameFrom(t, n, seed), steps, seed)
+	return steps, gametest.Replay(t, Rules{}.Info(), newGameFrom(t, n, seed), steps, seed)
 }
 
 func TestApplyRejects(t *testing.T) {

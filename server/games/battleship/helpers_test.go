@@ -61,7 +61,7 @@ func moves(seat game.Seat, actions ...Action) []move {
 func playFrom(t *testing.T, st game.State[Action, View], seed game.Seed, ms ...move) game.State[Action, View] {
 	t.Helper()
 	for i, m := range ms {
-		st, _ = gametest.MustApply(t, st, m.seat, m.action, game.StepRNG(seed, game.Seq(i+1)))
+		st, _ = gametest.MustApply(t, Rules{}.Info(), st, m.seat, m.action, game.StepRNG(seed, game.Seq(i+1)))
 	}
 	return st
 }

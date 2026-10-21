@@ -62,9 +62,9 @@ func TestSetWritesAndClearsCells(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := wikipedia(t)
 			for _, text := range tt.before {
-				s, _ = gametest.MustApply(t, s, game.SeatSolo, set(text), nil)
+				s, _ = gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, set(text), nil)
 			}
-			next, events := gametest.MustApply(t, s, game.SeatSolo, set(tt.action), nil)
+			next, events := gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, set(tt.action), nil)
 			if diff := cmp.Diff([]game.Event{tt.wantEvent}, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
@@ -80,7 +80,7 @@ func TestSetWritesAndClearsCells(t *testing.T) {
 }
 
 func TestIllegalSets(t *testing.T) {
-	filled, _ := gametest.MustApply(t, wikipedia(t), game.SeatSolo, set("13 4"), nil)
+	filled, _ := gametest.MustApply(t, Rules{}.Info(), wikipedia(t), game.SeatSolo, set("13 4"), nil)
 	tests := []struct {
 		name    string
 		state   state
@@ -113,7 +113,7 @@ func lastCellOpen(t *testing.T) state {
 }
 
 func TestMatchingTheSolutionSolvesAndRevealsIt(t *testing.T) {
-	next, _ := gametest.MustApply(t, lastCellOpen(t), game.SeatSolo, set("91 3"), nil)
+	next, _ := gametest.MustApply(t, Rules{}.Info(), lastCellOpen(t), game.SeatSolo, set("91 3"), nil)
 	result, finished := next.Outcome()
 	want := game.WinFor(ReasonSolved, game.SeatSolo)
 	if diff := cmp.Diff(want, result); !finished || diff != "" {
@@ -128,11 +128,11 @@ func TestMatchingTheSolutionSolvesAndRevealsIt(t *testing.T) {
 }
 
 func TestAFullGridThatDiffersFromTheSolutionPlaysOn(t *testing.T) {
-	next, _ := gametest.MustApply(t, lastCellOpen(t), game.SeatSolo, set("91 8"), nil)
+	next, _ := gametest.MustApply(t, Rules{}.Info(), lastCellOpen(t), game.SeatSolo, set("91 8"), nil)
 	if _, finished := next.Outcome(); finished {
 		t.Error("a full grid with a wrong digit finished the game")
 	}
-	if fixed, _ := gametest.MustApply(t, next, game.SeatSolo, set("91 3"), nil); len(fixed.ToAct()) != 0 {
+	if fixed, _ := gametest.MustApply(t, Rules{}.Info(), next, game.SeatSolo, set("91 3"), nil); len(fixed.ToAct()) != 0 {
 		t.Error("correcting the wrong digit did not solve the game")
 	}
 }
@@ -155,8 +155,8 @@ func TestApplyAndEliminateLeaveTheEarlierStateUnchanged(t *testing.T) {
 		s    state
 		step func(state)
 	}{
-		{"set", wikipedia(t), func(s state) { gametest.MustApply(t, s, game.SeatSolo, set("13 4"), nil) }},
-		{"solving set", lastCellOpen(t), func(s state) { gametest.MustApply(t, s, game.SeatSolo, set("91 3"), nil) }},
+		{"set", wikipedia(t), func(s state) { gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, set("13 4"), nil) }},
+		{"solving set", lastCellOpen(t), func(s state) { gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, set("91 3"), nil) }},
 		{"eliminate", wikipedia(t), func(s state) { s.Eliminate(game.SeatSolo, game.ReasonResign) }},
 	}
 	for _, tt := range tests {
@@ -246,7 +246,7 @@ func TestConflictsMarkEveryCellWhoseDigitRepeatsInAUnit(t *testing.T) {
 }
 
 func TestViewMarksAnEntryThatRepeatsAGiven(t *testing.T) {
-	next, _ := gametest.MustApply(t, wikipedia(t), game.SeatSolo, set("13 5"), nil)
+	next, _ := gametest.MustApply(t, Rules{}.Info(), wikipedia(t), game.SeatSolo, set("13 5"), nil)
 	view := next.View(game.SeatSolo)
 	var want [CellCount]bool
 	want[cellIndex(1, 1)], want[cellIndex(1, 3)] = true, true
@@ -267,7 +267,7 @@ func TestConcludeEndsAnUnfinishedGameAndKeepsAReachedResult(t *testing.T) {
 	if got := st.View(game.SeatSolo).Solution; len(got) != CellCount {
 		t.Errorf("solution after an imposed end = %v, want all %d cells", got, CellCount)
 	}
-	solved, _ := gametest.MustApply(t, lastCellOpen(t), game.SeatSolo, set("91 3"), nil)
+	solved, _ := gametest.MustApply(t, Rules{}.Info(), lastCellOpen(t), game.SeatSolo, set("91 3"), nil)
 	if result, _ := solved.Conclude(aborted).Outcome(); result.Reason != ReasonSolved {
 		t.Errorf("Conclude replaced a reached result with %+v", result)
 	}
@@ -278,7 +278,7 @@ func TestViewMarksExactlyThePuzzlesCellsAsGiven(t *testing.T) {
 	for cell, char := range wikipediaPuzzle {
 		want[cell] = char != '.'
 	}
-	filled, _ := gametest.MustApply(t, wikipedia(t), game.SeatSolo, set("13 4"), nil)
+	filled, _ := gametest.MustApply(t, Rules{}.Info(), wikipedia(t), game.SeatSolo, set("13 4"), nil)
 	if diff := cmp.Diff(want, filled.View(game.SeatSolo).Given); diff != "" {
 		t.Errorf("given (-want +got):\n%s", diff)
 	}

@@ -56,7 +56,7 @@ func kind(k game.ActionKind) Action { return Action{Kind: k} }
 
 func apply(t testing.TB, s state, by game.Seat, a Action) (state, []game.Event) {
 	t.Helper()
-	return gametest.MustApply(t, s, by, a, nil)
+	return gametest.MustApply(t, Rules{}.Info(), s, by, a, nil)
 }
 
 func newGame(t testing.TB, n int, seed game.Seed) state {
