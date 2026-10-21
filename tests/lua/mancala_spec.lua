@@ -1,0 +1,158 @@
+local assets = require("games.ui.assets")
+local helpers = require("helpers")
+local mancala = require("games.games.mancala")
+local shell = require("games.ui.shell")
+
+local assert_eq = helpers.assert_eq
+
+local CATALOGUED = { sow = true }
+---Lines above the board at cell height 1: two players, the status row and a blank.
+local BOARD_TOP = 4
+---Display columns from one cell's start to the next: the glyph and the gap.
+local CELL_STEP = 5
+
+---@param glyphs games.Glyphs
+---@return games.ViewOptions
+local function view_options(glyphs)
+  local spec = { keys = mancala.asset_keys, glyph_width = mancala.glyph_width }
+  local pack = assets.load("mancala", assets.DEFAULT_PACK, spec)
+  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+end
+
+---alice (south) sowed pit 1, then bob (north) captured; bob is to move again after a store landing.
+---@param overrides? table
+---@return games.MancalaUpdate
+local function update_with(overrides)
+  return vim.tbl_extend("force", {
+    game_id = "0000",
+    game = "mancala",
+    seq = 3,
+    options = {},
+    players = { { user = "alice", seat = "south" }, { user = "bob", seat = "north" } },
+    to_act = { "bob" },
+    controls = { "resign", "offer_draw" },
+    events = {},
+    view = {
+      south = { pits = { 0, 5, 5, 5, 5, 4 }, store = 1 },
+      north = { pits = { 4, 0, 5, 5, 12, 4 }, store = 7 },
+      legal_pits = { 1, 3, 4, 5, 6 },
+    },
+  }, overrides or {})
+end
+
+---@param update games.MancalaUpdate
+---@param me games.UserID
+---@param glyphs? games.Glyphs
+---@return games.Rendered
+local function render(update, me, glyphs)
+  return (shell.render(update, mancala, view_options(glyphs or "ascii"), me, 0, nil, CATALOGUED))
+end
+
+---@param rendered games.Rendered
+---@param r integer
+---@param c integer
+---@return games.Hl[] the highlight stack on cell r, c at cell height 1
+local function cell_hl(rendered, r, c)
+  local row, col = BOARD_TOP + r - 1, 1 + (c - 1) * CELL_STEP
+  local mark = vim.iter(rendered.extmarks):find(function(m)
+    return m.row == row and m.col == col
+  end)
+  local hl = assert(mark, ("no extmark on cell %d,%d"):format(r, c)).hl
+  return type(hl) == "table" and hl or { hl }
+end
+
+---@param rendered games.Rendered
+---@return string
+local function footer(rendered)
+  return rendered.lines[#rendered.lines]
+end
+
+local T = {}
+
+function T.the_viewer_sits_at_the_bottom_sowing_left_to_right_into_the_right_store()
+  for _, glyphs in ipairs({ "unicode", "ascii" }) do
+    assert_eq({
+      " ( 1)   4    5    5    5    5    0         alice top row, store on the left    ",
+      "      [ 4]   0  [ 5] [ 5] [12] [ 4] ( 7)   bob   bottom row, store on the right",
+      "       1    2    3    4    5    6                                              ",
+    }, vim.list_slice(render(update_with(), "bob", glyphs).lines, BOARD_TOP + 1, BOARD_TOP + 3))
+  end
+  local waiting = update_with({
+    view = vim.tbl_extend("force", update_with().view, { legal_pits = {} }),
+  })
+  assert_eq({
+    " ( 7)   4   12    5    5    0    4         bob   top row, store on the left    ",
+    "        0    5    5    5    5    4  ( 1)   alice bottom row, store on the right",
+  }, vim.list_slice(render(waiting, "alice").lines, BOARD_TOP + 1, BOARD_TOP + 2))
+end
+
+function T.each_side_takes_its_players_colour_and_legal_pits_are_tinted()
+  local rendered = render(update_with(), "bob")
+  assert(
+    vim.tbl_contains(cell_hl(rendered, 1, 1), "GamesSeat1"),
+    "alice's store is the first seat's"
+  )
+  assert(vim.tbl_contains(cell_hl(rendered, 2, 8), "GamesSeat2"), "bob's store")
+  assert(vim.tbl_contains(cell_hl(rendered, 2, 2), "GamesMovable"), "bob's pit 1 may be sown")
+  assert(not vim.tbl_contains(cell_hl(rendered, 2, 3), "GamesMovable"), "bob's empty pit 2")
+  assert(not vim.tbl_contains(cell_hl(rendered, 1, 2), "GamesMovable"), "alice's pits")
+end
+
+function T.sow_keys_are_bound_for_the_movers_legal_pits_only()
+  assert_eq(
+    "R resign  D offer draw  1,3-6 sow  ]g next game  q close",
+    footer(render(update_with(), "bob"))
+  )
+  local waiting = update_with({
+    view = vim.tbl_extend("force", update_with().view, { legal_pits = {} }),
+  })
+  assert_eq("R resign  D offer draw  ]g next game  q close", footer(render(waiting, "alice")))
+end
+
+function T.a_sow_key_sends_its_pit_as_text()
+  local three = vim.iter(mancala.actions):find(function(entry)
+    return entry.key == "3"
+  end)
+  assert_eq({ kind = "sow", pit = "3" }, three.action)
+  assert_eq(6, #mancala.actions)
+end
+
+function T.a_roomy_window_draws_counts_in_block_digits_with_bars_on_the_stores()
+  local display = { text_area = { w = 200, h = 60 } }
+  local lines = shell.render(
+    update_with(),
+    mancala,
+    view_options("unicode"),
+    "bob",
+    0,
+    display,
+    CATALOGUED
+  ).lines
+  local text = table.concat(lines, "\n")
+  assert(text:find("▄▄▄▄▄▄▄", 1, true), "a store's top bar")
+  assert(not text:find("[12]", 1, true), "the 12 is drawn in block digits, not its glyph")
+end
+
+function T.describe_event_tells_captures_extra_turns_and_the_final_collection()
+  local update = update_with()
+  local function sowed(fields)
+    return vim.tbl_extend(
+      "force",
+      { kind = "sowed", by = "north", pit = 2, captured = 0, again = false },
+      fields
+    )
+  end
+  assert_eq("bob sowed pit 2", mancala.describe_event(sowed({}), update))
+  assert_eq("bob sowed pit 2, capturing 8", mancala.describe_event(sowed({ captured = 8 }), update))
+  assert_eq(
+    "bob sowed pit 2, and moves again",
+    mancala.describe_event(sowed({ again = true }), update)
+  )
+  assert_eq(
+    "alice collects the 6 seeds left on their side",
+    mancala.describe_event({ kind = "collected", by = "south", seeds = 6 }, update)
+  )
+  assert_eq(nil, mancala.describe_event({ kind = "other", by = "south" }, update))
+end
+
+return T

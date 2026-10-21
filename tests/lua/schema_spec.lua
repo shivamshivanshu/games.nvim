@@ -111,6 +111,12 @@ local GAME_CLASS = {
     Tile = "games.G2048Tile",
     View = "games.G2048View",
   },
+  mancala = {
+    CollectedEvent = "games.MancalaCollectedEvent",
+    Side = "games.MancalaSide",
+    SowedEvent = "games.MancalaSowedEvent",
+    View = "games.MancalaView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
