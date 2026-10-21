@@ -11,16 +11,6 @@ type Rules struct{}
 
 const cellField = "cell"
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event {
-	return []game.Event{RevealedEvent{}, FlaggedEvent{}, ChordedEvent{}}
-}
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonMine, ReasonCleared}
-}
-
 // Info describes Minesweeper to the core.
 func (Rules) Info() game.Info {
 	cellInput := func() *game.ActionInput {
@@ -45,6 +35,8 @@ func (Rules) Info() game.Info {
 			{Kind: ActionFlag, Description: "Flag a hidden cell, or take its flag off.", Input: cellInput()},
 			{Kind: ActionChord, Description: "Reveal every unflagged neighbour of a revealed number that has as many flags around it.", Input: cellInput()},
 		},
+		Events:  []game.Event{RevealedEvent{}, FlaggedEvent{}, ChordedEvent{}},
+		Reasons: []game.ResultReason{ReasonMine, ReasonCleared},
 	}
 }
 

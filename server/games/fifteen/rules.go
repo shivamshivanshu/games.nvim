@@ -15,12 +15,6 @@ const (
 	directionField = "direction"
 )
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{SlidEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonSolved} }
-
 // Info describes the 15-puzzle to the core.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -45,6 +39,8 @@ func (Rules) Info() game.Info {
 				Input:       &game.ActionInput{Field: directionField, Description: "The way the tile moves.", Values: grid.DirectionNames()},
 			},
 		},
+		Events:  []game.Event{SlidEvent{}},
+		Reasons: []game.ResultReason{ReasonSolved},
 	}
 }
 

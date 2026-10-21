@@ -11,12 +11,6 @@ type Rules struct{}
 
 const textField = "text"
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{CellSetEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonSolved} }
-
 // Info describes Sudoku to the core.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -38,6 +32,8 @@ func (Rules) Info() game.Info {
 				Pattern:     setPattern,
 			},
 		}},
+		Events:  []game.Event{CellSetEvent{}},
+		Reasons: []game.ResultReason{ReasonSolved},
 	}
 }
 

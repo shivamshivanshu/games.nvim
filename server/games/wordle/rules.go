@@ -17,14 +17,6 @@ func guessPattern() string { return fmt.Sprintf(`^\s*[A-Za-z]{%d}\s*$`, WordLeng
 // Rules implements game.Rules for Wordle.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{GuessedEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonSolved, ReasonOutOfGuesses}
-}
-
 // Info describes Wordle: solo, no options.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -41,6 +33,8 @@ func (Rules) Info() game.Info {
 				Pattern:     guessPattern(),
 			},
 		}},
+		Events:  []game.Event{GuessedEvent{}},
+		Reasons: []game.ResultReason{ReasonSolved, ReasonOutOfGuesses},
 	}
 }
 

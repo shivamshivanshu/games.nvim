@@ -13,12 +13,6 @@ const directionField = "direction"
 // Rules implements game.Rules for 2048.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{MovedEvent{}, ReachedEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonNoMoves} }
-
 // Info describes 2048: solo, no options.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -35,6 +29,8 @@ func (Rules) Info() game.Info {
 				Values:      grid.DirectionNames(),
 			},
 		}},
+		Events:  []game.Event{MovedEvent{}, ReachedEvent{}},
+		Reasons: []game.ResultReason{ReasonNoMoves},
 	}
 }
 

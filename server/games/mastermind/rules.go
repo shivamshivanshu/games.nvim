@@ -14,14 +14,6 @@ const codeField = "code"
 // Rules implements game.Rules for Mastermind.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{GuessedEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonSolved, ReasonOutOfGuesses}
-}
-
 // Info describes Mastermind: solo, no options.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -38,6 +30,8 @@ func (Rules) Info() game.Info {
 				Pattern:     codePattern(),
 			},
 		}},
+		Events:  []game.Event{GuessedEvent{}},
+		Reasons: []game.ResultReason{ReasonSolved, ReasonOutOfGuesses},
 	}
 }
 

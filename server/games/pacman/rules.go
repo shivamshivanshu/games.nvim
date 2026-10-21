@@ -14,14 +14,6 @@ const directionField = "direction"
 // Rules implements game.Rules for Pac-Man.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event {
-	return []game.Event{GhostEatenEvent{}, CaughtEvent{}, LevelClearedEvent{}}
-}
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonGameOver, ReasonCleared} }
-
 // Info describes Pac-Man: solo, no options.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -41,6 +33,8 @@ func (Rules) Info() game.Info {
 			},
 			{Kind: ActionPause, Description: "Stop the game until the next turn."},
 		},
+		Events:  []game.Event{GhostEatenEvent{}, CaughtEvent{}, LevelClearedEvent{}},
+		Reasons: []game.ResultReason{ReasonGameOver, ReasonCleared},
 	}
 }
 
