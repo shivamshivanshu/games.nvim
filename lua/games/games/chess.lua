@@ -10,13 +10,16 @@ local players = require("games.core.players")
 ---@field from string
 ---@field to string
 
----@class games.ChessView
+---What a chess board draws, which chess puzzles share.
+---@class games.ChessBoardView
 ---@field fen string
 ---@field history_san string[]
 ---@field last_move? games.ChessSquares
+---@field check_square? string the king of the side to move, while it is in check
+
+---@class games.ChessView: games.ChessBoardView
 ---@field legal_moves string[] UCI, the viewer's own: empty unless it is to move
 ---@field claimable_draw boolean whether the viewer may claim a draw now
----@field check_square? string the king of the side to move, while it is in check
 
 ---@alias games.ChessSeat "white"|"black"
 
@@ -44,6 +47,7 @@ local RANKS = "87654321"
 ---@type games.ChessSeat
 local BLACK = "black"
 local EMPTY_KEY = "empty"
+local MOVE_KIND = "move"
 
 local WHITE_PIECE_HL = "GamesPieceWhite"
 local BLACK_PIECE_HL = "GamesPieceBlack"
@@ -171,7 +175,7 @@ local function last_move_mark(square)
   return { row = row, col = col, hl = hl }
 end
 
----@param view games.ChessView
+---@param view games.ChessBoardView
 ---@return games.GridMark[]
 local function marks_for(view)
   local marks = {}
@@ -194,6 +198,8 @@ local function black_at_bottom(update, ctx)
 end
 
 local M = {}
+
+M.MOVELIST_WIDTH = MOVELIST_WIDTH
 
 ---@type string[] keys every chess asset pack draws
 M.asset_keys = { "K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p", EMPTY_KEY }
@@ -235,11 +241,13 @@ function M.player_extra(update, seat, ctx)
   return { compose.text(table.concat(glyphs) .. score, MATERIAL_HL) }
 end
 
----@param update games.ChessUpdate
+---The board of view, with the SAN legend and the move list beside it, then extra_panels.
+---@param view games.ChessBoardView
 ---@param ctx games.LayoutCtx
+---@param flip boolean whether black is at the bottom
+---@param extra_panels? games.BoardPanel[]
 ---@return games.Node
-function M.layout(update, ctx)
-  local view = update.view
+function M.board(view, ctx, flip, extra_panels)
   local pieces = parse_placement(view.fen)
   local set = assert(ctx.art, "chess draws from an asset pack")
   return board({
@@ -247,7 +255,7 @@ function M.layout(update, ctx)
       rows = 8,
       cols = 8,
       shade = "checker",
-      flip = black_at_bottom(update, ctx),
+      flip = flip,
       labels = { cols = FILES, rows = RANKS },
       cell = function(r, c)
         return cell_for(pieces[r][c])
@@ -255,7 +263,7 @@ function M.layout(update, ctx)
       marks = marks_for(view),
     },
     art = set,
-    panels = {
+    panels = vim.list_extend({
       {
         node = function()
           return kv({
@@ -277,16 +285,38 @@ function M.layout(update, ctx)
           })
         end,
       },
-    },
+    }, extra_panels or {}),
   }, ctx)
 end
 
----@type games.GameInput
-M.input = {
-  kind = "move",
-  prompt = "Move: ",
-  parse = function(text)
-    return { kind = "move", move = text }
+---@param update games.ChessUpdate
+---@param ctx games.LayoutCtx
+---@return games.Node
+function M.layout(update, ctx)
+  return M.board(update.view, ctx, black_at_bottom(update, ctx))
+end
+
+---The move prompt; parse puts the typed text, for the server to read, in field.
+---@param field string
+---@return games.GameInput
+function M.move_input(field)
+  return {
+    kind = MOVE_KIND,
+    prompt = "Move: ",
+    parse = function(text)
+      return { kind = MOVE_KIND, [field] = text }
+    end,
+  }
+end
+
+M.input = M.move_input("move")
+
+---@type games.GameAction turns the board around, for this buffer only
+M.flip_action = {
+  key = "F",
+  label = "flip",
+  local_fn = function(view)
+    return vim.tbl_extend("force", view, { flipped = not view.flipped })
   end,
 }
 
@@ -300,13 +330,7 @@ M.actions = {
       return update.view.claimable_draw
     end,
   },
-  {
-    key = "F",
-    label = "flip",
-    local_fn = function(view)
-      return vim.tbl_extend("force", view, { flipped = not view.flipped })
-    end,
-  },
+  M.flip_action,
 }
 
 ---@param event games.Event
