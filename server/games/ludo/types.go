@@ -19,6 +19,27 @@ const (
 // ProgressStart..lastTrackProgress on the shared track, the home column, and ProgressHome.
 type Progress int
 
+// Square is a shared-track square, numbered 0 to TrackLength-1 clockwise.
+type Square int
+
+// LocationKind is the part of the board a token stands on.
+type LocationKind string
+
+// The location kinds.
+const (
+	LocationBase       LocationKind = "base"
+	LocationTrack      LocationKind = "track"
+	LocationHomeColumn LocationKind = "home_column"
+	LocationHome       LocationKind = "home"
+)
+
+// Location is where a token is drawn: Square on the track, or Step 1 to 5 up its seat's home column.
+type Location struct {
+	Kind   LocationKind `json:"kind"`
+	Square *Square      `json:"square,omitempty"`
+	Step   *int         `json:"step,omitempty"`
+}
+
 // Token numbers a seat's tokens from 1 to TokensPerSeat.
 type Token int
 
@@ -50,17 +71,23 @@ type Action struct {
 // Tokens is one seat's token progress, indexed by Token-1.
 type Tokens [TokensPerSeat]Progress
 
+// Locations is where one seat's tokens are drawn, indexed by Token-1.
+type Locations [TokensPerSeat]Location
+
 // View is the board as one seat sees it. Starts maps each seat to its start
-// square on the track; Movable and CanRoll are the viewer's own, empty and
-// false unless it is the viewer's turn.
+// square on the track, and Safe lists the squares where no capture happens;
+// Movable and CanRoll are the viewer's own, empty and false unless it is the
+// viewer's turn.
 type View struct {
-	Starts     map[game.Seat]int    `json:"starts"`
-	Progress   map[game.Seat]Tokens `json:"progress"`
-	LastRoll   Roll                 `json:"last_roll"`
-	SixesInRow int                  `json:"sixes_in_row"`
-	Phase      Phase                `json:"phase"`
-	Movable    []Token              `json:"movable"`
-	CanRoll    bool                 `json:"can_roll"`
+	Starts     map[game.Seat]Square    `json:"starts"`
+	Safe       []Square                `json:"safe"`
+	Progress   map[game.Seat]Tokens    `json:"progress"`
+	Locations  map[game.Seat]Locations `json:"locations"`
+	LastRoll   Roll                    `json:"last_roll"`
+	SixesInRow int                     `json:"sixes_in_row"`
+	Phase      Phase                   `json:"phase"`
+	Movable    []Token                 `json:"movable"`
+	CanRoll    bool                    `json:"can_roll"`
 }
 
 // ReasonAllHome ends the game when a seat brings its last token home.
@@ -95,8 +122,8 @@ type ForfeitedEvent struct {
 type MovedEvent struct {
 	By    game.Seat `json:"by"`
 	Token Token     `json:"token"`
-	From  Progress  `json:"from"`
-	To    Progress  `json:"to"`
+	From  Location  `json:"from"`
+	To    Location  `json:"to"`
 }
 
 // CapturedEvent reports a victim's token sent back to base by the mover.

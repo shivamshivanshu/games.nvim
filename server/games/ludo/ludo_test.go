@@ -90,7 +90,7 @@ func TestNewSeatsInColourOrderAndTurnsGoClockwiseFromADrawnFirstSeat(t *testing.
 
 func TestViewStartsCoverEverySeatInPlay(t *testing.T) {
 	s := position(SeatBlue, 0, map[game.Seat]Tokens{SeatBlue: inBase(), SeatYellow: inBase(), SeatRed: inBase()})
-	want := map[game.Seat]int{SeatBlue: 0, SeatRed: 13, SeatYellow: 26}
+	want := map[game.Seat]Square{SeatBlue: 0, SeatRed: 13, SeatYellow: 26}
 	if diff := cmp.Diff(want, s.View(SeatBlue).Starts); diff != "" {
 		t.Errorf("starts (-want +got):\n%s", diff)
 	}
@@ -117,7 +117,7 @@ func TestThreePlayers(t *testing.T) {
 			wantMovable:  []Token{1},
 			wantProgress: map[game.Seat]Tokens{SeatBlue: {14, out, out, out}, SeatRed: inBase(), SeatYellow: {30, out, out, out}},
 			wantEvents: []game.Event{
-				MovedEvent{By: SeatBlue, Token: 1, From: 10, To: 14},
+				MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 10), To: locationOf(SeatBlue, 14)},
 				CapturedEvent{By: SeatBlue, Victim: SeatRed, Token: 1},
 			},
 		},
@@ -128,7 +128,7 @@ func TestThreePlayers(t *testing.T) {
 			wantMovable:  []Token{2},
 			wantProgress: map[game.Seat]Tokens{SeatBlue: {10, 7, out, out}, SeatRed: {1, 1, out, out}, SeatYellow: inBase()},
 			wantEvents: []game.Event{
-				MovedEvent{By: SeatBlue, Token: 2, From: 3, To: 7},
+				MovedEvent{By: SeatBlue, Token: 2, From: locationOf(SeatBlue, 3), To: locationOf(SeatBlue, 7)},
 				CapturedEvent{By: SeatBlue, Victim: SeatYellow, Token: 1},
 			},
 		},
@@ -274,18 +274,18 @@ func TestMove(t *testing.T) {
 		{
 			name: "six leaves base and rolls again", blue: inBase(), yellow: inBase(), roll: 6, token: 2,
 			wantBlue: Tokens{out, 0, out, out}, wantYellow: inBase(), wantTurn: SeatBlue,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 2, From: out, To: 0}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 2, From: locationOf(SeatBlue, out), To: locationOf(SeatBlue, 0)}},
 		},
 		{
 			name: "a plain move passes the turn", blue: Tokens{0, out, out, out}, yellow: inBase(), roll: 4, token: 1,
 			wantBlue: Tokens{4, out, out, out}, wantYellow: inBase(), wantTurn: SeatYellow,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 0, To: 4}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 0), To: locationOf(SeatBlue, 4)}},
 		},
 		{
 			name: "landing on a lone token captures it without a bonus roll", blue: Tokens{2, out, out, out}, yellow: Tokens{out, 31, out, out}, roll: 3, token: 1,
 			wantBlue: Tokens{5, out, out, out}, wantYellow: inBase(), wantTurn: SeatYellow,
 			wantEvents: []game.Event{
-				MovedEvent{By: SeatBlue, Token: 1, From: 2, To: 5},
+				MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 2), To: locationOf(SeatBlue, 5)},
 				CapturedEvent{By: SeatBlue, Victim: SeatYellow, Token: 2},
 			},
 		},
@@ -293,44 +293,44 @@ func TestMove(t *testing.T) {
 			name: "capture across the track wrap", mover: SeatYellow, blue: Tokens{2, out, out, out}, yellow: Tokens{25, out, out, out}, roll: 3, token: 1,
 			wantBlue: inBase(), wantYellow: Tokens{28, out, out, out}, wantTurn: SeatBlue,
 			wantEvents: []game.Event{
-				MovedEvent{By: SeatYellow, Token: 1, From: 25, To: 28},
+				MovedEvent{By: SeatYellow, Token: 1, From: locationOf(SeatYellow, 25), To: locationOf(SeatYellow, 28)},
 				CapturedEvent{By: SeatYellow, Victim: SeatBlue, Token: 1},
 			},
 		},
 		{
 			name: "a star square is safe", blue: Tokens{5, out, out, out}, yellow: Tokens{34, out, out, out}, roll: 3, token: 1,
 			wantBlue: Tokens{8, out, out, out}, wantYellow: Tokens{34, out, out, out}, wantTurn: SeatYellow,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 5, To: 8}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 5), To: locationOf(SeatBlue, 8)}},
 		},
 		{
 			name: "a start square is safe", blue: Tokens{23, out, out, out}, yellow: Tokens{0, out, out, out}, roll: 3, token: 1,
 			wantBlue: Tokens{26, out, out, out}, wantYellow: Tokens{0, out, out, out}, wantTurn: SeatYellow,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 23, To: 26}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 23), To: locationOf(SeatBlue, 26)}},
 		},
 		{
 			name: "an opponent pair on a safe square is shared", blue: Tokens{5, out, out, out}, yellow: Tokens{34, 34, out, out}, roll: 3, token: 1,
 			wantBlue: Tokens{8, out, out, out}, wantYellow: Tokens{34, 34, out, out}, wantTurn: SeatYellow,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 5, To: 8}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 5), To: locationOf(SeatBlue, 8)}},
 		},
 		{
 			name: "own tokens stack", blue: Tokens{2, 5, out, out}, yellow: inBase(), roll: 3, token: 1,
 			wantBlue: Tokens{5, 5, out, out}, wantYellow: inBase(), wantTurn: SeatYellow,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 2, To: 5}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 2), To: locationOf(SeatBlue, 5)}},
 		},
 		{
 			name: "a pair never blocks passing", blue: Tokens{2, out, out, out}, yellow: Tokens{31, 31, out, out}, roll: 5, token: 1,
 			wantBlue: Tokens{7, out, out, out}, wantYellow: Tokens{31, 31, out, out}, wantTurn: SeatYellow,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 2, To: 7}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 2), To: locationOf(SeatBlue, 7)}},
 		},
 		{
 			name: "home columns are private", blue: Tokens{50, out, out, out}, yellow: Tokens{52, out, out, out}, roll: 2, token: 1,
 			wantBlue: Tokens{52, out, out, out}, wantYellow: Tokens{52, out, out, out}, wantTurn: SeatYellow,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 50, To: 52}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 50), To: locationOf(SeatBlue, 52)}},
 		},
 		{
 			name: "reaching home with a six still rolls again", blue: Tokens{50, out, out, out}, yellow: inBase(), roll: 6, token: 1,
 			wantBlue: Tokens{home, out, out, out}, wantYellow: inBase(), wantTurn: SeatBlue,
-			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: 50, To: home}},
+			wantEvents: []game.Event{MovedEvent{By: SeatBlue, Token: 1, From: locationOf(SeatBlue, 50), To: locationOf(SeatBlue, home)}},
 		},
 	}
 	for _, tt := range tests {
@@ -527,5 +527,40 @@ func TestConcludeStopsOfferingMoves(t *testing.T) {
 	view := next.View(SeatBlue)
 	if !finished || result.Kind != game.ResultAborted || len(next.ToAct()) != 0 || view.Phase != PhaseFinished || len(view.Movable) != 0 || view.CanRoll {
 		t.Errorf("concluded: finished %t result %+v to_act %v view %+v; want an aborted game offering nothing", finished, result, next.ToAct(), view)
+	}
+}
+
+func TestViewLocatesEveryTokenAndListsTheSafeSquares(t *testing.T) {
+	square := func(n Square) *Square { return &n }
+	step := func(n int) *int { return &n }
+	s := position(SeatBlue, 0, map[game.Seat]Tokens{SeatBlue: {out, 50, 52, home}, SeatYellow: {0, 30, out, out}})
+	view := s.View(SeatYellow)
+	want := map[game.Seat]Locations{
+		SeatBlue: {
+			{Kind: LocationBase},
+			{Kind: LocationTrack, Square: square(50)},
+			{Kind: LocationHomeColumn, Step: step(2)},
+			{Kind: LocationHome},
+		},
+		SeatYellow: {
+			{Kind: LocationTrack, Square: square(26)},
+			{Kind: LocationTrack, Square: square(4)},
+			{Kind: LocationBase},
+			{Kind: LocationBase},
+		},
+	}
+	if diff := cmp.Diff(want, view.Locations); diff != "" {
+		t.Errorf("locations (-want +got):\n%s", diff)
+	}
+	if want := []Square{0, 8, 13, 21, 26, 34, 39, 47}; !slices.Equal(view.Safe, want) {
+		t.Errorf("safe = %v, want %v", view.Safe, want)
+	}
+}
+
+func TestConcludeDuringTheRollPhaseStopsTheRoll(t *testing.T) {
+	s := position(SeatBlue, 0, map[game.Seat]Tokens{SeatBlue: inBase(), SeatYellow: inBase()})
+	next := s.Conclude(game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted})
+	if view := next.View(SeatBlue); view.CanRoll || view.Phase != PhaseFinished || len(next.ToAct()) != 0 {
+		t.Errorf("concluded on the roll: can_roll %t phase %s to_act %v; want no roll, finished, nobody", view.CanRoll, view.Phase, next.ToAct())
 	}
 }

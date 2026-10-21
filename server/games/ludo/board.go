@@ -32,7 +32,7 @@ func seatOrder() []game.Seat {
 
 // trackStart places the seats clockwise so that seats 1 and 2 sit opposite
 // and any three seats are adjacent.
-func trackStart(seat game.Seat) int {
+func trackStart(seat game.Seat) Square {
 	switch seat {
 	case SeatBlue:
 		return 0
@@ -47,18 +47,45 @@ func trackStart(seat game.Seat) int {
 }
 
 // trackSquare is the shared-track square under a token, if it is on the track.
-func trackSquare(seat game.Seat, p Progress) (int, bool) {
+func trackSquare(seat game.Seat, p Progress) (Square, bool) {
 	if p < ProgressStart || p > lastTrackProgress {
 		return 0, false
 	}
-	return (trackStart(seat) + int(p)) % TrackLength, true
+	return (trackStart(seat) + Square(p)) % TrackLength, true
 }
 
-// isSafe holds for every start square and the star square starOffset past each.
-func isSafe(square int) bool {
-	return slices.ContainsFunc(seatOrder(), func(s game.Seat) bool {
-		return square == trackStart(s) || square == trackStart(s)+starOffset
-	})
+// safeSquares are every start square and the star square starOffset past each, in track order.
+func safeSquares() []Square {
+	var safe []Square
+	for _, seat := range clockwise(seatOrder()) {
+		safe = append(safe, trackStart(seat), trackStart(seat)+starOffset)
+	}
+	return safe
+}
+
+func isSafe(square Square) bool { return slices.Contains(safeSquares(), square) }
+
+func locationsOf(seat game.Seat, tokens Tokens) Locations {
+	var locations Locations
+	for i, p := range tokens {
+		locations[i] = locationOf(seat, p)
+	}
+	return locations
+}
+
+// locationOf is where a token at p is drawn.
+func locationOf(seat game.Seat, p Progress) Location {
+	switch {
+	case p == ProgressBase:
+		return Location{Kind: LocationBase}
+	case p == ProgressHome:
+		return Location{Kind: LocationHome}
+	case p > lastTrackProgress:
+		step := int(p - lastTrackProgress)
+		return Location{Kind: LocationHomeColumn, Step: &step}
+	}
+	square, _ := trackSquare(seat, p)
+	return Location{Kind: LocationTrack, Square: &square}
 }
 
 // advance is where a token at from lands after roll, if the roll is usable at all.
@@ -71,5 +98,5 @@ func advance(from Progress, roll Roll) (Progress, bool) {
 }
 
 func clockwise(seats []game.Seat) []game.Seat {
-	return slices.SortedFunc(slices.Values(seats), func(a, b game.Seat) int { return trackStart(a) - trackStart(b) })
+	return slices.SortedFunc(slices.Values(seats), func(a, b game.Seat) int { return int(trackStart(a) - trackStart(b)) })
 }

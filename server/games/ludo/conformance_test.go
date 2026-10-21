@@ -36,6 +36,7 @@ func playToFinish(t *testing.T, users []game.UserID, seed game.Seed) []gametest.
 			t.Fatalf("%d players: no finish within %d steps", len(users), maxGameSteps)
 		}
 		seat := st.ToAct()[0]
+		checkOnlySeatToActIsOffered(t, st, users, seat)
 		action := firstChoice(st.View(seat))
 		if st, _, err = st.Apply(seat, action, game.StepRNG(seed, seq)); err != nil {
 			t.Fatal(err)
@@ -50,6 +51,18 @@ func notFirst(first game.Seat) game.Seat {
 		return SeatYellow
 	}
 	return SeatBlue
+}
+
+// checkOnlySeatToActIsOffered fails unless seat alone may roll or move.
+func checkOnlySeatToActIsOffered(t *testing.T, st game.State[Action, View], users []game.UserID, seat game.Seat) {
+	t.Helper()
+	for _, other := range seatOrder()[:len(users)] {
+		view := st.View(other)
+		offered := view.CanRoll || len(view.Movable) > 0
+		if offered != (other == seat) {
+			t.Fatalf("%s to act, but %s's view has can_roll %t, movable %v", seat, other, view.CanRoll, view.Movable)
+		}
+	}
 }
 
 func TestConformance(t *testing.T) {
@@ -134,10 +147,12 @@ func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
 	}
 
 	for seq := restoreAt + 1; seq <= maxGameSteps; seq++ {
-		liveView, _ := live.View(SeatBlue)
-		restoredView, _ := restored.View(SeatBlue)
-		if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
-			t.Fatalf("seq %d: restored view differs (-live +restored):\n%s", seq, diff)
+		for _, seat := range []game.Seat{SeatBlue, SeatYellow, SeatRed} {
+			liveView, _ := live.View(seat)
+			restoredView, _ := restored.View(seat)
+			if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
+				t.Fatalf("seq %d: %s's restored view differs (-live +restored):\n%s", seq, seat, diff)
+			}
 		}
 		if len(live.ToAct()) == 0 {
 			break

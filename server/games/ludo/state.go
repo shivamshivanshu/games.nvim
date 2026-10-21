@@ -24,7 +24,6 @@ type state struct {
 	lastRoll Roll
 	sixes    int
 	result   game.Result
-	finished bool
 }
 
 func newState(seats []game.Seat, first game.Seat) state {
@@ -95,7 +94,7 @@ func (s state) applyMove(text string) (game.State[Action, View], []game.Event, e
 	to, _ := advance(from, s.lastRoll)
 	next := s
 	next.tokens = maps.Clone(s.tokens)
-	events := []game.Event{MovedEvent{By: s.turn, Token: token, From: from, To: to}}
+	events := []game.Event{MovedEvent{By: s.turn, Token: token, From: locationOf(s.turn, from), To: locationOf(s.turn, to)}}
 	if victim, victimToken, ok := s.captureAt(to); ok {
 		next.tokens[victim] = withProgress(next.tokens[victim], victimToken, ProgressBase)
 		events = append(events, CapturedEvent{By: s.turn, Victim: victim, Token: victimToken})
@@ -116,8 +115,10 @@ func (s state) afterTurnAction() state {
 	return s.passTurn()
 }
 
+func (s state) over() bool { return s.phase == PhaseFinished }
+
 func (s state) finish(result game.Result) state {
-	s.result, s.finished, s.phase = result, true, PhaseFinished
+	s.result, s.phase = result, PhaseFinished
 	return s
 }
 
@@ -163,13 +164,13 @@ func (s state) captureAt(to Progress) (game.Seat, Token, bool) {
 	return "", 0, false
 }
 
-func (s state) unsafeSquare(to Progress) (int, bool) {
+func (s state) unsafeSquare(to Progress) (Square, bool) {
 	square, onTrack := trackSquare(s.turn, to)
 	return square, onTrack && !isSafe(square)
 }
 
 // tokensOn lists an opponent's tokens on a track square; the mover's own never count.
-func (s state) tokensOn(seat game.Seat, square int) []Token {
+func (s state) tokensOn(seat game.Seat, square Square) []Token {
 	if seat == s.turn {
 		return nil
 	}
@@ -192,18 +193,22 @@ func allHome(tokens Tokens) bool {
 }
 
 func (s state) View(viewer game.Seat) View {
-	toAct := viewer == s.turn && !s.finished
+	toAct := viewer == s.turn && !s.over()
 	movable := []Token{}
 	if toAct && s.phase == PhaseMove {
 		movable = s.movable()
 	}
-	starts := make(map[game.Seat]int, len(s.order))
+	starts := make(map[game.Seat]Square, len(s.order))
+	locations := make(map[game.Seat]Locations, len(s.order))
 	for _, seat := range s.order {
 		starts[seat] = trackStart(seat)
+		locations[seat] = locationsOf(seat, s.tokens[seat])
 	}
 	return View{
 		Starts:     starts,
+		Safe:       safeSquares(),
 		Progress:   maps.Clone(s.tokens),
+		Locations:  locations,
 		LastRoll:   s.lastRoll,
 		SixesInRow: s.sixes,
 		Phase:      s.phase,
@@ -213,17 +218,17 @@ func (s state) View(viewer game.Seat) View {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.over() {
 		return nil
 	}
 	return []game.Seat{s.turn}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
+func (s state) Outcome() (game.Result, bool) { return s.result, s.over() }
 
 // Conclude takes a result the core imposed, such as an abort.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
+	if s.over() {
 		return s
 	}
 	return s.finish(result)
@@ -231,7 +236,7 @@ func (s state) Conclude(result game.Result) game.State[Action, View] {
 
 // Eliminate removes the seat and its tokens; the last seat standing wins.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	if s.finished || !slices.Contains(s.order, seat) {
+	if s.over() || !slices.Contains(s.order, seat) {
 		return s, nil
 	}
 	next := s

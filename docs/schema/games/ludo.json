@@ -67,6 +67,34 @@
       ],
       "description": "ForfeitedEvent means a third six in a row ended the turn."
     },
+    "Location": {
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "square": {
+          "type": "integer"
+        },
+        "step": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Location is where a token is drawn: Square on the track, or Step 1 to 5 up its seat's home column."
+    },
+    "Locations": {
+      "items": {
+        "$ref": "#/$defs/Location"
+      },
+      "type": "array",
+      "maxItems": 4,
+      "minItems": 4,
+      "description": "Locations is where one seat's tokens are drawn, indexed by Token-1."
+    },
     "MovedEvent": {
       "properties": {
         "kind": {
@@ -79,10 +107,10 @@
           "type": "integer"
         },
         "from": {
-          "type": "integer"
+          "$ref": "#/$defs/Location"
         },
         "to": {
-          "type": "integer"
+          "$ref": "#/$defs/Location"
         }
       },
       "additionalProperties": false,
@@ -158,9 +186,21 @@
           },
           "type": "object"
         },
+        "safe": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
         "progress": {
           "additionalProperties": {
             "$ref": "#/$defs/Tokens"
+          },
+          "type": "object"
+        },
+        "locations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Locations"
           },
           "type": "object"
         },
@@ -187,14 +227,16 @@
       "type": "object",
       "required": [
         "starts",
+        "safe",
         "progress",
+        "locations",
         "last_roll",
         "sixes_in_row",
         "phase",
         "movable",
         "can_roll"
       ],
-      "description": "View is the board as one seat sees it. Starts maps each seat to its start\nsquare on the track; Movable and CanRoll are the viewer's own, empty and\nfalse unless it is the viewer's turn."
+      "description": "View is the board as one seat sees it. Starts maps each seat to its start\nsquare on the track, and Safe lists the squares where no capture happens;\nMovable and CanRoll are the viewer's own, empty and false unless it is the\nviewer's turn."
     }
   },
   "title": "Ludo",
