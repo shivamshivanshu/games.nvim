@@ -179,12 +179,7 @@ type Challenge struct {
 }
 
 func (c Challenge) Participants() []game.UserID {
-	return Participants(c.From, c.To)
-}
-
-// Participants lists the challenger first, then the invitees.
-func Participants(challenger game.UserID, invitees []game.UserID) []game.UserID {
-	return append([]game.UserID{challenger}, invitees...)
+	return game.Participants(c.From, c.To)
 }
 
 type ChallengeListResult struct {

@@ -131,7 +131,7 @@ func startHarness(t *testing.T, g game.Game, options string, invitees ...game.Us
 		sent:    &recordingBroadcaster{},
 		clock:   clocktest.New(clocktest.Epoch),
 	}
-	players, err := game.PlayersOf(append([]game.UserID{alice}, invitees...), seats)
+	players, err := game.PlayersOf(game.Participants(alice, invitees), seats)
 	if err != nil {
 		t.Fatal(err)
 	}

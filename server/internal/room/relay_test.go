@@ -58,7 +58,7 @@ func (relayRules) Info() game.Info {
 func (relayRules) New(_ struct{}, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[relayAction, relayView], map[game.UserID]game.Seat, error) {
 	seats := map[game.UserID]game.Seat{}
 	order := []game.Seat{}
-	for _, user := range append([]game.UserID{challenger}, invitees...) {
+	for _, user := range game.Participants(challenger, invitees) {
 		seats[user] = game.Seat(user)
 		order = append(order, game.Seat(user))
 	}

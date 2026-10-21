@@ -55,7 +55,7 @@ func (h *Hub) prepareGame(typ game.GameType, opts game.Options, challenger game.
 		return room.Setup{}, nil, err
 	}
 	// The challenger is seated first, which challengerOf relies on after a restart.
-	players, err := game.PlayersOf(protocol.Participants(challenger, invitees), seats)
+	players, err := game.PlayersOf(game.Participants(challenger, invitees), seats)
 	if err != nil {
 		return room.Setup{}, nil, fmt.Errorf("hub: %w", err)
 	}
