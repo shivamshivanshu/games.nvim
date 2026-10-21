@@ -46,3 +46,12 @@ func TestRollOfNoDiceIsEmpty(t *testing.T) {
 		t.Errorf("Roll of 0 dice = %#v, want an empty non-nil slice", faces)
 	}
 }
+
+func TestDieDrawsWhatRollingOneDieDraws(t *testing.T) {
+	die, roll := seeded(3), seeded(3)
+	for range 20 {
+		if a, b := Die(die, Six), Roll(roll, 1, Six)[0]; a != b {
+			t.Fatalf("Die rolled %d, Roll of one die %d", a, b)
+		}
+	}
+}

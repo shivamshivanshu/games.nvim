@@ -2,7 +2,7 @@
 // sub-seed, and the 52-card French deck with its two-letter wire text.
 package cards
 
-import "math/rand/v2"
+import "github.com/shivamshivanshu/games.nvim/server/game"
 
 // Shuffled is a shuffled copy of ordered, the n-th deck a game with this
 // sub-seed shuffles. It depends on nothing else, so a state can shuffle where
@@ -10,7 +10,7 @@ import "math/rand/v2"
 func Shuffled[C any](ordered []C, subseed uint64, n int) []C {
 	deck := make([]C, len(ordered))
 	copy(deck, ordered)
-	rng := rand.New(rand.NewPCG(subseed, uint64(n)))
+	rng := game.StepRNG(game.Seed(subseed), game.Seq(n))
 	rng.Shuffle(len(deck), func(i, j int) { deck[i], deck[j] = deck[j], deck[i] })
 	return deck
 }

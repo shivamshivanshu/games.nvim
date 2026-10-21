@@ -15,7 +15,10 @@ const Six = 6
 func Roll(rng *rand.Rand, n, sides int) []Face {
 	faces := make([]Face, n)
 	for i := range faces {
-		faces[i] = Face(rng.IntN(sides) + 1)
+		faces[i] = Die(rng, sides)
 	}
 	return faces
 }
+
+// Die throws one die of sides faces, one draw from rng.
+func Die(rng *rand.Rand, sides int) Face { return Face(rng.IntN(sides) + 1) }
