@@ -95,11 +95,11 @@ func TestTickFiresAsARecordedStepAndRearms(t *testing.T) {
 func TestTicksAreWrittenInBatchesAndACrashLosesOnlyTheHeldBack(t *testing.T) {
 	h := newMetronomeHarness(t)
 	var crashed []store.StepRecord
-	for range 3 * tickBatchRows {
+	for range 50 {
 		seq := h.advance(t, gametest.MetronomeInterval).Seq
 		crashed, _ = h.persist.recorded()
 		held := int(seq) - len(crashed)
-		if held >= tickBatchRows || time.Duration(held-1)*gametest.MetronomeInterval >= tickBatchAge {
+		if time.Duration(held-1)*gametest.MetronomeInterval >= tickBatchAge {
 			t.Fatalf("at seq %d, %d ticks held back past a batch", seq, held)
 		}
 	}

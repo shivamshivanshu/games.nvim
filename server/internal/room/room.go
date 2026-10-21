@@ -17,12 +17,9 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-// A room writes the ticks of a ticking game in batches of at most
-// tickBatchRows, spanning at most tickBatchAge.
-const (
-	tickBatchRows = 16
-	tickBatchAge  = 250 * time.Millisecond
-)
+// tickBatchAge is the longest run of ticks a room holds back before it
+// writes them in one go.
+const tickBatchAge = 250 * time.Millisecond
 
 var (
 	ErrStale      = protocol.Error{Code: protocol.CodeStale, Msg: "room: stale seq"}
@@ -571,12 +568,12 @@ func (r *Room) persist(st step, next roomState) (roomState, error) {
 	if err := r.setup.Persist.AppendSteps(r.ctx, r.setup.ID, pending...); err != nil {
 		return roomState{}, err
 	}
-	r.unflushed = pending[:0]
+	r.unflushed = nil
 	return next, nil
 }
 
 func batchDue(pending []store.StepRecord) bool {
-	return len(pending) >= tickBatchRows || pending[len(pending)-1].At.Sub(pending[0].At) >= tickBatchAge
+	return pending[len(pending)-1].At.Sub(pending[0].At) >= tickBatchAge
 }
 
 // flush writes the held back ticks once the room is stopping, past its
