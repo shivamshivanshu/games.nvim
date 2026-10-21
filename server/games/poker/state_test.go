@@ -253,6 +253,9 @@ func TestThreeAllInsMakeSidePotsThatTiedHandsSplit(t *testing.T) {
 	if diff := cmp.Diff([]BustedEvent{{By: "p1", Seat: "p2"}}, eventsOf[BustedEvent](events)); diff != "" {
 		t.Errorf("busted (-want +got):\n%s", diff)
 	}
+	if got := s.KnockedOut(); !slices.Equal(got, []game.Seat{"p2"}) {
+		t.Errorf("knocked out %v, want the busted p2, so the core takes its controls", got)
+	}
 	chips := s.hand.chips
 	if got := []Chips{chips.stack[0] + chips.committed[0], chips.stack[2] + chips.committed[2], chips.stack[3] + chips.committed[3]}; !slices.Equal(got, []Chips{950, 350, 400}) {
 		t.Errorf("p1, p3, p4 hold %v, want [950 350 400]", got)

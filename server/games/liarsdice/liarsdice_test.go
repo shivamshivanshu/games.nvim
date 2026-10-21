@@ -230,6 +230,9 @@ func TestLosingTheLastDieSeatsTheNextOpenerOrEndsTheGame(t *testing.T) {
 	if !cmp.Equal(next.ToAct(), []game.Seat{seat(2)}) || !next.View(seat(1)).Seats[0].Out || len(next.View(seat(1)).MyDice) != 0 {
 		t.Errorf("p1 is out of dice: to act %v, seats %+v", next.ToAct(), next.View(seat(1)).Seats)
 	}
+	if got := next.KnockedOut(); !cmp.Equal(got, []game.Seat{seat(1)}) {
+		t.Errorf("knocked out %v, want p1, so the core takes its controls", got)
+	}
 
 	last := withCups(newGame(t, 3, 1), nil, []dice.Face{2}, []dice.Face{4, 6})
 	last.bid, last.turn = &Bid{By: seat(3), Quantity: 1, Face: 2}, 1

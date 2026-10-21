@@ -125,7 +125,7 @@ delta.
 | `result` | `null` while ongoing; otherwise `{kind, winners: user[], reason}`. |
 | `clock` | `null` for a game without a clock; see [Clock](#clock). |
 | `draw_agreed` | The users who offered a draw that is still pending. |
-| `controls` | The controls this recipient may send now, from `resign`, `offer_draw`, `decline_draw` and `abort`. `abort` is offered only until every player has acted once. |
+| `controls` | The controls this recipient may send now, from `resign`, `offer_draw`, `decline_draw` and `abort`. `abort` is offered only until every player has acted once. A player out of the game gets none: one who resigned or timed out, or one the rules knocked out (busted at poker, out of dice at liar's dice), who also loses an ending the core imposes. |
 | `events` | The events of the step this update reports. Each is an object with a `kind`; see `x-events`. At seq 0 they are the events of the setup, such as moves the rules play before anyone acts. Snapshots and later reads have `[]`. |
 | `view` | The game's view as this recipient sees it; see `x-view`. A finished game keeps each player's final view. |
 | `started_at` | Unix ms when the game started. |

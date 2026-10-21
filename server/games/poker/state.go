@@ -137,6 +137,17 @@ func (s state) Conclude(result game.Result) game.State[Action, View] {
 // Outcome is the result once one seat holds every chip in play.
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
+// KnockedOut are the seats that busted or left.
+func (s state) KnockedOut() []game.Seat {
+	out := []game.Seat{}
+	for i := range s.n {
+		if s.out[i] {
+			out = append(out, seatName(i))
+		}
+	}
+	return out
+}
+
 // Scores are chip deltas at the finish. The winner holds every chip at the
 // table, including stacks forfeited by seats that left, so they sum to zero.
 // An ending without a winner, such as an abort, moves no chips.

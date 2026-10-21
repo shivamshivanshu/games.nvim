@@ -196,7 +196,7 @@ func (s roomState) applyAction(g Setup, st step) (roomState, error) {
 	next.game, next.events = state, events
 	next.drawAgreed = nil
 	next.acted = xslices.With(s.acted, st.user, struct{}{})
-	return next.settled(g), nil
+	return next.withKnockouts(g).settled(g), nil
 }
 
 func (s roomState) applyTimeout(g Setup, st step) (roomState, error) {
@@ -214,7 +214,16 @@ func (s roomState) eliminate(g Setup, user game.UserID, reason game.ResultReason
 	s.game, s.events = state, events
 	s.eliminated = xslices.With(s.eliminated, user, struct{}{})
 	s.drawAgreed = slices.DeleteFunc(slices.Clone(s.drawAgreed), func(u game.UserID) bool { return u == user })
-	return s.settled(g).imposeAgreedDraw(g), nil
+	return s.withKnockouts(g).settled(g).imposeAgreedDraw(g), nil
+}
+
+// withKnockouts counts the seats the rules put out as eliminated, so they
+// lose their controls as if they had resigned.
+func (s roomState) withKnockouts(g Setup) roomState {
+	for _, user := range g.usersAt(s.game.KnockedOut()) {
+		s.eliminated = xslices.With(s.eliminated, user, struct{}{})
+	}
+	return s
 }
 
 func (s roomState) isEliminated(user game.UserID) bool {

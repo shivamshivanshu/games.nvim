@@ -219,6 +219,17 @@ func (s state) ToAct() []game.Seat {
 
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
+// KnockedOut are the seats left without dice, by a challenge or by leaving.
+func (s state) KnockedOut() []game.Seat {
+	out := []game.Seat{}
+	for i, cup := range s.cups {
+		if len(cup) == 0 {
+			out = append(out, s.order[i])
+		}
+	}
+	return out
+}
+
 // Conclude takes a result the core imposed, such as an abort.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
 	if s.finished {

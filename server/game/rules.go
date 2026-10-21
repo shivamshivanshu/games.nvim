@@ -55,6 +55,14 @@ type Opener interface {
 	OpeningEvents() []Event
 }
 
+// Knockout is optionally implemented by a state whose rules put seats out of
+// play before the game ends, such as a player left with no dice or no chips.
+// The core counts those seats as eliminated without calling Eliminate: they
+// get no controls, and an ending the core imposes still records their loss.
+type Knockout interface {
+	KnockedOut() []Seat
+}
+
 // EventCatalog is optionally implemented by Rules to list one value of each
 // event type its states emit, so the wire schema can describe them.
 type EventCatalog interface {
@@ -93,6 +101,9 @@ type ErasedState interface {
 	// OpeningEvents are the encoded events of an Opener fresh from New, and
 	// empty otherwise.
 	OpeningEvents() []json.RawMessage
+	// KnockedOut are the seats a Knockout state's rules put out, and empty
+	// otherwise.
+	KnockedOut() []Seat
 }
 
 func ForfeitToRemaining(all []Seat, eliminated Seat, reason ResultReason) Result {
