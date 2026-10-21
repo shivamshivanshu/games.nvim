@@ -278,27 +278,11 @@ func (s *Store) LoadFinished(ctx context.Context, user game.UserID, limit int) (
 // loadGames resolves the ids matching filter once, then reads exactly those
 // games with their players, and the steps of the ones still ongoing.
 func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any) ([]GameRecord, error) {
-	ids, err := queryAll(ctx, s.reader, scanOne[game.GameID], `SELECT game_id FROM games WHERE `+filter+` `+order, args...)
+	ids, err := s.resolveIDs(ctx, filter, order, args...)
 	if err != nil || len(ids) == 0 {
 		return nil, err
 	}
-	if s.afterResolve != nil {
-		s.afterResolve()
-	}
-	recs, err := queryAll(ctx, s.reader, scanGame,
-		`SELECT game_id, game_type, options_json, rng_seed, created_at,
-		        finished_at, final_seq, result_kind, result_reason, summary, digest, exports_json
-		 FROM games WHERE `+inSet(len(ids)), anySlice(ids)...)
-	if err != nil {
-		return nil, err
-	}
-	position := make(map[game.GameID]int, len(ids))
-	for i, id := range ids {
-		position[id] = i
-	}
-	slices.SortFunc(recs, func(a, b GameRecord) int { return cmp.Compare(position[a.ID], position[b.ID]) })
-	players, err := queryAll(ctx, s.reader, scanPlayer,
-		`SELECT game_id, username, seat, outcome, score, final_view FROM game_players WHERE `+inSet(len(ids))+` ORDER BY rowid`, anySlice(ids)...)
+	recs, players, err := s.loadRows(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +290,42 @@ func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any
 	if err != nil {
 		return nil, err
 	}
+	return assemble(recs, players, steps), nil
+}
+
+func (s *Store) resolveIDs(ctx context.Context, filter, order string, args ...any) ([]game.GameID, error) {
+	ids, err := queryAll(ctx, s.reader, scanOne[game.GameID], `SELECT game_id FROM games WHERE `+filter+` `+order, args...)
+	if err == nil && len(ids) > 0 && s.afterResolve != nil {
+		s.afterResolve()
+	}
+	return ids, err
+}
+
+// loadRows reads the game rows of ids, in the order of ids, and their player rows.
+func (s *Store) loadRows(ctx context.Context, ids []game.GameID) ([]GameRecord, []ofGame[playerRow], error) {
+	recs, err := queryAll(ctx, s.reader, scanGame,
+		`SELECT game_id, game_type, options_json, rng_seed, created_at,
+		        finished_at, final_seq, result_kind, result_reason, summary, digest, exports_json
+		 FROM games WHERE `+inSet("game_id", len(ids)), anySlice(ids)...)
+	if err != nil {
+		return nil, nil, err
+	}
+	position := make(map[game.GameID]int, len(ids))
+	for i, id := range ids {
+		position[id] = i
+	}
+	slices.SortFunc(recs, func(a, b GameRecord) int { return cmp.Compare(position[a.ID], position[b.ID]) })
+	players, err := queryAll(ctx, s.reader, scanPlayer,
+		`SELECT game_id, username, seat, outcome, score, final_view FROM game_players WHERE `+inSet("game_id", len(ids))+` ORDER BY rowid`, anySlice(ids)...)
+	if err != nil {
+		return nil, nil, err
+	}
+	return recs, players, nil
+}
+
+// assemble fills each record with its players, its steps, and, once it is
+// finished, each player's standing and final view.
+func assemble(recs []GameRecord, players []ofGame[playerRow], steps []ofGame[StepRecord]) []GameRecord {
 	playersOf, stepsOf := groupByGame(players), groupByGame(steps)
 	for i := range recs {
 		recs[i].Steps = stepsOf[recs[i].ID]
@@ -319,7 +339,7 @@ func (s *Store) loadGames(ctx context.Context, filter, order string, args ...any
 			}
 		}
 	}
-	return recs, nil
+	return recs
 }
 
 func (s *Store) ongoingSteps(ctx context.Context, recs []GameRecord) ([]ofGame[StepRecord], error) {
@@ -334,11 +354,11 @@ func (s *Store) ongoingSteps(ctx context.Context, recs []GameRecord) ([]ofGame[S
 	}
 	return queryAll(ctx, s.reader, scanStep,
 		`SELECT game_id, seq, username, kind, action_json, server_ts, clock_json
-		 FROM actions WHERE `+inSet(len(ongoing))+` ORDER BY game_id, seq`, anySlice(ongoing)...)
+		 FROM actions WHERE `+inSet("game_id", len(ongoing))+` ORDER BY game_id, seq`, anySlice(ongoing)...)
 }
 
-func inSet(n int) string {
-	return `game_id IN (?` + strings.Repeat(`, ?`, n-1) + `)`
+func inSet(column string, n int) string {
+	return column + ` IN (?` + strings.Repeat(`, ?`, n-1) + `)`
 }
 
 func anySlice[T any](values []T) []any {
@@ -390,7 +410,6 @@ func scanGame(row scanner) (GameRecord, error) {
 		Summary: summary,
 		Digest:  digest.V,
 		Views:   map[game.UserID]json.RawMessage{},
-		Exports: map[string]string{},
 	}
 	if len(exports) > 0 {
 		if err := json.Unmarshal(exports, &finish.Exports); err != nil {
