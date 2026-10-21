@@ -63,7 +63,8 @@ local Control = types.Control
 ---@field layout fun(update: games.GameUpdate, ctx: games.LayoutCtx): games.Node
 ---@field input? games.GameInput
 ---@field actions? games.GameAction[]
----@field describe_event? fun(event: games.Event, update: games.GameUpdate, ctx: games.DescribeCtx): string|nil
+---@field describers? table<games.EventKind, games.Describer> what text each event kind reads as; a kind without one, or one that returns nil, reads generically
+---@field describe_event? fun(event: games.Event, update: games.GameUpdate, ctx: games.DescribeCtx): string|nil the old form of describers, which describers replaces
 ---@field asset_keys? string[] keys every asset pack of the game must draw
 ---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
 ---@field picture_keys? string[] keys its packs draw as whole pictures beside the board
@@ -175,13 +176,12 @@ end
 ---@param elapsed_ms integer
 ---@return games.ClockCell[] by player
 local function clock_cells(update, elapsed_ms)
-  return vim.tbl_map(function(player)
-    local remaining_ms = describe.clock_remaining_ms(update, player.user, elapsed_ms)
+  return vim.tbl_map(function(reading)
     return {
-      text = describe.clock_text(remaining_ms),
-      hl = remaining_ms < LOW_CLOCK_MS and LOW_CLOCK_HL or nil,
+      text = reading.text,
+      hl = reading.remaining_ms < LOW_CLOCK_MS and LOW_CLOCK_HL or nil,
     }
-  end, update.players)
+  end, describe.clock_readings(update, elapsed_ms))
 end
 
 ---@param cells games.ClockCell[]

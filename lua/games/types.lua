@@ -144,8 +144,10 @@
 ---@field running? games.UserID whose remaining time keeps falling from as_of_ms
 ---@field as_of_ms integer unix ms
 
+---@alias games.EventKind string a game's own, such as chess "moved"
+
 ---@class games.Event
----@field kind string
+---@field kind games.EventKind
 ---@field [string] any
 
 ---@class games.GameUpdate

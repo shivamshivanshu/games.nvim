@@ -26,6 +26,8 @@ local PRINTABLE_ASCII = art.PRINTABLE_ASCII
 
 ---@type table<string, games.AssetPack> "<game>/<pack>" -> the pack it resolved to
 local loaded = {}
+---@type table<games.AssetPack, table<games.Glyphs, games.ArtSet>> weak, so a reloaded pack gets its own
+local art_sets = setmetatable({}, { __mode = "k" })
 
 ---@param line string
 ---@return boolean
@@ -235,12 +237,10 @@ function M.load(game, name, spec)
   return pack
 end
 
----What a board draws from pack in glyph mode: its glyphs, and under "unicode" its art, then its
----ascii glyphs as the fallback for unicode ones that do not draw.
 ---@param pack games.AssetPack
 ---@param glyphs games.Glyphs
 ---@return games.ArtSet
-function M.art_set(pack, glyphs)
+local function build_art_set(pack, glyphs)
   local ascii = pack.glyphs.ascii
   if glyphs == "ascii" then
     return ascii
@@ -251,6 +251,20 @@ function M.art_set(pack, glyphs)
     merged[key] = vim.list_extend(combined, ascii[key])
     return merged
   end)
+end
+
+---What a board draws from pack in glyph mode: its glyphs, and under "unicode" its art, then its
+---ascii glyphs as the fallback for unicode ones that do not draw. Built once per pack and mode,
+---so it must not be changed.
+---@param pack games.AssetPack
+---@param glyphs games.Glyphs
+---@return games.ArtSet
+function M.art_set(pack, glyphs)
+  local by_glyphs = art_sets[pack] or {}
+  art_sets[pack] = by_glyphs
+  local set = by_glyphs[glyphs] or build_art_set(pack, glyphs)
+  by_glyphs[glyphs] = set
+  return set
 end
 
 ---What module needs of its packs.

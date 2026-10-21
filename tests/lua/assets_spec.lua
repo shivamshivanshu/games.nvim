@@ -227,4 +227,16 @@ function T.unicode_art_set_adds_art_then_ascii_fallback_and_ascii_has_only_glyph
   assert_eq(1, #assets.art_set(pack(), "ascii").x)
 end
 
+function T.an_art_set_is_built_once_per_pack_and_glyph_mode_and_afresh_for_a_reloaded_pack()
+  local first = pack()
+  local unicode = assets.art_set(first, "unicode")
+
+  assert(assets.art_set(first, "unicode") == unicode, "rebuilt for the same pack and mode")
+  assert_eq(first.glyphs.ascii, assets.art_set(first, "ascii"))
+  assert(assets.art_set(first, "unicode") == unicode, "the ascii set replaced the unicode one")
+  local reloaded = pack(with_art({ "██", "██" }))
+  assert_eq({ "██", "██" }, assets.art_set(reloaded, "unicode").x[2].lines)
+  assert_eq({ "▄▄", "▀▀" }, unicode.x[2].lines)
+end
+
 return T

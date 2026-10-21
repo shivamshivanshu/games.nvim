@@ -39,4 +39,33 @@ function T.title_names_the_opponents_or_solo()
   end
 end
 
+function T.events_read_through_the_module_s_describers_and_generically_without_one()
+  package.preload["games.games.describers_test"] = function()
+    return {
+      layout = function() end,
+      describers = {
+        moved = function(event, talk)
+          return ("%s moved to %s"):format(talk.name(event.by), event.to)
+        end,
+        passed = function()
+          return nil
+        end,
+      },
+    }
+  end
+  local update = helpers.game_update("describers_test", {
+    players = { { user = "alice", seat = "white" } },
+    events = {
+      { kind = "moved", by = "white", to = "e4" },
+      { kind = "moved", by = "black", to = "e5" },
+      { kind = "passed", by = "white" },
+      { kind = "flagged", by = "white" },
+    },
+  })
+  local text = describe.events(update)
+  package.preload["games.games.describers_test"] = nil
+
+  assert_eq("alice moved to e4; black moved to e5; alice: passed; alice: flagged", text)
+end
+
 return T

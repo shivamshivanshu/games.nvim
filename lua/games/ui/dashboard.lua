@@ -6,6 +6,7 @@ local key_hints = require("games.ui.widgets.key_hints")
 local kv = require("games.ui.widgets.kv")
 local notify = require("games.core.notify")
 local paint = require("games.ui.paint")
+local players = require("games.core.players")
 local sources = require("games.core.sources")
 local text = require("games.ui.text")
 local theme = require("games.ui.theme")
@@ -117,7 +118,7 @@ local function sections(snapshot)
   local your_move, ongoing, finished = {}, {}, {}
   for _, update in ipairs(games.items) do
     local bucket = update.result and finished
-      or sources.is_your_move(update, me) and your_move
+      or players.is_to_act(update, me) and your_move
       or ongoing
     bucket[#bucket + 1] = update
   end

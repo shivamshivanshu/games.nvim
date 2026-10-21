@@ -129,19 +129,6 @@ function M.online_first(a, b)
   return a.user < b.user
 end
 
----@enum (private) games.GameStage
-local GameStage = { YOUR_MOVE = 1, WAITING = 2, FINISHED = 3 }
-
----@param update games.GameUpdate
----@param me games.UserID
----@return games.GameStage
-local function stage(update, me)
-  if update.result then
-    return GameStage.FINISHED
-  end
-  return players.is_to_act(update, me) and GameStage.YOUR_MOVE or GameStage.WAITING
-end
-
 ---@param update games.GameUpdate
 ---@return integer
 local function recency(update)
@@ -153,7 +140,7 @@ end
 ---@return fun(a: games.GameUpdate, b: games.GameUpdate): boolean
 local function by_urgency(me)
   return function(a, b)
-    local a_stage, b_stage = stage(a, me), stage(b, me)
+    local a_stage, b_stage = players.stage(a, me), players.stage(b, me)
     if a_stage ~= b_stage then
       return a_stage < b_stage
     end
@@ -162,14 +149,6 @@ local function by_urgency(me)
     end
     return a.game_id < b.game_id
   end
-end
-
----Whether update is ongoing and waiting on me.
----@param update games.GameUpdate
----@param me games.UserID
----@return boolean
-function M.is_your_move(update, me)
-  return stage(update, me) == GameStage.YOUR_MOVE
 end
 
 ---The cache's games with the listed ones it lacks; of two copies of a game the later seq wins.
@@ -280,11 +259,10 @@ end
 ---@param now_ms integer
 ---@return string
 local function clocks_text(update, now_ms)
-  local elapsed_ms = describe.clock_elapsed_ms(update, now_ms)
+  local texts = describe.clock_texts(update, now_ms)
   return table.concat(
     vim.tbl_map(function(player)
-      local remaining_ms = describe.clock_remaining_ms(update, player.user, elapsed_ms)
-      return ("%s %s"):format(player.user, describe.clock_text(remaining_ms))
+      return ("%s %s"):format(player.user, texts[player.user])
     end, update.players),
     ", "
   )

@@ -1,11 +1,23 @@
+local cards = require("games.ui.cards")
+local dice = require("games.ui.dice")
 local players = require("games.core.players")
 local registry = require("games.core.registry")
 local text = require("games.ui.text")
+local timer = require("games.core.timer")
 local types = require("games.types")
 
 local SHORT_ID_LENGTH = 4
-local MS_PER_SECOND = 1000
 local SECONDS_PER_MINUTE = 60
+
+---How event text names seats and draws a game's pieces, built once per update.
+---@class games.Talk
+---@field name fun(seat: games.Seat): string
+---@field art? games.ArtSet the game's asset pack in the user's glyph mode
+---@field ambiwidth games.Ambiwidth
+---@field cards fun(cards: games.CardKey[]): string the cards' glyphs, from art
+---@field faces fun(faces: games.DieFace[]): string the dice's glyphs, from art
+
+---@alias games.Describer fun(event: games.Event, talk: games.Talk): string|nil
 
 local M = {}
 
@@ -111,11 +123,39 @@ function M.clock_remaining_ms(update, user, elapsed_ms)
   return math.max(0, remaining_ms)
 end
 
+---@class games.ClockReading
+---@field remaining_ms integer never negative
+---@field text string "m:ss"
+
+---Each player's clock elapsed_ms after the clock's reading, in update.players order.
+---@param update games.GameUpdate with a clock
+---@param elapsed_ms integer charged to the running clock
+---@return games.ClockReading[]
+function M.clock_readings(update, elapsed_ms)
+  return vim.tbl_map(function(player)
+    local remaining_ms = M.clock_remaining_ms(update, player.user, elapsed_ms)
+    return { remaining_ms = remaining_ms, text = M.clock_text(remaining_ms) }
+  end, update.players)
+end
+
+---Each player's clock text at now_ms, by user.
+---@param update games.GameUpdate with a clock
+---@param now_ms integer unix ms
+---@return table<games.UserID, string>
+function M.clock_texts(update, now_ms)
+  local readings = M.clock_readings(update, M.clock_elapsed_ms(update, now_ms))
+  local texts = {}
+  for i, player in ipairs(update.players) do
+    texts[player.user] = readings[i].text
+  end
+  return texts
+end
+
 ---"m:ss", rounding up to the whole second.
 ---@param remaining_ms integer never negative
 ---@return string
 function M.clock_text(remaining_ms)
-  local seconds = math.ceil(remaining_ms / MS_PER_SECOND)
+  local seconds = math.ceil(remaining_ms / timer.MS_PER_SECOND)
   return ("%d:%02d"):format(math.floor(seconds / SECONDS_PER_MINUTE), seconds % SECONDS_PER_MINUTE)
 end
 
@@ -124,7 +164,7 @@ end
 ---@param format string e.g. "%Y-%m-%d"
 ---@return string
 function M.date(update, format)
-  return os.date(format, math.floor(update.started_at / MS_PER_SECOND)) --[[@as string]]
+  return os.date(format, math.floor(update.started_at / timer.MS_PER_SECOND)) --[[@as string]]
 end
 
 ---@param result games.WireResult
@@ -159,22 +199,26 @@ function M.outcome(result, me)
   return vim.tbl_contains(result.winners, me) and "won" or "lost"
 end
 
+---@type table<games.GameStage, string>
+local STAGE_TEXT = {
+  [players.GameStage.YOUR_MOVE] = "your move",
+  [players.GameStage.WAITING] = "waiting",
+  [players.GameStage.FINISHED] = "finished",
+}
+
 ---"your move", "waiting" or "finished", as me sees the game.
 ---@param update games.GameUpdate
 ---@param me games.UserID
 ---@return string
 function M.turn_text(update, me)
-  if update.result then
-    return "finished"
-  end
-  return players.is_to_act(update, me) and "your move" or "waiting"
+  return STAGE_TEXT[players.stage(update, me)]
 end
 
 ---@param event games.Event
 ---@param update games.GameUpdate
 ---@return string
 local function fallback_description(event, update)
-  local actor = event.by and (players.user_of_seat(update, event.by) or event.by)
+  local actor = event.by and players.name_of_seat(update, event.by)
   return actor and ("%s: %s"):format(actor, event.kind) or event.kind
 end
 
@@ -191,16 +235,47 @@ local function describe_ctx(game, module)
 end
 
 ---@param update games.GameUpdate
+---@param ctx games.DescribeCtx
+---@return games.Talk
+function M.talk(update, ctx)
+  local art, ambiwidth = ctx.art, ctx.ambiwidth
+  return {
+    name = function(seat)
+      return players.name_of_seat(update, seat)
+    end,
+    art = art,
+    ambiwidth = ambiwidth,
+    cards = function(shown)
+      return cards.text(assert(art, "cards draw from an asset pack"), shown, ambiwidth)
+    end,
+    faces = function(faces)
+      return dice.text(assert(art, "dice draw from an asset pack"), faces, ambiwidth)
+    end,
+  }
+end
+
+local function says_nothing()
+  return nil
+end
+
+---@param update games.GameUpdate
 ---@return fun(event: games.Event): string|nil what the game's module says of an event, if anything
 local function module_describer(update)
   local loaded, module = pcall(registry.game_module, update.game)
-  local describe_event = loaded and module and module.describe_event
-  if not module or not describe_event then
-    return function()
-      return nil
-    end
+  if not (loaded and module and (module.describers or module.describe_event)) then
+    return says_nothing
   end
   local ctx = describe_ctx(update.game, module)
+  local describers = module.describers
+  if describers then
+    local talk = M.talk(update, ctx)
+    return function(event)
+      local describer = describers[event.kind]
+      return describer and describer(event, talk)
+    end
+  end
+  local describe_event = module.describe_event
+  ---@cast describe_event -nil
   return function(event)
     return describe_event(event, update, ctx)
   end
