@@ -1,4 +1,3 @@
-local describe = require("games.core.describe")
 local gomoku = require("games.games.gomoku")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -89,13 +88,6 @@ local function note(rendered, r)
   return rendered.lines[BOARD_TOP + r]:match("   (%l+ [%w%-]+)%s*$")
 end
 
----@param update games.GameUpdate
----@param event games.Event
----@return string what the event reads as in update
-local function described(update, event)
-  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
-end
-
 local T = {}
 
 function T.board_letters_the_columns_and_numbers_the_rows_from_the_top_in_both_glyph_modes()
@@ -157,7 +149,7 @@ end
 
 function T.events_name_the_player_and_cell()
   local event = { kind = "placed", by = "white", cell = cell("o15") }
-  assert_eq("bob placed o15", described(update_with(), event))
+  assert_eq("bob placed o15", helpers.described(update_with(), event))
 end
 
 return T

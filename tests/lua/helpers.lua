@@ -1,4 +1,5 @@
 local Conn = require("games.core.conn")
+local describe = require("games.core.describe")
 
 local M = {}
 
@@ -347,6 +348,13 @@ function M.game_update(game, fields, overrides)
   )
   update.view = vim.tbl_extend("force", fields.view or {}, overrides.view or {})
   return update
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+function M.described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 ---Game 0000 at the start position, alice (white) to move against bob, with overrides on top.
