@@ -92,6 +92,24 @@ func TestEncodeFrameMatchesEnvelopeEncoding(t *testing.T) {
 	}
 }
 
+func TestAFrameIsUntouchedByTheFramesEncodedAfterIt(t *testing.T) {
+	first, err := protocol.EncodeFrame(nil, protocol.TypeGameUpdate, protocol.SeqResult{Seq: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := string(first)
+	if _, err := protocol.EncodeFrame(nil, protocol.TypeGameUpdate, make(chan int)); err == nil {
+		t.Fatal("encoded a channel")
+	}
+	second, err := protocol.EncodeFrame(nil, protocol.TypeGameUpdate, protocol.SeqResult{Seq: 22})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(first) != want || string(second) != `{"type":"game.update","body":{"seq":22}}`+"\n" {
+		t.Fatalf("frames %q then %q, want the first still %q", first, second, want)
+	}
+}
+
 func TestInfoToWireKeysOptionsByName(t *testing.T) {
 	wire := protocol.InfoToWire(game.Info{
 		Type:    "chess",
