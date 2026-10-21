@@ -838,7 +838,7 @@ function T.import_takes_a_max_over_the_configured_one()
       assert(
         vim.startswith(
           notices.notified[2],
-          "games: imported 2 into puzzle set daily, 2 more left out past the set's 2, 2 failed:"
+          "games: imported 2 into puzzle set daily; kept 2, more entries left unread"
         ),
         notices.notified[2]
       )

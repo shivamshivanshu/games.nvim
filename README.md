@@ -191,7 +191,7 @@ Each entry is `h` lines of exactly `w` display columns. Art lines hold only spac
 | `:Games next` | open the next game waiting on your move |
 | `:Games export` | archive the finished games the server lists for you (its 50 most recent); reports how many were written, already present, or failed |
 | `:Games find [source]` | fuzzy-find `requests`, `games`, `types`, `players` or `puzzles`; asks which when no source is given; see Finder below |
-| `:Games import <file> [set] [max]` | import a Lichess puzzle `.csv` or a `.pgn` into a puzzle set, by default named after the file; needs no server. Reads the file a line at a time; the set keeps the first `max` entries (default `puzzles.max_entries`, 5000). Reports each entry it could not read and how many it left out past `max`; a PGN game without a `FEN` header is a study, and one prompt asks which side to study |
+| `:Games import <file> [set] [max]` | import a Lichess puzzle `.csv` or a `.pgn` into a puzzle set, by default named after the file; needs no server. Reads the file a line at a time; the set keeps the first `max` entries (default `puzzles.max_entries`, 5000). stops reading at the first entry past `max` and says more were left unread; reports each entry it could not read; a PGN game without a `FEN` header is a study, and one prompt asks which side to study |
 | `:Games puzzle [set]` | start the next entry of a puzzle set (default: the latest imported) as a `chess_puzzle` game and open it; the set completes from the saved sets |
 
 Incoming challenges and moves in boards you are not viewing arrive as `vim.notify` messages. Accepting a challenge opens the board when the game starts.

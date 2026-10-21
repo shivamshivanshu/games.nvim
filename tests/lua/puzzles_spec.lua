@@ -173,7 +173,7 @@ function T.importing_a_csv_writes_the_set_from_its_first_entry_and_makes_it_the_
   with_sets_dir(function(dir)
     local err, result = import(CSV, nil)
     assert_eq(nil, err)
-    assert_eq({ set = "lichess", imported = 4, capped = 0, failures = CSV_FAILURES }, result)
+    assert_eq({ set = "lichess", imported = 4, capped = false, failures = CSV_FAILURES }, result)
     assert_eq({ entries = CSV_ENTRIES, next = 1 }, saved_set(dir, "lichess"))
     assert_eq("lichess", read(dir .. "/latest"))
     assert_eq({ "lichess" }, puzzles.set_names())
@@ -263,7 +263,7 @@ local function csv_of(count)
   return lines
 end
 
-function T.an_import_keeps_the_first_max_entries_and_counts_the_rest()
+function T.an_import_keeps_the_first_max_entries_and_reads_no_further()
   with_sets_dir(function(dir)
     local max, path = 5, dir .. "/big.csv"
     vim.fn.mkdir(dir, "p")
@@ -277,14 +277,14 @@ function T.an_import_keeps_the_first_max_entries_and_counts_the_rest()
       end,
     })
     assert_eq(nil, err)
-    assert_eq({ set = "big", imported = max, capped = 10, failures = {} }, result)
+    assert_eq({ set = "big", imported = max, capped = true, failures = {} }, result)
     local ids = vim.tbl_map(function(entry)
       return entry.id
     end, saved_set(dir, "big").entries)
     assert_eq({ "P1", "P2", "P3", "P4", "P5" }, ids)
-    assert_eq({ 4, 8, 12, 16 }, progress)
+    assert_eq({ 4 }, progress)
     assert_eq(
-      "games: imported 5 into puzzle set big, 10 more left out past the set's 5",
+      "games: imported 5 into puzzle set big; kept 5, more entries left unread",
       puzzles.import_summary(assert(result))
     )
   end)

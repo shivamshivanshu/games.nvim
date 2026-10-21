@@ -264,7 +264,8 @@ same `dir` can both append the same events to `events.jsonl`.
                         The file is read a line at a time, with a progress
                         notice every 100000 lines, and the set keeps its
                         first [max] entries, by default `puzzles.max_entries`
-                        (5000); the summary counts those left out.
+                        (5000); reading stops past them and the summary
+                        says more entries were left unread.
                         Entries that cannot be read are reported with their
                         line or game number; the rest are imported. A PGN
                         game with a `FEN` header is a puzzle for the side

@@ -111,22 +111,29 @@ function M.read(path)
   return data
 end
 
----The lines of the file at path, without their line breaks, read a chunk at a time; nil when it
----does not exist. The file is closed once the last line is read.
+---The lines of the file at path, without their line breaks, read a chunk at a time, and a close
+---for a caller that stops early; nil when it does not exist. The file is closed once the last
+---line is read.
 ---@param path string
 ---@return (fun(): string|nil)|nil
+---@return fun() close
 function M.lines(path)
   local err, fd = call(uv.fs_open, path, "r", FILE_MODE)
   if is_error(err, "ENOENT") then
-    return nil
+    return nil, function() end
   end
   raise(err)
   local lines, index, partial, at_end = {}, 0, "", false
+  local function close()
+    if not at_end then
+      at_end = true
+      raise(call(uv.fs_close, fd))
+    end
+  end
   local function fill()
     local read_err, chunk = call(uv.fs_read, fd, CHUNK_BYTES, -1)
     if read_err or chunk == "" then
-      at_end = true
-      raise(call(uv.fs_close, fd))
+      close()
       raise(read_err)
       lines, index = partial ~= "" and { partial } or {}, 0
       return
@@ -143,7 +150,8 @@ function M.lines(path)
     end
     index = index + 1
     return (lines[index]:gsub("\r$", ""))
-  end
+  end,
+    close
 end
 
 ---Replaces path with data through a temp file of its own in the same directory, so readers never

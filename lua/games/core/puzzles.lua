@@ -12,7 +12,7 @@ local picker = require("games.ui.picker")
 ---@class games.PuzzleImport
 ---@field set string
 ---@field imported integer entries written to the set
----@field capped integer entries read past the set's max_entries and left out
+---@field capped boolean the file holds more entries than the set's max_entries; they are left unread
 ---@field failures games.PuzzleFailure[]
 
 ---@class games.PuzzleImportOpts
@@ -138,27 +138,28 @@ end
 
 ---@class (private) games.PuzzleFileRead
 ---@field entries games.PuzzleEntry[]
----@field capped integer
+---@field capped boolean
 ---@field failures games.PuzzleFailure[]
 
----Reads the file at path line by line through read, keeping its first opts.max_entries entries.
+---Reads the file at path line by line through read, keeping its first opts.max_entries entries;
+---reading stops at the entry after them, so a large file is never read past the cap.
 ---@param path string absolute
 ---@param read fun(sink: games.PuzzleSink): games.PuzzleReader
 ---@param opts games.PuzzleImportOpts
 ---@return games.PuzzleFileRead
 local function read_file(path, read, opts)
-  local lines = fs.lines(path)
+  local lines, close = fs.lines(path)
   if not lines then
     error(("no file %s"):format(path), 0)
   end
   ---@type games.PuzzleFileRead
-  local file = { entries = {}, capped = 0, failures = {} }
+  local file = { entries = {}, capped = false, failures = {} }
   local reader = read({
     entry = function(entry)
       if #file.entries < opts.max_entries then
         table.insert(file.entries, entry)
       else
-        file.capped = file.capped + 1
+        file.capped = true
       end
     end,
     failure = function(failure)
@@ -168,6 +169,10 @@ local function read_file(path, read, opts)
   local every, count = opts.progress_every or PROGRESS_LINES, 0
   for line in lines do
     reader.line(line)
+    if file.capped then
+      close()
+      return file
+    end
     count = count + 1
     if opts.on_progress and count % every == 0 then
       opts.on_progress(count)
@@ -306,8 +311,7 @@ function M.import_summary(result)
   local imported = result.imported > 0
       and ("games: imported %d into puzzle set %s"):format(result.imported, result.set)
     or "games: imported nothing"
-  local capped = result.capped > 0
-      and (", %d more left out past the set's %d"):format(result.capped, result.imported)
+  local capped = result.capped and ("; kept %d, more entries left unread"):format(result.imported)
     or ""
   local lines = { imported .. capped .. (failed > 0 and (", %d failed:"):format(failed) or "") }
   for i = 1, math.min(failed, LISTED_FAILURES) do

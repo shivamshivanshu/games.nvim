@@ -36,7 +36,7 @@ The server knows nothing of sets; they are the client's, in `stdpath("data")/gam
 
 - `:Games import <file> [set] [max]` reads a `.csv` or `.pgn` file into the set, by default named after the file (letters, digits, `_` and `-` only). It replaces a set of that name and becomes the latest set. It needs no server.
   - The file is read a line at a time, so Neovim stays responsive on a large file, such as the whole Lichess database; a notice reports progress every 100000 lines.
-  - The set keeps the file's first `max` entries, by default `puzzles.max_entries` from setup (5000). The summary counts the entries left out past it apart from those that could not be read.
+  - The set keeps the file's first `max` entries, by default `puzzles.max_entries` from setup (5000). Reading stops at the first entry past it, so a large file is only read that far; the summary then says `kept N, more entries left unread`, and reports only the failures before that point.
   - **CSV**, the Lichess puzzle database: a header with `PuzzleId`, `FEN` and `Moves` (other columns are ignored); each row is a puzzle for the side **not** to move in its FEN.
   - **PGN**, split into games. Comments (`{}`, which may span lines, and `;` to the end of the line), variations (nested), `%` escape lines, NAGs, move numbers, annotations (`!?`) and the result are stripped. A tag line inside a comment does not start a game.
     - A game with a `FEN` header is a puzzle for the side to move in it.
@@ -90,5 +90,5 @@ Solved or completed +1; wrong move or gave up -1; abort 0. Solo games count in t
 
 ## Known limits
 - A study takes one side for every game of a PGN file; split the file to study different sides.
-- A set holds at most `max` entries (5000 by default), since `:Games puzzle` rewrites the whole set file as it moves past each entry. Import a larger file in slices with another `max`, or raise `puzzles.max_entries`.
+- A set holds at most `max` entries (5000 by default), since `:Games puzzle` rewrites the whole set file as it moves past each entry. To play further into a larger file, split it, or raise `max` or `puzzles.max_entries`.
 - Two Neovims playing the same set can both start its next entry.
