@@ -117,6 +117,33 @@ games-server serve --addr 100.64.0.1:7777         # e.g. your Tailscale address
 
 Details and flags are under Server below.
 
+## Run in Docker
+
+The image runs `serve --addr 0.0.0.0:7777 --db /data/games.db` as the distroless `nonroot` user (uid 65532); the database lives on the `games-data` volume.
+
+```sh
+make docker                     # -> games-server:latest (override with IMAGE=...)
+docker compose up -d            # publishes 127.0.0.1:7777
+docker compose run --rm -it games adduser --db /data/games.db alice   # prompts for a password
+docker compose run --rm -T games adduser --db /data/games.db --password-stdin bob < bob.pw
+```
+
+`GAMES_BIND` / `GAMES_PORT` choose the published address, e.g. `GAMES_BIND=100.64.0.1 docker compose up -d`.
+
+Backup: stop first, then copy the volume out; never copy a live database, its `-wal` file holds recent writes (or use `sqlite3 games.db ".backup backup.db"` against a running one).
+
+```sh
+docker compose stop && docker compose cp games:/data/. ./games-backup/ && docker compose start
+```
+
+Gotchas:
+
+- No TLS: keep the published port private (loopback, Tailscale, WireGuard); see Security.
+- Keep `/data` a mounted directory on local disk, not NFS: SQLite's WAL needs local file locking.
+- Run one replica; two servers on one database corrupt each other's view of it.
+- The per-IP login lockout sees every client as one IP behind rootless podman, Docker Desktop or a reverse proxy, so one client's bad passwords lock everyone out.
+- Run `adduser` as the image's default user, never `--user root`: root-owned `-wal`/`-shm` files stop the server from opening the database.
+
 ## Config
 
 | Option | Type | Default | Notes |
