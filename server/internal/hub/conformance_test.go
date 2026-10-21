@@ -52,7 +52,7 @@ func TestConformanceTranscripts(t *testing.T) {
 		t.Run(strings.TrimSuffix(filepath.Base(path), ".ndjson"), func(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t)
-			r := &replay{t: t, addr: e.start(t).addr, clock: e.clock, wire: loadWireSchema(t), clients: map[string]*rawClient{}, bound: map[string]any{}}
+			r := &replay{t: t, addr: e.start(t).addr, clock: e.clock, wire: sharedWireSchema(t), clients: map[string]*rawClient{}, bound: map[string]any{}}
 			for n, line := range readTranscript(t, path) {
 				r.step(fmt.Sprintf("%s:%d", filepath.Base(path), n+1), line)
 			}

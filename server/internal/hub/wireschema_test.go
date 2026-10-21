@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -14,13 +15,16 @@ import (
 
 const schemaDir = "../../../docs/schema"
 
-// wireSchema checks server messages against the checked-in JSON Schema.
+// wireSchema checks server messages against the checked-in JSON Schema. It is
+// loaded once and shared by the parallel transcripts, so compiling is locked.
 type wireSchema struct {
 	dir      string
-	compiler *jsonschema.Compiler
-	compiled map[string]*jsonschema.Schema
 	messages map[protocol.MessageType]map[string]schemaRef
 	games    map[string]gameSchemaRefs
+
+	mu       sync.Mutex
+	compiler *jsonschema.Compiler
+	compiled map[string]*jsonschema.Schema
 }
 
 type schemaRef struct {
@@ -32,51 +36,72 @@ type gameSchemaRefs struct {
 	Events map[string]schemaRef `json:"x-events"`
 }
 
-func loadWireSchema(t *testing.T) *wireSchema {
-	t.Helper()
+var loadWireSchema = sync.OnceValues(func() (*wireSchema, error) {
 	dir, err := filepath.Abs(schemaDir)
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	var proto struct {
 		Messages map[protocol.MessageType]map[string]schemaRef `json:"x-messages"`
 	}
-	readJSON(t, filepath.Join(dir, "protocol.json"), &proto)
+	if err := readJSON(filepath.Join(dir, "protocol.json"), &proto); err != nil {
+		return nil, err
+	}
 	w := &wireSchema{dir: dir, compiler: jsonschema.NewCompiler(), compiled: map[string]*jsonschema.Schema{}, messages: proto.Messages, games: map[string]gameSchemaRefs{}}
 	paths, err := filepath.Glob(filepath.Join(dir, "games", "*.json"))
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	for _, path := range paths {
 		var refs gameSchemaRefs
-		readJSON(t, path, &refs)
+		if err := readJSON(path, &refs); err != nil {
+			return nil, err
+		}
 		w.games[filepath.Base(path[:len(path)-len(".json")])] = refs
+	}
+	return w, nil
+})
+
+func sharedWireSchema(t *testing.T) *wireSchema {
+	t.Helper()
+	w, err := loadWireSchema()
+	if err != nil {
+		t.Fatal(err)
 	}
 	return w
 }
 
-func readJSON(t *testing.T, path string, into any) {
-	t.Helper()
+func readJSON(path string, into any) error {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 	if err := json.Unmarshal(raw, into); err != nil {
-		t.Fatalf("%s: %v", path, err)
+		return fmt.Errorf("%s: %w", path, err)
 	}
+	return nil
 }
 
 func (w *wireSchema) validate(file, ref string, v any) error {
-	loc := filepath.Join(w.dir, file) + ref
-	s, ok := w.compiled[loc]
-	if !ok {
-		var err error
-		if s, err = w.compiler.Compile(loc); err != nil {
-			return fmt.Errorf("compile %s: %w", loc, err)
-		}
-		w.compiled[loc] = s
+	s, err := w.compile(filepath.Join(w.dir, file) + ref)
+	if err != nil {
+		return err
 	}
 	return s.Validate(v)
+}
+
+func (w *wireSchema) compile(loc string) (*jsonschema.Schema, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if s, ok := w.compiled[loc]; ok {
+		return s, nil
+	}
+	s, err := w.compiler.Compile(loc)
+	if err != nil {
+		return nil, fmt.Errorf("compile %s: %w", loc, err)
+	}
+	w.compiled[loc] = s
+	return s, nil
 }
 
 // check validates msg, a line the server sent: its envelope, its body as the
