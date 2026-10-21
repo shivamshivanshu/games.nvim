@@ -81,9 +81,17 @@ func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, _ *r
 	if parsed.movesBy(solver, 0) == 0 {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("the line has no move for %s", opts.Player)}
 	}
-	start, _ := newState(opts.Mode, solver, parsed).replyUntilSolverMoves()
-	return start, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	start, replies := newState(opts.Mode, solver, parsed).replyUntilSolverMoves()
+	return opened{state: start, replies: replies}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
 }
+
+// opened is the state New hands over, with the replies played to reach it.
+type opened struct {
+	state
+	replies []game.Event
+}
+
+func (o opened) OpeningEvents() []game.Event { return o.replies }
 
 func (s Side) color() (chess.Color, bool) {
 	switch s {

@@ -34,6 +34,11 @@ func reveal() Action { return Action{Kind: ActionReveal} }
 
 func start(t *testing.T, opts Opts) state {
 	t.Helper()
+	return open(t, opts).state
+}
+
+func open(t *testing.T, opts Opts) opened {
+	t.Helper()
 	st, seats, err := Rules{}.New(opts, solo, nil, nil)
 	if err != nil {
 		t.Fatalf("New(%+v): %v", opts, err)
@@ -41,7 +46,7 @@ func start(t *testing.T, opts Opts) state {
 	if diff := cmp.Diff(map[game.UserID]game.Seat{solo: SeatSolver}, seats); diff != "" {
 		t.Fatalf("seats (-want +got):\n%s", diff)
 	}
-	return st.(state)
+	return st.(opened)
 }
 
 func mustApply(t *testing.T, s state, action Action) (state, []game.Event) {
@@ -145,13 +150,15 @@ func TestOptionsTakeTheLongestLineThroughTheCatalogue(t *testing.T) {
 
 func TestStartPlaysTheOtherSideUpToTheSolversFirstMove(t *testing.T) {
 	tests := []struct {
-		name string
-		opts Opts
-		want View
+		name        string
+		opts        Opts
+		want        View
+		wantReplies []game.Event
 	}{
 		{
-			name: "a lichess row's setup move",
-			opts: scholars,
+			name:        "a lichess row's setup move",
+			opts:        scholars,
+			wantReplies: []game.Event{RepliedEvent{By: SeatSolver, SAN: "Nf6"}},
 			want: View{
 				FEN:        "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
 				HistorySAN: []string{"Nf6"},
@@ -161,8 +168,9 @@ func TestStartPlaysTheOtherSideUpToTheSolversFirstMove(t *testing.T) {
 			},
 		},
 		{
-			name: "black studies from the start",
-			opts: Opts{Mode: ModeStudy, Moves: "e4 e5 Nf3", Player: SideBlack},
+			name:        "black studies from the start",
+			opts:        Opts{Mode: ModeStudy, Moves: "e4 e5 Nf3", Player: SideBlack},
+			wantReplies: []game.Event{RepliedEvent{By: SeatSolver, SAN: "e4"}},
 			want: View{
 				FEN:        "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
 				HistorySAN: []string{"e4"},
@@ -179,7 +187,11 @@ func TestStartPlaysTheOtherSideUpToTheSolversFirstMove(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			view := start(t, tt.opts).View(SeatSolver)
+			opening := open(t, tt.opts)
+			if diff := cmp.Diff(tt.wantReplies, opening.OpeningEvents()); diff != "" {
+				t.Errorf("opening events (-want +got):\n%s", diff)
+			}
+			view := opening.View(SeatSolver)
 			if len(view.LegalMoves) == 0 {
 				t.Errorf("the solver to move has no legal moves in the view")
 			}

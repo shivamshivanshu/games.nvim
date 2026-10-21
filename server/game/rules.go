@@ -49,6 +49,12 @@ type Concluder[Action, View any] interface {
 	Conclude(result Result) State[Action, View]
 }
 
+// Opener is optionally implemented by a state fresh from New to give the
+// events of reaching it, such as moves the rules play before anyone acts.
+type Opener interface {
+	OpeningEvents() []Event
+}
+
 // EventCatalog is optionally implemented by Rules to list one value of each
 // event type its states emit, so the wire schema can describe them.
 type EventCatalog interface {
@@ -84,6 +90,9 @@ type ErasedState interface {
 	Exports(ctx ExportContext) map[string][]byte
 	// Conclude is the state itself for a state that is not a Concluder.
 	Conclude(result Result) ErasedState
+	// OpeningEvents are the encoded events of an Opener fresh from New, and
+	// empty otherwise.
+	OpeningEvents() []json.RawMessage
 }
 
 func ForfeitToRemaining(all []Seat, eliminated Seat, reason ResultReason) Result {

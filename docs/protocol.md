@@ -126,7 +126,7 @@ delta.
 | `clock` | `null` for a game without a clock; see [Clock](#clock). |
 | `draw_agreed` | The users who offered a draw that is still pending. |
 | `controls` | The controls this recipient may send now, from `resign`, `offer_draw`, `decline_draw` and `abort`. `abort` is offered only until every player has acted once. |
-| `events` | The events of the step this update reports. Each is an object with a `kind`; see `x-events`. Snapshots and later reads have `[]`. |
+| `events` | The events of the step this update reports. Each is an object with a `kind`; see `x-events`. At seq 0 they are the events of the setup, such as moves the rules play before anyone acts. Snapshots and later reads have `[]`. |
 | `view` | The game's view as this recipient sees it; see `x-view`. A finished game keeps each player's final view. |
 | `started_at` | Unix ms when the game started. |
 | `finished_at`, `summary`, `digest`, `exports` | `null` until finished; see [Finished games](#finished-games). |

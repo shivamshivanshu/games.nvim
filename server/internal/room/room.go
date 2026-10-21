@@ -126,7 +126,7 @@ type roomState struct {
 }
 
 func initialState(g Setup, state game.ErasedState, now time.Time) roomState {
-	s := roomState{game: state, events: []json.RawMessage{}, since: now, lastStepAt: g.CreatedAt}
+	s := roomState{game: state, events: state.OpeningEvents(), since: now, lastStepAt: g.CreatedAt}
 	if g.clock.Enabled {
 		s.remaining = make(map[game.UserID]time.Duration, len(g.Players))
 		for _, player := range g.Players {

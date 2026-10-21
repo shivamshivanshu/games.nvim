@@ -93,11 +93,28 @@ func (g adapted[Opts, Action, View]) New(opts Options, challenger UserID, invite
 	if err != nil {
 		return nil, nil, err
 	}
-	return erased[Action, View]{state: state}, seats, nil
+	opening, err := encodeEvents(openingEvents(state))
+	if err != nil {
+		return nil, nil, err
+	}
+	return erased[Action, View]{state: state, opening: opening}, seats, nil
+}
+
+func openingEvents(state any) []Event {
+	opener, ok := state.(Opener)
+	if !ok {
+		return nil
+	}
+	return opener.OpeningEvents()
 }
 
 type erased[Action, View any] struct {
-	state State[Action, View]
+	state   State[Action, View]
+	opening []json.RawMessage
+}
+
+func (e erased[Action, View]) OpeningEvents() []json.RawMessage {
+	return append([]json.RawMessage{}, e.opening...)
 }
 
 func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Rand) (ErasedState, []json.RawMessage, error) {
@@ -138,7 +155,7 @@ func (e erased[Action, View]) Exports(ctx ExportContext) map[string][]byte {
 func (e erased[Action, View]) Conclude(result Result) ErasedState {
 	concluder, ok := e.state.(Concluder[Action, View])
 	if !ok {
-		return e
+		return erased[Action, View]{state: e.state}
 	}
 	return erased[Action, View]{state: concluder.Conclude(result)}
 }
@@ -149,15 +166,23 @@ func (e erased[Action, View]) Eliminate(seat Seat, reason ResultReason) (ErasedS
 }
 
 func erasedWithEvents[Action, View any](next State[Action, View], events []Event) (ErasedState, []json.RawMessage, error) {
+	encoded, err := encodeEvents(events)
+	if err != nil {
+		return nil, nil, err
+	}
+	return erased[Action, View]{state: next}, encoded, nil
+}
+
+func encodeEvents(events []Event) ([]json.RawMessage, error) {
 	encoded := make([]json.RawMessage, 0, len(events))
 	for _, e := range events {
 		raw, err := EncodeEvent(e)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		encoded = append(encoded, raw)
 	}
-	return erased[Action, View]{state: next}, encoded, nil
+	return encoded, nil
 }
 
 // EventKindField is the field of an encoded event that holds its kind.

@@ -78,7 +78,11 @@ func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, V
 		t.Fatalf("New: %v", err)
 	}
 	allSeats := sortedSeats(seats)
-	observed := []observation[View]{record(t, script.PrivateOf, state, allSeats, nil)}
+	var opening []game.Event
+	if opener, ok := state.(game.Opener); ok {
+		opening = opener.OpeningEvents()
+	}
+	observed := []observation[View]{record(t, script.PrivateOf, state, allSeats, opening)}
 	applied := game.Seq(0)
 	for i, step := range script.Steps {
 		before := observe(t, state, allSeats)
