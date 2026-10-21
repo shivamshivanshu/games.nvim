@@ -126,9 +126,6 @@ type OptionSpec struct {
 
 type PlayerRange struct{ Min, Max int }
 
-// Solo reports whether the game seats its player alone.
-func (r PlayerRange) Solo() bool { return r.Max == 1 }
-
 // AllowsSolo reports whether the game may seat one player alone, so it starts
 // without a challenge, whether or not it also takes opponents.
 func (r PlayerRange) AllowsSolo() bool { return r.Min == 1 }
