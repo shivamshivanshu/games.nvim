@@ -8,7 +8,7 @@ Two players, classic Battleship on 10 × 10. Server: `server/games/battleship/`,
 - **Setup.** Both players place at once, each seeing only their own board. A ship lies across (its left end on the chosen cell) or down (its top end there). It must lie wholly on the board and may not overlap another of the player's ships; ships may touch, side by side or end to end.
 - **Random fill** places the rest of a player's fleet at once: each ship goes on one of its legal cells and orientations, drawn from the server's seeded random source.
 - A placed ship stays where it is; there is no undo.
-- When a fleet is complete the server sends `ready`; the other player is told only that the fleet is ready.
+- When a fleet is complete the server sends `ready`; the other player is told only that the fleet is ready. Each placement still advances the game's `seq` for both players, as every accepted action does, so the opponent can count placements, never see where they went.
 - **Battle.** Once both fleets are complete, the players take turns firing one shot each, `p1` first. A shot names a cell of the opponent's board not yet fired at, and reports a miss, a hit, or a sunk ship, naming the ship sunk; a hit never says which ship.
 - The turn passes after every shot, hit or miss.
 - Sinking the opponent's last ship wins.
@@ -43,7 +43,7 @@ Two players, classic Battleship on 10 × 10. Server: `server/games/battleship/`,
 |---|---|
 | `h` `j` `k` `l` | move the cursor left, down, up or right: over your fleet while placing, over the target while firing |
 | `r` | turn the ship you place between across and down |
-| `<CR>` | place the ship at the cursor, or fire at the cursor's cell |
+| `<CR>` | place the ship at the cursor, or fire at the cursor's cell when the view offers it |
 | `f` | place the rest of your fleet at random |
 | `m` | fire at a typed cell, e.g. `c5` |
 | `R` | resign |
@@ -57,7 +57,7 @@ The cursor and its orientation belong to the board in your Neovim, not to the ga
 - Two boards side by side, titled `your fleet` and `target`, with lettered columns and numbered rows; a panel beside them.
 - Unicode glyphs: water `·`, ship `■`, miss `○`, hit `✕`, sunk `⊠`; ascii: `.`, `#`, `o`, `X`, `*`.
 - **Placing:** the next ship is drawn at the cursor as `□` (ascii `+`, tinted `GamesMovable`) where the view says it fits, and as `▧` (ascii `!`, tinted `GamesCheck`) where it does not. The panel names the ship, its orientation and the cell, and adds `blocked` when it does not fit.
-- **Firing:** the cursor shows `◎` (ascii `@`, tinted `GamesMovable`) on a cell not yet fired at; the panel names its cell, so the aim never rests on colour alone.
+- **Firing:** the cursor shows `◎` (ascii `@`, tinted `GamesMovable`) on a cell the view lists as a target, and `▧` (ascii `!`, tinted `GamesCheck`) on any other, such as one already fired at, where `<CR>` sends nothing. The panel names the cell, adding `fired` when no shot may go there, so the aim never rests on colour alone.
 - The latest shot is tinted `GamesLastMove` on the board it landed on and named in the panel (`last: their shot at c5`, then `hit`).
 - The panel lists every ship with its state in your fleet and theirs: `unplaced`, `afloat` or `sunk`.
 - Events notify as `bob's fleet is ready` and `alice fired at c5: sank the destroyer`.
@@ -84,5 +84,5 @@ The cursor and its orientation belong to the board in your Neovim, not to the ga
 ## Known limits
 - No undo of a placed ship, and no re-roll of a random fleet once it is complete.
 - The cursor moves with `h` `j` `k` `l` only, not the arrow keys. It stays where it was left, so the first aim is where the last ship was placed.
-- The footer is one row: while placing it is 98 columns wide, so an 80-column window cuts off `]g next game  q close`; while firing it fits.
+- The footer is one row, so its labels are kept short (`r turn`, `<CR> place`, `f fill`) to fit 80 columns while abort is still offered.
 - The view lists every legal anchor and target cell, up to about 130 squares an update while placing and 100 while firing, so updates are a few kilobytes and the conformance transcript is large.
