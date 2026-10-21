@@ -123,24 +123,28 @@ func TestTicksAreWrittenInBatchesAndACrashLosesOnlyTheHeldBack(t *testing.T) {
 	}
 }
 
-func TestLateTickCountsTheNextFromWhenItWasDue(t *testing.T) {
-	h := newMetronomeHarness(t)
-	start := h.clock.Now()
-	if u := h.advance(t, gametest.MetronomeInterval+gametest.MetronomeInterval/3); u.Seq != 1 {
-		t.Fatalf("seq %d after the late tick, want 1", u.Seq)
-	}
-	if diff := cmp.Diff([]time.Time{start.Add(2 * gametest.MetronomeInterval)}, h.clock.Armed()); diff != "" {
-		t.Fatalf("armed after a late tick (-want +got):\n%s", diff)
-	}
-}
-
-func TestStalledTickCountsTheNextFromWhenItRan(t *testing.T) {
-	h := newMetronomeHarness(t)
-	if u := h.advance(t, 3*gametest.MetronomeInterval+gametest.MetronomeInterval/2); u.Seq != 1 {
-		t.Fatalf("seq %d after the stall, want 1: no burst", u.Seq)
-	}
-	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(gametest.MetronomeInterval)}, h.clock.Armed()); diff != "" {
-		t.Fatalf("armed after the stalled tick (-want +got):\n%s", diff)
+func TestATickCountsTheNextFromWhenItWasDueUnlessAWholeIntervalLate(t *testing.T) {
+	const interval = gametest.MetronomeInterval
+	for _, tc := range []struct {
+		name string
+		late time.Duration
+		// next is when the tick after the late one is due, from the start.
+		next time.Duration
+	}{
+		{"a third late", interval / 3, 2 * interval},
+		{"exactly an interval late", interval, 3 * interval},
+		{"stalled", 2*interval + interval/2, 4*interval + interval/2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newMetronomeHarness(t)
+			start := h.clock.Now()
+			if u := h.advance(t, interval+tc.late); u.Seq != 1 {
+				t.Fatalf("seq %d after the late tick, want 1: no burst", u.Seq)
+			}
+			if diff := cmp.Diff([]time.Time{start.Add(tc.next)}, h.clock.Armed()); diff != "" {
+				t.Fatalf("armed after the late tick (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
