@@ -8,4 +8,3 @@
 - Images via kitty graphics (parked by user 2026-10-21): opt-in `glyphs = "image"` via snacks image placeholders; chess PoC first. Recon: /home/claude_notes/scratchpad/20261021/games-nvim-kitty-images-recon.md
 - Deferred games (user, 2026-10-21): Quoridor, Backgammon (rulings in spec §3.9; Backgammon reuses game/dice, Quoridor the grid edge layer from Dots and Boxes), plus Go, Shogi/Xiangqi, Hex.
 - In a simultaneous phase (battleship setup) a `<CR>` racing the opponent's push gets `stale`, and `snapshot_if_stale` (`lua/games/core/client.lua:101`) drops it silently; resend or tell the player. Found in M1 review.
-- Restore writes a `pause` step for a ticking game (`server/internal/room/restore.go`), so one failed write fails `hub.New` and the whole hub start. Restore should log the error and skip or retry that game instead (the room's pending-pause retry could carry it). Found in Pac-Man review.

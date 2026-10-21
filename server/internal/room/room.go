@@ -399,8 +399,9 @@ type Room struct {
 	exited chan struct{}
 
 	// pauseWanted is a pause asked for, while its player is away, that has
-	// yet to persist.
-	pauseWanted func() bool
+	// yet to persist; one that failed is retried no sooner than pauseRetryAt.
+	pauseWanted  func() bool
+	pauseRetryAt time.Time
 }
 
 func Start(ctx context.Context, g Setup, state game.ErasedState) *Room {
@@ -429,7 +430,9 @@ func (r *Room) Done() <-chan struct{} { return r.done }
 func (r *Room) run() {
 	defer close(r.exited)
 	defer r.stopTimer()
-	r.armTimer()
+	if r.settlePause() {
+		r.armTimer()
+	}
 	for !r.cur.finished() {
 		select {
 		case msg := <-r.inbox:

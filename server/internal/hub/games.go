@@ -149,7 +149,7 @@ func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, er
 	if err != nil {
 		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
 	}
-	return room.Restore(ctx, setup, rec.Steps)
+	return room.Restore(ctx, setup, rec.Steps, h.away(game.Users(rec.Players)...))
 }
 
 func (h *Hub) roomSetup(p room.Params) (room.Setup, error) {

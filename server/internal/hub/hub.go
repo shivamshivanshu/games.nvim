@@ -106,11 +106,18 @@ func (h *Hub) dropSession(s *session.Session) bool {
 // back by the time it gets there. Rooms already take mu from their actor (see
 // SendUpdate), so asking online there keeps the lock order.
 func (h *Hub) pauseGamesOf(user game.UserID) {
-	away := func() bool { return !h.online(user) }
+	away := h.away(user)
 	for _, r := range h.liveRoomsOf(user) {
 		if err := r.Pause(h.ctx, away); err != nil && h.ctx.Err() == nil {
 			slog.Error("hub: pause on disconnect", "user", user, "err", err)
 		}
+	}
+}
+
+// away reports whether any of users has no session left.
+func (h *Hub) away(users ...game.UserID) func() bool {
+	return func() bool {
+		return slices.ContainsFunc(users, func(u game.UserID) bool { return !h.online(u) })
 	}
 }
 

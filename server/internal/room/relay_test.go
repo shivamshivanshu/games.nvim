@@ -182,7 +182,7 @@ func TestRestoreKeepsKnockedOutSeatWithoutControls(t *testing.T) {
 	h.cancel()
 
 	steps, _ := h.persist.recorded()
-	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps, away)
 	if err != nil {
 		t.Fatal(err)
 	}

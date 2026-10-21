@@ -209,15 +209,10 @@ func TestRestoreReplaysTicksAndWaitsPaused(t *testing.T) {
 	}
 	seq = h.metronome(t, seq, gametest.MetronomeTap)
 	before := metronomeView(t, h.advance(t, gametest.MetronomeInterval))
-	h.cancel()
-	<-h.room.exited
-
 	steps, _ := h.persist.recorded()
-	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
-	if err != nil {
+	if err := h.restart(t, away); err != nil {
 		t.Fatal(err)
 	}
-	h.room = restored
 	u := h.snapshot(t, prototest.Alice)
 	before.Paused = true
 	if diff := cmp.Diff(before, metronomeView(t, u)); diff != "" || u.Seq != seq+2 {
@@ -235,6 +230,103 @@ func TestRestoreReplaysTicksAndWaitsPaused(t *testing.T) {
 	want := replayedMetronome(t, h.params)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("first tick after the restore (-replayed +room):\n%s", diff)
+	}
+}
+
+// restart stops h's room and restores its game from the steps it persisted,
+// as the hub does when the server restarts.
+func (h *harness) restart(t *testing.T, away func() bool) error {
+	t.Helper()
+	h.cancel()
+	<-h.room.exited
+	steps, _ := h.persist.recorded()
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps, away)
+	if err != nil {
+		return err
+	}
+	h.room = restored
+	return nil
+}
+
+// waitFor waits for done without sending the room anything, so only its own
+// timer can have moved it.
+func waitFor(t *testing.T, what string, done func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(waitTimeout)
+	for !done() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func TestRestoreWhosePauseFailsToPersistStartsAndRetriesOnItsTimer(t *testing.T) {
+	failing, healthy := newMetronomeHarness(t), newMetronomeHarness(t)
+	failing.advance(t, gametest.MetronomeInterval)
+	healthy.advance(t, gametest.MetronomeInterval)
+	failing.persist.setFail(errors.New("disk full"))
+	for _, h := range []*harness{failing, healthy} {
+		if err := h.restart(t, away); err != nil {
+			t.Fatalf("restore: %v", err)
+		}
+	}
+
+	paused := metronomeView(t, healthy.snapshot(t, prototest.Alice)).Paused
+	if steps, _ := healthy.persist.recorded(); !slices.Equal(stepKinds(steps), []store.StepKind{store.StepTick, store.StepPause}) || !paused {
+		t.Fatalf("the healthy game recorded %v, paused %t; want its tick and a pause", stepKinds(steps), paused)
+	}
+
+	if u := failing.snapshot(t, prototest.Alice); u.Seq != 1 || metronomeView(t, u).Paused {
+		t.Fatalf("pause failed to persist, yet seq %d, view %s", u.Seq, u.View)
+	}
+	tries := failing.persist.attempted()
+	failing.snapshot(t, prototest.Alice)
+	if got := failing.persist.attempted(); got != tries {
+		t.Fatalf("a snapshot before the retry is due wrote %d times", got-tries)
+	}
+	if diff := cmp.Diff([]time.Time{failing.clock.Now().Add(retryDelay)}, failing.clock.Armed()); diff != "" {
+		t.Fatalf("armed after the failed pause (-want +got):\n%s", diff)
+	}
+
+	failing.clock.Advance(retryDelay)
+	waitFor(t, "the timer's retry", func() bool { return failing.persist.attempted() > tries })
+	failing.snapshot(t, prototest.Alice)
+	if got := failing.persist.attempted(); got != tries+1 {
+		t.Fatalf("one failing retry made %d attempts", got-tries)
+	}
+
+	failing.persist.setFail(nil)
+	failing.clock.Advance(retryDelay)
+	waitFor(t, "the pause to persist", func() bool { steps, _ := failing.persist.recorded(); return len(steps) == 2 })
+	steps, _ := failing.persist.recorded()
+	want := []store.StepRecord{steps[0], {Seq: 2, Kind: store.StepPause, At: failing.clock.Now()}}
+	if diff := cmp.Diff(want, steps); diff != "" {
+		t.Fatalf("recorded steps after the retry (-want +got):\n%s", diff)
+	}
+	if u := failing.snapshot(t, prototest.Alice); !metronomeView(t, u).Paused {
+		t.Fatalf("not paused once the pause persisted: %s", u.View)
+	}
+	if armed := failing.clock.Armed(); len(armed) != 0 {
+		t.Fatalf("armed %v once paused", armed)
+	}
+}
+
+func TestRestorePauseThatFailedIsDroppedOnceThePlayerIsBack(t *testing.T) {
+	h := newMetronomeHarness(t)
+	h.advance(t, gametest.MetronomeInterval)
+	h.persist.setFail(errors.New("disk full"))
+	gone := true
+	if err := h.restart(t, func() bool { return gone }); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	h.snapshot(t, prototest.Alice)
+	gone = false
+	h.persist.setFail(nil)
+	u := h.advance(t, retryDelay)
+	steps, _ := h.persist.recorded()
+	if !slices.Equal(stepKinds(steps), []store.StepKind{store.StepTick, store.StepTick}) || u.Seq != 2 || metronomeView(t, u).Paused {
+		t.Fatalf("player back before the retry: recorded %v, seq %d, view %s; want ticking on", stepKinds(steps), u.Seq, u.View)
 	}
 }
 

@@ -9,7 +9,10 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
-func Restore(ctx context.Context, g Setup, steps []store.StepRecord) (*Room, error) {
+// Restore replays steps. Nobody is connected to a game the server has just
+// restored, so a ticking one waits, paused, for its players: away is asked as
+// Pause asks it.
+func Restore(ctx context.Context, g Setup, steps []store.StepRecord, away func() bool) (*Room, error) {
 	p := g.Params
 	state, seats, err := p.Game.New(p.Options, p.Challenger, p.invitees(), game.StepRNG(p.Seed, 0))
 	if err != nil {
@@ -37,11 +40,7 @@ func Restore(ctx context.Context, g Setup, steps []store.StepRecord) (*Room, err
 	// Downtime is not charged: clocks resume from the last persisted values as of now.
 	s.since = p.Time.Now()
 	r := newRoom(ctx, g, s)
-	// Nobody is connected to a game the server has just restored, so a
-	// ticking one waits, paused, for its player.
-	if err := r.pause(); err != nil {
-		return nil, fmt.Errorf("room: restore %s: pause: %w", p.ID, err)
-	}
+	r.pauseWanted = away
 	go r.run()
 	return r, nil
 }

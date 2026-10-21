@@ -113,7 +113,7 @@ func openRoom(t *testing.T, players []game.UserID, seed game.Seed) *pokerRoom {
 func restoreRoom(t *testing.T, params room.Params, steps []store.StepRecord) *pokerRoom {
 	t.Helper()
 	setup, rec := withRecorder(t, params)
-	r, err := room.Restore(t.Context(), setup, steps)
+	r, err := room.Restore(t.Context(), setup, steps, func() bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -82,23 +82,19 @@ func (r *Room) settlePause() bool {
 	if r.pauseWanted == nil {
 		return true
 	}
-	if r.pauseWanted() && r.cur.ticking() && !r.commitAuto(r.pauseStep()) {
-		return false
+	if r.pauseWanted() && r.cur.ticking() {
+		now := r.setup.Time.Now()
+		if now.Before(r.pauseRetryAt) {
+			r.armIn(r.pauseRetryAt.Sub(now))
+			return false
+		}
+		if !r.commitAuto(step{seq: r.cur.seq + 1, kind: store.StepPause, at: now}) {
+			r.pauseRetryAt = now.Add(retryDelay)
+			return false
+		}
 	}
-	r.pauseWanted = nil
+	r.pauseWanted, r.pauseRetryAt = nil, time.Time{}
 	return true
-}
-
-func (r *Room) pause() error {
-	if !r.cur.ticking() {
-		return nil
-	}
-	_, err := r.commit(r.pauseStep())
-	return err
-}
-
-func (r *Room) pauseStep() step {
-	return step{seq: r.cur.seq + 1, kind: store.StepPause, at: r.setup.Time.Now()}
 }
 
 // commitAuto commits a step the room takes on its own. One that fails to

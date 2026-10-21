@@ -235,7 +235,7 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 
 	steps, _ := h.persist.recorded()
 	h.clock.Advance(time.Hour)
-	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps, away)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +561,7 @@ func TestRestoreAfterTimeoutRearmsTimer(t *testing.T) {
 	h.cancel()
 
 	steps, _ := h.persist.recorded()
-	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps, away)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -593,7 +593,7 @@ func TestRestoreKeepsEliminatedPlayer(t *testing.T) {
 	h.cancel()
 
 	steps, _ := h.persist.recorded()
-	restored, err := Restore(t.Context(), newSetup(t, h.params), steps)
+	restored, err := Restore(t.Context(), newSetup(t, h.params), steps, away)
 	if err != nil {
 		t.Fatal(err)
 	}
