@@ -131,10 +131,10 @@ local function marks_for(update)
 end
 
 ---@param view games.MastermindView
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 local function panel(view, ctx)
-  local set = assert(ctx.art, "mastermind draws from an asset pack")
+  local set = ctx.art
   local function glyph(key)
     return vim.trim(art.glyph(set, key, ctx.ambiwidth))
   end
@@ -166,7 +166,7 @@ M.asset_keys = vim.list_extend(
 M.glyph_width = CELL_WIDTH
 
 ---@param update games.MastermindUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view

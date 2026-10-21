@@ -76,10 +76,10 @@ local function cell_for(view, row, col)
 end
 
 ---@param view games.WordleView
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 local function keyboard(view, ctx)
-  local set = assert(ctx.art, "wordle draws from an asset pack")
+  local set = ctx.art
   return compose.col(vim
     .iter(ipairs(KEYBOARD_ROWS))
     :map(function(i, letters)
@@ -119,7 +119,7 @@ M.asset_keys = vim.list_extend(
 M.glyph_width = CELL_WIDTH
 
 ---@param update games.WordleUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view

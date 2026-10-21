@@ -29,6 +29,10 @@ local Control = types.Control
 ---@field ambiwidth games.Ambiwidth
 ---@field flip boolean whether a flippable game's board draws flipped, as the user now sees it
 
+---The layout ctx of a module with asset_keys, whose pack render requires.
+---@class games.ArtLayoutCtx: games.LayoutCtx
+---@field art games.ArtSet
+
 ---@class games.DescribeCtx how event text outside a board draws
 ---@field art? games.ArtSet the game's asset pack in the user's glyph mode
 ---@field ambiwidth games.Ambiwidth

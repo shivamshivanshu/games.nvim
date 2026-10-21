@@ -106,10 +106,10 @@ local function status_pairs(view)
 end
 
 ---@param view games.HangmanView
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 local function gallows(view, ctx)
-  local set = assert(ctx.art, "hangman draws from an asset pack")
+  local set = ctx.art
   local lines = art.picture(set, gallows_key(view.misses), ctx.ambiwidth)
   return compose.col(vim.tbl_map(function(line)
     return compose.text(line)
@@ -137,7 +137,7 @@ M.picture_keys = vim.tbl_map(gallows_key, vim.fn.range(0, GALLOWS_STAGES))
 M.glyph_width = CELL_WIDTH
 
 ---@param update games.HangmanUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view

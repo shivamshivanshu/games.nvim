@@ -270,10 +270,10 @@ end
 
 ---@param view games.PokerView
 ---@param seat games.Seat
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return string the button's glyph on its seat, blank on the others
 local function button_mark(view, seat, ctx)
-  local set = assert(ctx.art, "poker draws from an asset pack")
+  local set = ctx.art
   return art.glyph(set, view.button == seat and BUTTON_KEY or BLANK_KEY, ctx.ambiwidth)
 end
 
@@ -289,7 +289,7 @@ M.glyph_width = GLYPH_WIDTH
 ---folded, is all-in or out, each column as wide as its widest entry at the table.
 ---@param update games.PokerUpdate
 ---@param seat games.Seat
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat, ctx)
   local view = update.view
@@ -310,11 +310,11 @@ function M.player_extra(update, seat, ctx)
 end
 
 ---@param update games.PokerUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local set = assert(ctx.art, "poker draws from an asset pack")
+  local set = ctx.art
   return board({
     grid = {
       rows = HAND_ROW,

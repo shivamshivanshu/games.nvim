@@ -250,7 +250,7 @@ local function table_pairs(update, me, talk)
 end
 
 ---@param view games.HeartsView
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node[]
 local function hand_lines(view, ctx)
   if #view.my_hand == 0 then
@@ -260,7 +260,7 @@ local function hand_lines(view, ctx)
   return vim.list_extend(
     lines,
     cards.hand({
-      set = assert(ctx.art, "hearts draws from an asset pack"),
+      set = ctx.art,
       cards = view.my_hand,
       marked = tables.set_of(view.legal),
       glyph_width = GLYPH_WIDTH,
@@ -299,7 +299,7 @@ M.glyph_width = GLYPH_WIDTH
 ---The trick round the table, you at the bottom and the seat on your left on the left, with the
 ---table, your hand, the cards you may play marked, and the last hand's scores in the panel.
 ---@param update games.HeartsUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
@@ -338,7 +338,7 @@ end
 ---has chosen its passes or left, each column as wide as its widest entry at the table.
 ---@param update games.HeartsUpdate
 ---@param seat games.Seat
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.TextNode[]|nil
 function M.player_extra(update, seat, ctx)
   local view = update.view

@@ -155,7 +155,7 @@ local function table_pairs(view)
 end
 
 ---@param view games.UnoView
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node[]
 local function hand_lines(view, ctx)
   if #view.my_hand == 0 then
@@ -165,7 +165,7 @@ local function hand_lines(view, ctx)
   return vim.list_extend(
     lines,
     cards.hand({
-      set = assert(ctx.art, "uno draws from an asset pack"),
+      set = ctx.art,
       cards = view.my_hand,
       marked = tables.set_of(view.playable),
       glyph_width = GLYPH_WIDTH,
@@ -186,7 +186,7 @@ M.glyph_width = GLYPH_WIDTH
 ---The discard pile's top card in the colour in play beside the draw pile, with the table and
 ---your hand, the cards you may play marked, in the panel.
 ---@param update games.UnoUpdate
----@param ctx games.LayoutCtx
+---@param ctx games.ArtLayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
