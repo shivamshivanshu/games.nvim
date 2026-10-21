@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "edge": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "edge"
+      ],
+      "description": "Action names its edge as text, such as \"b2h\": the dot at its left or top end, then h lying\nacross or v lying down."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "draw"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Box": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col"
+      ],
+      "description": "Box is a box on the wire, 1-based: row 1 is the top, column 1 the left."
+    },
+    "DrawnEvent": {
+      "properties": {
+        "kind": {
+          "const": "drawn"
+        },
+        "by": {
+          "type": "string"
+        },
+        "edge": {
+          "$ref": "#/$defs/Line"
+        },
+        "boxes": {
+          "items": {
+            "$ref": "#/$defs/Box"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "edge",
+        "boxes"
+      ],
+      "description": "DrawnEvent reports By's edge and the boxes it completed, which earn By another move."
+    },
+    "Line": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "orientation": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col",
+        "orientation"
+      ],
+      "description": "Line is an edge on the wire: Row and Col are its left or top dot, 1-based from the top left."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "more_boxes",
+        "equal_boxes"
+      ],
+      "description": "The result reasons Dots and Boxes adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "across": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "down": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "boxes": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "scores": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "last": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Line"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legal_edges": {
+          "items": {
+            "$ref": "#/$defs/Line"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "across",
+        "down",
+        "boxes",
+        "scores",
+        "last",
+        "legal_edges"
+      ],
+      "description": "View holds the board as rows from the top: Across[r][c] is the seat that drew the edge across\nfrom dot (r, c), Down[r][c] the one down from it, and Boxes[r][c] the seat that completed that\nbox, each \"\" while undrawn or open. Across is a row of dots longer than Boxes, Down a column\nwider. Scores counts each seat's boxes. Last is the latest edge drawn. LegalEdges is the\nviewer's own: the undrawn edges, empty unless it is to move."
+    }
+  },
+  "title": "Dots and Boxes",
+  "description": "The game-specific bodies inside a dots_and_boxes game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "drawn": {
+      "$ref": "#/$defs/DrawnEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

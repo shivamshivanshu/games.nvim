@@ -8,6 +8,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/chess960"
 	"github.com/shivamshivanshu/games.nvim/server/games/chesspuzzle"
 	"github.com/shivamshivanshu/games.nvim/server/games/connect4"
+	"github.com/shivamshivanshu/games.nvim/server/games/dotsandboxes"
 	"github.com/shivamshivanshu/games.nvim/server/games/fifteen"
 	"github.com/shivamshivanshu/games.nvim/server/games/g2048"
 	"github.com/shivamshivanshu/games.nvim/server/games/gomoku"
@@ -52,5 +53,6 @@ func All() []game.Game {
 		game.Adapt(hearts.Rules{}),
 		game.Adapt(battleship.Rules{}),
 		game.Adapt(chess960.Rules{}),
+		game.Adapt(dotsandboxes.Rules{}),
 	}
 }
