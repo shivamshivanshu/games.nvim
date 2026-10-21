@@ -143,7 +143,7 @@ function T.extmark_columns_are_bytes_after_multibyte_glyph()
     end,
   }))
   assert_eq({ "2 ♟ ♟", "1 ♟ ♟", "  a b" }, rendered.lines)
-  local second = rendered.extmarks[2]
+  local second = helpers.extmarks(rendered)[2]
   assert_eq(
     { row = 0, col = 6, end_col = 9, hl = { "GamesSquareDark", "GamesSquareDarkInk" } },
     second

@@ -39,7 +39,7 @@ function T.header_shows_each_sides_surplus_in_the_opponents_glyphs_after_the_clo
       shell.render(update, chess, helpers.view_options("chess", chess, case.glyphs), "alice")
     local marks = vim.tbl_filter(function(mark)
       return mark.hl == "GamesMuted" and mark.col == #"alice  white  5:00  "
-    end, rendered.extmarks)
+    end, helpers.extmarks(rendered))
 
     assert_eq(case.header, vim.list_slice(rendered.lines, 1, 2))
     assert_eq(3, header_height)

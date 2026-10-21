@@ -49,11 +49,18 @@ local subscribed_clients = setmetatable({}, { __mode = "k" })
 ---@return games.Rendered
 local function stack(top, bottom)
   local lines = vim.list_extend(vim.list_extend({}, top.lines), bottom.lines)
-  local extmarks = vim.list_extend({}, top.extmarks)
-  for _, mark in ipairs(bottom.extmarks) do
-    extmarks[#extmarks + 1] = vim.tbl_extend("force", mark, { row = mark.row + #top.lines })
+  local above, below = top.marks, bottom.marks
+  local marks = {
+    row = vim.list_extend({}, above.row),
+    col = vim.list_extend({}, above.col),
+    end_col = vim.list_extend({}, above.end_col),
+    hl = vim.list_extend({}, above.hl),
+  }
+  local offset = #top.lines
+  for i = 1, #below.row do
+    compose.add_mark(marks, below.row[i] + offset, below.col[i], below.end_col[i], below.hl[i])
   end
-  return { lines = lines, extmarks = extmarks }
+  return { lines = lines, marks = marks }
 end
 
 ---@type fun(board: games.Board)

@@ -141,7 +141,7 @@ end
 function T.cards_played_draw_on_a_card_background_and_empty_places_do_not()
   local out = shell.render(playing(), hearts, view_options("ascii"), "bob", 0, nil, CATALOGUE)
   local backed = {}
-  for _, mark in ipairs(out.extmarks) do
+  for _, mark in ipairs(helpers.extmarks(out)) do
     if type(mark.hl) == "table" and vim.tbl_contains(mark.hl, "GamesSquareLight") then
       backed[#backed + 1] = out.lines[mark.row + 1]:sub(mark.col + 1, mark.end_col)
     end

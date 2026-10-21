@@ -65,7 +65,7 @@ end
 local function solved_marks(rendered)
   return #vim.tbl_filter(function(mark)
     return type(mark.hl) == "table" and mark.hl[1] == "GamesWin"
-  end, rendered.extmarks)
+  end, helpers.extmarks(rendered))
 end
 
 ---The highlights of the board's cells on one line, left to right.

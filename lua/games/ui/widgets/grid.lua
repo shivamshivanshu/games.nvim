@@ -266,8 +266,11 @@ local function cell_contents(props, box, ambiwidth)
   return function(key)
     local content = by_key[key]
     if not content then
-      content = props.art
-          and compose.col(vim.tbl_map(compose.text, art.pick(props.art, key, box, ambiwidth).lines))
+      local entry = props.art and art.pick(props.art, key, box, ambiwidth)
+      content = entry
+          and compose.col(vim.tbl_map(function(line)
+            return compose.sized_text(line, entry.w)
+          end, entry.lines))
         or compose.text(key)
       by_key[key] = content
     end

@@ -10,7 +10,7 @@
 
 local M = {}
 
----@type games.Extmark[]
+---@type integer[]
 local NO_MARKS = {}
 
 ---Runs fn on a read-only buf made modifiable for it, read-only again even when fn raises.
@@ -28,14 +28,13 @@ end
 ---@param buf integer
 ---@param ns integer
 ---@param first integer line the marks' rows count from
----@param extmarks games.Extmark[]
-local function set_marks(buf, ns, first, extmarks)
-  for _, mark in ipairs(extmarks) do
-    vim.api.nvim_buf_set_extmark(buf, ns, first + mark.row, mark.col, {
-      end_col = mark.end_col,
-      hl_group = mark.hl,
-    })
-  end
+---@param marks games.Marks
+---@param i integer
+local function set_mark(buf, ns, first, marks, i)
+  vim.api.nvim_buf_set_extmark(buf, ns, first + marks.row[i], marks.col[i], {
+    end_col = marks.end_col[i],
+    hl_group = marks.hl[i],
+  })
 end
 
 ---Replaces lines [first, last) of a read-only buf with rendered, highlighting it in namespace ns.
@@ -49,7 +48,9 @@ local function paint(buf, ns, first, last, rendered)
   M.with_modifiable(buf, function()
     vim.api.nvim_buf_set_lines(buf, first, last, false, rendered.lines)
   end)
-  set_marks(buf, ns, first, rendered.extmarks)
+  for i = 1, #rendered.marks.row do
+    set_mark(buf, ns, first, rendered.marks, i)
+  end
 end
 
 ---@param a games.Hl
@@ -70,32 +71,40 @@ local function same_hl(a, b)
   return true
 end
 
----@param a games.Extmark[]
----@param b games.Extmark[]
+---Whether the marks a_marks lists at indices a span and colour as those b_marks lists at b do.
+---@param a_marks games.Marks
+---@param a integer[]
+---@param b_marks games.Marks
+---@param b integer[]
 ---@return boolean
-local function same_marks(a, b)
+local function same_marks(a_marks, a, b_marks, b)
   if #a ~= #b then
     return false
   end
-  for i = 1, #a do
-    if a[i].col ~= b[i].col or a[i].end_col ~= b[i].end_col or not same_hl(a[i].hl, b[i].hl) then
+  for k = 1, #a do
+    local i, j = a[k], b[k]
+    if
+      a_marks.col[i] ~= b_marks.col[j]
+      or a_marks.end_col[i] ~= b_marks.end_col[j]
+      or not same_hl(a_marks.hl[i], b_marks.hl[j])
+    then
       return false
     end
   end
   return true
 end
 
----@param extmarks games.Extmark[]
----@return table<integer, games.Extmark[]> by row, in their order, holding only rows that have marks
-local function marks_by_row(extmarks)
+---@param marks games.Marks
+---@return table<integer, integer[]> by row, the indices of its marks in order, holding only rows that have marks
+local function marks_by_row(marks)
   local by_row = {}
-  for _, mark in ipairs(extmarks) do
-    local row_marks = by_row[mark.row]
+  for i, row in ipairs(marks.row) do
+    local row_marks = by_row[row]
     if not row_marks then
       row_marks = {}
-      by_row[mark.row] = row_marks
+      by_row[row] = row_marks
     end
-    row_marks[#row_marks + 1] = mark
+    row_marks[#row_marks + 1] = i
   end
   return by_row
 end
@@ -107,14 +116,18 @@ end
 ---@param old games.Rendered
 ---@param new games.Rendered
 local function repaint_changed_lines(buf, ns, old, new)
-  local old_marks, new_marks = marks_by_row(old.extmarks), marks_by_row(new.extmarks)
+  local old_rows, new_rows = marks_by_row(old.marks), marks_by_row(new.marks)
   M.with_modifiable(buf, function()
     for row = 0, #new.lines - 1 do
-      local line, marks = new.lines[row + 1], new_marks[row] or NO_MARKS
-      if line ~= old.lines[row + 1] or not same_marks(old_marks[row] or NO_MARKS, marks) then
+      local line, marks = new.lines[row + 1], new_rows[row] or NO_MARKS
+      local unchanged = line == old.lines[row + 1]
+        and same_marks(old.marks, old_rows[row] or NO_MARKS, new.marks, marks)
+      if not unchanged then
         vim.api.nvim_buf_clear_namespace(buf, ns, row, row + 1)
         vim.api.nvim_buf_set_lines(buf, row, row + 1, true, { line })
-        set_marks(buf, ns, 0, marks)
+        for _, i in ipairs(marks) do
+          set_mark(buf, ns, 0, new.marks, i)
+        end
       end
     end
   end)

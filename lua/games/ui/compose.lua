@@ -2,20 +2,22 @@ local text_util = require("games.ui.text")
 
 ---@alias games.Hl string|string[] one group, or groups layered so later ones override only the attributes they set
 
----@class games.Extmark
----@field row integer 0-based line index
----@field col integer byte column
----@field end_col integer byte column, exclusive
----@field hl games.Hl
+---Extmarks as parallel arrays: mark i spans row[i], from col[i] to end_col[i], in hl[i].
+---@class games.Marks
+---@field row integer[] 0-based line index
+---@field col integer[] byte column
+---@field end_col integer[] byte column, exclusive
+---@field hl games.Hl[]
 
 ---@class games.Rendered
 ---@field lines string[]
----@field extmarks games.Extmark[]
+---@field marks games.Marks
 
 ---@class games.TextNode
 ---@field kind "text"
 ---@field str string
 ---@field hl? games.Hl
+---@field w? integer display columns of str; measured once, by the first layout that needs it, when not given
 
 ---@class games.RowNode
 ---@field kind "row"
@@ -48,15 +50,42 @@ local text_util = require("games.ui.text")
 ---@field fragments table<integer, string[]> by 0-based row, joined into its line at the end
 ---@field bytes table<integer, integer> by 0-based row, bytes written so far
 ---@field cols table<integer, integer> by 0-based row, the display column the nodes written so far report reaching
----@field extmarks games.Extmark[]
+---@field marks games.Marks
 
 local M = {}
+
+---@return games.Marks
+function M.no_marks()
+  return { row = {}, col = {}, end_col = {}, hl = {} }
+end
+
+---Appends a mark to marks.
+---@param marks games.Marks
+---@param row integer
+---@param col integer
+---@param end_col integer
+---@param hl games.Hl
+---@return integer index of the mark
+function M.add_mark(marks, row, col, end_col, hl)
+  local i = #marks.row + 1
+  marks.row[i], marks.col[i], marks.end_col[i], marks.hl[i] = row, col, end_col, hl
+  return i
+end
 
 ---@param str string
 ---@param hl? games.Hl
 ---@return games.TextNode
 function M.text(str, hl)
   return { kind = "text", str = str, hl = hl }
+end
+
+---A text node of str, which takes w display columns, as a drawable asset pack entry declares.
+---@param str string
+---@param w integer
+---@param hl? games.Hl
+---@return games.TextNode
+function M.sized_text(str, w, hl)
+  return { kind = "text", str = str, hl = hl, w = w }
 end
 
 ---Layers that are set, in order, flattened into one highlight; nil when none is set.
@@ -129,6 +158,17 @@ end
 
 local place
 
+---@param node games.TextNode
+---@return integer
+local function text_width(node)
+  local width = node.w
+  if not width then
+    width = text_util.width(node.str or "")
+    node.w = width
+  end
+  return width
+end
+
 ---@param canvas games.Canvas
 ---@param node games.TextNode
 ---@param row integer
@@ -141,14 +181,13 @@ local function place_text(canvas, node, row, col)
   if #str > 0 then
     local start = canvas.bytes[row]
     if node.hl then
-      canvas.extmarks[#canvas.extmarks + 1] =
-        { row = row, col = start, end_col = start + #str, hl = node.hl }
+      M.add_mark(canvas.marks, row, start, start + #str, node.hl)
     end
     local fragments = canvas.fragments[row]
     fragments[#fragments + 1] = str
     canvas.bytes[row] = start + #str
   end
-  local width = text_util.width(str)
+  local width = text_width(node)
   canvas.cols[row] = col + width
   return width, 1
 end
@@ -165,9 +204,8 @@ local function place_box(canvas, node, row, col)
   for i = 0, node.h - 1 do
     advance(canvas, row + i, col)
     if node.hl then
-      local mark = { row = row + i, col = canvas.bytes[row + i], end_col = 0, hl = node.hl }
-      line_marks[i] = mark
-      canvas.extmarks[#canvas.extmarks + 1] = mark
+      local start = canvas.bytes[row + i]
+      line_marks[i] = M.add_mark(canvas.marks, row + i, start, start, node.hl)
     end
   end
   local top = math.max(0, math.floor((node.h - child.h) / 2))
@@ -176,7 +214,7 @@ local function place_box(canvas, node, row, col)
   for i = 0, node.h - 1 do
     advance(canvas, row + i, col + node.w)
     if line_marks[i] then
-      line_marks[i].end_col = canvas.bytes[row + i]
+      canvas.marks.end_col[line_marks[i]] = canvas.bytes[row + i]
     end
   end
   return node.w, node.h
@@ -242,13 +280,13 @@ end
 ---@param node games.Node
 ---@return games.Rendered
 function M.render(node)
-  local canvas = { fragments = {}, bytes = {}, cols = {}, extmarks = {} }
+  local canvas = { fragments = {}, bytes = {}, cols = {}, marks = M.no_marks() }
   local _, height = place(canvas, node, 0, 0)
   local lines = {}
   for row = 0, height - 1 do
     lines[row + 1] = table.concat(canvas.fragments[row])
   end
-  return { lines = lines, extmarks = canvas.extmarks }
+  return { lines = lines, marks = canvas.marks }
 end
 
 ---The size render would give node, without laying it out.
@@ -256,7 +294,7 @@ end
 ---@return games.Size
 function M.measure(node)
   if node.kind == "text" then
-    return { w = text_util.width(node.str or ""), h = 1 }
+    return { w = text_width(node), h = 1 }
   end
   if node.kind == "pad" then
     local child = M.measure(node.child)

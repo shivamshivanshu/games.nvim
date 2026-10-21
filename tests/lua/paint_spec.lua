@@ -12,7 +12,7 @@ local CATALOGUED = helpers.catalogued("pacman")
 ---@param extmarks? games.Extmark[]
 ---@return games.Rendered
 local function frame(rows, extmarks)
-  return { lines = rows, extmarks = extmarks or {} }
+  return { lines = rows, marks = helpers.marks_of(extmarks or {}) }
 end
 
 ---@param row integer

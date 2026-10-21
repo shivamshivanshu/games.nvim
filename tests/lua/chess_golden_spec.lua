@@ -38,7 +38,7 @@ function T.chess_at_cell_height_one_renders_as_before_scalable_boards()
     helpers.assert_eq({ expected.name, expected.lines }, { expected.name, rendered.lines })
     helpers.assert_eq(
       { expected.name, sorted(expected.extmarks) },
-      { expected.name, sorted(rendered.extmarks) }
+      { expected.name, sorted(helpers.extmarks(rendered)) }
     )
     helpers.assert_eq(expected.header_height, header_height)
   end

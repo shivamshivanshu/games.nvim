@@ -105,7 +105,7 @@ end
 ---@return games.Hl[]
 local function hl_at(rendered, line, col)
   local found = {}
-  for _, mark in ipairs(rendered.extmarks) do
+  for _, mark in ipairs(helpers.extmarks(rendered)) do
     if mark.row == line and mark.col == col then
       vim.list_extend(found, type(mark.hl) == "table" and mark.hl or { mark.hl })
     end
@@ -261,7 +261,7 @@ function T.a_resigned_seat_leaves_its_corner_empty_and_uncoloured()
   local coloured = vim.tbl_filter(function(mark)
     local hl = type(mark.hl) == "table" and mark.hl or { mark.hl }
     return mark.row == row and mark.col == 30 and vim.tbl_contains(hl, "GamesSeat3")
-  end, rendered.extmarks)
+  end, helpers.extmarks(rendered))
   assert_eq({}, coloured)
 end
 

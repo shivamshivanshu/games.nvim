@@ -195,7 +195,7 @@ end
 function T.cards_are_drawn_in_their_colour_and_the_top_in_the_colour_in_play()
   local out = rendered(playing(), "alice", "unicode")
   local coloured = {}
-  for _, mark in ipairs(out.extmarks) do
+  for _, mark in ipairs(helpers.extmarks(out)) do
     local hl = type(mark.hl) == "table" and mark.hl[#mark.hl] or mark.hl
     if type(hl) == "string" and hl:find("^GamesCard") then
       coloured[#coloured + 1] = { out.lines[mark.row + 1]:sub(mark.col + 1, mark.end_col), hl }
@@ -213,7 +213,7 @@ end
 function T.the_pile_and_the_draw_pile_draw_on_a_card_background()
   local out = rendered(playing(), "alice")
   local backed = {}
-  for _, mark in ipairs(out.extmarks) do
+  for _, mark in ipairs(helpers.extmarks(out)) do
     if type(mark.hl) == "table" and vim.tbl_contains(mark.hl, "GamesSquareLight") then
       backed[#backed + 1] = out.lines[mark.row + 1]:sub(mark.col + 1, mark.end_col)
     end

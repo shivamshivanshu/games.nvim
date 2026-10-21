@@ -796,7 +796,7 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
     local expected_lines = vim.list_slice(expected.lines, 1, height)
     local expected_marks = by_position(vim.tbl_filter(function(mark)
       return mark.row < height
-    end, expected.extmarks))
+    end, helpers.extmarks(expected)))
     local lines_changed, tick_done, repainted = {}, false, false
     local paint_update = paint.update
     vim.api.nvim_buf_attach(buf, false, {

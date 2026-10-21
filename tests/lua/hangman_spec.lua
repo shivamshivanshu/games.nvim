@@ -121,7 +121,7 @@ function T.hanged_board_draws_the_whole_figure_and_frames_the_unfound_letters()
   assert_eq("                        |  / \\    word        ABOUT", lines[5])
   assert(lines[4]:find("|  /|\\", 1, true), lines[4])
   local unfound = vim
-    .iter(rendered.extmarks)
+    .iter(helpers.extmarks(rendered))
     :filter(function(mark)
       return mark.row == BOARD_ROWS[1] - 1 and mark.hl == "GamesLost"
     end)

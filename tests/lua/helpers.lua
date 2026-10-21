@@ -279,13 +279,44 @@ function M.view_options(game, module, glyphs, extra)
   return vim.tbl_extend("force", { glyphs = glyphs, flipped = false, art = art }, extra or {})
 end
 
+---@class games.Extmark one mark of games.Marks
+---@field row integer 0-based line index
+---@field col integer byte column
+---@field end_col integer byte column, exclusive
+---@field hl games.Hl
+
+---The marks of rendered, one table each, in their order.
+---@param rendered games.Rendered
+---@return games.Extmark[]
+function M.extmarks(rendered)
+  local marks = rendered.marks
+  local list = {}
+  for i = 1, #marks.row do
+    list[i] =
+      { row = marks.row[i], col = marks.col[i], end_col = marks.end_col[i], hl = marks.hl[i] }
+  end
+  return list
+end
+
+---extmarks as the parallel arrays a games.Rendered holds.
+---@param extmarks games.Extmark[]
+---@return games.Marks
+function M.marks_of(extmarks)
+  local marks = require("games.ui.compose").no_marks()
+  for i, mark in ipairs(extmarks) do
+    marks.row[i], marks.col[i], marks.end_col[i], marks.hl[i] =
+      mark.row, mark.col, mark.end_col, mark.hl
+  end
+  return marks
+end
+
 ---The highlight of the extmark that starts at row and col, both 0-based.
 ---@param rendered games.Rendered
 ---@param row integer
 ---@param col integer byte column
 ---@return games.Hl|nil
 function M.hl_at(rendered, row, col)
-  local mark = vim.iter(rendered.extmarks):find(function(candidate)
+  local mark = vim.iter(M.extmarks(rendered)):find(function(candidate)
     return candidate.row == row and candidate.col == col
   end)
   return mark and mark.hl
@@ -309,7 +340,7 @@ end
 ---@return games.Hl[]
 function M.hls_on_row(rendered, row, end_col)
   local marks = vim
-    .iter(ipairs(rendered.extmarks))
+    .iter(ipairs(M.extmarks(rendered)))
     :filter(function(_, mark)
       return mark.row == row and mark.col < (end_col or math.huge)
     end)

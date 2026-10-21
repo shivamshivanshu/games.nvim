@@ -119,7 +119,7 @@ function T.hearts_and_diamonds_are_red_on_the_board_and_in_the_last_hand()
     shell.render(poker_update(), poker, poker_view("unicode"), "alice", 0, nil, CATALOGUE)
   local red = vim.tbl_filter(function(mark)
     return has_hl(mark, "GamesCardRed")
-  end, rendered.extmarks)
+  end, helpers.extmarks(rendered))
   local where = vim.tbl_map(function(mark)
     return { mark.row, rendered.lines[mark.row + 1]:sub(mark.col + 1, mark.end_col) }
   end, red)

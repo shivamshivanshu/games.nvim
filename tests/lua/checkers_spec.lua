@@ -57,7 +57,7 @@ end
 local function movable_marks(rendered)
   return #vim.tbl_filter(function(mark)
     return type(mark.hl) == "table" and vim.tbl_contains(mark.hl, MOVABLE)
-  end, rendered.extmarks)
+  end, helpers.extmarks(rendered))
 end
 
 local T = {}

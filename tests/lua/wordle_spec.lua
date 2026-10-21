@@ -117,7 +117,7 @@ function T.tiles_and_keys_take_their_marks_background()
   assert_eq({ miss, present, miss, miss, hit }, tile_hls(rendered, first_line))
   assert_eq({}, tile_hls(rendered, first_line + 2))
   local key_hls = vim
-    .iter(rendered.extmarks)
+    .iter(helpers.extmarks(rendered))
     :filter(function(mark)
       return mark.row == first_line and mark.col >= BOARD_WIDTH
     end)

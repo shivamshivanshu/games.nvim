@@ -29,10 +29,10 @@ function T.box_centres_child_with_odd_padding_right_and_bottom()
   assert_eq({ "     ", " ab  ", " c   ", "     ", "     " }, rendered.lines)
   local box_marks = vim.tbl_filter(function(mark)
     return mark.hl == "GamesWin"
-  end, rendered.extmarks)
+  end, helpers.extmarks(rendered))
   assert_eq(5, #box_marks)
   assert_eq({ row = 4, col = 0, end_col = 5, hl = "GamesWin" }, box_marks[5])
-  assert_eq({ row = 1, col = 1, end_col = 3, hl = "GamesKey" }, rendered.extmarks[6])
+  assert_eq({ row = 1, col = 1, end_col = 3, hl = "GamesKey" }, helpers.extmarks(rendered)[6])
 end
 
 function T.row_pads_a_shorter_child_and_marks_its_neighbours_at_their_byte_columns()
@@ -50,7 +50,7 @@ function T.row_pads_a_shorter_child_and_marks_its_neighbours_at_their_byte_colum
     { row = 0, col = 1, end_col = 4, hl = "GamesKey" },
     { row = 0, col = 4, end_col = 6, hl = "GamesWin" },
     { row = 1, col = 2, end_col = 3, hl = "GamesKey" },
-  }, rendered.extmarks)
+  }, helpers.extmarks(rendered))
 end
 
 function T.measure_reports_display_size()

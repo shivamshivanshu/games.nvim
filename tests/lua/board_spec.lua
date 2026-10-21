@@ -122,7 +122,7 @@ function T.a_board_draws_from_the_ctx_art_and_shades_plain_by_default()
   local rendered = compose.render(board({ grid = grid }, { art = art, ambiwidth = "single" }))
 
   assert_eq({ "X O" }, rendered.lines)
-  assert_eq({}, rendered.extmarks)
+  assert_eq({}, helpers.extmarks(rendered))
 end
 
 function T.a_banner_never_resizes_the_board()
