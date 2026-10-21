@@ -304,7 +304,11 @@ M.actions = {
 }
 
 ---@type games.Flippable
-M.flippable = { bottom_seat = "black" }
+M.flippable = {
+  bottom_seat = function()
+    return "black"
+  end,
+}
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {

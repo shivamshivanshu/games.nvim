@@ -1106,7 +1106,11 @@ function T.a_flippable_game_gets_the_flip_key_and_draws_flipped_for_its_bottom_s
     layout = function(_, ctx)
       return require("games.ui.compose").text(tostring(ctx.flip))
     end,
-    flippable = { bottom_seat = "black" },
+    flippable = {
+      bottom_seat = function()
+        return "black"
+      end,
+    },
   }
   ---@param me games.UserID
   ---@param flipped boolean
@@ -1140,7 +1144,11 @@ function T.a_flippable_game_may_not_bind_the_flip_key_itself()
     layout = function()
       return require("games.ui.compose").text("board")
     end,
-    flippable = { bottom_seat = "black" },
+    flippable = {
+      bottom_seat = function()
+        return "black"
+      end,
+    },
     actions = { { key = "F", label = "fold", action = { kind = "fold" } } },
   }
   local client = client_with("alice", { chess_update({ game_id = "flip02", game = "flip_clash" }) })

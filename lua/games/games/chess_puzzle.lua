@@ -38,6 +38,8 @@ local movelist = require("games.ui.widgets.movelist")
 
 ---@type games.ChessPuzzleMode
 local STUDY = "study"
+---@type games.ChessPuzzleSeat
+local SOLVER = "solver"
 local BLACK = "black"
 local WHITE = "white"
 local REVEAL_KIND = "reveal"
@@ -101,8 +103,7 @@ M.asset_keys = chess.asset_keys
 ---@param ctx games.LayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
-  local flip = (solver_side(update) == BLACK) ~= ctx.flipped
-  return chess.board(update.view, ctx, flip, {
+  return chess.board(update.view, ctx, ctx.flip, {
     first_ply = chess.first_ply(update.options.fen),
     panels = {
       {
@@ -127,13 +128,13 @@ M.actions = {
       return update.view.mode == STUDY
     end,
   },
-  {
-    key = "F",
-    label = "flip",
-    local_fn = function(view)
-      return vim.tbl_extend("force", view, { flipped = not view.flipped })
-    end,
-  },
+}
+
+---@type games.Flippable
+M.flippable = {
+  bottom_seat = function(update)
+    return solver_side(update --[[@as games.ChessPuzzleUpdate]]) == BLACK and SOLVER or nil
+  end,
 }
 
 ---@type table<games.EventKind, games.Describer>

@@ -46,7 +46,7 @@ local Control = types.Control
 ---@field available? fun(update: games.GameUpdate): boolean whether it applies now; default always
 
 ---@class games.Flippable
----@field bottom_seat games.Seat the seat a flipped board draws at the bottom, so its player sees it flipped
+---@field bottom_seat fun(update: games.GameUpdate): games.Seat|nil the seat whose player sees the board flipped; nil for none
 
 ---@class games.GameAction
 ---@field key string
@@ -503,8 +503,12 @@ end
 ---@return boolean
 local function is_flipped(update, module, view, me)
   local flippable = module.flippable
-  return flippable ~= nil
-    and (players.seat_of_user(update, me) == flippable.bottom_seat) ~= view.flipped
+  if not flippable then
+    return false
+  end
+  local bottom_seat = flippable.bottom_seat(update)
+  local sees_it_flipped = bottom_seat ~= nil and players.seat_of_user(update, me) == bottom_seat
+  return sees_it_flipped ~= view.flipped
 end
 
 ---@param update games.GameUpdate
