@@ -43,7 +43,7 @@ func towardFood(s state) grid.Direction {
 // autoplay is the steps of a game the autopilot plays from seed's start: a turn toward food
 // whenever its way changes or the game is paused, else a tick, until the game ends or limit
 // steps are made. It returns the steps and the state they reach.
-func autoplay(t *testing.T, seed game.Seed, limit int) ([]gametest.Step[Action], state) {
+func autoplay(t testing.TB, seed game.Seed, limit int) ([]gametest.Step[Action], state) {
 	t.Helper()
 	s := newState()
 	var steps []gametest.Step[Action]

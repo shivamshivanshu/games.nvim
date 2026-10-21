@@ -21,14 +21,18 @@ type phase struct {
 	lasts time.Duration
 }
 
+var levels = [Levels]level{
+	{interval: 150 * time.Millisecond, fright: 6 * time.Second, ghostRest: 5, phases: phases(7, 20, 7, 20, 5, 20, 5)},
+	{interval: 135 * time.Millisecond, fright: 4 * time.Second, ghostRest: 8, phases: phases(7, 20, 7, 20, 5)},
+	{interval: 120 * time.Millisecond, fright: 2 * time.Second, ghostRest: 12, phases: phases(5, 20, 5, 20, 5)},
+}
+
+// levelOf is level n, counted from 1; a level outside 1 to Levels plays as the last.
 func levelOf(n int) level {
-	switch n {
-	case 1:
-		return level{interval: 150 * time.Millisecond, fright: 6 * time.Second, ghostRest: 5, phases: phases(7, 20, 7, 20, 5, 20, 5)}
-	case 2:
-		return level{interval: 135 * time.Millisecond, fright: 4 * time.Second, ghostRest: 8, phases: phases(7, 20, 7, 20, 5)}
+	if n < 1 || n > Levels {
+		return levels[Levels-1]
 	}
-	return level{interval: 120 * time.Millisecond, fright: 2 * time.Second, ghostRest: 12, phases: phases(5, 20, 5, 20, 5)}
+	return levels[n-1]
 }
 
 // phases alternate scatter and chase, starting with scatter, for the given seconds each.

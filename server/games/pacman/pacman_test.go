@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
@@ -491,5 +492,23 @@ func TestViewShowsTheMazeOneBased(t *testing.T) {
 	}
 	if v.Lives != StartingLives || v.Level != 1 || v.Levels != Levels || v.FoodLeft != 244 || !v.CanTurn {
 		t.Errorf("view %+v", v)
+	}
+}
+
+func BenchmarkTick(b *testing.B) {
+	const seed game.Seed = 3
+	steps, _ := autoplay(b, seed, unlimited)
+	for b.Loop() {
+		s := newState()
+		for i, step := range steps {
+			rng := game.StepRNG(seed, game.Seq(i+1))
+			if step.Kind == gametest.StepTick {
+				next, _ := s.Tick(rng)
+				s = next.(state)
+				continue
+			}
+			next, _, _ := s.Apply(SeatPlayer, step.Action, rng)
+			s = next.(state)
+		}
 	}
 }
