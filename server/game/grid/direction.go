@@ -1,6 +1,8 @@
 package grid
 
 import (
+	"slices"
+
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
@@ -16,19 +18,21 @@ const (
 	Right Direction = "right"
 )
 
+var directions = [...]Direction{Up, Down, Left, Right}
+
 // Directions lists the directions in catalogue order: up, down, left, right.
-func Directions() []Direction { return []Direction{Up, Down, Left, Right} }
+func Directions() []Direction { return slices.Clone(directions[:]) }
 
 // DirectionNames lists the text ParseDirection accepts, in the order of Directions, for an
 // action catalogue's Values.
 func DirectionNames() []string {
-	return xslices.Map(Directions(), func(d Direction) string { return string(d) })
+	return xslices.Map(directions[:], func(d Direction) string { return string(d) })
 }
 
 // ParseDirection reads a direction's name, failing with a game.IllegalActionError for any
 // text not in DirectionNames.
 func ParseDirection(text string) (Direction, error) {
-	for _, d := range Directions() {
+	for _, d := range directions {
 		if text == string(d) {
 			return d, nil
 		}
@@ -37,16 +41,24 @@ func ParseDirection(text string) (Direction, error) {
 }
 
 // From is the point one cell from p toward d, row 0 at the top; it may lie off the board.
-func (d Direction) From(p Point) Point {
+func (d Direction) From(p Point) Point { return p.step(d.delta(), 1) }
+
+// Delta is the change in row and column of one cell toward d, row 0 at the top.
+func (d Direction) Delta() (dRow, dCol int) {
+	step := d.delta()
+	return step.dRow, step.dCol
+}
+
+func (d Direction) delta() delta {
 	switch d {
 	case Up:
-		return Point{Row: p.Row - 1, Col: p.Col}
+		return delta{-1, 0}
 	case Down:
-		return Point{Row: p.Row + 1, Col: p.Col}
+		return delta{1, 0}
 	case Left:
-		return Point{Row: p.Row, Col: p.Col - 1}
+		return delta{0, -1}
 	}
-	return Point{Row: p.Row, Col: p.Col + 1}
+	return delta{0, 1}
 }
 
 // Opposite is the way back: up for down, left for right.

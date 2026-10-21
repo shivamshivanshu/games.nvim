@@ -66,11 +66,17 @@ func (c Coords) Parse(text string) (Point, bool) {
 	if match == nil {
 		return Point{}, false
 	}
-	row, err := strconv.Atoi(match[2])
+	return pointNamed(match[1], match[2]), true
+}
+
+// pointNamed is the cell of a column letter, in either case, and a row number
+// that the row pattern matched.
+func pointNamed(column, row string) Point {
+	number, err := strconv.Atoi(row)
 	if err != nil {
-		panic("grid: the row pattern let through a row that is not a number: " + match[2])
+		panic("grid: the row pattern let through a row that is not a number: " + row)
 	}
-	return Point{Row: row - 1, Col: int(strings.ToLower(match[1])[0] - 'a')}, true
+	return Point{Row: number - 1, Col: int(strings.ToLower(column)[0] - 'a')}
 }
 
 // Name is the cell's text, in lower case: Parse(Name(p)) is p.

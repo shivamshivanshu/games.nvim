@@ -75,7 +75,7 @@ func TestEdgesParse(t *testing.T) {
 }
 
 func TestEdgesAllNamesEveryEdgeOnceAndRoundTrips(t *testing.T) {
-	for _, size := range [][2]int{{1, 1}, {3, 3}, {2, 5}, {7, 7}} {
+	for _, size := range [][2]int{{1, 1}, {3, 3}, {2, 5}, {7, 7}, {12, 20}} {
 		rows, cols := size[0], size[1]
 		edges := NewEdges(rows, cols)
 		all := edges.All()

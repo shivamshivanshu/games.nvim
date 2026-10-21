@@ -6,6 +6,17 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestWithin(t *testing.T) {
+	for p, want := range map[Point]bool{
+		{0, 0}: true, {2, 3}: true, {1, 2}: true,
+		{-1, 0}: false, {0, -1}: false, {3, 0}: false, {0, 4}: false,
+	} {
+		if got := p.Within(3, 4); got != want {
+			t.Errorf("%v.Within(3, 4) = %t, want %t", p, got, want)
+		}
+	}
+}
+
 func TestNeighbours(t *testing.T) {
 	tests := []struct {
 		name      string

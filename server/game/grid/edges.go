@@ -3,7 +3,6 @@ package grid
 import (
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 // EdgeOrientation is the way an edge runs from its dot: across to the dot on its right, or down
@@ -37,6 +36,14 @@ const (
 	downSuffix   = "v"
 )
 
+// The submatches of the edge pattern: a dot's column and row lying across, or lying down.
+const (
+	acrossColumn = 1 + iota
+	acrossRow
+	downColumn
+	downRow
+)
+
 // NewEdges names the edges of a board of rows by cols cells, which must be 1-18 by 1-25.
 func NewEdges(rows, cols int) Edges {
 	if rows < 1 || rows >= maxCoordRows || cols < 1 || cols >= maxCoordCols {
@@ -58,19 +65,14 @@ func (e Edges) Pattern() string { return e.edge.String() }
 
 // Parse reads the edge text names, reporting false for text Pattern does not match.
 func (e Edges) Parse(text string) (Edge, bool) {
-	if !e.edge.MatchString(text) {
+	match := e.edge.FindStringSubmatch(text)
+	switch {
+	case match == nil:
 		return Edge{}, false
+	case match[acrossColumn] != "":
+		return Edge{Dot: pointNamed(match[acrossColumn], match[acrossRow]), Orientation: EdgeAcross}, true
 	}
-	name := strings.TrimSpace(text)
-	dotName, suffix := name[:len(name)-1], strings.ToLower(name[len(name)-1:])
-	dot, ok := e.dots.Parse(dotName)
-	if !ok {
-		panic("grid: the edge pattern let through a dot Coords refuses: " + dotName)
-	}
-	if suffix == downSuffix {
-		return Edge{Dot: dot, Orientation: EdgeDown}, true
-	}
-	return Edge{Dot: dot, Orientation: EdgeAcross}, true
+	return Edge{Dot: pointNamed(match[downColumn], match[downRow]), Orientation: EdgeDown}, true
 }
 
 // Name is the edge's text, in lower case: Parse(Name(edge)) is edge.
@@ -83,13 +85,15 @@ func (e Edges) Name(edge Edge) string {
 
 // All lists every edge of the board, dot by dot from the top left, across before down.
 func (e Edges) All() []Edge {
-	var all []Edge
+	all := make([]Edge, 0, (e.rows+1)*e.cols+e.rows*(e.cols+1))
 	for row := range e.rows + 1 {
 		for col := range e.cols + 1 {
-			for _, orientation := range []EdgeOrientation{EdgeAcross, EdgeDown} {
-				if edge := (Edge{Dot: Point{Row: row, Col: col}, Orientation: orientation}); e.Contains(edge) {
-					all = append(all, edge)
-				}
+			dot := Point{Row: row, Col: col}
+			if col < e.cols {
+				all = append(all, Edge{Dot: dot, Orientation: EdgeAcross})
+			}
+			if row < e.rows {
+				all = append(all, Edge{Dot: dot, Orientation: EdgeDown})
 			}
 		}
 	}
@@ -100,9 +104,9 @@ func (e Edges) All() []Edge {
 func (e Edges) Contains(edge Edge) bool {
 	switch edge.Orientation {
 	case EdgeAcross:
-		return edge.Dot.within(e.rows+1, e.cols)
+		return edge.Dot.Within(e.rows+1, e.cols)
 	case EdgeDown:
-		return edge.Dot.within(e.rows, e.cols+1)
+		return edge.Dot.Within(e.rows, e.cols+1)
 	}
 	return false
 }
@@ -116,7 +120,7 @@ func (e Edges) Bordering(edge Edge) []Point {
 	}
 	var cells []Point
 	for _, cell := range []Point{before, edge.Dot} {
-		if cell.within(e.rows, e.cols) {
+		if cell.Within(e.rows, e.cols) {
 			cells = append(cells, cell)
 		}
 	}

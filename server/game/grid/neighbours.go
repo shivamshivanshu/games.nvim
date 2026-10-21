@@ -17,7 +17,7 @@ func Neighbours(p Point, rows, cols int, adjacency Adjacency) []Point {
 		for dCol := -1; dCol <= 1; dCol++ {
 			n := Point{Row: p.Row + dRow, Col: p.Col + dCol}
 			diagonal := dRow != 0 && dCol != 0
-			if n == p || diagonal && adjacency == Orthogonal || !n.within(rows, cols) {
+			if n == p || diagonal && adjacency == Orthogonal || !n.Within(rows, cols) {
 				continue
 			}
 			out = append(out, n)
@@ -26,6 +26,7 @@ func Neighbours(p Point, rows, cols int, adjacency Adjacency) []Point {
 	return out
 }
 
-func (p Point) within(rows, cols int) bool {
+// Within reports whether p lies on a board of rows by cols.
+func (p Point) Within(rows, cols int) bool {
 	return p.Row >= 0 && p.Row < rows && p.Col >= 0 && p.Col < cols
 }
