@@ -63,6 +63,11 @@ local GAME_CLASS = {
     ShownHand = "games.PokerShownHand",
     View = "games.PokerView",
   },
+  gomoku = {
+    Cell = "games.DiscCell",
+    PlacedEvent = "games.GomokuPlacedEvent",
+    View = "games.GomokuView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
