@@ -158,18 +158,6 @@ function T.input_sends_the_text_raw_for_the_server_to_parse()
   assert_eq({ kind = "guess", text = " Crane" }, wordle.input.parse(" Crane"))
 end
 
-function T.a_roomy_window_draws_block_letters_with_a_bar_on_hits()
-  local rendered = shell.render(update(), wordle, view_options("unicode"), "sam", 0, {
-    text_area = { w = 120, h = 40 },
-  }, CATALOGUED)
-  assert(
-    vim.iter(rendered.lines):any(function(line)
-      return line:find("█▀▀▀▀▐", 1, true) ~= nil
-    end),
-    table.concat(rendered.lines, "\n")
-  )
-end
-
 function T.describe_event_names_the_player_and_the_word()
   assert_eq(
     "sam guessed CRANE",

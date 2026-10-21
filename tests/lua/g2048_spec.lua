@@ -139,14 +139,6 @@ function T.each_key_sends_its_direction_as_text()
   }, sent)
 end
 
-function T.a_roomy_window_draws_tiles_of_up_to_four_digits_in_block_digits()
-  local lines = render(update_with(), "unicode", { text_area = { w = 200, h = 60 } }).lines
-  local text = table.concat(lines, "\n")
-  assert(text:find("▀▀▄", 1, true), "block digits for the small tiles")
-  assert(text:find("131072", 1, true), "a six-digit tile keeps its glyph")
-  assert(not text:find("2048    ", 1, true), "the 2048 is drawn in block digits, not its glyph")
-end
-
 function T.describe_event_names_the_move_its_gain_and_the_goal()
   local update = update_with()
   local spawned = { row = 1, col = 2, value = 2 }

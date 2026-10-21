@@ -92,6 +92,25 @@ function T.every_shipped_pack_draws_every_key_of_its_game_under_either_ambiwidth
   end
 end
 
+function T.every_shipped_pack_picks_each_art_entry_in_a_box_its_size()
+  for _, shipped in ipairs(shipped_packs()) do
+    local module = assert(registry.game_module(shipped.game), shipped.game)
+    local loaded = require(("games.assets.%s.%s"):format(shipped.game, shipped.name))
+    helpers.with_overrides({ { vim.o, "ambiwidth", "single" } }, function()
+      for _, glyphs in ipairs({ "unicode", "ascii" }) do
+        local set = assets.art_set(loaded, glyphs)
+        for _, key in ipairs(module.asset_keys) do
+          for _, entry in ipairs(set[key]) do
+            local picked = art.pick(set, key, { w = entry.w, h = entry.h }, "single")
+            local drawn = { shipped.game, glyphs, key, picked.w, picked.h }
+            assert_eq({ shipped.game, glyphs, key, entry.w, entry.h }, drawn)
+          end
+        end
+      end
+    end)
+  end
+end
+
 function T.problem_names_what_a_pack_gets_wrong()
   local cases = {
     { pack(), nil },

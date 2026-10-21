@@ -106,22 +106,6 @@ function T.a_sow_key_sends_its_pit_as_text()
   assert_eq(6, #mancala.actions)
 end
 
-function T.a_roomy_window_draws_counts_in_block_digits_with_bars_on_the_stores()
-  local display = { text_area = { w = 200, h = 60 } }
-  local lines = shell.render(
-    update_with(),
-    mancala,
-    view_options("unicode"),
-    "bob",
-    0,
-    display,
-    CATALOGUED
-  ).lines
-  local text = table.concat(lines, "\n")
-  assert(text:find("▄▄▄▄▄▄▄", 1, true), "a store's top bar")
-  assert(not text:find("[12]", 1, true), "the 12 is drawn in block digits, not its glyph")
-end
-
 function T.describe_event_tells_captures_extra_turns_and_the_final_collection()
   local update = update_with()
   local function sowed(fields)

@@ -200,14 +200,6 @@ function T.a_lost_board_tells_flagged_unflagged_and_exploded_mines_and_wrong_fla
   }, hls)
 end
 
-function T.a_roomy_window_draws_counts_as_block_art()
-  local rendered = shell.render(update(), minesweeper, view_options("unicode"), "alice", 0, {
-    text_area = { w = 120, h = 40 },
-  }, CATALOGUED)
-  local drawn = table.concat(rendered.lines, "\n")
-  assert(drawn:find("▄█", 1, true) and drawn:find("▀▀▀", 1, true), drawn)
-end
-
 function T.describe_event_names_the_cell_as_typed()
   local cases = {
     {

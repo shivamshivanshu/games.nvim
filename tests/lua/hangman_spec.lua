@@ -145,17 +145,6 @@ function T.guess_key_needs_an_ongoing_game_and_the_catalogue()
   end
 end
 
-function T.a_roomy_window_draws_block_letters_and_a_bar_for_a_hidden_one()
-  local rendered = shell.render(update(), hangman, view_options("unicode"), "sam", 0, {
-    text_area = { w = 120, h = 40 },
-  }, CATALOGUED)
-  local text = table.concat(rendered.lines, "\n")
-  assert(
-    text:find("████████", 1, true) and text:find("▀▀▀▀▀▀", 1, true),
-    text
-  )
-end
-
 function T.input_sends_the_text_raw_for_the_server_to_parse()
   assert_eq("guess", hangman.input.kind)
   assert_eq({ kind = "guess", text = " E" }, hangman.input.parse(" E"))

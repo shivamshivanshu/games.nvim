@@ -152,18 +152,6 @@ function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_confl
   )
 end
 
-function T.a_roomy_window_draws_the_digits_as_art_with_the_conflict_bars()
-  local rendered = shell.render(update(), sudoku, view_options("unicode"), "alice", 0, {
-    text_area = { w = 120, h = 50 },
-  }, CATALOGUED)
-  assert(
-    vim.iter(rendered.lines):any(function(line)
-      return line:find("▐█▀▀▌", 1, true) ~= nil
-    end),
-    table.concat(rendered.lines, "\n")
-  )
-end
-
 function T.describe_event_names_the_cell_and_digit()
   assert_eq(
     "alice set row 5, column 3 to 7",

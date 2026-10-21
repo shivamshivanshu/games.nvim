@@ -105,14 +105,6 @@ function T.keys_send_the_slide_by_number_and_the_move_by_direction()
   }, sent)
 end
 
-function T.a_roomy_window_draws_the_tiles_in_block_digits_with_movable_ones_underlined()
-  local rendered = shell.render(update(), fifteen, view_options("unicode"), "alice", 0, {
-    text_area = { w = 120, h = 40 },
-  }, CATALOGUED)
-  local drawn = table.concat(rendered.lines, "\n")
-  assert(drawn:find("▄█", 1, true) and drawn:find("▀▀▀▀▀▀▀", 1, true), drawn)
-end
-
 function T.describe_event_names_the_tile_and_its_way()
   assert_eq(
     "alice slid 8 left",
