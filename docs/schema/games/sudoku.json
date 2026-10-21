@@ -29,7 +29,7 @@
             },
             "cell": {
               "type": "string",
-              "pattern": "^([1-9])([1-9])$",
+              "pattern": "^\\s*([1-9])([1-9])\\s*$",
               "description": "Row, then column: \"53\" clears row 5, column 3."
             }
           },

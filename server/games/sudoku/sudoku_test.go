@@ -60,6 +60,7 @@ func TestSetWritesAndClearsCells(t *testing.T) {
 		{"overwrite a set cell", []string{"13 9"}, set("13 4"), 4, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 4}},
 		{"clear a set cell with 0", []string{"13 4"}, set("13 0"), Empty, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: Empty}},
 		{"clear a set cell with clear", []string{"13 4"}, clearCell("13"), Empty, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: Empty}},
+		{"clear takes the cell with surrounding blanks", []string{"13 4"}, clearCell(" 13\t"), Empty, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: Empty}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
