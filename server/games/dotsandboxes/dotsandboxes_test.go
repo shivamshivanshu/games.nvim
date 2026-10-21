@@ -170,7 +170,7 @@ func TestDrawing(t *testing.T) {
 		{
 			name:       "completing a box claims it and moves again",
 			moves:      append(boxA1(), move{p2, "b1v"}),
-			wantEvent:  DrawnEvent{By: p2, Edge: Line{Row: 1, Col: 2, Orientation: grid.EdgeDown}, Boxes: []Box{{Row: 1, Col: 1}}},
+			wantEvent:  DrawnEvent{By: p2, Edge: Line{Row: 1, Col: 2, Orientation: grid.EdgeDown}, Boxes: []Box{{Row: 1, Col: 1}}, Again: true},
 			wantToAct:  p2,
 			wantBoxes:  map[game.Seat][]Box{p2: {{Row: 1, Col: 1}}},
 			wantScores: map[game.Seat]int{p1: 0, p2: 1},
@@ -182,7 +182,7 @@ func TestDrawing(t *testing.T) {
 				{p2, "b1h"}, {p1, "b2h"}, {p2, "c1v"},
 				{p1, "b1v"},
 			},
-			wantEvent:  DrawnEvent{By: p1, Edge: Line{Row: 1, Col: 2, Orientation: grid.EdgeDown}, Boxes: []Box{{Row: 1, Col: 1}, {Row: 1, Col: 2}}},
+			wantEvent:  DrawnEvent{By: p1, Edge: Line{Row: 1, Col: 2, Orientation: grid.EdgeDown}, Boxes: []Box{{Row: 1, Col: 1}, {Row: 1, Col: 2}}, Again: true},
 			wantToAct:  p1,
 			wantBoxes:  map[game.Seat][]Box{p1: {{Row: 1, Col: 1}, {Row: 1, Col: 2}}},
 			wantScores: map[game.Seat]int{p1: 2, p2: 0},
@@ -335,6 +335,16 @@ func TestTheLastBoxEndsTheGameAndTheMostBoxesWin(t *testing.T) {
 		if len(s.ToAct()) != 0 || len(view.LegalEdges) != 0 {
 			t.Errorf("%s: to act %v, legal %v after the end", tc.size, s.ToAct(), view.LegalEdges)
 		}
+	}
+}
+
+func TestTheLastBoxMovesNoOneAgain(t *testing.T) {
+	moves, _ := playedOut(t, Size3, first)
+	before, _ := played(t, newGame(t, Size3), moves[:len(moves)-1]...)
+	_, events := played(t, before, moves[len(moves)-1])
+	drawn := events[0].(DrawnEvent)
+	if len(drawn.Boxes) == 0 || drawn.Again {
+		t.Errorf("last edge %+v: want boxes completed and no move again", drawn)
 	}
 }
 

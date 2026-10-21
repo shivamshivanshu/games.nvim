@@ -39,8 +39,8 @@ const (
 
 // NewEdges names the edges of a board of rows by cols cells, which must be 1-18 by 1-25.
 func NewEdges(rows, cols int) Edges {
-	if rows < 1 || cols < 1 {
-		panic(fmt.Sprintf("grid: no edges for %dx%d cells", rows, cols))
+	if rows < 1 || rows >= maxCoordRows || cols < 1 || cols >= maxCoordCols {
+		panic(fmt.Sprintf("grid: no edges for %dx%d cells, want 1-%d rows and 1-%d columns", rows, cols, maxCoordRows-1, maxCoordCols-1))
 	}
 	across := `([` + columnClass(cols) + `])(` + rowAlternatives(rows+1) + `)[hH]`
 	down := `([` + columnClass(cols+1) + `])(` + rowAlternatives(rows) + `)[vV]`

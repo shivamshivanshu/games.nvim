@@ -477,7 +477,7 @@ An action object always carries `kind`.
 - Seats `p1` and `p2`; `p1` moves first, and the `first` option picks who is `p1`. Option `size`: `3`, `5` or `7` boxes a side, default `5`.
 - Edges are `{row, col, orientation}`: the dot at the edge's left end lying `across`, or its top end lying `down`, 1-based from the top left on the lattice of dots, which is one row and one column larger than the boxes. Actions name an edge as text, the dot's column letter and row number then `h` (across) or `v` (down), e.g. `"b2h"`, either case, with the catalogue's pattern; the pattern is the 7-box board's, and an edge off a smaller board is an `illegal_action`.
 - Reasons: `more_boxes`; `equal_boxes` (a draw) cannot happen at the offered sizes, whose box counts are odd.
-- Events: `drawn {by, edge, boxes}`, `boxes` the `{row, col}` boxes the edge completed, `[]` for none. Completing a box gives `by` the next move as well.
+- Events: `drawn {by, edge, boxes, again}`, `boxes` the `{row, col}` boxes the edge completed, `[]` for none; `again` is true when `by` moves again, having completed a box with the game still on.
 - View `{across, down, boxes, scores, last, legal_edges}`:
   - `across` is `size + 1` rows of `size`, `down` `size` rows of `size + 1`: the seat that drew each edge from that dot, `""` while undrawn; `boxes` is `size` rows of `size`, the seat that completed each box or `""`;
   - `scores` maps each seat to its boxes; `last` is the latest edge drawn, or `null`;

@@ -44,7 +44,8 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 		return nil, nil, err
 	}
 	next, completed := s.withEdge(seat, edge)
-	return next, []game.Event{DrawnEvent{By: seat, Edge: lineOf(edge), Boxes: xslices.Map(completed, boxOf)}}, nil
+	again := !next.finished && next.toMove == seat
+	return next, []game.Event{DrawnEvent{By: seat, Edge: lineOf(edge), Boxes: xslices.Map(completed, boxOf), Again: again}}, nil
 }
 
 // undrawnEdge is the edge action draws, or why it may not.

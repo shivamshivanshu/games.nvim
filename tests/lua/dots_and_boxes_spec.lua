@@ -288,43 +288,24 @@ function T.the_largest_board_and_panel_fit_eighty_by_twenty_four_at_one_line_a_c
   )
 end
 
-function T.describe_event_names_the_drawer_the_edge_and_the_boxes_it_completed()
-  local over =
-    midgame({ result = { kind = "decisive", winners = { "bob" }, reason = "more_boxes" } })
+function T.describe_event_names_the_drawer_the_edge_the_boxes_it_completed_and_a_move_again()
+  local function drawn(by, boxes, again)
+    return {
+      kind = "drawn",
+      by = by,
+      edge = { row = 1, col = 2, orientation = "down" },
+      boxes = boxes,
+      again = again,
+    }
+  end
+  local one, two = { { row = 1, col = 1 } }, { { row = 1, col = 1 }, { row = 1, col = 2 } }
   for _, case in ipairs({
-    {
-      {
-        kind = "drawn",
-        by = "p1",
-        edge = { row = 2, col = 3, orientation = "across" },
-        boxes = {},
-      },
-      midgame(),
-      "alice drew c2h",
-    },
-    {
-      {
-        kind = "drawn",
-        by = "p2",
-        edge = { row = 1, col = 2, orientation = "down" },
-        boxes = { { row = 1, col = 1 } },
-      },
-      midgame(),
-      "bob drew b1v, completing 1 box, and moves again",
-    },
-    {
-      {
-        kind = "drawn",
-        by = "p2",
-        edge = { row = 1, col = 2, orientation = "down" },
-        boxes = { { row = 1, col = 1 }, { row = 1, col = 2 } },
-      },
-      over,
-      "bob drew b1v, completing 2 boxes",
-    },
-    { { kind = "other", by = "p1" }, midgame(), nil },
+    { drawn("p1", {}, false), "alice drew b1v" },
+    { drawn("p2", one, true), "bob drew b1v, completing 1 box, and moves again" },
+    { drawn("p2", two, false), "bob drew b1v, completing 2 boxes" },
+    { { kind = "other", by = "p1" }, nil },
   }) do
-    assert_eq(case[3], dots_and_boxes.describe_event(case[1], case[2]))
+    assert_eq(case[2], dots_and_boxes.describe_event(case[1], midgame()))
   end
 end
 

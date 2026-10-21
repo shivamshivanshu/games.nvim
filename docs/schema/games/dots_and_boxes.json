@@ -58,6 +58,9 @@
             "$ref": "#/$defs/Box"
           },
           "type": "array"
+        },
+        "again": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
@@ -66,9 +69,10 @@
         "kind",
         "by",
         "edge",
-        "boxes"
+        "boxes",
+        "again"
       ],
-      "description": "DrawnEvent reports By's edge and the boxes it completed, which earn By another move."
+      "description": "DrawnEvent reports By's edge and the boxes it completed. Again is true when By moves again,\nhaving completed a box with the game still on."
     },
     "Line": {
       "properties": {

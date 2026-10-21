@@ -65,11 +65,13 @@ type View struct {
 	LegalEdges []Line            `json:"legal_edges"`
 }
 
-// DrawnEvent reports By's edge and the boxes it completed, which earn By another move.
+// DrawnEvent reports By's edge and the boxes it completed. Again is true when By moves again,
+// having completed a box with the game still on.
 type DrawnEvent struct {
 	By    game.Seat `json:"by"`
 	Edge  Line      `json:"edge"`
 	Boxes []Box     `json:"boxes"`
+	Again bool      `json:"again"`
 }
 
 // EventDrawn is DrawnEvent's kind.

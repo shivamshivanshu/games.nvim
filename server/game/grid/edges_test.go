@@ -1,6 +1,7 @@
 package grid
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -30,8 +31,9 @@ func TestNewEdgesRefusesBoardsItCannotName(t *testing.T) {
 	for _, size := range [][2]int{{0, 3}, {3, 0}, {19, 3}, {3, 26}} {
 		func() {
 			defer func() {
-				if recover() == nil {
-					t.Errorf("%v: no panic", size)
+				want := fmt.Sprintf("grid: no edges for %dx%d cells, want 1-18 rows and 1-25 columns", size[0], size[1])
+				if got := recover(); got != want {
+					t.Errorf("%v: panic %v, want %q", size, got, want)
 				}
 			}()
 			NewEdges(size[0], size[1])

@@ -28,7 +28,8 @@ local theme = require("games.ui.theme")
 ---@field kind "drawn"
 ---@field by games.DotsAndBoxesSeat
 ---@field edge games.DotsAndBoxesLine
----@field boxes games.DotsAndBoxesBox[] the boxes the edge completed, which earn another move
+---@field boxes games.DotsAndBoxesBox[] the boxes the edge completed
+---@field again boolean whether by moves again, having completed a box with the game still on
 
 local DRAW_KIND = "draw"
 local COLUMN_LETTERS = "abcdefgh"
@@ -245,7 +246,7 @@ function M.describe_event(event, update)
   if completed == 0 then
     return drew
   end
-  local again = update.result == nil and ", and moves again" or ""
+  local again = event.again and ", and moves again" or ""
   return ("%s, completing %d box%s%s"):format(drew, completed, completed == 1 and "" or "es", again)
 end
 
