@@ -263,20 +263,36 @@ func TestAdaptDecodesAnActionBeforeCheckingTheTurn(t *testing.T) {
 	}
 }
 
+type pairedCounterRules struct{ gametest.CounterRules }
+
+func (pairedCounterRules) Info() game.Info {
+	info := gametest.CounterRules{}.Info()
+	info.Players = game.PlayerRange{Min: 2, Max: 2}
+	return info
+}
+
 func TestAdaptSeatsOnlyThePlayersTheGameTakes(t *testing.T) {
 	for name, tc := range map[string]struct {
 		rules    game.Game
 		invitees []game.UserID
-		wantErr  bool
+		wantErr  string
 	}{
-		"counter alone":        {game.Adapt(gametest.CounterRules{}), nil, false},
-		"counter for two":      {game.Adapt(gametest.CounterRules{}), []game.UserID{"v"}, false},
-		"counter for three":    {game.Adapt(gametest.CounterRules{}), []game.UserID{"v", "w"}, true},
-		"solo counter for two": {game.Adapt(gametest.SoloCounterRules{}), []game.UserID{"v"}, true},
+		"counter alone":          {game.Adapt(gametest.CounterRules{}), nil, ""},
+		"counter for two":        {game.Adapt(gametest.CounterRules{}), []game.UserID{"v"}, ""},
+		"counter for three":      {game.Adapt(gametest.CounterRules{}), []game.UserID{"v", "w"}, "counter takes 1 to 2 players, got 3"},
+		"solo counter for two":   {game.Adapt(gametest.SoloCounterRules{}), []game.UserID{"v"}, "solo_counter is solo, got 1 opponents"},
+		"paired counter alone":   {game.Adapt(pairedCounterRules{}), nil, "counter takes exactly 2 players, got 1"},
+		"paired counter for two": {game.Adapt(pairedCounterRules{}), []game.UserID{"v"}, ""},
 	} {
 		_, _, err := tc.rules.New(game.Options{optStep: "1", "note": ""}, "u", tc.invitees, game.StepRNG(1, 1))
-		if tc.wantErr != isBadRequest(err) || !tc.wantErr && err != nil {
-			t.Errorf("%s: got %v, want a bad request %t", name, err, tc.wantErr)
+		if tc.wantErr == "" {
+			if err != nil {
+				t.Errorf("%s: %v", name, err)
+			}
+			continue
+		}
+		if !isBadRequest(err) || err.Error() != tc.wantErr {
+			t.Errorf("%s: got %v, want the bad request %q", name, err, tc.wantErr)
 		}
 	}
 }

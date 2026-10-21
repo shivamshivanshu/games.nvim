@@ -76,9 +76,8 @@ func decodeGivenOptions(raw json.RawMessage) (Options, error) {
 }
 
 func (g adapted[Opts, Action, View]) New(opts Options, challenger UserID, invitees []UserID, rng *rand.Rand) (ErasedState, map[UserID]Seat, error) {
-	info := g.rules.Info()
-	if n := 1 + len(invitees); !info.Players.Allows(n) {
-		return nil, nil, BadRequestf("%s takes %d to %d players, got %d", info.Type, info.Players.Min, info.Players.Max, n)
+	if err := checkPlayerCount(g.rules.Info(), len(invitees)); err != nil {
+		return nil, nil, err
 	}
 	encoded, err := json.Marshal(opts)
 	if err != nil {
@@ -97,6 +96,22 @@ func (g adapted[Opts, Action, View]) New(opts Options, challenger UserID, invite
 		return nil, nil, err
 	}
 	return erased[Action, View]{state: state, opening: opening}, seats, nil
+}
+
+// checkPlayerCount refuses a game of the challenger and that many opponents
+// when info does not seat them all.
+func checkPlayerCount(info Info, opponents int) error {
+	n := 1 + opponents
+	switch players := info.Players; {
+	case players.Allows(n):
+		return nil
+	case players.Max == 1:
+		return BadRequestf("%s is solo, got %d opponents", info.Type, opponents)
+	case players.Min == players.Max:
+		return BadRequestf("%s takes exactly %d players, got %d", info.Type, players.Max, n)
+	default:
+		return BadRequestf("%s takes %d to %d players, got %d", info.Type, players.Min, players.Max, n)
+	}
 }
 
 func openingEvents(state any) []Event {
