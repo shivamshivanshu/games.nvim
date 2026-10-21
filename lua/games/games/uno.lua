@@ -1,0 +1,342 @@
+local board = require("games.ui.widgets.board")
+local cards = require("games.ui.cards")
+local compose = require("games.ui.compose")
+local kv = require("games.ui.widgets.kv")
+local players = require("games.core.players")
+
+---@alias games.UnoColor "R"|"Y"|"G"|"B"|"" none only before the colour of a Wild turned up is named
+---@alias games.UnoPhase "color"|"play"|"drawn"|"challenge"
+---@alias games.UnoDirection "clockwise"|"counterclockwise"
+
+---@class games.UnoSeatView
+---@field seat games.Seat
+---@field cards integer
+---@field out boolean left the game
+
+---@class games.UnoView
+---@field top games.UnoCardKey
+---@field color games.UnoColor the colour in play, which a wild on top names
+---@field direction games.UnoDirection
+---@field phase games.UnoPhase
+---@field draw_pile integer
+---@field seats games.UnoSeatView[]
+---@field my_hand games.UnoCardKey[]
+---@field legal games.ActionKind[] the viewer's own: empty unless it is to act
+---@field playable games.UnoCardKey[] the viewer's own: the cards it may play now
+
+---@class games.UnoUpdate: games.GameUpdate
+---@field view games.UnoView
+
+---@class games.UnoStartedEvent: games.Event
+---@field kind "started"
+---@field by games.Seat
+---@field dealer games.Seat
+---@field top games.UnoCardKey
+
+---@class games.UnoPlayedEvent: games.Event
+---@field kind "played"
+---@field by games.Seat
+---@field card games.UnoCardKey
+---@field color games.UnoColor
+
+---@class games.UnoDrewEvent: games.Event
+---@field kind "drew"
+---@field by games.Seat
+---@field seat games.Seat
+---@field count integer
+
+---@class games.UnoSkippedEvent: games.Event
+---@field kind "skipped"
+---@field by games.Seat
+---@field seat games.Seat
+
+---@class games.UnoReversedEvent: games.Event
+---@field kind "reversed"
+---@field by games.Seat
+---@field direction games.UnoDirection
+
+---@class games.UnoColorEvent: games.Event
+---@field kind "color"
+---@field by games.Seat
+---@field color games.UnoColor
+
+---@class games.UnoChallengedEvent: games.Event
+---@field kind "challenged"
+---@field by games.Seat
+---@field seat games.Seat
+---@field guilty boolean
+
+---@class games.UnoReshuffledEvent: games.Event
+---@field kind "reshuffled"
+---@field by games.Seat
+---@field cards integer
+
+local GLYPH_WIDTH = 3
+local DECK_KEY = "deck"
+local CARD_HL = "GamesSquareLight"
+local KEY_HL = "GamesKey"
+local MUTED_HL = "GamesMuted"
+local PLAY_KIND = "play"
+---Display columns the table panel reserves: nine cards to a line of the hand.
+local PANEL_WIDTH = 36
+
+---@type table<string, string> colour letter -> its name
+local COLOR_NAMES = { R = "red", Y = "yellow", G = "green", B = "blue" }
+---@type string[] colour letters in key order
+local COLORS = { "R", "Y", "G", "B" }
+
+---@type table<games.UnoPhase, string> what the seat to act does in each phase
+local PHASE_HINTS = {
+  color = "name the colour",
+  play = "play a card or draw",
+  drawn = "play the card drawn or keep it",
+  challenge = "challenge the Wild Draw Four or accept it",
+}
+local NOTHING_TO_PLAY_HINT = "nothing to play: draw"
+
+---@param n integer
+---@return string
+local function card_count(n)
+  return n == 1 and "1 card" or ("%d cards"):format(n)
+end
+
+---@param color games.UnoColor
+---@return string
+local function color_text(color)
+  local name = COLOR_NAMES[color]
+  return name and ("%s (%s)"):format(name, color) or "not named yet"
+end
+
+---@param update games.GameUpdate
+---@param kind games.ActionKind
+---@return boolean
+local function legal(update, kind)
+  return vim.tbl_contains(update.view.legal, kind)
+end
+
+---@param view games.UnoView
+---@return string|nil
+local function hint(view)
+  if #view.legal == 0 then
+    return nil
+  end
+  if view.phase == "play" and #view.playable == 0 then
+    return NOTHING_TO_PLAY_HINT
+  end
+  return PHASE_HINTS[view.phase]
+end
+
+---@param view games.UnoView
+---@return games.KvPair[]
+local function table_pairs(view)
+  local pairs = {
+    { "Colour", color_text(view.color) },
+    { "Turns", view.direction },
+    { "Draw pile", card_count(view.draw_pile) },
+  }
+  local now = hint(view)
+  if now then
+    pairs[#pairs + 1] = { "Now", now }
+  end
+  return pairs
+end
+
+---@param view games.UnoView
+---@param ctx games.LayoutCtx
+---@return games.Node[]
+local function hand_lines(view, ctx)
+  if #view.my_hand == 0 then
+    return {}
+  end
+  local marked = {}
+  for _, card in ipairs(view.playable) do
+    marked[card] = true
+  end
+  local lines = { compose.text(""), compose.text("Your hand", KEY_HL) }
+  return vim.list_extend(
+    lines,
+    cards.hand({
+      set = assert(ctx.art, "uno draws from an asset pack"),
+      cards = view.my_hand,
+      marked = marked,
+      glyph_width = GLYPH_WIDTH,
+      width = PANEL_WIDTH,
+      ambiwidth = ctx.ambiwidth,
+      hl = cards.uno_hl,
+    })
+  )
+end
+
+local M = {}
+
+---@type string[] keys every uno asset pack draws: the 54 distinct cards and the draw pile
+M.asset_keys = vim.list_extend(cards.uno_keys(), { DECK_KEY })
+
+M.glyph_width = GLYPH_WIDTH
+
+---The discard pile's top card in the colour in play beside the draw pile, with the table and
+---your hand, the cards you may play marked, in the panel.
+---@param update games.UnoUpdate
+---@param ctx games.LayoutCtx
+---@return games.Node
+function M.layout(update, ctx)
+  local view = update.view
+  return board({
+    grid = {
+      rows = 1,
+      cols = 2,
+      shade = "plain",
+      cell_width = GLYPH_WIDTH,
+      cell = function(_, c)
+        if c == 1 then
+          return { view.top, cards.uno_hl(view.color) }
+        end
+        return { DECK_KEY, MUTED_HL }
+      end,
+      marks = { { row = 1, col = 1, hl = CARD_HL }, { row = 1, col = 2, hl = CARD_HL } },
+    },
+    art = ctx.art,
+    panels = {
+      {
+        width = PANEL_WIDTH,
+        node = function()
+          local nodes = { kv({ pairs = table_pairs(view), key_hl = KEY_HL }) }
+          return compose.col(vim.list_extend(nodes, hand_lines(view, ctx)))
+        end,
+      },
+    },
+  }, ctx)
+end
+
+---Each seat's cards left, "UNO" on its last, after the clock on its header line.
+---@param update games.UnoUpdate
+---@param seat games.Seat
+---@return games.TextNode[]|nil
+function M.player_extra(update, seat)
+  local entry = vim.iter(update.view.seats):find(function(s)
+    return s.seat == seat
+  end)
+  if not entry then
+    return nil
+  end
+  if entry.out then
+    return { compose.text("out", MUTED_HL) }
+  end
+  local nodes = { compose.text(card_count(entry.cards), KEY_HL) }
+  if entry.cards == 1 then
+    nodes[#nodes + 1] = compose.text(" UNO", KEY_HL)
+  end
+  return nodes
+end
+
+---@type games.GameInput
+M.input = {
+  kind = PLAY_KIND,
+  prompt = "Play, e.g. r5 or w g: ",
+  parse = function(text)
+    return { kind = PLAY_KIND, card = text }
+  end,
+}
+
+---@param key string
+---@param label string
+---@param kind games.ActionKind
+---@return games.GameAction
+local function simple(key, label, kind)
+  return {
+    key = key,
+    label = label,
+    action = { kind = kind },
+    available = function(update)
+      return legal(update, kind)
+    end,
+  }
+end
+
+---@type games.GameAction[]
+M.actions = {
+  simple("d", "draw", "draw"),
+  simple("k", "keep", "pass"),
+  simple("c", "challenge", "challenge"),
+  simple("a", "accept", "accept"),
+}
+for _, color in ipairs(COLORS) do
+  M.actions[#M.actions + 1] = {
+    key = color:lower(),
+    label = COLOR_NAMES[color],
+    action = { kind = "color", color = color },
+    available = function(update)
+      return legal(update, "color")
+    end,
+  }
+end
+
+---@class (private) games.UnoTalk how events name seats and cards
+---@field name fun(seat: games.Seat): string
+---@field card fun(card: games.UnoCardKey): string
+
+---@type table<string, fun(event: table, talk: games.UnoTalk): string>
+local DESCRIBERS = {
+  started = function(event, talk)
+    return ("%s deals and turns up %s"):format(talk.name(event.dealer), talk.card(event.top))
+  end,
+  played = function(event, talk)
+    local text = ("%s plays %s"):format(talk.name(event.by), talk.card(event.card))
+    if not vim.tbl_contains(cards.UNO_WILDS, event.card) then
+      return text
+    end
+    return ("%s and names %s"):format(text, COLOR_NAMES[event.color])
+  end,
+  drew = function(event, talk)
+    return ("%s draws %s"):format(talk.name(event.seat), card_count(event.count))
+  end,
+  passed = function(event, talk)
+    return ("%s keeps the card drawn"):format(talk.name(event.by))
+  end,
+  skipped = function(event, talk)
+    return ("%s is skipped"):format(talk.name(event.seat))
+  end,
+  reversed = function(event)
+    return ("play turns %s"):format(event.direction)
+  end,
+  color = function(event, talk)
+    return ("%s names %s"):format(talk.name(event.by), COLOR_NAMES[event.color])
+  end,
+  challenged = function(event, talk)
+    return ("%s challenges %s's Wild Draw Four: %s"):format(
+      talk.name(event.by),
+      talk.name(event.seat),
+      event.guilty and "guilty" or "not guilty"
+    )
+  end,
+  reshuffled = function(event)
+    return ("the discards are shuffled into a new draw pile of %s"):format(card_count(event.cards))
+  end,
+  left = function(event, talk)
+    return ("%s left the game"):format(talk.name(event.by))
+  end,
+}
+
+---@param event games.Event
+---@param update games.UnoUpdate
+---@param ctx games.DescribeCtx with art, which a module with asset_keys always gets
+---@return string|nil
+function M.describe_event(event, update, ctx)
+  local describer = DESCRIBERS[event.kind]
+  if not describer then
+    return nil
+  end
+  local set = assert(ctx.art, "uno draws from an asset pack")
+  ---@type games.UnoTalk
+  local talk = {
+    name = function(seat)
+      return players.user_of_seat(update, seat) or seat
+    end,
+    card = function(card)
+      return vim.trim(cards.text(set, { card }, ctx.ambiwidth))
+    end,
+  }
+  return describer(event, talk)
+end
+
+return M

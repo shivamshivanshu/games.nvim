@@ -135,6 +135,18 @@ local GAME_CLASS = {
     SeatView = "games.LiarsDiceSeatView",
     View = "games.LiarsDiceView",
   },
+  uno = {
+    ChallengedEvent = "games.UnoChallengedEvent",
+    ColorEvent = "games.UnoColorEvent",
+    DrewEvent = "games.UnoDrewEvent",
+    PlayedEvent = "games.UnoPlayedEvent",
+    ReshuffledEvent = "games.UnoReshuffledEvent",
+    ReversedEvent = "games.UnoReversedEvent",
+    SeatView = "games.UnoSeatView",
+    SkippedEvent = "games.UnoSkippedEvent",
+    StartedEvent = "games.UnoStartedEvent",
+    View = "games.UnoView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
