@@ -1,7 +1,6 @@
 package sudoku
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -14,7 +13,7 @@ type state struct {
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if action.Kind != ActionSet {
-		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+		return nil, nil, game.UnknownAction(action.Kind)
 	}
 	set, err := parseSet(action.Text)
 	if err != nil {
@@ -27,11 +26,11 @@ func (s state) applySet(set cellSet) (game.State[Action, View], []game.Event, er
 	cell := cellIndex(set.row, set.col)
 	switch {
 	case s.puzzle[cell] != Empty:
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("cell %d,%d is a given", set.row, set.col)}
+		return nil, nil, game.Illegalf("cell %d,%d is a given", set.row, set.col)
 	case s.grid[cell] == set.digit && set.digit == Empty:
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("cell %d,%d is already empty", set.row, set.col)}
+		return nil, nil, game.Illegalf("cell %d,%d is already empty", set.row, set.col)
 	case s.grid[cell] == set.digit:
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("cell %d,%d already holds %d", set.row, set.col, set.digit)}
+		return nil, nil, game.Illegalf("cell %d,%d already holds %d", set.row, set.col, set.digit)
 	}
 	s.grid[cell] = set.digit
 	if s.grid == s.solution {

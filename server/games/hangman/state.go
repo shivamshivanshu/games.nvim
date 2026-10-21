@@ -17,14 +17,14 @@ type state struct {
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if action.Kind != ActionGuess {
-		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+		return nil, nil, game.UnknownAction(action.Kind)
 	}
 	guess, err := parseGuess(action.Text)
 	if err != nil {
 		return nil, nil, err
 	}
 	if s.alreadyGuessed(guess) {
-		return nil, nil, game.IllegalActionError{Msg: "already guessed: " + guess}
+		return nil, nil, game.Illegalf("already guessed: %s", guess)
 	}
 	next, hit := s.with(guess)
 	return next, []game.Event{GuessedEvent{By: seat, Guess: guess, Hit: hit}}, nil

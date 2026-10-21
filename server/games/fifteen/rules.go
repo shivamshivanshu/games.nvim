@@ -1,7 +1,6 @@
 package fifteen
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -53,7 +52,7 @@ func (Rules) Info() game.Info {
 func (Rules) New(opts Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	side, ok := opts.Size.side()
 	if !ok {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown size %q", opts.Size)}
+		return nil, nil, game.BadRequestf("unknown size %q", opts.Size)
 	}
 	return state{board: shuffled(side, rng.Perm)}, game.SoloSeat(challenger), nil
 }

@@ -1,7 +1,6 @@
 package wordle
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -19,7 +18,7 @@ type state struct {
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if action.Kind != ActionGuess {
-		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+		return nil, nil, game.UnknownAction(action.Kind)
 	}
 	word, err := parseGuess(action.Text)
 	if err != nil {
@@ -35,11 +34,11 @@ const patternSpace = " \t\n\f\r"
 func parseGuess(text string) (string, error) {
 	trimmed := strings.Trim(text, patternSpace)
 	if len(trimmed) != WordLength || strings.ContainsFunc(trimmed, isNotASCIILetter) {
-		return "", game.IllegalActionError{Msg: fmt.Sprintf("a guess is %d letters a-z, got %q", WordLength, text)}
+		return "", game.Illegalf("a guess is %d letters a-z, got %q", WordLength, text)
 	}
 	word := strings.ToLower(trimmed)
 	if !words.Allowed().Contains(word) {
-		return "", game.IllegalActionError{Msg: "not in word list: " + word}
+		return "", game.Illegalf("not in word list: %s", word)
 	}
 	return word, nil
 }

@@ -1,7 +1,6 @@
 package fifteen
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 
@@ -38,7 +37,7 @@ func (s state) chosen(action Action) (Movable, error) {
 		}
 		i := slices.IndexFunc(movable, func(m Movable) bool { return m.Tile == tile })
 		if i < 0 {
-			return Movable{}, game.IllegalActionError{Msg: fmt.Sprintf("tile %d is not next to the blank", tile)}
+			return Movable{}, game.Illegalf("tile %d is not next to the blank", tile)
 		}
 		return movable[i], nil
 	case ActionMove:
@@ -48,11 +47,11 @@ func (s state) chosen(action Action) (Movable, error) {
 		}
 		i := slices.IndexFunc(movable, func(m Movable) bool { return m.Direction == direction })
 		if i < 0 {
-			return Movable{}, game.IllegalActionError{Msg: fmt.Sprintf("no tile can move %s", direction)}
+			return Movable{}, game.Illegalf("no tile can move %s", direction)
 		}
 		return movable[i], nil
 	}
-	return Movable{}, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	return Movable{}, game.UnknownAction(action.Kind)
 }
 
 func (s state) View(game.Seat) View {

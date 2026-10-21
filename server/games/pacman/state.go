@@ -84,12 +84,12 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 		return s, nil, nil
 	case ActionPause:
 		if s.paused {
-			return nil, nil, game.IllegalActionError{Msg: "already paused"}
+			return nil, nil, game.Illegalf("already paused")
 		}
 		s.paused = true
 		return s, nil, nil
 	}
-	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	return nil, nil, game.UnknownAction(action.Kind)
 }
 
 // NextTick implements game.Ticking: one tick of the level's interval, until paused or over.

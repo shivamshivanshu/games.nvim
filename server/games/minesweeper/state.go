@@ -32,7 +32,7 @@ func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[
 		ActionChord:  s.chord,
 	}[action.Kind]
 	if !ok {
-		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+		return nil, nil, game.UnknownAction(action.Kind)
 	}
 	cell, err := s.lvl.parseCell(action.Cell)
 	if err != nil {
@@ -85,7 +85,7 @@ func (s state) chord(cell int, _ *rand.Rand) (state, game.Event, error) {
 }
 
 func (s state) illegal(cell int, why string) error {
-	return game.IllegalActionError{Msg: fmt.Sprintf("cell %s %s", address(s.lvl.point(cell)), why)}
+	return game.Illegalf("cell %s %s", address(s.lvl.point(cell)), why)
 }
 
 func (s state) cloned() state {

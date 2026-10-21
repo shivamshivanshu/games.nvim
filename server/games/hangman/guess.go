@@ -21,11 +21,11 @@ var guessTextPattern = regexp.MustCompile(guessPattern())
 func parseGuess(text string) (string, error) {
 	match := guessTextPattern.FindStringSubmatch(text)
 	if match == nil {
-		return "", game.IllegalActionError{Msg: fmt.Sprintf("a guess is one letter a-z or a %d-letter word, got %q", words.Length, text)}
+		return "", game.Illegalf("a guess is one letter a-z or a %d-letter word, got %q", words.Length, text)
 	}
 	guess := strings.ToLower(match[1])
 	if len(guess) == words.Length && !words.Allowed().Contains(guess) {
-		return "", game.IllegalActionError{Msg: "not in word list: " + guess}
+		return "", game.Illegalf("not in word list: %s", guess)
 	}
 	return guess, nil
 }

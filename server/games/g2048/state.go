@@ -1,7 +1,6 @@
 package g2048
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -17,7 +16,7 @@ type state struct {
 
 func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if action.Kind != ActionMove {
-		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+		return nil, nil, game.UnknownAction(action.Kind)
 	}
 	direction, err := grid.ParseDirection(action.Direction)
 	if err != nil {
@@ -25,7 +24,7 @@ func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[
 	}
 	slid, gained := s.board.slid(direction)
 	if slid == s.board {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("no tile can move %s", direction)}
+		return nil, nil, game.Illegalf("no tile can move %s", direction)
 	}
 	spawned, tile := slid.spawned(rng)
 	next := state{board: spawned, score: s.score + gained, reached: s.reached || slid.contains(Goal)}

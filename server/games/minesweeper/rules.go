@@ -1,7 +1,6 @@
 package minesweeper
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -53,7 +52,7 @@ func (Rules) Info() game.Info {
 func (Rules) New(opts Opts, challenger game.UserID, _ []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	lvl, ok := opts.Difficulty.level()
 	if !ok {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown difficulty %q", opts.Difficulty)}
+		return nil, nil, game.BadRequestf("unknown difficulty %q", opts.Difficulty)
 	}
 	return newState(lvl), game.SoloSeat(challenger), nil
 }

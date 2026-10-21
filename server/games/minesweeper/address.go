@@ -21,7 +21,7 @@ const firstRowLetter = 'a'
 func (l level) parseCell(text string) (int, error) {
 	match := cellTextPattern.FindStringSubmatch(text)
 	if match == nil {
-		return 0, game.IllegalActionError{Msg: fmt.Sprintf(`want a row letter then a column number, e.g. "c12"; got %q`, text)}
+		return 0, game.Illegalf(`want a row letter then a column number, e.g. "c12"; got %q`, text)
 	}
 	col, err := strconv.Atoi(match[2])
 	if err != nil {
@@ -29,7 +29,7 @@ func (l level) parseCell(text string) (int, error) {
 	}
 	p := grid.Point{Row: int(strings.ToLower(match[1])[0] - firstRowLetter), Col: col - 1}
 	if p.Row >= l.rows || p.Col >= l.cols {
-		return 0, game.IllegalActionError{Msg: fmt.Sprintf("no cell %s on a board of %d rows by %d columns", address(p), l.rows, l.cols)}
+		return 0, game.Illegalf("no cell %s on a board of %d rows by %d columns", address(p), l.rows, l.cols)
 	}
 	return l.index(p), nil
 }

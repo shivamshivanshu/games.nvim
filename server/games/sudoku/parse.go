@@ -1,7 +1,6 @@
 package sudoku
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -21,7 +20,7 @@ type cellSet struct {
 func parseSet(text string) (cellSet, error) {
 	match := setTextPattern.FindStringSubmatch(text)
 	if match == nil {
-		return cellSet{}, game.IllegalActionError{Msg: fmt.Sprintf(`want "RC D", e.g. "53 7" for row 5, column 3, digit 7 (0 clears); got %q`, text)}
+		return cellSet{}, game.Illegalf(`want "RC D", e.g. "53 7" for row 5, column 3, digit 7 (0 clears); got %q`, text)
 	}
 	return cellSet{row: int(match[1][0] - '0'), col: int(match[2][0] - '0'), digit: Digit(match[3][0] - '0')}, nil
 }

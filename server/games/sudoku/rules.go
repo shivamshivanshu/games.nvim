@@ -1,7 +1,6 @@
 package sudoku
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -46,7 +45,7 @@ func (Rules) Info() game.Info {
 func (Rules) New(opts Opts, challenger game.UserID, _ []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	givens, ok := opts.Difficulty.givens()
 	if !ok {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown difficulty %q", opts.Difficulty)}
+		return nil, nil, game.BadRequestf("unknown difficulty %q", opts.Difficulty)
 	}
 	puzzle, solution := generate(givens, rng)
 	return state{puzzle: puzzle, grid: puzzle, solution: solution}, game.SoloSeat(challenger), nil

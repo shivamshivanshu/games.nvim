@@ -20,7 +20,7 @@ var codeTextPattern = regexp.MustCompile(codePattern())
 func parseCode(text string) (Code, error) {
 	match := codeTextPattern.FindStringSubmatch(text)
 	if match == nil {
-		return "", game.IllegalActionError{Msg: fmt.Sprintf("a guess is %d colours from %s, got %q", CodeLength, Palette, text)}
+		return "", game.Illegalf("a guess is %d colours from %s, got %q", CodeLength, Palette, text)
 	}
 	return Code(strings.ToLower(match[1])), nil
 }
