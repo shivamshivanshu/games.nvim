@@ -78,8 +78,8 @@ func (s state) View(seat game.Seat) View {
 	return View{
 		Board:   s.board,
 		Legal:   xslices.Map(legal, func(m Move) []Square { return slices.Clone(m.Path) }),
-		Last:    append([]Square{}, s.last...),
-		History: append([]string{}, s.history...),
+		Last:    xslices.Clone(s.last),
+		History: xslices.Clone(s.history),
 	}
 }
 

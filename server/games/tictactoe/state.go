@@ -41,7 +41,7 @@ func (s state) place(seat game.Seat, cell Cell) state {
 	switch {
 	case len(next.winningLines) > 0:
 		next.Ending = next.Concluded(game.WinFor(ReasonThreeInARow, seat))
-	case len(next.board.emptyCells()) == 0:
+	case next.board.full():
 		next.Ending = next.Concluded(game.DrawBy(ReasonBoardFull))
 	}
 	return next

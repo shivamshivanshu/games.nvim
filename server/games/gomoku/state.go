@@ -39,7 +39,7 @@ func (s state) place(seat game.Seat, at grid.Point) state {
 	switch {
 	case len(next.winningLines) > 0:
 		next.Turn = s.Turn.Conclude(game.WinFor(ReasonFiveInARow, seat))
-	case len(next.board.Empty()) == 0:
+	case next.board.Full():
 		next.Turn = s.Turn.Conclude(game.DrawBy(ReasonBoardFull))
 	default:
 		next.Turn = s.To(discs.Sides.Other(seat))

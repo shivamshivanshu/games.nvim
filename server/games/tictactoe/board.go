@@ -2,7 +2,6 @@ package tictactoe
 
 import (
 	"slices"
-	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
@@ -16,21 +15,12 @@ const (
 
 type board [cellCount]game.Seat
 
-// cellInputs are the texts a place action accepts, "1" to "9", in cell order.
-func cellInputs() []string {
-	inputs := make([]string, cellCount)
-	for i := range inputs {
-		inputs[i] = strconv.Itoa(i + 1)
-	}
-	return inputs
-}
-
 func parseCell(text string) (Cell, error) {
-	i := slices.Index(cellInputs(), text)
-	if i < 0 {
+	n, ok := game.ParseNumbered(text, cellCount)
+	if !ok {
 		return 0, game.Illegalf("cell must be 1-%d, got %q", cellCount, text)
 	}
-	return Cell(i + 1), nil
+	return Cell(n), nil
 }
 
 func (c Cell) point() grid.Point {
@@ -56,6 +46,8 @@ func (b board) emptyCells() []Cell {
 	}
 	return cells
 }
+
+func (b board) full() bool { return !slices.Contains(b[:], noSeat) }
 
 func (b board) rows() [][]game.Seat {
 	rows := make([][]game.Seat, side)

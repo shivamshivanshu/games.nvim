@@ -22,6 +22,9 @@ func TestBoardWithLeavesTheOriginalUnchanged(t *testing.T) {
 	if got := []int{placed.Count(SeatBlack), placed.Count(SeatWhite), len(placed.Empty())}; !cmp.Equal(got, []int{2, 1, 6}) {
 		t.Errorf("black, white, empty = %v, want [2 1 6]", got)
 	}
+	if placed.Full() || !NewBoard(1).With(SeatWhite, grid.Point{}).Full() {
+		t.Error("Full is not whether every cell holds a disc")
+	}
 	rows := placed.Rows()
 	rows[0][0] = SeatWhite
 	if placed.At(grid.Point{}) != NoDisc {

@@ -20,13 +20,15 @@ const (
 	notationHint = "squares 1-32 joined by - for a step or x for each jump, e.g. 11-15 or 15x24x31"
 )
 
+var moveSyntax = regexp.MustCompile(movePattern)
+
 // matchMove finds the legal move whose text is exactly input, explaining why when none is.
 func matchMove(input string, legal []Move) (Move, error) {
 	text := strings.Trim(input, moveSpace)
 	if i := slices.IndexFunc(legal, func(m Move) bool { return m.Text() == text }); i >= 0 {
 		return legal[i], nil
 	}
-	if !regexp.MustCompile(movePattern).MatchString(text) {
+	if !moveSyntax.MatchString(text) {
 		return Move{}, game.Illegalf("illegal move %q: write %s", text, notationHint)
 	}
 	if continuations := movesExtending(text, legal); len(continuations) > 0 {

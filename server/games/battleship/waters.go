@@ -62,7 +62,7 @@ func (w waters) allSunk() bool {
 // else the reason as a phrase.
 func (w waters) blocked(anchor grid.Point, size int, o Orientation) string {
 	for _, p := range footprint(anchor, size, o) {
-		if !onBoard(p) {
+		if !p.Within(boardSize, boardSize) {
 			return "runs off the board"
 		}
 		if i, ok := w.shipAt(p); ok {

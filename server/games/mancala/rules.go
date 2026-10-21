@@ -3,7 +3,6 @@ package mancala
 
 import (
 	"math/rand/v2"
-	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
@@ -27,7 +26,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       pitField,
 				Description: "Your pit, 1 to 6 from your left toward your store.",
-				Values:      pitNames(),
+				Values:      game.NumberedValues(pitsPerSide),
 			},
 		}},
 		Events:  []game.Event{SowedEvent{}, CollectedEvent{}},
@@ -35,22 +34,12 @@ func (Rules) Info() game.Info {
 	}
 }
 
-func pitNames() []string {
-	names := make([]string, pitsPerSide)
-	for i := range names {
-		names[i] = strconv.Itoa(i + 1)
-	}
-	return names
-}
-
-// parsePit is the 1-based pit text names, which must be one of pitNames.
 func parsePit(text string) (int, error) {
-	for i, name := range pitNames() {
-		if text == name {
-			return i + 1, nil
-		}
+	pit, ok := game.ParseNumbered(text, pitsPerSide)
+	if !ok {
+		return 0, game.Illegalf("pit must be 1 to %d, got %q", pitsPerSide, text)
 	}
-	return 0, game.Illegalf("pit must be 1 to %d, got %q", pitsPerSide, text)
+	return pit, nil
 }
 
 // New seats the first mover as south, which sows first.

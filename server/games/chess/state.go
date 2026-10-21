@@ -76,7 +76,7 @@ func (e Termination) result() game.Result {
 func (s state) View(seat game.Seat) View {
 	view := View{
 		FEN:         s.position.FEN(),
-		HistorySAN:  append([]string{}, s.san...),
+		HistorySAN:  xslices.Clone(s.san),
 		LastMove:    s.last,
 		LegalMoves:  []string{},
 		CheckSquare: s.position.CheckSquare(),

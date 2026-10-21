@@ -23,9 +23,7 @@ func NewBoard(size int) Board {
 func (b Board) Coords() grid.Coords { return b.coords }
 
 // Contains reports whether p is on the board.
-func (b Board) Contains(p grid.Point) bool {
-	return p.Row >= 0 && p.Row < b.size && p.Col >= 0 && p.Col < b.size
-}
+func (b Board) Contains(p grid.Point) bool { return p.Within(b.size, b.size) }
 
 // At is the disc on p, NoDisc when it is empty.
 func (b Board) At(p grid.Point) game.Seat { return b.discs[b.index(p)] }
@@ -50,22 +48,27 @@ func (b Board) Rows() [][]game.Seat {
 
 // Empty lists the empty points, row by row from the top left.
 func (b Board) Empty() []grid.Point {
-	return b.pointsWhere(func(disc game.Seat) bool { return disc == NoDisc })
-}
-
-// Count is how many of seat's discs are on the board.
-func (b Board) Count(seat game.Seat) int {
-	return len(b.pointsWhere(func(disc game.Seat) bool { return disc == seat }))
-}
-
-func (b Board) pointsWhere(match func(game.Seat) bool) []grid.Point {
 	points := []grid.Point{}
 	for i, disc := range b.discs {
-		if match(disc) {
+		if disc == NoDisc {
 			points = append(points, grid.Point{Row: i / b.size, Col: i % b.size})
 		}
 	}
 	return points
 }
+
+// Count is how many of seat's discs are on the board.
+func (b Board) Count(seat game.Seat) int {
+	count := 0
+	for _, disc := range b.discs {
+		if disc == seat {
+			count++
+		}
+	}
+	return count
+}
+
+// Full reports whether no cell is empty.
+func (b Board) Full() bool { return !slices.Contains(b.discs, NoDisc) }
 
 func (b Board) index(p grid.Point) int { return p.Row*b.size + p.Col }

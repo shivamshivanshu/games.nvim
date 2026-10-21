@@ -11,6 +11,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (
@@ -143,7 +144,7 @@ func TestDropOutcomes(t *testing.T) {
 			if diff := cmp.Diff(&tc.wantLast, view.Last); diff != "" {
 				t.Errorf("last (-want +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(append([][]Cell{}, tc.wantLines...), view.WinningLines); diff != "" {
+			if diff := cmp.Diff(xslices.Clone(tc.wantLines), view.WinningLines); diff != "" {
 				t.Errorf("winning lines (-want +got):\n%s", diff)
 			}
 			got, finished := st.Outcome()

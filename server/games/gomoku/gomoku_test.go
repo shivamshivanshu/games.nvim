@@ -14,6 +14,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 	"github.com/shivamshivanshu/games.nvim/server/games/discs"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (
@@ -207,7 +208,7 @@ func TestOutcome(t *testing.T) {
 					t.Errorf("result (-want +got):\n%s", diff)
 				}
 			}
-			if diff := cmp.Diff(append([][]discs.Cell{}, tc.wantLines...), st.View(discs.SeatWhite).WinningLines); diff != "" {
+			if diff := cmp.Diff(xslices.Clone(tc.wantLines), st.View(discs.SeatWhite).WinningLines); diff != "" {
 				t.Errorf("winning lines (-want +got):\n%s", diff)
 			}
 		})

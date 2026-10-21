@@ -25,7 +25,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       cellField,
 				Description: "The cell, numbered 1-9 in phone layout: 1 top-left, 9 bottom-right.",
-				Values:      cellInputs(),
+				Values:      game.NumberedValues(cellCount),
 			},
 		}},
 		Events:  []game.Event{PlacedEvent{}},

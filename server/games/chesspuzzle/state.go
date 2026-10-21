@@ -118,7 +118,7 @@ func (m Mode) endReason() game.ResultReason {
 func (s state) View(game.Seat) View {
 	view := View{
 		FEN:         s.position.FEN(),
-		HistorySAN:  append([]string{}, s.history...),
+		HistorySAN:  xslices.Clone(s.history),
 		LastMove:    s.last,
 		LegalMoves:  []string{},
 		CheckSquare: s.position.CheckSquare(),

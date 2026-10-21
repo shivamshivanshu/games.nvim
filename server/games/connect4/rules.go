@@ -2,7 +2,6 @@ package connect4
 
 import (
 	"math/rand/v2"
-	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
@@ -28,21 +27,13 @@ func (Rules) Info() game.Info {
 				Input: &game.ActionInput{
 					Field:       columnField,
 					Description: "The column, 1 to 7 from the left.",
-					Values:      columnNames(),
+					Values:      game.NumberedValues(boardColumns),
 				},
 			},
 		},
 		Events:  []game.Event{DroppedEvent{}},
 		Reasons: []game.ResultReason{ReasonFourInARow, ReasonBoardFull},
 	}
-}
-
-func columnNames() []string {
-	names := make([]string, boardColumns)
-	for i := range names {
-		names[i] = strconv.Itoa(i + 1)
-	}
-	return names
 }
 
 // New seats the first mover as red.
