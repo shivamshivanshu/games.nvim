@@ -24,16 +24,32 @@ func NewCoords(rows, cols int) Coords {
 	if rows < 1 || rows > maxCoordRows || cols < 1 || cols > maxCoordCols {
 		panic(fmt.Sprintf("grid: no coordinates for %dx%d, want 1-%d rows and 1-%d columns", rows, cols, maxCoordRows, maxCoordCols))
 	}
-	last := 'a' + rune(cols-1)
-	column := fmt.Sprintf("[a-%cA-%c]", last, last-'a'+'A')
-	return Coords{rows: rows, cols: cols, cell: regexp.MustCompile(`^\s*(` + column + `)(` + rowAlternatives(rows) + `)\s*$`)}
+	column := charRange('a', 'a'+rune(cols-1)) + charRange('A', 'A'+rune(cols-1))
+	return Coords{rows: rows, cols: cols, cell: regexp.MustCompile(`^\s*([` + column + `])(` + rowAlternatives(rows) + `)\s*$`)}
+}
+
+// charRange is the class body from first to last: a single character when they are one.
+func charRange(first, last rune) string {
+	if first == last {
+		return string(first)
+	}
+	return string(first) + "-" + string(last)
+}
+
+// digitClass matches one digit from first to last: the digit itself when they are one.
+func digitClass(first, last rune) string {
+	if first == last {
+		return string(first)
+	}
+	return "[" + charRange(first, last) + "]"
 }
 
 func rowAlternatives(rows int) string {
+	units := digitClass('1', '0'+rune(min(rows, 9)))
 	if rows <= 9 {
-		return fmt.Sprintf("[1-%d]", rows)
+		return units
 	}
-	return fmt.Sprintf("1[0-%d]|[1-9]", rows-10)
+	return "1" + digitClass('0', '0'+rune(rows-10)) + "|" + units
 }
 
 // Pattern is the RE2 expression of the text Parse accepts: a column letter in
