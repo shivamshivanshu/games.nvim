@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "pit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "pit"
+      ],
+      "description": "Action sows Pit, the mover's own pit as text: \"1\" to \"6\", counted from the mover's left\ntoward its store."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "sow"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "CollectedEvent": {
+      "properties": {
+        "kind": {
+          "const": "collected"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seeds": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seeds"
+      ],
+      "description": "CollectedEvent reports the seeds left in By's pits at the end, moved to By's store."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "more_seeds",
+        "equal_seeds"
+      ],
+      "description": "The result reasons Mancala adds to the core's."
+    },
+    "Side": {
+      "properties": {
+        "pits": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "store": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "pits",
+        "store"
+      ],
+      "description": "Side is one seat's row: Pits[0] is its pit 1, on its left, and Pits[5] its pit 6, next to\nits Store."
+    },
+    "SowedEvent": {
+      "properties": {
+        "kind": {
+          "const": "sowed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "pit": {
+          "type": "integer"
+        },
+        "captured": {
+          "type": "integer"
+        },
+        "again": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "pit",
+        "captured",
+        "again"
+      ],
+      "description": "SowedEvent reports a sowing: Captured counts the seeds it took into By's store, and Again is\ntrue when By moves again, its last seed having fallen in that store."
+    },
+    "View": {
+      "properties": {
+        "south": {
+          "$ref": "#/$defs/Side"
+        },
+        "north": {
+          "$ref": "#/$defs/Side"
+        },
+        "legal_pits": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "south",
+        "north",
+        "legal_pits"
+      ],
+      "description": "View holds both sides. LegalPits is the viewer's own: the pits it may sow, empty unless it is\nto move."
+    }
+  },
+  "title": "Mancala",
+  "description": "The game-specific bodies inside a mancala game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "collected": {
+      "$ref": "#/$defs/CollectedEvent"
+    },
+    "sowed": {
+      "$ref": "#/$defs/SowedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
