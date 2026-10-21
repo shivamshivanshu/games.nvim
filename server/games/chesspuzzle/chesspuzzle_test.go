@@ -3,6 +3,7 @@ package chesspuzzle
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -377,5 +378,64 @@ func TestSolutionAndLegalMovesFollowTheEnd(t *testing.T) {
 	}
 	if got := ongoing.View(SeatSolver).LegalMoves; !strings.Contains(strings.Join(got, " "), "h5f7") {
 		t.Errorf("legal moves %v lack the UCI h5f7", got)
+	}
+}
+
+// mirroredBackRank has black, to move second, mate on a1 with the rook or on
+// d1 with the queen once white has played two quiet pawn moves.
+var mirroredBackRank = Opts{Mode: ModePuzzle, FEN: "r2q3k/6pp/8/8/8/8/4P1PP/7K w - - 0 1", Moves: "e3 h6 e4 Ra1#", Player: SideBlack}
+
+func TestAPuzzleAnswersACorrectMoveBeforeTheLast(t *testing.T) {
+	s, events := mustApply(t, start(t, mirroredBackRank), move("h6"))
+	want := []game.Event{MovedEvent{By: SeatSolver, SAN: "h6"}, RepliedEvent{By: SeatSolver, SAN: "e4"}}
+	if diff := cmp.Diff(want, events); diff != "" {
+		t.Errorf("events (-want +got):\n%s", diff)
+	}
+	if _, finished := s.Outcome(); finished || len(s.ToAct()) != 1 || s.View(SeatSolver).Remaining != 1 {
+		t.Errorf("finished = %t, to act %v, remaining %d; want the solver to find the last move", finished, s.ToAct(), s.View(SeatSolver).Remaining)
+	}
+}
+
+func TestStatesBranchedFromOneDoNotShareHistory(t *testing.T) {
+	s, _ := mustApply(t, start(t, mirroredBackRank), move("h6"))
+	queenMate, _ := mustApply(t, s, move("Qd1"))
+	rookMate, _ := mustApply(t, s, move("Ra1"))
+	for _, tt := range []struct {
+		state state
+		want  string
+	}{{queenMate, "Qd1#"}, {rookMate, "Ra1#"}} {
+		history := tt.state.View(SeatSolver).HistorySAN
+		if last := history[len(history)-1]; last != tt.want {
+			t.Errorf("history %v ends in %s, want %s", history, last, tt.want)
+		}
+	}
+}
+
+func TestEndingsScoreTheSolverByTheCoresWinOrLoss(t *testing.T) {
+	ongoing := start(t, scholars)
+	solved, _ := mustApply(t, ongoing, move("Qxf7#"))
+	failed, _ := mustApply(t, ongoing, move("Qxe5+"))
+	study, _ := mustApply(t, start(t, Opts{Mode: ModeStudy, Moves: "e4", Player: SideWhite}), move("e4"))
+	gaveUp, _ := ongoing.Eliminate(SeatSolver, game.ReasonResign)
+	tests := []struct {
+		name  string
+		state game.State[Action, View]
+		won   bool
+	}{
+		{"solved", solved, true},
+		{"completed", study, true},
+		{"wrong move", failed, false},
+		{"given up", gaveUp, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, finished := tt.state.Outcome()
+			if !finished || result.Kind != game.ResultDecisive || slices.Contains(result.Winners, SeatSolver) != tt.won {
+				t.Errorf("finished = %t, result %+v; want decisive, solver won: %t", finished, result, tt.won)
+			}
+			if _, ok := tt.state.(game.Scorer); ok {
+				t.Errorf("a Scorer overrides the core's +1 for a win and -1 for a loss")
+			}
+		})
 	}
 }
