@@ -57,6 +57,7 @@ No-Limit Texas Hold'em, a sit-and-go for 2 to 6 players, played until one player
 
     Every other viewer gets `[]` and zeros. The client shows these numbers and does no betting arithmetic of its own. A finished or aborted game offers no moves. These fields replace the spec's `can_raise`: `legal` says whether a bet or raise is possible, and `max_raise_to` how far.
 12. **No uncontested dead money (TDA).** Say A shoves 1000 and then leaves, B is all-in for 300, and C has 1000 behind. C's `call` and C's `allin` both commit 300; A's dead 1000 joins the one pot that B and C contest, and C keeps 700. Before this ruling, C's `allin` committed 1000 and won A's 700 above B's level uncontested. The case is reachable, since a player may resign on anyone's turn.
+13. **The effective-stack cap applies in every hand.** No seat ever commits more than the most that any contesting opponent can match. `allin` commits up to that amount, and a `bet` or `raise` above it is rejected rather than trimmed. Online clients cap at the effective stack the same way. `max_raise_to` shows the cap.
 
 ## Controls and keys
 Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapped.

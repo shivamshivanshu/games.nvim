@@ -27,6 +27,10 @@ local Control = types.Control
 ---@field space? games.Size what the board and its panels may fill; nil draws the smallest board
 ---@field ambiwidth games.Ambiwidth
 
+---@class games.DescribeCtx how event text outside a board draws
+---@field art? games.ArtSet the game's asset pack in the user's glyph mode
+---@field ambiwidth games.Ambiwidth
+
 ---@class games.Display what the shell measured for one render
 ---@field text_area? games.Size the window space to fill; nil draws the smallest board
 ---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
@@ -48,7 +52,7 @@ local Control = types.Control
 ---@field layout fun(update: games.GameUpdate, ctx: games.LayoutCtx): games.Node
 ---@field input? games.GameInput
 ---@field actions? games.GameAction[]
----@field describe_event? fun(event: games.Event, update: games.GameUpdate): string|nil
+---@field describe_event? fun(event: games.Event, update: games.GameUpdate, ctx: games.DescribeCtx): string|nil
 ---@field asset_keys? string[] keys every asset pack of the game must draw
 ---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
 ---@field player_extra? fun(update: games.GameUpdate, seat: games.Seat, ctx: games.LayoutCtx): games.TextNode[]|nil what the header shows after the clock on seat's line
@@ -840,13 +844,12 @@ end
 ---@param opts games.OpenOptions
 ---@return games.ViewOptions
 local function view_for(game, module, opts)
-  local art
-  if module.asset_keys then
-    local pack_name = (opts.assets or {})[game] or assets.DEFAULT_PACK
-    local spec = { keys = module.asset_keys, glyph_width = module.glyph_width or 1 }
-    art = assets.art_set(assets.load(game, pack_name, spec), opts.glyphs)
-  end
-  return { glyphs = opts.glyphs, flipped = false, max_cell_height = opts.max_cell_height, art = art }
+  return {
+    glyphs = opts.glyphs,
+    flipped = false,
+    max_cell_height = opts.max_cell_height,
+    art = assets.module_art(game, module, opts),
+  }
 end
 
 ---@type fun(client: games.Client, update: games.GameUpdate, me: games.UserID, opts?: games.OpenOptions): integer|nil

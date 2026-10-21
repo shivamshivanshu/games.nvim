@@ -171,14 +171,41 @@ local function fallback_description(event, update)
   return actor and ("%s: %s"):format(actor, event.kind) or event.kind
 end
 
+---Required on use: assets reports through notify, which requires this module.
+---@param game games.GameType
+---@param module games.GameModule
+---@return games.DescribeCtx
+local function describe_ctx(game, module)
+  local options = require("games").open_options()
+  return {
+    art = require("games.ui.assets").module_art(game, module, options),
+    ambiwidth = vim.o.ambiwidth --[[@as games.Ambiwidth]],
+  }
+end
+
+---@param update games.GameUpdate
+---@return fun(event: games.Event): string|nil what the game's module says of an event, if anything
+local function module_describer(update)
+  local loaded, module = pcall(registry.game_module, update.game)
+  local describe_event = loaded and module and module.describe_event
+  if not module or not describe_event then
+    return function()
+      return nil
+    end
+  end
+  local ctx = describe_ctx(update.game, module)
+  return function(event)
+    return describe_event(event, update, ctx)
+  end
+end
+
 ---A game module that fails to load falls back to generic descriptions, so listings still work.
 ---@param update games.GameUpdate
 ---@return string
 function M.events(update)
-  local loaded, module = pcall(registry.game_module, update.game)
-  local describe_event = loaded and module and module.describe_event
+  local describe_event = module_describer(update)
   local descriptions = vim.tbl_map(function(event)
-    return describe_event and describe_event(event, update) or fallback_description(event, update)
+    return describe_event(event) or fallback_description(event, update)
   end, update.events)
   return table.concat(descriptions, "; ")
 end

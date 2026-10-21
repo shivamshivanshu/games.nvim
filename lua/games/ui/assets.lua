@@ -225,4 +225,18 @@ function M.art_set(pack, glyphs)
   end)
 end
 
+---What module draws for game under opts: its chosen pack in opts' glyph mode.
+---@param game games.GameType
+---@param module games.GameModule
+---@param opts games.OpenOptions
+---@return games.ArtSet|nil nil for a module without assets
+function M.module_art(game, module, opts)
+  if not module.asset_keys then
+    return nil
+  end
+  local pack_name = (opts.assets or {})[game] or M.DEFAULT_PACK
+  local spec = { keys = module.asset_keys, glyph_width = module.glyph_width or 1 }
+  return M.art_set(M.load(game, pack_name, spec), opts.glyphs)
+end
+
 return M

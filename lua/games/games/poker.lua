@@ -1,5 +1,4 @@
 local art = require("games.ui.art")
-local assets = require("games.ui.assets")
 local board = require("games.ui.widgets.board")
 local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
@@ -382,19 +381,11 @@ local DESCRIBERS = {
   end,
 }
 
----The user's poker pack in the user's glyph mode, for card text outside a board.
----@return games.ArtSet
-local function user_art()
-  local opts = require("games").open_options()
-  local pack_name = (opts.assets or {}).poker or assets.DEFAULT_PACK
-  local spec = { keys = M.asset_keys, glyph_width = M.glyph_width }
-  return assets.art_set(assets.load("poker", pack_name, spec), opts.glyphs)
-end
-
 ---@param event games.Event
 ---@param update games.PokerUpdate
+---@param ctx games.DescribeCtx with art, which a module with asset_keys always gets
 ---@return string|nil
-function M.describe_event(event, update)
+function M.describe_event(event, update, ctx)
   local describer = DESCRIBERS[event.kind]
   if not describer then
     return nil
@@ -405,7 +396,7 @@ function M.describe_event(event, update)
       return players.user_of_seat(update, seat) or seat
     end,
     cards = function(shown)
-      return cards.text(user_art(), shown, vim.o.ambiwidth --[[@as games.Ambiwidth]])
+      return cards.text(ctx.art --[[@as games.ArtSet]], shown, ctx.ambiwidth)
     end,
   }
   return describer(event, talk)
