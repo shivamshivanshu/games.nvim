@@ -122,6 +122,38 @@ function T.catalog_is_requested_once_per_connection()
   assert(client:game_info("chess") == nil)
 end
 
+function T.catalog_indexes_each_game_s_actions_by_kind_until_the_connection_drops()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  local move = { kind = "move", description = "a move", input = { field = "san", values = {} } }
+  client:catalog_list(nil)
+  conn:respond("catalog.list", {
+    games = { { id = "chess", name = "Chess", actions = { move } }, { id = "go", name = "Go" } },
+  })
+
+  assert(vim.deep_equal(client:action_specs("chess"), { move = move }))
+  assert(vim.deep_equal(client:action_specs("go"), {}))
+  assert(client:action_specs("sudoku") == nil)
+  conn:push("disconnected", { code = "disconnected", message = "lost", retrying = true })
+  assert(client:action_specs("chess") == nil)
+end
+
+function T.game_infos_reads_the_catalog_it_was_delivered_even_when_the_connection_drops_first()
+  local conn = stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  client:catalog_list(nil)
+  conn:respond("catalog.list", { games = { { id = "chess", name = "Chess" } } })
+  local infos
+  client:game_infos(function(by_type)
+    infos = by_type
+  end)
+  conn:push("disconnected", { code = "disconnected", message = "lost", retrying = true })
+  helpers.wait_for(function()
+    return infos ~= nil
+  end, "the catalog infos")
+  assert(vim.deep_equal(vim.tbl_keys(infos), { "chess" }), vim.inspect(infos))
+end
+
 function T.resolved_challenge_ignores_late_pending()
   local conn = stub_conn()
   local client = Client.new(conn --[[@as games.Conn]])

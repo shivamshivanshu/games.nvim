@@ -375,11 +375,11 @@ local function check_action_keys(module)
 end
 
 ---Whether the catalogue lists kind; nothing is, until the catalogue is known.
----@param catalogued? table<games.ActionKind, true>
+---@param catalogued? table<games.ActionKind, games.ActionSpec>
 ---@param kind games.ActionKind
 ---@return boolean
 local function is_catalogued(catalogued, kind)
-  return catalogued ~= nil and catalogued[kind] == true
+  return catalogued ~= nil and catalogued[kind] ~= nil
 end
 
 ---@param entry games.GameAction
@@ -403,7 +403,7 @@ end
 ---@param update games.GameUpdate
 ---@param module games.GameModule
 ---@param view games.ViewOptions
----@param catalogued? table<games.ActionKind, true> the action kinds the server lists for the game
+---@param catalogued? table<games.ActionKind, games.ActionSpec> the actions the server lists for the game
 ---@return games.KeyBinding[]
 local function bindings_for(update, module, view, catalogued)
   check_action_keys(module)
@@ -495,7 +495,7 @@ end
 ---@param me games.UserID
 ---@param elapsed_ms? integer time since the clock's as_of_ms, charged to the running clock
 ---@param display? games.Display nil draws the smallest board
----@param catalogued? table<games.ActionKind, true> action kinds the server lists; nil, until it is known, binds none
+---@param catalogued? table<games.ActionKind, games.ActionSpec> the actions the server lists, by kind; nil, until they are known, binds none
 ---@return games.Rendered
 ---@return integer header_height lines owned by the header
 ---@return games.KeyBinding[] bindings the footer lists
@@ -534,19 +534,6 @@ local function elapsed_ms(board)
 end
 
 ---@param board games.Board
----@return table<games.ActionKind, true>|nil
-local function catalogued_kinds(board)
-  local info = board.client:game_info(board.update.game)
-  if not info then
-    return nil
-  end
-  return vim.iter(info.actions):fold({}, function(kinds, spec)
-    kinds[spec.kind] = true
-    return kinds
-  end)
-end
-
----@param board games.Board
 ---@param bindings games.KeyBinding[]
 local function map_keys(board, bindings)
   local by_key = {}
@@ -575,7 +562,7 @@ render_board = function(board)
       text_area = board.text_area,
       ambiwidth = vim.o.ambiwidth,
       seats = board.seats,
-    }, catalogued_kinds(board))
+    }, board.client:action_specs(board.update.game))
   paint(board.buf, NAMESPACE, 0, -1, rendered)
   board.clocks = clocks
   vim.b[board.buf].games_dirty = false

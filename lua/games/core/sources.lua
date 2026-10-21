@@ -4,6 +4,7 @@ local kv = require("games.ui.widgets.kv")
 local picker = require("games.ui.picker")
 local players = require("games.core.players")
 local stats = require("games.core.stats")
+local tables = require("games.core.tables")
 local text = require("games.ui.text")
 local timer = require("games.core.timer")
 local types = require("games.types")
@@ -59,6 +60,7 @@ local ActionName = {
 ---@field games games.GameUpdate[]
 ---@field challenges games.Challenge[] pending
 ---@field catalog games.GameInfo[]
+---@field infos table<games.GameType, games.GameInfo> the catalog by game
 ---@field users games.UserPresence[]
 ---@field stats? games.StatsResult over every user, as stats.get without user returns it
 ---@field puzzle_sets games.PuzzleSetSummary[]
@@ -98,15 +100,6 @@ end
 ---@return string
 local function listed(values)
   return #values > 0 and table.concat(values, ", ") or NONE
-end
-
----@param catalog games.GameInfo[]
----@return table<games.GameType, games.GameInfo>
-local function infos_by_type(catalog)
-  return vim.iter(catalog):fold({}, function(infos, info)
-    infos[info.id] = info
-    return infos
-  end)
 end
 
 ---Incoming first, then the soonest to expire.
@@ -207,6 +200,7 @@ function M.snapshot(client, me, extra)
     games = merged(client:games(), extra.finished or {}),
     challenges = client:pending_challenges(),
     catalog = client:catalog_games(),
+    infos = client:catalog_infos(),
     users = extra.users or {},
     stats = extra.stats,
     puzzle_sets = extra.puzzle_sets or {},
@@ -223,8 +217,7 @@ end
 ---@param options games.Options
 ---@return string
 local function options_text(options)
-  local names = vim.tbl_keys(options)
-  table.sort(names)
+  local names = tables.sorted_keys(options)
   return listed(vim.tbl_map(function(name)
     return ("%s=%s"):format(name, options[name])
   end, names))
@@ -234,7 +227,7 @@ end
 ---@return games.Source
 local function requests(snapshot)
   local me, client = snapshot.me, snapshot.client
-  local infos = infos_by_type(snapshot.catalog)
+  local infos = snapshot.infos
   local pending = vim.list_slice(snapshot.challenges)
   table.sort(pending, M.incoming_first(me))
   ---@param name games.SourceActionName
@@ -348,7 +341,7 @@ end
 ---@return games.Source
 local function games(snapshot)
   local me, client = snapshot.me, snapshot.client
-  local infos = infos_by_type(snapshot.catalog)
+  local infos = snapshot.infos
   local updates = vim.list_slice(snapshot.games)
   table.sort(updates, by_urgency(me))
   return {
@@ -408,9 +401,7 @@ local function type_preview(info)
     { "players", players_text(info) },
     { "controls", listed(info.capabilities) },
   }
-  local names = vim.tbl_keys(info.options)
-  table.sort(names)
-  for _, name in ipairs(names) do
+  for _, name in ipairs(tables.sorted_keys(info.options)) do
     rows[#rows + 1] = { text.humanize(name), option_text(info.options[name]) }
   end
   for _, spec in ipairs(info.actions or {}) do

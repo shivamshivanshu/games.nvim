@@ -2,6 +2,7 @@ local describe = require("games.core.describe")
 local fs = require("games.core.fs")
 local notify = require("games.core.notify")
 local registry = require("games.core.registry")
+local tables = require("games.core.tables")
 
 local ERROR = vim.log.levels.ERROR
 local UUID_PATTERN = "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$"
@@ -17,10 +18,7 @@ local File = {
 }
 
 ---@type table<string, true>
-local RESERVED_NAMES = vim.iter(vim.tbl_values(File)):fold({}, function(names, name)
-  names[name] = true
-  return names
-end)
+local RESERVED_NAMES = tables.set_of(vim.tbl_values(File))
 
 ---@enum games.ArchiveOutcome
 local Outcome = {

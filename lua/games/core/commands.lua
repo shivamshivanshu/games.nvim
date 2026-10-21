@@ -14,6 +14,7 @@ local puzzles = require("games.core.puzzles")
 local shell = require("games.ui.shell")
 local sources = require("games.core.sources")
 local stats = require("games.core.stats")
+local tables = require("games.core.tables")
 local text = require("games.ui.text")
 local timer = require("games.core.timer")
 local types = require("games.types")
@@ -154,31 +155,44 @@ local function opponent_range(games, game_type)
   return range
 end
 
----@param games games.GameInfo[]
+---Asks which of infos to play, listed by name.
+---@param infos games.GameInfo[]
+---@param prompt string
+---@param on_info fun(info: games.GameInfo)
+local function pick_info(infos, prompt, on_info)
+  picker.pick(infos, {
+    prompt = prompt,
+    format_item = function(info)
+      return info.name
+    end,
+  }, on_info)
+end
+
+---@param info games.GameInfo
+---@param players integer
+---@return boolean
+local function takes_players(info, players)
+  return info.players.min <= players and players <= info.players.max
+end
+
+---@param client games.Client holding the catalog
 ---@param game_type games.GameType|nil picked interactively when nil
 ---@param players integer the challenger plus every opponent
 ---@param on_game fun(info: games.GameInfo)
-local function pick_game(games, game_type, players, on_game)
-  local playable = vim.tbl_filter(function(info)
-    return info.players.min <= players and players <= info.players.max
-  end, games)
+local function pick_game(client, game_type, players, on_game)
   if not game_type then
+    local playable = vim.tbl_filter(function(info)
+      return takes_players(info, players)
+    end, client:catalog_games())
     if #playable == 0 then
       say(("games: no %d-player games available"):format(players), ERROR)
       return
     end
-    picker.pick(playable, {
-      prompt = "Game:",
-      format_item = function(info)
-        return info.name
-      end,
-    }, on_game)
+    pick_info(playable, "Game:", on_game)
     return
   end
-  local info = vim.iter(playable):find(function(candidate)
-    return candidate.id == game_type
-  end)
-  if not info then
+  local info = client:game_info(game_type)
+  if not (info and takes_players(info, players)) then
     say(("games: no %d-player game %q"):format(players, game_type), ERROR)
     return
   end
@@ -237,8 +251,7 @@ end
 ---@param info games.GameInfo
 ---@param on_done fun(options: games.Options)
 local function pick_options(info, on_done)
-  local names = vim.tbl_keys(info.options)
-  table.sort(names)
+  local names = tables.sorted_keys(info.options)
   ---@param index integer
   ---@param chosen games.Options
   local function ask(index, chosen)
@@ -295,7 +308,7 @@ function M.challenge(client, me, game_type, invitees)
   local function challenge_from_catalog(catalog)
     ---@param opponents games.UserID[]
     local function challenge_opponents(opponents)
-      pick_game(catalog.games, game_type, #opponents + 1, function(info)
+      pick_game(client, game_type, #opponents + 1, function(info)
         send_challenge(client, info, opponents)
       end)
     end
@@ -351,58 +364,41 @@ function M.start(client, me, info)
   start_solo(client, info)
 end
 
----@param client games.Client
----@param catalog games.CatalogResult
----@param game_type games.GameType
-local function start_named_solo(client, catalog, game_type)
-  local info = vim.iter(catalog.games):find(function(candidate)
-    return candidate.id == game_type
-  end)
-  if not info then
-    say(("games: no game %q"):format(game_type), ERROR)
-    return
-  end
-  if not players.can_start_solo(info) then
-    say(
-      ("games: %s is not a solo game; challenge someone with :Games challenge %s"):format(
-        game_type,
-        game_type
-      ),
-      ERROR
-    )
-    return
-  end
-  start_solo(client, info)
-end
-
 ---Starts the solo game named by args[1], or one picked from the catalogue's solo games.
 ---@type games.SubcommandRun
 local function solo(client, _, args)
   local game_type = args[1]
   client:catalog_list(
     nil,
-    on_ok(
-      ---@param catalog games.CatalogResult
-      function(catalog)
-        if game_type then
-          start_named_solo(client, catalog, game_type)
-          return
-        end
-        local solo_games = vim.tbl_filter(players.can_start_solo, catalog.games)
+    on_ok(function()
+      if not game_type then
+        local solo_games = vim.tbl_filter(players.can_start_solo, client:catalog_games())
         if #solo_games == 0 then
           say("games: no solo games available", ERROR)
           return
         end
-        picker.pick(solo_games, {
-          prompt = "Solo game:",
-          format_item = function(info)
-            return info.name
-          end,
-        }, function(info)
+        pick_info(solo_games, "Solo game:", function(info)
           start_solo(client, info)
         end)
+        return
       end
-    )
+      local info = client:game_info(game_type)
+      if not info then
+        say(("games: no game %q"):format(game_type), ERROR)
+        return
+      end
+      if not players.can_start_solo(info) then
+        say(
+          ("games: %s is not a solo game; challenge someone with :Games challenge %s"):format(
+            game_type,
+            game_type
+          ),
+          ERROR
+        )
+        return
+      end
+      start_solo(client, info)
+    end)
   )
 end
 
@@ -627,17 +623,11 @@ local function export(client)
     say("games: export needs archive.dir in setup()", ERROR)
     return
   end
-  client:game_list(
-    { status = GameStatus.FINISHED },
-    on_ok(
-      ---@param result games.GameListResult
-      function(result)
-        archive:backfill(result.games, function(tally)
-          say(export_summary(tally))
-        end)
-      end
-    )
-  )
+  client:finished_games(function(finished)
+    archive:backfill(finished, function(tally)
+      say(export_summary(tally))
+    end)
+  end)
 end
 
 ---@type games.SubcommandRun
@@ -651,15 +641,9 @@ end
 ---@type table<games.SourceName, games.ExtraFetch>
 local EXTRA_FETCHES = {
   [sources.SourceName.GAMES] = function(client, done)
-    client:game_list(
-      { status = GameStatus.FINISHED },
-      on_ok(
-        ---@param result games.GameListResult
-        function(result)
-          done({ finished = result.games })
-        end
-      )
-    )
+    client:finished_games(function(finished)
+      done({ finished = finished })
+    end)
   end,
   [sources.SourceName.TYPES] = function(client, done)
     client:catalog_list(

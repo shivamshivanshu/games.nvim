@@ -1,4 +1,5 @@
 local notify = require("games.core.notify")
+local tables = require("games.core.tables")
 local types = require("games.types")
 
 local MessageType = types.MessageType
@@ -16,6 +17,10 @@ local FINISHED_CACHE_SIZE = 32
 ---@alias games.ConnectionHandler fun(state: games.ConnectionState)
 ---@alias games.Unsubscribe fun() removes the handler it was returned for
 
+---@class (private) games.CatalogIndex
+---@field infos table<games.GameType, games.GameInfo>
+---@field action_specs table<games.GameType, table<games.ActionKind, games.ActionSpec>>
+
 ---@class games.Client
 ---@field conn games.Conn
 ---@field package user? games.UserID
@@ -24,6 +29,7 @@ local FINISHED_CACHE_SIZE = 32
 ---@field private challenges table<games.ChallengeID, games.Challenge> pending only
 ---@field package resolved_challenges table<games.ChallengeID, true> this connection's, which only its own lists can race
 ---@field package catalog? games.CatalogResult static per server process, so refetched per connection
+---@field package catalog_index? games.CatalogIndex the catalog by game, built when it arrives
 ---@field private update_handlers games.UpdateHandler[]
 ---@field private challenge_handlers games.ChallengeHandler[]
 ---@field package catalog_handlers games.CatalogHandler[]
@@ -105,10 +111,34 @@ local function snapshot_if_stale(self, body, err)
   end
 end
 
+---@param catalog games.CatalogResult
+---@return games.CatalogIndex
+local function index_catalog(catalog)
+  local action_specs = {}
+  for _, info in ipairs(catalog.games) do
+    action_specs[info.id] = tables.index_by(info.actions or {}, function(spec)
+      return spec.kind
+    end)
+  end
+  return {
+    infos = tables.index_by(catalog.games, function(info)
+      return info.id
+    end),
+    action_specs = action_specs,
+  }
+end
+
+---@param self games.Client
+---@param catalog games.CatalogResult|nil
+local function set_catalog(self, catalog)
+  self.catalog = catalog
+  self.catalog_index = catalog and index_catalog(catalog)
+end
+
 ---@type games.ReplyHook
 local function cache_catalog(self, _, _, result)
   if result then
-    self.catalog = result --[[@as games.CatalogResult]]
+    set_catalog(self, result --[[@as games.CatalogResult]])
     emit(self.catalog_handlers, self.catalog, true, "the game catalog")
   end
 end
@@ -151,15 +181,22 @@ function Client:catalog_list(body, cb)
   end
 end
 
----Calls fn with each catalog game by type; on a failed request the map is empty.
+---The catalog games by type, empty until this connection has fetched the catalog.
+---@return table<games.GameType, games.GameInfo>
+function Client:catalog_infos()
+  return self.catalog_index and self.catalog_index.infos or {}
+end
+
+---Calls fn with each game of the catalog the request delivered, by type; on a failed request the
+---map is empty.
 ---@param fn fun(infos: table<games.GameType, games.GameInfo>)
 function Client:game_infos(fn)
   self:catalog_list(nil, function(_, catalog)
-    local infos = {}
-    for _, info in ipairs(catalog and catalog.games or {}) do
-      infos[info.id] = info
+    if catalog and catalog == self.catalog then
+      fn(self:catalog_infos())
+      return
     end
-    fn(infos)
+    fn(catalog and index_catalog(catalog).infos or {})
   end)
 end
 
@@ -173,9 +210,25 @@ end
 ---@param game games.GameType
 ---@return games.GameInfo|nil
 function Client:game_info(game)
-  local catalog = self.catalog
-  return catalog and vim.iter(catalog.games):find(function(info)
-    return info.id == game
+  return self:catalog_infos()[game]
+end
+
+---The actions the catalog lists for game, by kind, or nil until this connection has fetched it.
+---@param game games.GameType
+---@return table<games.ActionKind, games.ActionSpec>|nil
+function Client:action_specs(game)
+  return self.catalog_index and self.catalog_index.action_specs[game]
+end
+
+---Calls fn with the finished games game.list returns; a failed request is reported instead.
+---@param fn fun(finished: games.GameUpdate[])
+function Client:finished_games(fn)
+  self:game_list({ status = types.GameStatus.FINISHED }, function(err, result)
+    if err then
+      notify.say("games: " .. err.message, vim.log.levels.ERROR)
+    elseif result then
+      fn(result.games)
+    end
   end)
 end
 
@@ -201,14 +254,14 @@ function Client.new(conn)
   end)
   conn:on("connected", function(result)
     self.user = result.user
-    self.catalog = nil
+    set_catalog(self, nil)
     self.resolved_challenges = {}
     self:resync()
     emit(self.connection_handlers, ConnectionState.CONNECTED, false, "the connection")
   end)
   conn:on("disconnected", function()
     self.user = nil
-    self.catalog = nil
+    set_catalog(self, nil)
     emit(self.connection_handlers, ConnectionState.DISCONNECTED, false, "the connection")
   end)
   return self

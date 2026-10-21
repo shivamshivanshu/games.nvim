@@ -10,7 +10,6 @@ local sources = require("games.core.sources")
 local text = require("games.ui.text")
 local theme = require("games.ui.theme")
 local timer = require("games.core.timer")
-local types = require("games.types")
 local windows = require("games.ui.windows")
 
 local ActionName = sources.ActionName
@@ -292,15 +291,9 @@ end
 
 ---@param state games.DashboardState
 local function fetch_finished(state)
-  state.client:game_list({ status = types.GameStatus.FINISHED }, function(err, result)
-    if err then
-      notify.say("games: " .. err.message, vim.log.levels.ERROR)
-      return
-    end
-    if result then
-      state.finished = result.games
-      request_render(state)
-    end
+  state.client:finished_games(function(finished)
+    state.finished = finished
+    request_render(state)
   end)
 end
 

@@ -1,6 +1,7 @@
 local art = require("games.ui.art")
 local notify = require("games.core.notify")
 local predicates = require("games.core.predicates")
+local tables = require("games.core.tables")
 
 ---@class games.AssetPack
 ---@field name string
@@ -137,15 +138,6 @@ local function by_kind(picture_keys, check_glyph, check_picture)
   end
 end
 
----@param keys string[]
----@return table<string, true>
-local function key_set_of(keys)
-  return vim.iter(keys):fold({}, function(acc, key)
-    acc[key] = true
-    return acc
-  end)
-end
-
 ---@param path string
 ---@param set games.ArtSet
 ---@param keys string[]
@@ -167,8 +159,8 @@ function M.problem(pack, spec)
     return "a pack is a table with glyphs"
   end
   local pictures = spec.pictures or {}
-  local picture_keys = key_set_of(pictures)
-  local key_set = key_set_of(vim.list_extend(vim.list_extend({}, spec.keys), pictures))
+  local picture_keys = tables.set_of(pictures)
+  local key_set = tables.set_of(vim.list_extend(vim.list_extend({}, spec.keys), pictures))
   local check_glyph = glyph_check(spec.glyph_width)
   local checks = {
     unicode = by_kind(picture_keys, check_glyph, picture_check),
