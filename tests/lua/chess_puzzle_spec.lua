@@ -5,10 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = {
-  move = { kind = "move", description = "", input = { field = "text" } },
-  reveal = { kind = "reveal", description = "" },
-}
+local CATALOGUED = helpers.catalogued("chess_puzzle")
 local LINE = "g8f6 h5f7"
 local SCHOLARS = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
 local AFTER_NF6 = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"

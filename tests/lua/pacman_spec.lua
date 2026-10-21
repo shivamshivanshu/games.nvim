@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { turn = true, pause = true }
+local CATALOGUED = helpers.catalogued("pacman")
 ---Lines above the board at cell height 1: the player, the status row and a blank.
 local BOARD_TOP = 3
 ---Display columns from one cell's start to the next: cells touch.

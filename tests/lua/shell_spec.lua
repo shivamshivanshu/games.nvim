@@ -224,7 +224,7 @@ end
 ---@return string
 local function footer_of(update, catalogued)
   local rendered =
-    shell.render(update, chess, ASCII, "alice", 0, nil, catalogued or helpers.CHESS_ACTIONS)
+    shell.render(update, chess, ASCII, "alice", 0, nil, catalogued or helpers.catalogued("chess"))
   return rendered.lines[#rendered.lines]
 end
 

@@ -139,8 +139,10 @@ function T.keys_act_on_the_item_under_the_cursor()
       { game_id = hub.WAITING.game_id, seq = hub.WAITING.seq, control = "resign" },
       conn:sent("game.control")
     )
-    press("2")
-    assert_eq({ game = "sudoku", options = {} }, conn:sent("game.start"))
+    helpers.with_select_answers({ "easy" }, function()
+      press("2")
+    end)
+    assert_eq({ game = "sudoku", options = { difficulty = "easy" } }, conn:sent("game.start"))
   end)
 end
 

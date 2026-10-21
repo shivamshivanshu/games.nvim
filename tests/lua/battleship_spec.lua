@@ -5,12 +5,7 @@ local text_util = require("games.ui.text")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = {
-  place_across = true,
-  place_down = true,
-  random = true,
-  fire = { kind = "fire", description = "", input = { field = "cell" } },
-}
+local CATALOGUED = helpers.catalogued("battleship")
 local FIRST_BOARD_ROW = 6
 local TILE_CODES = { ["."] = "empty", ["#"] = "ship", o = "miss", x = "hit", ["*"] = "sunk" }
 local WATER = ("."):rep(10)

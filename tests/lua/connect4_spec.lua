@@ -4,7 +4,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { drop = true }
+local CATALOGUE = helpers.catalogued("connect4")
 local ALL_COLUMNS = { 1, 2, 3, 4, 5, 6, 7 }
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4

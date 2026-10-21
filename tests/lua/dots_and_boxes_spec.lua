@@ -5,7 +5,7 @@ local text_util = require("games.ui.text")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { draw = true }
+local CATALOGUED = helpers.catalogued("dots_and_boxes")
 local FIRST_BOARD_ROW = 5
 local CONTROLS = { "resign", "offer_draw" }
 

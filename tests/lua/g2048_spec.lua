@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { move = true }
+local CATALOGUED = helpers.catalogued("g2048")
 ---Lines above the board at cell height 1: the player, the status row and a blank.
 local BOARD_TOP = 3
 ---Display columns from one cell's start to the next: the glyph and the gap.

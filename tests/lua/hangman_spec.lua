@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { guess = { input = { field = "text" } } }
+local CATALOGUED = helpers.catalogued("hangman")
 local BOARD_ROWS = { 4, 9 }
 
 ---@param glyphs games.Glyphs

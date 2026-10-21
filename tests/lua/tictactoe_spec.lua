@@ -4,7 +4,7 @@ local tictactoe = require("games.games.tictactoe")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { place = true }
+local CATALOGUED = helpers.catalogued("tictactoe")
 local BOARD_ROWS = { 4, 8 }
 local FOOTER_ROW = 10
 

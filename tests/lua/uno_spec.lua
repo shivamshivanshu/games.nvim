@@ -5,14 +5,7 @@ local uno = require("games.games.uno")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = {
-  play = { input = { field = "card" } },
-  draw = true,
-  pass = true,
-  challenge = true,
-  accept = true,
-  color = true,
-}
+local CATALOGUE = helpers.catalogued("uno")
 
 ---@param glyphs games.Glyphs
 ---@param extra? table

@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { slide = { input = { field = "tile" } }, move = true }
+local CATALOGUED = helpers.catalogued("fifteen")
 local FIRST_BOARD_ROW = 3
 
 ---@param glyphs games.Glyphs

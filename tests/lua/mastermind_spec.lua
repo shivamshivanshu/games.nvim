@@ -6,7 +6,7 @@ local shell = require("games.ui.shell")
 local assert_eq = helpers.assert_eq
 
 local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
-local CATALOGUED = { guess = { input = { field = "code" } } }
+local CATALOGUED = helpers.catalogued("mastermind")
 local BOARD_ROWS = { 4, 15 }
 local BOARD_WIDTH = 34
 

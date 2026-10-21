@@ -5,8 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CELL_INPUT = { input = { field = "cell" } }
-local CATALOGUED = { reveal = CELL_INPUT, flag = CELL_INPUT, chord = CELL_INPUT }
+local CATALOGUED = helpers.catalogued("minesweeper")
 local FIRST_BOARD_ROW = 3
 local CELL_CODES = {
   ["#"] = "hidden",

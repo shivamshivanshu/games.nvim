@@ -92,9 +92,11 @@ function T.types_come_from_the_catalog_with_its_action_grammar_in_the_preview()
   assert_eq({
     "game         Chess",
     "players      2 players",
-    "controls     resign, draw, abort, clock",
-    "time control 10+5, none (default 10+5)",
-    "move         a move in SAN or UCI",
+    "controls     resign, draw, clock, abort",
+    "color        random, white, black (default random)",
+    "time control none, 3+2, 5+0, 10+5, 15+10 (default 10+5)",
+    "move         Play a move.",
+    "claim_draw   Claim a draw by threefold repetition or the fifty-move rule, on your move.",
   }, game_types.preview(game_types.items[1]))
 end
 
@@ -151,8 +153,10 @@ function T.starting_a_solo_type_starts_it_and_any_other_challenges()
   local client, conn = hub.client()
   local game_types = sources.build(SourceName.TYPES, hub.snapshot(client))
   local chess, sudoku = game_types.items[1], game_types.items[2]
-  run(game_types, "start", sudoku)
-  assert_eq({ game = "sudoku", options = {} }, conn:sent("game.start"))
+  helpers.with_select_answers({ "easy" }, function()
+    run(game_types, "start", sudoku)
+  end)
+  assert_eq({ game = "sudoku", options = { difficulty = "easy" } }, conn:sent("game.start"))
 
   helpers.with_select_answers({}, function()
     run(game_types, "start", chess)

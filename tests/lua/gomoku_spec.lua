@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 local assert_eq = helpers.assert_eq
 
 local SIZE = 15
-local CATALOGUE = { place = { kind = "place", description = "", input = { field = "cell" } } }
+local CATALOGUE = helpers.catalogued("gomoku")
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4
 ---Display columns before the first cell: the widest row label, "15", and its gap.

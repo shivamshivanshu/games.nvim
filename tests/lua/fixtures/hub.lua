@@ -11,42 +11,7 @@ M.NOW_MS = 1792584000000
 local MINUTE_MS = 60000
 
 ---@type games.GameInfo[]
-M.CATALOG = {
-  {
-    id = "sudoku",
-    name = "Sudoku",
-    players = { min = 1, max = 1 },
-    capabilities = { "resign" },
-    options = {},
-    actions = { { kind = "place", description = "a digit at a cell, like r1c1=5" } },
-  },
-  {
-    id = "chess",
-    name = "Chess",
-    players = { min = 2, max = 2 },
-    capabilities = { "resign", "draw", "abort", "clock" },
-    options = {
-      time_control = {
-        type = "enum",
-        values = { "10+5", "none" },
-        default = "10+5",
-        role = "clock",
-      },
-    },
-    actions = {
-      {
-        kind = "move",
-        description = "a move in SAN or UCI",
-        input = {
-          field = "move",
-          description = "A move in SAN or UCI, any case, e.g. e4, Nf3, O-O, exd8=Q, e2e4.",
-          pattern = [[^\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\s*$]],
-          values = {},
-        },
-      },
-    },
-  },
-}
+M.CATALOG = { helpers.game_info("sudoku"), helpers.game_info("chess") }
 
 ---@type games.Challenge
 M.INCOMING = {

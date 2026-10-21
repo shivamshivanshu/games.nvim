@@ -1,17 +1,15 @@
 local Conn = require("games.core.conn")
 local describe = require("games.core.describe")
+local json = require("games.core.json")
+local tables = require("games.core.tables")
 
 local M = {}
 
 local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
 local SERVER_BIN = REPO_ROOT .. "/bin/games-server"
+local CATALOG_PATH = REPO_ROOT .. "/docs/schema/catalog.json"
 local USERS = { "alice", "bob" }
 M.PASSWORD = "pw"
----The action kinds the server catalogues for chess.
-M.CHESS_ACTIONS = {
-  move = { kind = "move", description = "", input = { field = "move" } },
-  claim_draw = { kind = "claim_draw", description = "" },
-}
 M.WAIT_MS = 2000
 
 ---@class games.test.Server
@@ -409,6 +407,32 @@ function M.read_file(path)
   local data = file:read("*a")
   file:close()
   return data
+end
+
+---The server's catalog as schemagen writes it to docs/schema/catalog.json, read afresh on each call.
+---@return games.GameInfo[]
+function M.catalog()
+  local text = assert(M.read_file(CATALOG_PATH), CATALOG_PATH)
+  return (json.decode(text) --[[@as games.CatalogResult]]).games
+end
+
+---@param game games.GameType
+---@return games.GameInfo
+function M.game_info(game)
+  local info = vim.iter(M.catalog()):find(function(info)
+    return info.id == game
+  end)
+  assert(info, ("catalog.json has no game %q"):format(game))
+  return info
+end
+
+---The actions the server catalogues for game, by kind, as the shell takes them.
+---@param game games.GameType
+---@return table<games.ActionKind, games.ActionSpec>
+function M.catalogued(game)
+  return tables.index_by(M.game_info(game).actions, function(spec)
+    return spec.kind
+  end)
 end
 
 ---A copy of update finished with summary, carrying summary's digest as the server would.

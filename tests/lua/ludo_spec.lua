@@ -5,7 +5,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { roll = true, move = true }
+local CATALOGUE = helpers.catalogued("ludo")
 local BASE = { kind = "base" }
 local HOME = { kind = "home" }
 

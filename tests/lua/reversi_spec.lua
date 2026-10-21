@@ -4,7 +4,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { place = { kind = "place", description = "", input = { field = "cell" } } }
+local CATALOGUE = helpers.catalogued("reversi")
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4
 ---Display columns before the first cell: the row label and its gap.

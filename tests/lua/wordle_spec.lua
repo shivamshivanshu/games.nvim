@@ -5,7 +5,7 @@ local wordle = require("games.games.wordle")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = { guess = { input = { field = "text" } } }
+local CATALOGUED = helpers.catalogued("wordle")
 local BOARD_ROWS = { 4, 9 }
 local BOARD_WIDTH = 19
 

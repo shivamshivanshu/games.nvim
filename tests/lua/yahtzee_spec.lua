@@ -5,7 +5,7 @@ local yahtzee = require("games.games.yahtzee")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { roll = true, hold = true, score = true }
+local CATALOGUE = helpers.catalogued("yahtzee")
 local DICE_COUNT = 5
 ---Lines above the dice at cell height 1: two players, the status row and a blank.
 local DICE_TOP = 5

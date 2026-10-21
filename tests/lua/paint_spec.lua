@@ -6,7 +6,7 @@ local shell = require("games.ui.shell")
 local assert_eq = helpers.assert_eq
 
 local NAMESPACE = vim.api.nvim_create_namespace("games.paint_spec")
-local CATALOGUED = { turn = true, pause = true }
+local CATALOGUED = helpers.catalogued("pacman")
 
 ---@param rows string[]
 ---@param extmarks? games.Extmark[]

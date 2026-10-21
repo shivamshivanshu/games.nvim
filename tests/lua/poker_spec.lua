@@ -6,7 +6,7 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = { act = { input = { field = "text" } } }
+local CATALOGUE = helpers.catalogued("poker")
 
 ---@param glyphs games.Glyphs
 ---@return games.ViewOptions
