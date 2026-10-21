@@ -3,7 +3,6 @@ package wordle
 import (
 	_ "embed"
 	"sort"
-	"strings"
 )
 
 //go:embed words/allowed.txt
@@ -31,12 +30,4 @@ func (w wordList) at(i int) string {
 func (w wordList) contains(word string) bool {
 	i := sort.Search(w.len(), func(i int) bool { return w.at(i) >= word })
 	return i < w.len() && w.at(i) == word
-}
-
-func inWordList(word string) bool {
-	return allowedWords().contains(word) || answerWords().contains(word)
-}
-
-func isWord(s string) bool {
-	return len(s) == WordLength && !strings.ContainsFunc(s, func(r rune) bool { return r < 'a' || r > 'z' })
 }

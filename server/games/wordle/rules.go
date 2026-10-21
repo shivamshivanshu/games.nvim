@@ -8,10 +8,10 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
-const (
-	guessField   = "text"
-	guessPattern = `^\s*[A-Za-z]{5}\s*$`
-)
+const guessField = "text"
+
+// guessPattern is WordLength ASCII letters, with surrounding whitespace allowed.
+func guessPattern() string { return fmt.Sprintf(`^\s*[A-Za-z]{%d}\s*$`, WordLength) }
 
 // Rules implements game.Rules for Wordle.
 type Rules struct{}
@@ -36,8 +36,8 @@ func (Rules) Info() game.Info {
 			Description: "Guess the hidden word.",
 			Input: &game.ActionInput{
 				Field:       guessField,
-				Description: "A five-letter word from the word list, in any case.",
-				Pattern:     guessPattern,
+				Description: fmt.Sprintf("A %d-letter word from the word list, in any case.", WordLength),
+				Pattern:     guessPattern(),
 			},
 		}},
 	}

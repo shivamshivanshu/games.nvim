@@ -31,15 +31,23 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	return s.with(latest), []game.Event{GuessedEvent{By: seat, Word: latest.Word, Feedback: latest.Feedback}}, nil
 }
 
+// patternSpace is the whitespace \s matches in the catalogue's RE2 pattern: ASCII only.
+const patternSpace = " \t\n\f\r"
+
 func parseGuess(text string) (string, error) {
-	word := strings.ToLower(strings.TrimSpace(text))
-	if !isWord(word) {
+	trimmed := strings.Trim(text, patternSpace)
+	if len(trimmed) != WordLength || strings.ContainsFunc(trimmed, isNotASCIILetter) {
 		return "", game.IllegalActionError{Msg: fmt.Sprintf("a guess is %d letters a-z, got %q", WordLength, text)}
 	}
-	if !inWordList(word) {
+	word := strings.ToLower(trimmed)
+	if !allowedWords().contains(word) {
 		return "", game.IllegalActionError{Msg: "not in word list: " + word}
 	}
 	return word, nil
+}
+
+func isNotASCIILetter(r rune) bool {
+	return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z')
 }
 
 func (s state) with(latest Guess) state {

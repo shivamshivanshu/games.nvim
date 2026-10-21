@@ -18,7 +18,7 @@ Solo: find a hidden five-letter word in six guesses. Server: `server/games/wordl
 ## Rulings
 - Five letters, six guesses, no options (D11).
 - Answers are curated by hand because ENABLE has no frequency data; drawing from all 8636 ENABLE words would give obscure answers. Every answer is also in ENABLE (a test checks this).
-- Guesses are case-insensitive and surrounding spaces are ignored; only ASCII letters a-z count.
+- Guesses are case-insensitive and surrounding ASCII whitespace is ignored; only ASCII letters count, so look-alikes such as the Kelvin sign or a non-breaking space are refused.
 - Repeating a guess is allowed and uses a guess, as in the original game.
 - There is no hard mode: a guess need not reuse earlier hits.
 - The server computes all feedback, including the keyboard's per-letter state; the UI scores nothing.

@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+func isNotLowercaseLetter(r rune) bool { return r < 'a' || r > 'z' }
+
 func TestWordListsAreSortedFixedWidthLowercaseWords(t *testing.T) {
 	for name, list := range map[string]wordList{"allowed": allowedWords(), "answers": answerWords()} {
 		t.Run(name, func(t *testing.T) {
@@ -16,7 +18,7 @@ func TestWordListsAreSortedFixedWidthLowercaseWords(t *testing.T) {
 			for i := range list.len() {
 				line := string(list[i*lineWidth : (i+1)*lineWidth])
 				word := strings.TrimSuffix(line, "\n")
-				if !isWord(word) || len(line) != len(word)+1 {
+				if len(word) != WordLength || strings.ContainsFunc(word, isNotLowercaseLetter) || len(line) != len(word)+1 {
 					t.Fatalf("line %d is %q, want %d letters a-z and a newline", i+1, line, WordLength)
 				}
 				if word <= previous {
@@ -28,7 +30,7 @@ func TestWordListsAreSortedFixedWidthLowercaseWords(t *testing.T) {
 	}
 }
 
-func TestInWordListFindsBothEndsAndRejectsGaps(t *testing.T) {
+func TestAllowedWordsFindsBothEndsAndRejectsGaps(t *testing.T) {
 	allowed := allowedWords()
 	tests := []struct {
 		word string
@@ -43,8 +45,8 @@ func TestInWordListFindsBothEndsAndRejectsGaps(t *testing.T) {
 		{"cranx", false},
 	}
 	for _, tt := range tests {
-		if got := inWordList(tt.word); got != tt.want {
-			t.Errorf("inWordList(%q) = %t, want %t", tt.word, got, tt.want)
+		if got := allowed.contains(tt.word); got != tt.want {
+			t.Errorf("contains(%q) = %t, want %t", tt.word, got, tt.want)
 		}
 	}
 }
@@ -70,7 +72,11 @@ func TestEveryAnswerIsAllowed(t *testing.T) {
 
 func TestCatalogueInputPatternMatchesTheGuessesParsed(t *testing.T) {
 	pattern := regexp.MustCompile(Rules{}.Info().Actions[0].Input.Pattern)
-	for _, text := range []string{"crane", " CRANE ", "Crane\t", "cranes", "cran", "cr4ne", "crané", "", "cr ne"} {
+	inputs := []string{
+		"crane", " CRANE ", "Crane\t", "cranes", "cran", "cr4ne", "crané", "", "cr ne",
+		"\u212Aiosk", "\u00a0crane", "crane\u3000", "\u2003crane",
+	}
+	for _, text := range inputs {
 		_, err := parseGuess(text)
 		shaped := err == nil || strings.HasPrefix(err.Error(), "not in word list")
 		if got := pattern.MatchString(text); got != shaped {

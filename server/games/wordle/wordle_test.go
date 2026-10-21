@@ -2,6 +2,7 @@ package wordle
 
 import (
 	"errors"
+	"maps"
 	"slices"
 	"testing"
 
@@ -165,6 +166,7 @@ func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
 	st := newState(t, 1)
 	aborted := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
 	solvedResult := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	gaveUp := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{}, Reason: game.ReasonResign}
 	solved := play(t, st, st.answer)
 	tests := []struct {
 		name  string
@@ -172,6 +174,7 @@ func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
 		want  game.Result
 	}{
 		{"abort before a guess", st.Conclude(aborted), aborted},
+		{"give up before solving", eliminated(st), gaveUp},
 		{"abort after the solve", solved.(state).Conclude(aborted), solvedResult},
 		{"give up after the solve", eliminated(solved.(state)), solvedResult},
 	}
@@ -185,5 +188,30 @@ func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
 				t.Errorf("view %+v, to act %v; want the answer %q and nobody to act", view, tt.state.ToAct(), st.answer)
 			}
 		})
+	}
+}
+
+func TestViewKeyboardHoldsEveryGuessedLetter(t *testing.T) {
+	st := newState(t, 1)
+	misses := wrongGuesses(st.answer, 2)
+	keyboard := play(t, st, misses...).View(SeatSolver).Keyboard
+	letters := slices.Sorted(maps.Keys(keyboard))
+	if want := []string{"b", "f", "g", "h", "i", "l", "m", "p", "t", "u"}; !slices.Equal(letters, want) {
+		t.Errorf("keyboard after %v has letters %v, want %v", misses, letters, want)
+	}
+}
+
+func TestEveryAnswerCanBeDrawn(t *testing.T) {
+	const maxSeeds = 100_000
+	answers := answerWords()
+	unseen := make(map[string]bool, answers.len())
+	for i := range answers.len() {
+		unseen[answers.at(i)] = true
+	}
+	for seed := game.Seed(0); seed < maxSeeds && len(unseen) > 0; seed++ {
+		delete(unseen, newState(t, seed).answer)
+	}
+	if len(unseen) > 0 {
+		t.Errorf("%d answers never drawn in %d seeds, e.g. %v", len(unseen), maxSeeds, slices.Sorted(maps.Keys(unseen))[:1])
 	}
 }
