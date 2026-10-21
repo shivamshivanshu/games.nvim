@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "die": {
+          "type": "string"
+        },
+        "box": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is a roll of the dice not held, a hold toggled on die Die (1 to\nDiceCount), or the dice scored in Box."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "roll",
+        "hold",
+        "score"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Card": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "scores": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "upper_total": {
+          "type": "integer"
+        },
+        "upper_bonus": {
+          "type": "integer"
+        },
+        "yahtzee_bonus": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        },
+        "out": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "scores",
+        "upper_total",
+        "upper_bonus",
+        "yahtzee_bonus",
+        "total",
+        "out"
+      ],
+      "description": "Card is one seat's scorecard, in seat order. Scores holds the filled boxes\nalone. Out is a seat that left: its card stays, and it takes no more turns."
+    },
+    "Option": {
+      "properties": {
+        "box": {
+          "type": "string"
+        },
+        "score": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "box",
+        "score"
+      ],
+      "description": "Option is a box the seat to act may score, and what it would score there now."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "scorecards_full"
+      ],
+      "description": "The result reasons Yahtzee adds to the core's."
+    },
+    "RolledEvent": {
+      "properties": {
+        "kind": {
+          "const": "rolled"
+        },
+        "by": {
+          "type": "string"
+        },
+        "dice": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "dice"
+      ],
+      "description": "RolledEvent reports a roll: Dice are all five after it, held ones included."
+    },
+    "ScoredEvent": {
+      "properties": {
+        "kind": {
+          "const": "scored"
+        },
+        "by": {
+          "type": "string"
+        },
+        "box": {
+          "type": "string"
+        },
+        "score": {
+          "type": "integer"
+        },
+        "yahtzee_bonus": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "box",
+        "score",
+        "yahtzee_bonus"
+      ],
+      "description": "ScoredEvent reports a box filled, and the Yahtzee bonus the roll earned on top, 0 or 100."
+    },
+    "View": {
+      "properties": {
+        "round": {
+          "type": "integer"
+        },
+        "dice": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "held": {
+          "items": {
+            "type": "boolean"
+          },
+          "type": "array"
+        },
+        "rolls_left": {
+          "type": "integer"
+        },
+        "cards": {
+          "items": {
+            "$ref": "#/$defs/Card"
+          },
+          "type": "array"
+        },
+        "can_roll": {
+          "type": "boolean"
+        },
+        "can_hold": {
+          "type": "boolean"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/Option"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "round",
+        "dice",
+        "held",
+        "rolls_left",
+        "cards",
+        "can_roll",
+        "can_hold",
+        "options"
+      ],
+      "description": "View is the table, the same for every seat but for what the seat to act may do.\n\nDice is empty before the turn's first roll. CanRoll, CanHold and Options\nare the viewer's own: false and empty unless it is to act. Options lists\nthe boxes it may score now, with what each would get; under the joker rule\nthat is only the boxes the rule allows."
+    }
+  },
+  "title": "Yahtzee",
+  "description": "The game-specific bodies inside a yahtzee game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "rolled": {
+      "$ref": "#/$defs/RolledEvent"
+    },
+    "scored": {
+      "$ref": "#/$defs/ScoredEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
