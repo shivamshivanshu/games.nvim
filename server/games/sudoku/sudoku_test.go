@@ -21,6 +21,8 @@ func wikipedia(t testing.TB) state {
 
 func set(text string) Action { return Action{Kind: ActionSet, Text: text} }
 
+func clearCell(cell string) Action { return Action{Kind: ActionClear, Cell: cell} }
+
 func TestParseSet(t *testing.T) {
 	tests := []struct {
 		text string
@@ -49,14 +51,15 @@ func TestSetWritesAndClearsCells(t *testing.T) {
 	tests := []struct {
 		name      string
 		before    []string
-		action    string
+		action    Action
 		wantCell  Digit
 		wantEvent CellSetEvent
 	}{
-		{"set an empty cell", nil, "13 4", 4, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 4}},
-		{"a wrong digit is accepted", nil, "13 9", 9, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 9}},
-		{"overwrite a set cell", []string{"13 9"}, "13 4", 4, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 4}},
-		{"clear a set cell", []string{"13 4"}, "13 0", Empty, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: Empty}},
+		{"set an empty cell", nil, set("13 4"), 4, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 4}},
+		{"a wrong digit is accepted", nil, set("13 9"), 9, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 9}},
+		{"overwrite a set cell", []string{"13 9"}, set("13 4"), 4, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: 4}},
+		{"clear a set cell with 0", []string{"13 4"}, set("13 0"), Empty, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: Empty}},
+		{"clear a set cell with clear", []string{"13 4"}, clearCell("13"), Empty, CellSetEvent{By: game.SeatSolo, Row: 1, Col: 3, Digit: Empty}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -64,7 +67,7 @@ func TestSetWritesAndClearsCells(t *testing.T) {
 			for _, text := range tt.before {
 				s, _ = gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, set(text), nil)
 			}
-			next, events := gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, set(tt.action), nil)
+			next, events := gametest.MustApply(t, Rules{}.Info(), s, game.SeatSolo, tt.action, nil)
 			if diff := cmp.Diff([]game.Event{tt.wantEvent}, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
@@ -91,6 +94,9 @@ func TestIllegalSets(t *testing.T) {
 		{"clear a given", wikipedia(t), set("11 0"), "cell 1,1 is a given"},
 		{"rewrite the same digit", filled, set("13 4"), "cell 1,3 already holds 4"},
 		{"clear an empty cell", wikipedia(t), set("13 0"), "cell 1,3 is already empty"},
+		{"clear a given with clear", wikipedia(t), clearCell("11"), "cell 1,1 is a given"},
+		{"clear an empty cell with clear", wikipedia(t), clearCell("13"), "cell 1,3 is already empty"},
+		{"malformed cell", wikipedia(t), clearCell("13 0"), `want "RC", e.g. "53" for row 5, column 3; got "13 0"`},
 		{"malformed text", wikipedia(t), set("1 3 4"), `want "RC D", e.g. "53 7" for row 5, column 3, digit 7 (0 clears); got "1 3 4"`},
 		{"unknown kind", wikipedia(t), Action{Kind: "erase"}, "unknown action: erase"},
 	}

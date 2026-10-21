@@ -146,7 +146,7 @@ var patternSamples = map[string]map[game.ActionKind]struct {
 	},
 	"poker":   {"act": {[]string{"fold", "Check", "CALL", "allin", "bet 40", "RAISE 400"}, "bet +20"}},
 	"reversi": {"place": {[]string{"d3", "H8"}, "i1"}},
-	"sudoku":  {"set": {[]string{"53 7", " 11 0 "}, "5 3 7"}},
+	"sudoku":  {"set": {[]string{"53 7", " 11 0 "}, "5 3 7"}, "clear": {[]string{"53", "99"}, "53 0"}},
 	"uno":     {"play": {[]string{"r5", "G+2", "ys", "w b", "W+4 Y"}, "x5"}},
 	"wordle":  {"guess": {[]string{"crane", "CRANE"}, "cran"}},
 }

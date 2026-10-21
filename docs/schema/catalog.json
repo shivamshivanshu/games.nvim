@@ -308,6 +308,16 @@
             "pattern": "^\\s*([1-9])([1-9])\\s+([0-9])\\s*$",
             "values": []
           }
+        },
+        {
+          "kind": "clear",
+          "description": "Clear a cell that is not a given.",
+          "input": {
+            "field": "cell",
+            "description": "Row, then column: \"53\" clears row 5, column 3.",
+            "pattern": "^([1-9])([1-9])$",
+            "values": []
+          }
         }
       ]
     },

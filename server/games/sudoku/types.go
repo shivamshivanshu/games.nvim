@@ -26,13 +26,18 @@ type Opts struct {
 	Difficulty Difficulty `json:"difficulty"`
 }
 
-// ActionSet writes a digit into a cell, or clears it.
-const ActionSet game.ActionKind = "set"
+// The actions: ActionSet writes a digit into a cell, or clears it with 0; ActionClear clears it.
+const (
+	ActionSet   game.ActionKind = "set"
+	ActionClear game.ActionKind = "clear"
+)
 
-// Action is typed input; for ActionSet, Text is "RC D", e.g. "53 7" for row 5, column 3, digit 7.
+// Action is typed input. For ActionSet, Text is "RC D", e.g. "53 7" for row 5, column 3,
+// digit 7; for ActionClear, Cell is "RC", e.g. "53".
 type Action struct {
 	Kind game.ActionKind `json:"kind"`
-	Text string          `json:"text"`
+	Text string          `json:"text,omitempty"`
+	Cell string          `json:"cell,omitempty"`
 }
 
 // View is the grid in row-major order, with Empty for an unfilled cell. Conflicts marks

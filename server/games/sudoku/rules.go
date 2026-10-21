@@ -9,7 +9,10 @@ import (
 // Rules is solo Sudoku: fill the grid of a seeded puzzle that has a unique solution.
 type Rules struct{}
 
-const textField = "text"
+const (
+	textField = "text"
+	cellField = "cell"
+)
 
 // Info describes Sudoku to the core.
 func (Rules) Info() game.Info {
@@ -30,6 +33,14 @@ func (Rules) Info() game.Info {
 				Field:       textField,
 				Description: `Row, column, then the digit: "53 7" writes 7 at row 5, column 3; "53 0" clears it.`,
 				Pattern:     setPattern,
+			},
+		}, {
+			Kind:        ActionClear,
+			Description: "Clear a cell that is not a given.",
+			Input: &game.ActionInput{
+				Field:       cellField,
+				Description: `Row, then column: "53" clears row 5, column 3.`,
+				Pattern:     clearPattern,
 			},
 		}},
 		Events:  []game.Event{CellSetEvent{}},
