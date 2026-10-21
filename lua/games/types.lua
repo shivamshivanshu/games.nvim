@@ -196,6 +196,68 @@
 ---@field head_to_head games.HeadToHeadRecord[]
 ---@field leaderboard games.LeaderboardEntry[]
 
+---@class games.ViewOptions per-buffer presentation choices
+---@field glyphs games.Glyphs
+---@field flipped boolean perspective toggled away from the player's default
+---@field max_cell_height? integer
+---@field art? games.ArtSet the game's asset pack in this glyph mode
+---@field cursor? games.GridCursor where the game's cursor keys left the cursor; nil until moved
+
+---@class games.LayoutCtx: games.ViewOptions
+---@field me games.UserID
+---@field space? games.Size what the board and its panels may fill; nil draws the smallest board
+---@field ambiwidth games.Ambiwidth
+---@field flip boolean whether a flippable game's board draws flipped, as the user now sees it
+
+---The layout ctx of a module with asset_keys, whose pack render requires.
+---@class games.ArtLayoutCtx: games.LayoutCtx
+---@field art games.ArtSet
+
+---@class games.DescribeCtx how event text outside a board draws
+---@field art? games.ArtSet the game's asset pack in the user's glyph mode
+---@field ambiwidth games.Ambiwidth
+
+---@class games.Display what the shell measured for one render
+---@field text_area? games.Size the window space to fill; nil draws the smallest board
+---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
+---@field seats? integer player lines the header reserves, held from the board's first update
+
+---Prompts for the text of a catalogued action, which the shell sends in the field the catalogue
+---names for it.
+---@class games.GameInput
+---@field kind games.ActionKind
+---@field prompt string
+---@field available? fun(update: games.GameUpdate): boolean whether it applies now; default always
+
+---@class games.Flippable
+---@field bottom_seat fun(update: games.GameUpdate): games.Seat|nil the seat whose player sees the board flipped; nil for none
+
+---@class games.GameAction
+---@field key string
+---@field aliases? string[] more keys that do the same, mapped but left out of the footer, e.g. the arrows beside `hjkl`
+---@field label string|fun(update: games.GameUpdate): string a function reads the label off the update, e.g. "call 40"
+---@field action? games.Action
+---@field input? games.GameInput prompts for text and sends it as its action, in place of action
+---@field act? fun(update: games.GameUpdate, view: games.ViewOptions): games.Action|nil builds the action from the board's view options, such as its cursor, in place of action; nil binds nothing
+---@field available? fun(update: games.GameUpdate): boolean whether the entry applies now; default always
+---@field local_fn? fun(view: games.ViewOptions, update: games.GameUpdate): games.ViewOptions changes only the board's view options, which may follow the board's latest update
+
+---@class games.GameModule
+---@field layout fun(update: games.GameUpdate, ctx: games.LayoutCtx): games.Node
+---@field input? games.GameInput
+---@field actions? games.GameAction[]
+---@field describers? table<games.EventKind, games.Describer> what text each event kind reads as; a kind without one, or one that returns nil, reads generically
+---@field asset_keys? string[] keys every asset pack of the game must draw
+---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
+---@field picture_keys? string[] keys its packs draw as whole pictures beside the board
+---@field player_extra? fun(update: games.GameUpdate, seat: games.Seat, ctx: games.LayoutCtx): games.TextNode[]|nil what the header shows after the clock on seat's line
+---@field flippable? games.Flippable the shell binds a key that turns the board, and sets ctx.flip
+
+---@class games.OpenOptions
+---@field glyphs games.Glyphs
+---@field max_cell_height? integer
+---@field assets? table<games.GameType, string> asset pack per game, default "default"
+
 local M = {}
 
 M.PROTOCOL_VERSION = 1
