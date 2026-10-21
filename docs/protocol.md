@@ -274,6 +274,17 @@ An action object always carries `kind`.
   - `solution` is `[]` until the game is over, then all 81 digits.
 - Actions: `set` (`text`: `"RC D"`, row, column and digit, e.g. `"53 7"`; `"53 0"` clears). The catalogue gives the pattern.
 
+### Gomoku
+
+- Reasons: `five_in_a_row`, `board_full`.
+- Events: `placed {by: seat, cell: {row, column}}`.
+- Seats: `black`, which moves first, and `white`. Option `first` gives black to the challenger (`me`), the opponent, or either at random.
+- View `{cells, last: {row, column} | null, winning_lines, legal_cells}`:
+  - `cells` is 15 rows of 15, row 1 at the top; each is the seat whose stone fills it, or `""`.
+  - `winning_lines` is `[]` until a win, then every run of 5 or more through the last stone, whole.
+  - `legal_cells` holds the viewer's own: the empty cells as `{row, column}`, empty unless the viewer is to move.
+- Actions: `place` (`cell`: a column letter `a`-`o` then a row number `1`-`15`, e.g. `"h8"`; either case, surrounding spaces ignored). The catalogue gives the pattern.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

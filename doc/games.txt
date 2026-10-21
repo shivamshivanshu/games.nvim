@@ -342,6 +342,8 @@ the current state are mapped; the footer lists them.
             clears it
     f       fold (poker), on your turn
     c       check or call (poker), on your turn
+    m       gomoku, reversi: place a disc on a cell, `h8` is column h, row 8
+            from the top; reversi marks the cells you may play with `+`
     ]g      next game waiting on your move
     q       close
 
