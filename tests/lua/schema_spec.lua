@@ -21,31 +21,47 @@ local PROTOCOL_CLASS = {
 ---The class name prefix of each game whose id does not PascalCase to it.
 local CLASS_PREFIX = { tictactoe = "TicTacToe" }
 
----Per game, each definition whose Lua class is not games.<Prefix><Definition>.
-local CLASS_EXCEPTIONS = {
+---Per game, each definition whose Lua class or enum is not games.<Prefix><Definition>, or
+---false for one no Lua type annotates.
+local LUA_TYPE_EXCEPTIONS = {
   battleship = {
     ShotEvent = "games.BattleshipShot",
     ShotEvent_shot = "games.BattleshipShotEvent",
   },
-  chess = { MoveSquares = "games.ChessSquares" },
+  chess = { MoveSquares = "games.ChessSquares", PieceLetter = "games.ChessPiece" },
   chess960 = {
     Material = "games.ChessMaterial",
     MoveSquares = "games.ChessSquares",
     MovedEvent = "games.ChessMovedEvent",
+    PieceLetter = "games.ChessPiece",
     SideMaterial = "games.ChessSideMaterial",
   },
   chess_puzzle = { MoveSquares = "games.ChessSquares" },
   connect4 = { Cell = "games.Cell" },
+  dots_and_boxes = { EdgeOrientation = "games.Orientation" },
+  fifteen = { Direction = "games.Direction" },
+  g2048 = { Direction = "games.Direction" },
   gomoku = { Cell = "games.Cell" },
+  hearts = { PassDirection = "games.HeartsPass" },
   reversi = { Cell = "games.Cell" },
   tictactoe = { Cell = "games.Cell" },
-  pacman = { GhostView = "games.PacmanGhost", PacmanView = "games.PacmanPacman" },
-  poker = { PotView = "games.PokerPot" },
+  pacman = {
+    Direction = "games.Direction",
+    GhostView = "games.PacmanGhost",
+    PacmanView = "games.PacmanPacman",
+  },
+  poker = {
+    BlindKind = false,
+    MoveKind = "games.PokerMove",
+    PotView = "games.PokerPot",
+    Street = false,
+  },
+  uno = { ActionKind = false },
 }
 
----Definitions no Lua class annotates in any game: Action, which the client builds from the
----catalogue.
-local UNANNOTATED_IN_EVERY_GAME = { Action = true }
+---Definitions no Lua type annotates in any game: Action, which the client builds from the
+---catalogue, and ResultReason, which it humanizes.
+local UNANNOTATED_IN_EVERY_GAME = { Action = true, ResultReason = true }
 
 ---@param game string
 ---@param def_name string
@@ -54,13 +70,13 @@ local function game_class(game, def_name)
   if UNANNOTATED_IN_EVERY_GAME[def_name] then
     return nil
   end
+  local exception = (LUA_TYPE_EXCEPTIONS[game] or {})[def_name]
+  if exception ~= nil then
+    return exception or nil
+  end
   local pascal = game:gsub("^%l", string.upper):gsub("_(%w)", string.upper)
-  return (CLASS_EXCEPTIONS[game] or {})[def_name]
-    or ("games." .. (CLASS_PREFIX[game] or pascal) .. def_name)
+  return "games." .. (CLASS_PREFIX[game] or pascal) .. def_name
 end
-
----Wire enums the client keeps no Lua enum for.
-local NO_LUA_ENUM = { Capability = true }
 
 ---Enums the server sends that the client adds no value to.
 local CLIENT_ONLY = { ErrorCode = { types.ErrorCode.DISCONNECTED } }
@@ -80,7 +96,7 @@ end
 ---@class (private) LuaAnnotations
 ---@field classes table<string, LuaClass>
 ---@field aliases table<string, string> each `---@alias` name's type expression
----@field enums table<string, true>
+---@field enums table<string, string[]> each `---@enum` name's values
 
 local VISIBILITY = { public = true, protected = true, private = true, package = true }
 
@@ -116,13 +132,19 @@ end
 ---@return LuaAnnotations
 local function lua_annotations()
   local found = { classes = {}, aliases = {}, enums = {} }
-  local current
+  local current, enum_values
   for _, file in ipairs(vim.fn.globpath(REPO_ROOT .. "/lua", "**/*.lua", false, true)) do
     for line in io.lines(file) do
       local class, parent = line:match("^%-%-%-@class ([%w%.]+):? ?([%w%.]*)")
       local alias, aliased = line:match("^%-%-%-@alias ([%w%.]+)%s+(.*)")
       local enum = line:match("^%-%-%-@enum ([%w%.]+)")
       local field, spec = parse_field(line)
+      if enum_values then
+        for value in line:gmatch('[%w_]+%s*=%s*"([^"]*)"') do
+          table.insert(enum_values, value)
+        end
+        enum_values = not line:find("}") and enum_values or nil
+      end
       if class then
         current = { parent = parent ~= "" and parent or nil, fields = {} }
         found.classes[class] = current
@@ -131,7 +153,8 @@ local function lua_annotations()
       elseif alias then
         found.aliases[alias] = type_expression(aliased)
       elseif enum then
-        found.enums[enum] = true
+        enum_values = {}
+        found.enums[enum] = enum_values
       elseif not line:match("^%-%-%-") then
         current = nil
       end
@@ -252,6 +275,47 @@ local function mismatches(defs, class_of, annotations, resolve)
   return found
 end
 
+---The sorted values of a Lua string type: an `---@enum`'s, or an `---@alias` of string literals.
+---@param annotations LuaAnnotations
+---@param type_name string
+---@return string[]|nil
+local function lua_values(annotations, type_name)
+  local values = vim.deepcopy(annotations.enums[type_name])
+  if not values and annotations.aliases[type_name] then
+    values = vim.iter(annotations.aliases[type_name]:gmatch('"([^"]*)"')):totable()
+  end
+  if values and #values > 0 then
+    table.sort(values)
+    return values
+  end
+end
+
+---Each enum definition whose Lua type is missing or holds other values.
+---@param defs table<string, table>
+---@param type_of fun(def_name: string): string|nil
+---@param annotations LuaAnnotations
+---@return string[]
+local function enum_mismatches(defs, type_of, annotations)
+  local found = {}
+  for def_name, def in pairs(defs) do
+    local type_name = def.enum and type_of(def_name)
+    if type_name then
+      local wire, lua = vim.deepcopy(def.enum), lua_values(annotations, type_name)
+      table.sort(wire)
+      if not lua then
+        table.insert(found, ("%s: no Lua enum %s"):format(def_name, type_name))
+      elseif not vim.deep_equal(wire, lua) then
+        table.insert(
+          found,
+          ("%s: %s is %s, want %s"):format(def_name, type_name, vim.inspect(lua), vim.inspect(wire))
+        )
+      end
+    end
+  end
+  table.sort(found)
+  return found
+end
+
 local function sorted_values(enum, except)
   local values = vim.tbl_filter(function(v)
     return not vim.tbl_contains(except or {}, v)
@@ -265,7 +329,7 @@ local T = {}
 function T.every_wire_enum_matches_its_lua_enum()
   local defs = read_schema("protocol.json")["$defs"]
   for name, def in pairs(defs) do
-    if def.enum and not NO_LUA_ENUM[name] then
+    if def.enum then
       assert(types[name], name .. ": no Lua enum")
       local wire = vim.deepcopy(def.enum)
       table.sort(wire)
@@ -276,6 +340,32 @@ function T.every_wire_enum_matches_its_lua_enum()
   table.sort(core_reasons)
   assert_eq(core_reasons, sorted_values(types.ResultReason))
   assert_eq(read_schema("protocol.json")["x-version"], types.PROTOCOL_VERSION)
+end
+
+function T.every_game_wire_enum_matches_its_lua_type()
+  local annotations = lua_annotations()
+  for _, path in ipairs(vim.fn.glob(SCHEMA_DIR .. "/games/*.json", false, true)) do
+    local game = vim.fn.fnamemodify(path, ":t:r")
+    local defs = read_schema("games/" .. game .. ".json")["$defs"]
+    assert_eq({ game, {} }, {
+      game,
+      enum_mismatches(defs, function(def_name)
+        return game_class(game, def_name)
+      end, annotations),
+    })
+  end
+end
+
+function T.an_enum_without_a_lua_type_or_with_other_values_mismatches()
+  local annotations = { classes = {}, aliases = { ["games.XPhase"] = '"a"|"b"' }, enums = {} }
+  local defs =
+    { Phase = { type = "string", enum = { "b", "c" } }, Mode = { type = "string", enum = { "m" } } }
+  local found = enum_mismatches(defs, function(def_name)
+    return "games.X" .. def_name
+  end, annotations)
+  assert_eq(2, #found)
+  assert(found[1]:find("^Mode: no Lua enum"), found[1])
+  assert(found[2]:find("^Phase: "), found[2])
 end
 
 function T.every_wire_field_is_annotated_as_the_wire_sends_it()

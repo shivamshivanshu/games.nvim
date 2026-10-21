@@ -3,7 +3,6 @@
 ---@alias games.GameType string
 ---@alias games.Seat string
 ---@alias games.ChallengeID string
----@alias games.Capability "resign"|"draw"|"abort"|"clock"
 ---@alias games.ActionKind string a game's own, listed in its catalog entry
 ---@alias games.Options table<string, string>
 ---Both nil means the request was superseded and the client fetches a fresh snapshot instead.
@@ -239,6 +238,14 @@ M.ErrorCode = {
   SUMMARY_MISMATCH = "summary_mismatch",
   -- Client-side only: the server never sends it; the conn reports lost connections with it.
   DISCONNECTED = "disconnected",
+}
+
+---@enum games.Capability
+M.Capability = {
+  RESIGN = "resign",
+  DRAW = "draw",
+  ABORT = "abort",
+  CLOCK = "clock",
 }
 
 ---@enum games.ChallengeState
