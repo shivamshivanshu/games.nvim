@@ -176,6 +176,12 @@ local GAME_CLASS = {
     MovedEvent = "games.ChessMovedEvent",
     View = "games.Chess960View",
   },
+  dots_and_boxes = {
+    Box = "games.DotsAndBoxesBox",
+    DrawnEvent = "games.DotsAndBoxesDrawnEvent",
+    Line = "games.DotsAndBoxesLine",
+    View = "games.DotsAndBoxesView",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.

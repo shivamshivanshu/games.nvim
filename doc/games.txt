@@ -416,6 +416,9 @@ the current state are mapped; the footer lists them.
     m       battleship: fire at a cell, `c5` is column c, row 5
     m       chess960: a move as in chess; castle with `O-O`, `O-O-O` or
             the king onto its own rook, e.g. `f1h1`
+    h j k l dots_and_boxes: move the cursor from dot to dot, on your move
+    r       dots_and_boxes: turn the cursor's edge across or down
+    <CR>    dots_and_boxes: draw the edge under the cursor
     ]g      next game waiting on your move
     q       close
 
