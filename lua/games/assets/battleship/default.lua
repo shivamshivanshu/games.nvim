@@ -1,5 +1,7 @@
+local build = require("games.assets.shared.build")
 local font = require("games.assets.pixel_font")
 
+local GLYPH_WIDTH = 1
 local MAX_CELL_HEIGHT = 6
 
 ---3x5 pixel icons for the marks drawn on water and ships.
@@ -13,29 +15,12 @@ local ICONS = {
   aim = { " # ", "   ", "# #", "   ", " # " },
 }
 
----@param line string
----@return games.ArtEntry[]
-local function glyph(line)
-  return { { h = 1, w = 1, lines = { line } } }
-end
-
----@return games.ArtEntry[] a ship's square filled short of its right column and bottom line at
----each cell height, so touching ships stay apart
-local function hull()
-  local entries = {}
-  for h = 2, MAX_CELL_HEIGHT do
-    local w = 2 * h
-    local lines = vim.fn["repeat"]({ ("█"):rep(w - 1) .. " " }, h - 1)
-    entries[#entries + 1] = font.entry(vim.list_extend(lines, { (" "):rep(w) }))
-  end
-  return entries
-end
-
----@return games.ArtSet
+---@return games.ArtSet a ship's square filled short of its right column and bottom line, so
+---touching ships stay apart, and each mark's icon
 local function art_set()
-  local set = { ship = hull() }
+  local set = { ship = font.inset_block("█", MAX_CELL_HEIGHT) }
   for key, pixels in pairs(ICONS) do
-    set[key] = { font.entry(font.half_height(pixels)), font.entry(font.full_size(pixels)) }
+    set[key] = font.icon(pixels)
   end
   return set
 end
@@ -47,27 +32,27 @@ end
 return {
   name = "default",
   glyphs = {
-    unicode = {
+    unicode = build.glyph_set({
       -- "·" and the squares are two cells wide under ambiwidth=double, where the ascii ones stand in.
-      empty = glyph("·"),
-      ship = glyph("■"),
-      miss = glyph("○"),
-      hit = glyph("✕"),
-      sunk = glyph("⊠"),
-      berth = glyph("□"),
-      blocked = glyph("▧"),
-      aim = glyph("◎"),
-    },
-    ascii = {
-      empty = glyph("."),
-      ship = glyph("#"),
-      miss = glyph("o"),
-      hit = glyph("X"),
-      sunk = glyph("*"),
-      berth = glyph("+"),
-      blocked = glyph("!"),
-      aim = glyph("@"),
-    },
+      empty = "·",
+      ship = "■",
+      miss = "○",
+      hit = "✕",
+      sunk = "⊠",
+      berth = "□",
+      blocked = "▧",
+      aim = "◎",
+    }, GLYPH_WIDTH),
+    ascii = build.glyph_set({
+      empty = ".",
+      ship = "#",
+      miss = "o",
+      hit = "X",
+      sunk = "*",
+      berth = "+",
+      blocked = "!",
+      aim = "@",
+    }, GLYPH_WIDTH),
   },
   art = art_set(),
 }

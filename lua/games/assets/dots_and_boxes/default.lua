@@ -1,4 +1,7 @@
+local build = require("games.assets.shared.build")
 local font = require("games.assets.pixel_font")
+
+local GLYPH_WIDTH = 1
 
 ---3x5 pixel icons of each seat's box: p1 solid, p2 hollow, as their glyphs are.
 ---@type table<string, string[]>
@@ -7,19 +10,9 @@ local ICONS = {
   p2 = { " # ", "# #", "# #", "# #", " # " },
 }
 
----@param line string
----@return games.ArtEntry[]
-local function glyph(line)
-  return { { h = 1, w = 1, lines = { line } } }
-end
-
 ---@return games.ArtSet
 local function art_set()
-  local set = {}
-  for key, pixels in pairs(ICONS) do
-    set[key] = { font.entry(font.half_height(pixels)), font.entry(font.full_size(pixels)) }
-  end
-  return set
+  return vim.tbl_map(font.icon, ICONS)
 end
 
 ---Dots and Boxes: dots, edges open, drawn, drawn last and under the cursor, and boxes, each its own
@@ -28,35 +21,35 @@ end
 return {
   name = "default",
   glyphs = {
-    unicode = {
+    unicode = build.glyph_set({
       -- These are two cells wide under ambiwidth=double, where the ascii ones stand in.
-      dot = glyph("·"),
-      open = glyph(" "),
-      across = glyph("─"),
-      down = glyph("│"),
-      last_across = glyph("━"),
-      last_down = glyph("┃"),
-      aim_across = glyph("┄"),
-      aim_down = glyph("┆"),
-      blocked = glyph("×"),
-      box = glyph(" "),
-      p1 = glyph("●"),
-      p2 = glyph("○"),
-    },
-    ascii = {
-      dot = glyph("+"),
-      open = glyph(" "),
-      across = glyph("-"),
-      down = glyph("|"),
-      last_across = glyph("="),
-      last_down = glyph("#"),
-      aim_across = glyph("."),
-      aim_down = glyph(":"),
-      blocked = glyph("x"),
-      box = glyph(" "),
-      p1 = glyph("X"),
-      p2 = glyph("O"),
-    },
+      dot = "·",
+      open = " ",
+      across = "─",
+      down = "│",
+      last_across = "━",
+      last_down = "┃",
+      aim_across = "┄",
+      aim_down = "┆",
+      blocked = "×",
+      box = " ",
+      p1 = "●",
+      p2 = "○",
+    }, GLYPH_WIDTH),
+    ascii = build.glyph_set({
+      dot = "+",
+      open = " ",
+      across = "-",
+      down = "|",
+      last_across = "=",
+      last_down = "#",
+      aim_across = ".",
+      aim_down = ":",
+      blocked = "x",
+      box = " ",
+      p1 = "X",
+      p2 = "O",
+    }, GLYPH_WIDTH),
   },
   art = art_set(),
 }
