@@ -34,11 +34,15 @@ local PLACE_KIND = "place"
 ---Display columns the notes panel reserves: "line a15-o15".
 local NOTES_WIDTH = 12
 
+---@enum games.DiscMarkKind marks a board may draw besides the discs and the last disc
+local MarkKind = { LEGAL = "legal", WINNING_LINE = "winning_line" }
+
 ---Boards of black and white discs that players place by naming a cell, as gomoku and reversi do:
 ---lettered columns, numbered rows, and the cell typed at a prompt.
 local M = {}
 
 M.LEGAL_KEY = LEGAL_KEY
+M.MarkKind = MarkKind
 
 ---The asset keys every pack for these boards draws: both seats' discs and the empty cell. A game
 ---that passes legal cells adds LEGAL_KEY.
@@ -75,6 +79,40 @@ function M.marks(view, marked)
     vim.list_extend(marks, grid.cell_marks(line, Group.WIN))
   end
   return marks
+end
+
+---The legend of a board that draws the marks of kinds.
+---@param ctx games.DescribeCtx
+---@param kinds games.DiscMarkKind[]
+---@return games.LegendEntry[]
+function M.legend(ctx, kinds)
+  local black = { "black", SEAT_HL.black }
+  local entries = {
+    {
+      sample = {
+        grid.sample(ctx, black),
+        compose.text(" "),
+        grid.sample(ctx, { "white", SEAT_HL.white }),
+      },
+      meaning = "black and white discs",
+    },
+    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "an empty cell" },
+    {
+      sample = { grid.sample(ctx, black, Group.LAST_MOVE) },
+      meaning = "the last disc, also named beside the board",
+    },
+  }
+  if vim.tbl_contains(kinds, MarkKind.LEGAL) then
+    entries[#entries + 1] =
+      { sample = { grid.sample(ctx, { LEGAL_KEY }, LEGAL_HL) }, meaning = "a cell you may play" }
+  end
+  if vim.tbl_contains(kinds, MarkKind.WINNING_LINE) then
+    entries[#entries + 1] = {
+      sample = { grid.sample(ctx, black, Group.WIN) },
+      meaning = "a winning line, also named beside the board",
+    }
+  end
+  return entries
 end
 
 ---The last disc and each winning line in words, so neither rests on colour alone.

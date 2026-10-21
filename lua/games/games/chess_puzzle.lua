@@ -120,6 +120,8 @@ end
 
 M.input = chess.input
 
+M.legend = chess.legend
+
 ---@type games.GameAction[]
 M.actions = {
   {

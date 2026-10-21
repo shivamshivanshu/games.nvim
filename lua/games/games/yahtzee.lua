@@ -64,6 +64,7 @@ local Group = highlights.Group
 ---@alias games.YahtzeeRow games.YahtzeeBoxRow|games.YahtzeeTotalRow
 
 local DICE_COUNT = 5
+local SAMPLE_FACE = 5
 ---@type integer[] each die by its place, as the hold action numbers it
 local DICE = vim.fn.range(1, DICE_COUNT)
 ---@type integer[]
@@ -322,5 +323,20 @@ M.describers = {
     )
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local die = dice.cell(SAMPLE_FACE)
+  return {
+    { sample = { grid.sample(ctx, die) }, meaning = "a die" },
+    { sample = { grid.sample(ctx, dice.cell(nil)) }, meaning = "a die not yet rolled" },
+    {
+      sample = { grid.sample(ctx, die, HELD_HL) },
+      meaning = "a held die, which the next roll keeps",
+    },
+    { sample = { grid.sample(ctx, { HELD_KEY }) }, meaning = "under a die: held" },
+  }
+end
 
 return M

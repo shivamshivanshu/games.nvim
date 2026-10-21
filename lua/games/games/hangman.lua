@@ -1,6 +1,7 @@
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
+local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local text = require("games.ui.text")
@@ -186,5 +187,18 @@ M.describers = {
     )
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  return {
+    { sample = { grid.sample(ctx, { "a" }) }, meaning = "a letter found" },
+    { sample = { grid.sample(ctx, { HIDDEN_KEY }) }, meaning = "a letter still hidden" },
+    {
+      sample = { grid.sample(ctx, { unfound_key("a"), UNFOUND_HL }) },
+      meaning = "once the game is over: a letter you did not find",
+    },
+  }
+end
 
 return M

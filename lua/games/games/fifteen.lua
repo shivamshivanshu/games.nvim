@@ -31,6 +31,7 @@ local Group = highlights.Group
 
 local CELL_WIDTH = 4
 local MAX_TILE = 15
+local SAMPLE_TILE = 7
 local BLANK = 0
 local BLANK_KEY = "blank"
 local SLIDE_KIND, MOVE_KIND = "slide", "move"
@@ -135,5 +136,21 @@ M.describers = {
     return ("%s slid %d %s"):format(talk.name(event.by), event.tile, event.direction)
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  return {
+    { sample = { grid.sample(ctx, { key_for(SAMPLE_TILE, false) }) }, meaning = "a tile" },
+    {
+      sample = { grid.sample(ctx, { key_for(SAMPLE_TILE, true) }, Group.MOVABLE) },
+      meaning = "a tile that may slide into the blank",
+    },
+    {
+      sample = { grid.sample(ctx, { key_for(SAMPLE_TILE, false) }, SOLVED_HL) },
+      meaning = "solved: every tile in place",
+    },
+  }
+end
 
 return M

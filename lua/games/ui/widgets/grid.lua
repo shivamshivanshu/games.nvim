@@ -89,6 +89,7 @@ end
 ---@field mark fun(row: integer, col: integer, hl: games.Hl): games.GridMark
 ---@field cell_marks fun(cells: games.Cell[], hl: games.Hl): games.GridMark[]
 ---@field marks_where fun(rows: any[][], hl_of: fun(value: any, row: integer, col: integer): games.Hl|nil): games.GridMark[]
+---@field sample fun(ctx: games.DescribeCtx, cell: games.GridCell, mark_hl?: games.Hl): games.TextNode
 ---@overload fun(props: games.GridProps): games.Node
 
 local M = {}
@@ -233,6 +234,28 @@ function M.marks_where(rows, hl_of)
   return marks
 end
 
+---A cell's highlight: its own foreground over its mark over its shade, or, without one, the ink of
+---its background.
+---@param shade games.Hl|nil
+---@param mark_hl games.Hl|nil
+---@param own_hl games.Hl|nil
+---@return games.Hl|nil
+local function cell_hl(shade, mark_hl, own_hl)
+  return own_hl and compose.layers(shade, mark_hl, own_hl)
+    or highlights.with_ink(compose.layers(shade, mark_hl))
+end
+
+---A cell as its one-line glyph, in the highlight an unshaded grid gives it under mark_hl, for a legend.
+---@param ctx games.DescribeCtx
+---@param cell games.GridCell
+---@param mark_hl? games.Hl
+---@return games.TextNode
+function M.sample(ctx, cell, mark_hl)
+  local key, own_hl = cell[1], cell[2]
+  local glyph = ctx.art and art.glyph(ctx.art, key, ctx.ambiwidth) or key
+  return compose.text(glyph, cell_hl(nil, mark_hl, own_hl))
+end
+
 ---The node drawing key in a cell of size box; every cell of one grid shares box and ambiwidth.
 ---@param props games.GridProps
 ---@param box games.Size
@@ -297,9 +320,7 @@ local function cell_nodes(props, geometry, ambiwidth)
   return function(r, c)
     local key, own_hl = unpack(props.cell(r, c))
     local mark = marks[r] and marks[r][c]
-    local shade, mark_hl = shade_hl(props.shade, r, c), mark and mark.hl
-    local hl = own_hl and compose.layers(shade, mark_hl, own_hl)
-      or highlights.with_ink(compose.layers(shade, mark_hl))
+    local hl = cell_hl(shade_hl(props.shade, r, c), mark and mark.hl, own_hl)
     return compose.box({ w = geometry.cell.w, h = geometry.cell.h, hl = hl, child = content(key) })
   end
 end

@@ -2,6 +2,7 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local dice = require("games.ui.dice")
+local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
@@ -67,6 +68,7 @@ local Group = highlights.Group
 ---@field seat games.Seat
 
 local STARTING_DICE = 5
+local SAMPLE_FACE = 5
 local BID_KIND = "bid"
 ---Display columns the table panel reserves: "Round 1: carol called dudo on 30 x ⚅", with room for a
 ---longer name.
@@ -219,5 +221,17 @@ M.describers = {
     return ("%s has no dice left"):format(talk.name(event.seat))
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  return {
+    {
+      sample = { grid.sample(ctx, dice.cell(SAMPLE_FACE)) },
+      meaning = "one of your dice, hidden from the others",
+    },
+    { sample = { grid.sample(ctx, dice.cell(nil)) }, meaning = "a die you have lost" },
+  }
+end
 
 return M

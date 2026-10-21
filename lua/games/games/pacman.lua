@@ -1,5 +1,6 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
+local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local keys = require("games.ui.keys")
@@ -91,13 +92,14 @@ local function pacman_key(direction)
   return "pacman_" .. direction
 end
 
----@param ghost games.PacmanGhost
+---@param name games.PacmanGhostName
+---@param mode games.PacmanGhostMode
 ---@return string
-local function ghost_key(ghost)
-  if ghost.mode == "frightened" or ghost.mode == "eyes" then
-    return ("%s_%s"):format(ghost.name, ghost.mode)
+local function ghost_key(name, mode)
+  if mode == "frightened" or mode == "eyes" then
+    return ("%s_%s"):format(name, mode)
   end
-  return ghost.name
+  return name
 end
 
 ---@param ghost games.PacmanGhost
@@ -126,7 +128,7 @@ local function actor_cell(view, actor)
     return { pacman_key(view.pacman.facing), Group.PACMAN }
   end
   ---@cast actor games.PacmanGhost
-  return { ghost_key(actor), ghost_hl(actor) }
+  return { ghost_key(actor.name, actor.mode), ghost_hl(actor) }
 end
 
 ---@param update games.PacmanUpdate
@@ -233,5 +235,38 @@ M.describers = {
     return ("%s cleared level %d"):format(talk.name(event.by), event.level)
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local function tile(key, meaning)
+    return { sample = { grid.sample(ctx, { key, TILE_HLS[key] }) }, meaning = meaning }
+  end
+  local ghosts = {}
+  for i, name in ipairs(GHOST_NAMES) do
+    ghosts[#ghosts + 1] = i > 1 and compose.text(" ") or nil
+    ghosts[#ghosts + 1] = grid.sample(ctx, { name, GHOST_HLS[name] })
+  end
+  local first = GHOST_NAMES[1]
+  return {
+    {
+      sample = { grid.sample(ctx, { pacman_key(Direction.RIGHT), Group.PACMAN }) },
+      meaning = "Pac-Man, facing the way it moves",
+    },
+    { sample = ghosts, meaning = "the ghosts: blinky, pinky, inky and clyde" },
+    {
+      sample = { grid.sample(ctx, { ghost_key(first, "frightened"), FRIGHTENED_HL }) },
+      meaning = "a frightened ghost",
+    },
+    {
+      sample = { grid.sample(ctx, { ghost_key(first, "eyes"), EYES_HL }) },
+      meaning = "a ghost's eyes, going home",
+    },
+    tile("dot", "a dot"),
+    tile("pellet", "a pellet, which frightens the ghosts"),
+    tile("wall", "a wall"),
+    tile("door", "the door of the ghost house"),
+  }
+end
 
 return M

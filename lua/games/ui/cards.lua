@@ -27,6 +27,9 @@ local MARK = "^"
 ---letter and face, in their colour.
 local M = {}
 
+---What marks a card of a hand, on the line beneath it.
+M.MARK = MARK
+
 ---Display columns of a playing card's one-line glyph.
 M.GLYPH_WIDTH = 2
 ---Display columns of an Uno card's one-line glyph, as wide as "W+4".

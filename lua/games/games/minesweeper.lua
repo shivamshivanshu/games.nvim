@@ -170,4 +170,24 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local function cell(key, meaning)
+    return { sample = { grid.sample(ctx, { key, CELL_HL[key] }) }, meaning = meaning }
+  end
+  return {
+    cell("hidden", "a hidden cell"),
+    cell("flag", "a flag"),
+    cell("3", "a revealed cell: the mines next to it"),
+    cell("mine", "once the game is over: a mine"),
+    cell("flagged_mine", "once the game is over: a flagged mine"),
+    cell("wrong_flag", "once the game is over: a flag on no mine"),
+    {
+      sample = { grid.sample(ctx, { EXPLODED_KEY }, EXPLODED_HL) },
+      meaning = "the mine that went off",
+    },
+  }
+end
+
 return M

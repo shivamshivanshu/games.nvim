@@ -33,6 +33,7 @@ local EMPTY_KEY = "empty"
 local Marker = { CONFLICT = "conflict", REVEALED = "revealed" }
 local SET_KIND = "set"
 local CLEAR_KIND = "clear"
+local SAMPLE_DIGIT = 5
 ---@type games.SudokuSeat
 local SOLVER = "solver"
 
@@ -171,5 +172,38 @@ M.describers = {
     return ("%s set row %d, column %d to %d"):format(who, event.row, event.col, event.digit)
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local entered = theme.seat_hl(1)
+  return {
+    {
+      sample = { grid.sample(ctx, { art.marked_key(SAMPLE_DIGIT), Group.GIVEN }) },
+      meaning = "a given: part of the puzzle",
+    },
+    {
+      sample = { grid.sample(ctx, { art.marked_key(SAMPLE_DIGIT), entered }) },
+      meaning = "a digit you entered, in your colour",
+    },
+    {
+      sample = {
+        grid.sample(ctx, { art.marked_key(SAMPLE_DIGIT, Marker.CONFLICT), entered }, CONFLICT_HL),
+      },
+      meaning = "a conflict: the digit repeats in its row, column or box",
+    },
+    { sample = { grid.sample(ctx, { EMPTY_KEY, EMPTY_HL }) }, meaning = "an empty cell" },
+    {
+      sample = {
+        grid.sample(
+          ctx,
+          { art.marked_key(SAMPLE_DIGIT, Marker.REVEALED), REVEALED_FG_HL },
+          REVEALED_HL
+        ),
+      },
+      meaning = "once the game is over: the solution's digit, where yours was wrong or missing",
+    },
+  }
+end
 
 return M

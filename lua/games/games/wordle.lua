@@ -171,4 +171,29 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local function marked(letter, mark)
+    return grid.sample(ctx, { key_for(letter, mark) }, MARK_HL[mark])
+  end
+  local function tile(mark)
+    return { marked("a", mark) }
+  end
+  local first_keys = text.chars(KEYBOARD_ROWS[1])
+  local keyboard_sample = vim
+    .iter(ipairs({ Mark.HIT, Mark.PRESENT, Mark.MISS }))
+    :map(function(i, mark)
+      return marked(first_keys[i], mark)
+    end)
+    :totable()
+  return {
+    { sample = tile(Mark.HIT), meaning = "hit: the right letter in the right place" },
+    { sample = tile(Mark.PRESENT), meaning = "present: in the word, but elsewhere" },
+    { sample = tile(Mark.MISS), meaning = "miss: not in the word" },
+    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "a guess still to make" },
+    { sample = keyboard_sample, meaning = "keyboard: each letter in its best mark so far" },
+  }
+end
+
 return M

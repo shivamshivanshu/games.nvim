@@ -41,6 +41,7 @@ local Group = highlights.Group
 
 local PITS = 6
 local MAX_SEEDS = 48
+local SAMPLE_SEEDS = 4
 ---Columns: the top seat's store, six pits, then the bottom seat's store.
 local COLUMNS = PITS + 2
 local CELL_WIDTH = 4
@@ -180,5 +181,24 @@ M.describers = {
     return ("%s collects the %d seeds left on their side"):format(talk.name(event.by), event.seeds)
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local function pit(kind)
+    return { key_for(kind, SAMPLE_SEEDS), theme.seat_hl(1) }
+  end
+  return {
+    {
+      sample = { grid.sample(ctx, pit(KeyKind.PIT)) },
+      meaning = "a pit and its seeds, in its owner's colour",
+    },
+    { sample = { grid.sample(ctx, pit(KeyKind.LEGAL), LEGAL_HL) }, meaning = "a pit you may sow" },
+    {
+      sample = { grid.sample(ctx, pit(KeyKind.STORE)) },
+      meaning = "a store: the seeds its owner has won",
+    },
+  }
+end
 
 return M

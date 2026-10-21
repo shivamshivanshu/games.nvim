@@ -1,7 +1,12 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
+local compose = require("games.ui.compose")
 local discs = require("games.ui.discs")
+local grid = require("games.ui.widgets.grid")
+local highlights = require("games.ui.highlights")
 local theme = require("games.ui.theme")
+
+local Group = highlights.Group
 
 ---@alias games.Connect4Seat "red"|"yellow"
 
@@ -80,5 +85,24 @@ M.describers = {
     return ("%s dropped in column %d"):format(talk.name(event.by), event.cell.col)
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local red = { "red", theme.seat_hl(1) }
+  return {
+    {
+      sample = {
+        grid.sample(ctx, red),
+        compose.text(" "),
+        grid.sample(ctx, { "yellow", theme.seat_hl(2) }),
+      },
+      meaning = "each player's discs, in their colour in the header",
+    },
+    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "an empty cell" },
+    { sample = { grid.sample(ctx, red, Group.LAST_MOVE) }, meaning = "the last disc" },
+    { sample = { grid.sample(ctx, red, Group.WIN) }, meaning = "a winning line" },
+  }
+end
 
 return M

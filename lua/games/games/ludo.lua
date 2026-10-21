@@ -445,4 +445,31 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local first_seat = theme.seat_hl(1)
+  local token = { SEATS[1] .. 1, first_seat }
+  local function square(key, hl, meaning)
+    return { sample = { grid.sample(ctx, { key, hl }) }, meaning = meaning }
+  end
+  return {
+    {
+      sample = { grid.sample(ctx, token) },
+      meaning = "a seat's tokens on a square, by count, in its colour in the header",
+    },
+    square("mixed2", nil, "tokens of more than one seat, by count"),
+    {
+      sample = { grid.sample(ctx, token, Group.LAST_MOVE) },
+      meaning = "where the last move landed",
+    },
+    square(TRACK_KEY, nil, "the track"),
+    square("safe", nil, "a safe square: no capture there"),
+    square("spot", first_seat, "a base spot, in its seat's colour"),
+    square("lane", first_seat, "a home column, in its seat's colour"),
+    square("goal", first_seat, "the goal, where finished tokens stand"),
+    square(MOVABLE_KEY, nil, "after a token in the panel: it may move"),
+  }
+end
+
 return M

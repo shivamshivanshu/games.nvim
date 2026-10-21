@@ -146,4 +146,16 @@ function T.events_name_the_player_and_the_word()
   assert_eq("sam guessed CRANE", helpers.described(update(), guessed))
 end
 
+function T.the_legend_shows_each_mark_as_the_board_draws_it()
+  local legend = wordle.legend({ art = view_options("ascii").art, ambiwidth = "single" })
+  local marks = vim.tbl_map(function(entry)
+    return { entry.sample[1].str, entry.sample[1].hl, entry.meaning }
+  end, vim.list_slice(legend, 1, 3))
+  assert_eq({
+    { "[A]", { "GamesHit", "GamesHitInk" }, "hit: the right letter in the right place" },
+    { "(A)", { "GamesPresent", "GamesPresentInk" }, "present: in the word, but elsewhere" },
+    { " A ", { "GamesMiss", "GamesMissInk" }, "miss: not in the word" },
+  }, marks)
+end
+
 return T

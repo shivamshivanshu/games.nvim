@@ -122,4 +122,15 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local tile = { M.tile_keys[1] }
+  return {
+    { sample = { grid.sample(ctx, tile) }, meaning = "a tile, by its value" },
+    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "an empty cell" },
+    { sample = { grid.sample(ctx, tile, GOAL_HL) }, meaning = "a tile of the goal or above" },
+  }
+end
+
 return M

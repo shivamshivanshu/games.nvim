@@ -217,6 +217,11 @@
 ---@field art? games.ArtSet the game's asset pack in the user's glyph mode
 ---@field ambiwidth games.Ambiwidth
 
+---A mark as the board draws it, and what it means, for the help.
+---@class games.LegendEntry
+---@field sample games.TextNode[]
+---@field meaning string
+
 ---@class games.Display what the shell measured for one render
 ---@field text_area? games.Size the window space to fill; nil draws the smallest board
 ---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
@@ -252,6 +257,7 @@
 ---@field picture_keys? string[] keys its packs draw as whole pictures beside the board
 ---@field player_extra? fun(update: games.GameUpdate, seat: games.Seat, ctx: games.LayoutCtx): games.TextNode[]|nil what the header shows after the clock on seat's line
 ---@field flippable? games.Flippable the shell binds a key that turns the board, and sets ctx.flip
+---@field legend fun(ctx: games.DescribeCtx): games.LegendEntry[] what each mark the board draws means, which the help shows
 
 ---@class games.OpenOptions
 ---@field glyphs games.Glyphs

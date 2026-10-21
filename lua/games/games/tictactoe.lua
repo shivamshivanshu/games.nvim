@@ -1,5 +1,6 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
+local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
@@ -106,5 +107,27 @@ M.describers = {
     return ("%s took cell %d"):format(talk.name(event.by), event.cell)
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local x = { SEAT_KEYS[1], theme.seat_hl(1) }
+  return {
+    {
+      sample = {
+        grid.sample(ctx, x),
+        compose.text(" "),
+        grid.sample(ctx, { SEAT_KEYS[2], theme.seat_hl(2) }),
+      },
+      meaning = "each player's mark, in their colour in the header",
+    },
+    {
+      sample = { grid.sample(ctx, { "5", EMPTY_HL }) },
+      meaning = "an empty cell: its number takes it",
+    },
+    { sample = { grid.sample(ctx, x, Group.LAST_MOVE) }, meaning = "the last move" },
+    { sample = { grid.sample(ctx, x, Group.WIN) }, meaning = "a winning line" },
+  }
+end
 
 return M

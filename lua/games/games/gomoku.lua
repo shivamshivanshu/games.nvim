@@ -41,4 +41,10 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  return discs.legend(ctx, { discs.MarkKind.WINNING_LINE })
+end
+
 return M

@@ -48,6 +48,7 @@ local Key = {
   GAP = "gap",
 }
 local PEG_MARKER = "peg"
+local BLACK_MEANING, WHITE_MEANING = "right colour, right place", "right colour, wrong place"
 local SOLVED_HL = Group.WIN
 
 ---@type table<games.MastermindColour, string>
@@ -150,8 +151,8 @@ local function panel(view, ctx)
   end
   return compose.col({
     compose.row(legend),
-    compose.text(glyph(Key.BLACK) .. " right colour, right place", Group.LABEL),
-    compose.text(glyph(Key.WHITE) .. " right colour, wrong place", Group.LABEL),
+    compose.text(glyph(Key.BLACK) .. " " .. BLACK_MEANING, Group.LABEL),
+    compose.text(glyph(Key.WHITE) .. " " .. WHITE_MEANING, Group.LABEL),
     compose.text(""),
     kv.panel({ { "guesses left", tostring(view.remaining) } }),
   })
@@ -211,5 +212,23 @@ M.describers = {
     )
   end,
 }
+
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local function key_entry(key, meaning)
+    return { sample = { grid.sample(ctx, { key }) }, meaning = meaning }
+  end
+  local red = peg(COLOURS[1])
+  return {
+    { sample = { grid.sample(ctx, red) }, meaning = "a code peg, by colour, named in the panel" },
+    key_entry(Key.BLACK, "key peg: " .. BLACK_MEANING),
+    key_entry(Key.WHITE, "key peg: " .. WHITE_MEANING),
+    key_entry(Key.NO_KEY, "no key peg"),
+    key_entry(Key.HOLE, "a guess still to make"),
+    key_entry(Key.HIDDEN, "the secret, hidden until the game is over"),
+    { sample = { grid.sample(ctx, red, SOLVED_HL) }, meaning = "the guess that solved the code" },
+  }
+end
 
 return M

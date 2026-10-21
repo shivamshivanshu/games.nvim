@@ -420,4 +420,23 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local function card(key)
+    return grid.sample(ctx, { key, cards.hl(key) }, CARD_HL)
+  end
+  return {
+    {
+      sample = { card("Qs"), compose.text(" "), card("Ah") },
+      meaning = "a card: the board's on top, yours below",
+    },
+    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "a board card still to come" },
+    {
+      sample = { grid.sample(ctx, { BUTTON_KEY, Group.KEY }) },
+      meaning = "the dealer button, beside its seat",
+    },
+  }
+end
+
 return M

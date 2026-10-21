@@ -338,4 +338,26 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local function tile(name, meaning)
+    return { sample = { grid.sample(ctx, { name, TILE_HL[name] }) }, meaning = meaning }
+  end
+  local function overlay(key, hl, meaning)
+    return { sample = { grid.sample(ctx, { key }, hl) }, meaning = meaning }
+  end
+  return {
+    tile("empty", "open water"),
+    tile("ship", "a ship"),
+    tile("miss", "a shot that missed"),
+    tile("hit", "a hit"),
+    tile("sunk", "a ship sunk"),
+    { sample = { grid.sample(ctx, { "hit", TILE_HL.hit }, LAST_HL) }, meaning = "the latest shot" },
+    overlay(BERTH_KEY, BERTH_HL, "the ship you are placing, where it fits"),
+    overlay(AIM_KEY, AIM_HL, "your aim, at open water"),
+    overlay(BLOCKED_KEY, BLOCKED_HL, "the ship does not fit there, or that cell was fired at"),
+  }
+end
+
 return M

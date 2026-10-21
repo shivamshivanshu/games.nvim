@@ -251,4 +251,29 @@ M.describers = {
   end,
 }
 
+---@param ctx games.DescribeCtx
+---@return games.LegendEntry[]
+function M.legend(ctx)
+  local white_king = { "K", WHITE_PIECE_HL }
+  return {
+    {
+      sample = {
+        grid.sample(ctx, white_king),
+        compose.text(" "),
+        grid.sample(ctx, { "k", BLACK_PIECE_HL }),
+      },
+      meaning = "white and black pieces, named in the panel",
+    },
+    {
+      sample = { grid.sample(ctx, { EMPTY_KEY }, Group.LAST_MOVE) },
+      meaning = "the last move: the squares it left and reached",
+    },
+    { sample = { grid.sample(ctx, white_king, Group.CHECK) }, meaning = "a king in check" },
+    {
+      sample = { compose.text("+ #", CHECK_ANNOTATION.hl) },
+      meaning = "check and checkmate in the move list",
+    },
+  }
+end
+
 return M
