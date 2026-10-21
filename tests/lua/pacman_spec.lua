@@ -1,3 +1,4 @@
+local Client = require("games.core.client")
 local describe = require("games.core.describe")
 local helpers = require("helpers")
 local pacman = require("games.games.pacman")
@@ -144,6 +145,27 @@ function T.the_status_says_paused_or_over()
   local over = update_with({ can_turn = false, can_pause = false })
   over.result = { kind = "decisive", winners = {}, reason = "game_over" }
   assert_eq("##############   game  over", render(over).lines[BOARD_TOP + 5])
+end
+
+function T.a_reconnect_takes_the_listed_game_even_behind_the_seq_the_board_shows()
+  local conn = helpers.stub_conn()
+  local client = Client.new(conn --[[@as games.Conn]])
+  conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
+  conn:push("game.update", vim.tbl_extend("force", update_with({}), { seq = 10 }))
+  local buf = assert(shell.open(client, "0000"))
+
+  conn:push("disconnected", { code = "disconnected", message = "lost", retrying = true })
+  conn:push("connected", { user = "alice", heartbeat_ms = 15000 })
+  local restored = update_with({ paused = true, can_pause = false })
+  restored.seq = 8
+  conn:requests_of("game.list")[2].cb(nil, { games = { restored } })
+
+  assert_eq(8, client:game("0000").seq)
+  helpers.wait_for(function()
+    local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+    return text:find("paused: turn to go", 1, true) ~= nil
+  end, "the board to show the restored game paused")
+  vim.api.nvim_buf_delete(buf, { force = true })
 end
 
 function T.turn_keys_while_the_game_goes_on_and_pause_only_while_it_runs()

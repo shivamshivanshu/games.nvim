@@ -87,19 +87,36 @@ local function emit(signal, item, is_new, what)
   end
 end
 
----@type games.ReplyHook
-local function store_listed_games(self, _, _, result)
-  for _, update in ipairs(result and result.games or {}) do
-    self:store(update)
+---How store treats an update whose seq is not past the cached one's.
+---@enum games.StoreMode
+local StoreMode = {
+  NEWER = "newer",
+  ---A server restarted from its last write can be behind the seqs it pushed, so the replies to
+  ---a login's resync replace the cache whatever their seq.
+  REPLACE = "replace",
+}
+
+---@param mode games.StoreMode
+---@return games.ReplyHook
+local function listed_games_storer(mode)
+  return function(self, _, _, result)
+    for _, update in ipairs(result and result.games or {}) do
+      self:store(update, mode)
+    end
   end
 end
 
----@type games.ReplyHook
-local function store_snapshot(self, _, _, result)
-  if result then
-    self:store(result --[[@as games.GameUpdate]])
+---@param mode games.StoreMode
+---@return games.ReplyHook
+local function snapshot_storer(mode)
+  return function(self, _, _, result)
+    if result then
+      self:store(result --[[@as games.GameUpdate]], mode)
+    end
   end
 end
+
+local store_snapshot = snapshot_storer(StoreMode.NEWER)
 
 ---The snapshot replaces the stale state, so the caller never sees the error.
 ---@type games.ReplyHook
@@ -155,7 +172,7 @@ Client.challenge_accept = request_fn(MessageType.CHALLENGE_ACCEPT)
 Client.challenge_decline = request_fn(MessageType.CHALLENGE_DECLINE)
 Client.challenge_cancel = request_fn(MessageType.CHALLENGE_CANCEL)
 Client.challenge_list = request_fn(MessageType.CHALLENGE_LIST, cache_challenges)
-Client.game_list = request_fn(MessageType.GAME_LIST, store_listed_games)
+Client.game_list = request_fn(MessageType.GAME_LIST, listed_games_storer(StoreMode.NEWER))
 Client.game_snapshot = request_fn(MessageType.GAME_SNAPSHOT, store_snapshot)
 Client.game_act = request_fn(MessageType.GAME_ACT, snapshot_if_stale)
 Client.game_control = request_fn(MessageType.GAME_CONTROL, snapshot_if_stale)
@@ -163,6 +180,8 @@ Client.game_start = request_fn(MessageType.GAME_START, store_snapshot)
 Client.stats_get = request_fn(MessageType.STATS_GET)
 
 local request_catalog = request_fn(MessageType.CATALOG_LIST, cache_catalog)
+local resync_game_list = request_fn(MessageType.GAME_LIST, listed_games_storer(StoreMode.REPLACE))
+local resync_snapshot = request_fn(MessageType.GAME_SNAPSHOT, snapshot_storer(StoreMode.REPLACE))
 
 ---The server's game catalog, requested once per connection.
 ---@param body nil
@@ -337,13 +356,15 @@ local function evict_oldest_finished(updates)
   end
 end
 
----Caches update unless the cache already holds this seq or a later one; a finished one is
----handled first and then counted against the finished games the cache keeps.
+---Caches update unless the cache already holds this seq or a later one, or whatever its seq
+---when mode is REPLACE; a finished one is handled first and then counted against the finished
+---games the cache keeps.
 ---@package
 ---@param update games.GameUpdate
-function Client:store(update)
+---@param mode? games.StoreMode default NEWER
+function Client:store(update, mode)
   local cached = self.updates[update.game_id]
-  if cached and cached.seq >= update.seq then
+  if cached and cached.seq >= update.seq and mode ~= StoreMode.REPLACE then
     return
   end
   self.updates[update.game_id] = update
@@ -409,14 +430,14 @@ function Client:snapshot_unlisted(listed)
   end
   for game_id, update in pairs(self.updates) do
     if update.result == nil and not listed_ids[game_id] then
-      self:game_snapshot({ game_id = game_id })
+      resync_snapshot(self, { game_id = game_id })
     end
   end
 end
 
 ---@package
 function Client:resync()
-  self:game_list(nil, function(_, result)
+  resync_game_list(self, nil, function(_, result)
     if result then
       self:snapshot_unlisted(result.games)
     end
