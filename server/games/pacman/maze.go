@@ -59,10 +59,11 @@ const (
 	TilePellet Tile = 'o'
 )
 
-// maze is maze[row][col], row 0 at the top. It is a value, so a copy is a new maze.
+// maze is maze[row][col], row 0 at the top. States share one until it changes: eaten
+// returns a new maze.
 type maze [Rows][Cols]Tile
 
-func classic() maze {
+func classic() *maze {
 	var m maze
 	for r, line := range strings.Split(strings.TrimPrefix(classicMaze, "\n"), "\n") {
 		for c := range Cols {
@@ -72,7 +73,7 @@ func classic() maze {
 			}
 		}
 	}
-	return m
+	return &m
 }
 
 // wrapped is p with its column brought back onto the maze, so the tunnel's ends meet.
@@ -81,7 +82,7 @@ func wrapped(p grid.Point) grid.Point {
 	return p
 }
 
-func (m maze) at(p grid.Point) Tile {
+func (m *maze) at(p grid.Point) Tile {
 	if p.Row < 0 || p.Row >= Rows {
 		return TileWall
 	}
@@ -90,17 +91,18 @@ func (m maze) at(p grid.Point) Tile {
 }
 
 // walkable is whether Pac-Man or a ghost in the maze may stand on p: the door is the ghosts' own.
-func (m maze) walkable(p grid.Point) bool {
+func (m *maze) walkable(p grid.Point) bool {
 	t := m.at(p)
 	return t != TileWall && t != TileDoor
 }
 
-func (m maze) eaten(p grid.Point) maze {
-	m[p.Row][p.Col] = TileOpen
-	return m
+func (m *maze) eaten(p grid.Point) *maze {
+	next := *m
+	next[p.Row][p.Col] = TileOpen
+	return &next
 }
 
-func (m maze) food() int {
+func (m *maze) food() int {
 	n := 0
 	for _, row := range m {
 		for _, t := range row {
@@ -112,14 +114,18 @@ func (m maze) food() int {
 	return n
 }
 
-func (m maze) lines() []string {
-	lines := make([]string, Rows)
+// lines are the maze's rows, cut from one string so the maze is copied once.
+func (m *maze) lines() []string {
+	var tiles [Rows * Cols]byte
 	for r, row := range m {
-		b := make([]byte, Cols)
 		for c, t := range row {
-			b[c] = byte(t)
+			tiles[r*Cols+c] = byte(t)
 		}
-		lines[r] = string(b)
+	}
+	all := string(tiles[:])
+	lines := make([]string, Rows)
+	for r := range lines {
+		lines[r] = all[r*Cols : (r+1)*Cols]
 	}
 	return lines
 }

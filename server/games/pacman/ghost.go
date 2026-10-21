@@ -88,7 +88,7 @@ func (g ghost) eaten() ghost {
 }
 
 // stepped is the ghost one cell on toward target, or at random when frightened in the maze.
-func (g ghost) stepped(m maze, target grid.Point, rng *rand.Rand) ghost {
+func (g ghost) stepped(m *maze, target grid.Point, rng *rand.Rand) ghost {
 	switch {
 	case g.activity == leaving:
 		return g.leftHouse()
@@ -130,7 +130,7 @@ func (g ghost) leftHouse() ghost {
 // choice is the way a ghost in the maze takes from its cell: never back the way it came unless
 // that is the only way, frightened at random, else the way whose next cell is nearest target,
 // ties broken up, left, down, right as in the arcade.
-func (g ghost) choice(m maze, target grid.Point, rng *rand.Rand) grid.Direction {
+func (g ghost) choice(m *maze, target grid.Point, rng *rand.Rand) grid.Direction {
 	var open []grid.Direction
 	for _, d := range []grid.Direction{grid.Up, grid.Left, grid.Down, grid.Right} {
 		if d != g.facing.Opposite() && m.walkable(d.From(g.at)) {

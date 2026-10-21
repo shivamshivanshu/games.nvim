@@ -49,16 +49,18 @@ func alone(s state) state {
 
 // emptied is s's maze with no food but at the given cells.
 func emptied(s state, food ...grid.Point) state {
+	m := *s.maze
 	for r := range Rows {
 		for c := range Cols {
-			if t := s.maze[r][c]; t == TileDot || t == TilePellet {
-				s.maze[r][c] = TileOpen
+			if t := m[r][c]; t == TileDot || t == TilePellet {
+				m[r][c] = TileOpen
 			}
 		}
 	}
 	for _, p := range food {
-		s.maze[p.Row][p.Col] = TileDot
+		m[p.Row][p.Col] = TileDot
 	}
+	s.maze, s.food = &m, len(food)
 	return s
 }
 
@@ -149,7 +151,7 @@ func TestEatingScoresAndAPelletFrightensTheGhosts(t *testing.T) {
 func TestEatingFrightenedGhostsDoublesEachTime(t *testing.T) {
 	s := alone(running())
 	s.pacman = pacman{at: pt(5, 5), facing: grid.Right}
-	s.maze = s.maze.eaten(pt(5, 6))
+	s.maze, s.food = s.maze.eaten(pt(5, 6)), s.food-1
 	for i := range s.ghosts {
 		s.ghosts[i] = ghost{name: s.ghosts[i].name, at: pt(5, 6), facing: grid.Left, activity: roaming, frightened: true}
 	}
@@ -172,7 +174,7 @@ func TestEatingFrightenedGhostsDoublesEachTime(t *testing.T) {
 }
 
 // reachable is every cell Pac-Man can walk to from its start.
-func reachable(m maze) []grid.Point {
+func reachable(m *maze) []grid.Point {
 	seen := map[grid.Point]bool{pacmanStart(): true}
 	out := []grid.Point{pacmanStart()}
 	for i := 0; i < len(out); i++ {
@@ -339,7 +341,7 @@ func TestACaughtPacmanLosesALifeAndTheRoundRestartsPaused(t *testing.T) {
 	s := running()
 	s.pacman = pacman{at: pt(5, 5), facing: grid.Right}
 	s.ghosts[0] = ghost{name: Blinky, at: pt(5, 6), facing: grid.Left, activity: roaming}
-	s.maze = s.maze.eaten(pt(5, 6))
+	s.maze, s.food = s.maze.eaten(pt(5, 6)), s.food-1
 	s.score = 120
 	s, events := tickOnce(s, 1)
 	if diff := cmp.Diff([]game.Event{CaughtEvent{By: SeatPlayer, Ghost: Blinky, LivesLeft: 2}}, events); diff != "" {
@@ -376,7 +378,7 @@ func TestClearingALevelSpeedsUpAndTheLastWins(t *testing.T) {
 	if diff := cmp.Diff([]game.Event{LevelClearedEvent{By: SeatPlayer, Level: 1}}, events); diff != "" {
 		t.Fatalf("events (-want +got):\n%s", diff)
 	}
-	if s.level != 2 || !s.paused || s.maze != classic() || s.pacman.at != pacmanStart() || s.score != 1000 {
+	if s.level != 2 || !s.paused || *s.maze != *classic() || s.pacman.at != pacmanStart() || s.score != 1000 {
 		t.Fatalf("after clearing level 1: level %d, paused %t, score %d", s.level, s.paused, s.score)
 	}
 	s.paused = false

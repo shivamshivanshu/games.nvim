@@ -27,7 +27,7 @@ type pacman struct {
 }
 
 // moved is Pac-Man one tick on: turned if it can, then one cell ahead unless a wall is there.
-func (p pacman) moved(m maze) pacman {
+func (p pacman) moved(m *maze) pacman {
 	if p.turn != "" && m.walkable(p.turn.From(p.at)) {
 		p.facing, p.turn = p.turn, ""
 	}
@@ -48,7 +48,9 @@ type round struct {
 
 type state struct {
 	game.Ending
-	maze   maze
+	maze *maze
+	// food is the dots and pellets left in maze.
+	food   int
 	pacman pacman
 	ghosts [4]ghost
 	round  round
@@ -60,7 +62,13 @@ type state struct {
 
 // newState is level 1's start, paused until the first turn.
 func newState() state {
-	return state{lives: StartingLives, level: 1, maze: classic(), paused: true}.newRound()
+	return state{lives: StartingLives, level: 1, paused: true}.withClassicMaze().newRound()
+}
+
+func (s state) withClassicMaze() state {
+	s.maze = classic()
+	s.food = s.maze.food()
+	return s
 }
 
 // newRound puts Pac-Man and the ghosts back where they start, the dots as they are.
@@ -116,7 +124,7 @@ func (s state) Tick(rng *rand.Rand) (game.State[Action, View], []game.Event) {
 	if caught {
 		return s, events
 	}
-	if s.maze.food() == 0 {
+	if s.food == 0 {
 		return s.cleared(events)
 	}
 	s = s.ghostsMoved(rng)
@@ -138,6 +146,7 @@ func (s state) fed() state {
 		return s
 	}
 	s.maze = s.maze.eaten(s.pacman.at)
+	s.food--
 	s.round.dots++
 	return s
 }
@@ -192,8 +201,8 @@ func (s state) cleared(events []game.Event) (game.State[Action, View], []game.Ev
 		return s.over(game.WinFor(ReasonCleared, SeatPlayer)), events
 	}
 	s.level++
-	s.maze, s.tick, s.paused = classic(), 0, true
-	return s.newRound(), events
+	s.tick, s.paused = 0, true
+	return s.withClassicMaze().newRound(), events
 }
 
 func (s state) over(result game.Result) state {
@@ -305,7 +314,7 @@ func (s state) View(game.Seat) View {
 		Lives:       s.lives,
 		Level:       s.level,
 		Levels:      Levels,
-		FoodLeft:    s.maze.food(),
+		FoodLeft:    s.food,
 		FrightTicks: s.round.frightLeft,
 		Paused:      s.paused,
 		CanTurn:     !s.Over(),
