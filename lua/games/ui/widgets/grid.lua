@@ -80,7 +80,7 @@ end
 ---@class games.GridWidget
 ---@field is_dark fun(row: integer, col: integer): boolean
 ---@field display_order fun(n: integer, flip: boolean|nil): integer[]
----@field cell_index fun(items: any[], row_of: fun(item: any): integer, col_of: fun(item: any): integer): table<integer, table<integer, any>>
+---@field cell_index fun(items: any[], row_of: (fun(item: any): integer), col_of: (fun(item: any): integer)): table<integer, table<integer, any>>
 ---@field mark fun(row: integer, col: integer, hl: games.Hl): games.GridMark
 ---@field marks_where fun(rows: any[][], hl_of: fun(value: any, row: integer, col: integer): games.Hl|nil): games.GridMark[]
 ---@overload fun(props: games.GridProps): games.Node
