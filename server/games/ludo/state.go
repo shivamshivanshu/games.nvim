@@ -1,7 +1,6 @@
 package ludo
 
 import (
-	"fmt"
 	"maps"
 	"math/rand/v2"
 	"slices"
@@ -23,7 +22,7 @@ type state struct {
 	phase    Phase
 	lastRoll Roll
 	sixes    int
-	result   game.Result
+	game.Ending
 }
 
 func newState(seats []game.Seat, first game.Seat) state {
@@ -34,24 +33,21 @@ func newState(seats []game.Seat, first game.Seat) state {
 	return state{order: clockwise(seats), tokens: tokens, turn: first, phase: PhaseRoll}
 }
 
-func rollDie(rng *rand.Rand) Roll { return Roll(dice.Roll(rng, 1, dice.Six)[0]) }
+func rollDie(rng *rand.Rand) Roll { return Roll(dice.Die(rng, dice.Six)) }
 
 func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	switch action.Kind {
 	case ActionRoll:
 		return s.applyRoll(rng)
 	case ActionMove:
 		return s.applyMove(action.Token)
 	}
-	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	return nil, nil, game.UnknownAction(action.Kind)
 }
 
 func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if s.phase != PhaseRoll {
-		return nil, nil, game.IllegalActionError{Msg: "move a token first"}
+		return nil, nil, game.Illegalf("move a token first")
 	}
 	roll := rollDie(rng)
 	next := s
@@ -74,21 +70,21 @@ func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event
 func parseToken(text string) (Token, error) {
 	n, err := strconv.Atoi(text)
 	if err != nil || n < 1 || n > TokensPerSeat {
-		return 0, game.IllegalActionError{Msg: fmt.Sprintf("token must be 1 to %d, got %q", TokensPerSeat, text)}
+		return 0, game.Illegalf("token must be 1 to %d, got %q", TokensPerSeat, text)
 	}
 	return Token(n), nil
 }
 
 func (s state) applyMove(text string) (game.State[Action, View], []game.Event, error) {
 	if s.phase != PhaseMove {
-		return nil, nil, game.IllegalActionError{Msg: "roll first"}
+		return nil, nil, game.Illegalf("roll first")
 	}
 	token, err := parseToken(text)
 	if err != nil {
 		return nil, nil, err
 	}
 	if !slices.Contains(s.movable(), token) {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("token %d cannot move %d", token, s.lastRoll)}
+		return nil, nil, game.Illegalf("token %d cannot move %d", token, s.lastRoll)
 	}
 	from := s.tokens[s.turn][token-1]
 	to, _ := advance(from, s.lastRoll)
@@ -101,7 +97,7 @@ func (s state) applyMove(text string) (game.State[Action, View], []game.Event, e
 	}
 	next.tokens[s.turn] = withProgress(next.tokens[s.turn], token, to)
 	if allHome(next.tokens[s.turn]) {
-		return next.finish(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{s.turn}, Reason: ReasonAllHome}), events, nil
+		return next.finish(game.WinFor(ReasonAllHome, s.turn)), events, nil
 	}
 	return next.afterTurnAction(), events, nil
 }
@@ -115,10 +111,8 @@ func (s state) afterTurnAction() state {
 	return s.passTurn()
 }
 
-func (s state) over() bool { return s.phase == PhaseFinished }
-
 func (s state) finish(result game.Result) state {
-	s.result, s.phase = result, PhaseFinished
+	s.Ending, s.phase = s.Concluded(result), PhaseFinished
 	return s
 }
 
@@ -193,7 +187,7 @@ func allHome(tokens Tokens) bool {
 }
 
 func (s state) View(viewer game.Seat) View {
-	toAct := viewer == s.turn && !s.over()
+	toAct := viewer == s.turn && !s.Over()
 	movable := []Token{}
 	if toAct && s.phase == PhaseMove {
 		movable = s.movable()
@@ -206,7 +200,7 @@ func (s state) View(viewer game.Seat) View {
 	}
 	return View{
 		Starts:     starts,
-		Safe:       safeSquares(),
+		Safe:       slices.Clone(safeSquares),
 		Progress:   maps.Clone(s.tokens),
 		Locations:  locations,
 		LastRoll:   s.lastRoll,
@@ -218,25 +212,18 @@ func (s state) View(viewer game.Seat) View {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.over() {
+	if s.Over() {
 		return nil
 	}
 	return []game.Seat{s.turn}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.over() }
-
 // Conclude takes a result the core imposed, such as an abort.
-func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.over() {
-		return s
-	}
-	return s.finish(result)
-}
+func (s state) Conclude(result game.Result) game.State[Action, View] { return s.finish(result) }
 
 // Eliminate removes the seat and its tokens; the last seat standing wins.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	if s.over() || !slices.Contains(s.order, seat) {
+	if s.Over() || !slices.Contains(s.order, seat) {
 		return s, nil
 	}
 	next := s

@@ -20,8 +20,6 @@ const (
 	// ProgressHome is a finished token.
 	ProgressHome Progress = 56
 
-	minPlayers = 2
-	maxPlayers = 4
 	starOffset = 8
 )
 
@@ -55,15 +53,15 @@ func trackSquare(seat game.Seat, p Progress) (Square, bool) {
 }
 
 // safeSquares are every start square and the star square starOffset past each, in track order.
-func safeSquares() []Square {
+var safeSquares = func() []Square {
 	var safe []Square
 	for _, seat := range clockwise(seatOrder()) {
 		safe = append(safe, trackStart(seat), trackStart(seat)+starOffset)
 	}
 	return safe
-}
+}()
 
-func isSafe(square Square) bool { return slices.Contains(safeSquares(), square) }
+func isSafe(square Square) bool { return slices.Contains(safeSquares, square) }
 
 func locationsOf(seat game.Seat, tokens Tokens) Locations {
 	var locations Locations

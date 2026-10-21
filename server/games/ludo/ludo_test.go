@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 const (
@@ -44,11 +45,7 @@ func rngRolling(t *testing.T, roll Roll) *rand.Rand {
 
 func mustApply(t *testing.T, s state, action Action, rng *rand.Rand) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(s.turn, action, rng)
-	if err != nil {
-		t.Fatalf("Apply(%+v): %v", action, err)
-	}
-	return next.(state), events
+	return gametest.MustApply(t, s, s.turn, action, rng)
 }
 
 func TestNewSeatsInColourOrderAndTurnsGoClockwiseFromADrawnFirstSeat(t *testing.T) {
@@ -173,15 +170,6 @@ func TestEliminatingASeatNotToActKeepsTheTurn(t *testing.T) {
 func TestTwoPlayersStartOpposite(t *testing.T) {
 	if got := trackStart(SeatYellow) - trackStart(SeatBlue); got != TrackLength/2 {
 		t.Errorf("blue and yellow starts are %d apart, want %d", got, TrackLength/2)
-	}
-}
-
-func TestNewRejectsPlayerCount(t *testing.T) {
-	for _, invitees := range [][]game.UserID{nil, {"b", "c", "d", "e"}} {
-		_, _, err := Rules{}.New(Opts{}, "a", invitees, game.StepRNG(1, 0))
-		if !errors.As(err, new(game.BadRequestError)) {
-			t.Errorf("%d invitees: got %v, want a bad request", len(invitees), err)
-		}
 	}
 }
 
@@ -398,9 +386,6 @@ func TestIllegalActions(t *testing.T) {
 			}
 		})
 	}
-	if _, _, err := rolled(0, inBase(), inBase()).Apply(SeatYellow, Action{Kind: ActionRoll}, nil); !errors.Is(err, game.ErrNotYourTurn) {
-		t.Errorf("yellow rolling on blue's turn: got %v, want %v", err, game.ErrNotYourTurn)
-	}
 }
 
 func TestOpponentPairIsNotMovable(t *testing.T) {
@@ -441,7 +426,6 @@ func TestEliminate(t *testing.T) {
 func snapshot(s state) state {
 	s.order = slices.Clone(s.order)
 	s.tokens = maps.Clone(s.tokens)
-	s.result.Winners = slices.Clone(s.result.Winners)
 	return s
 }
 
@@ -461,7 +445,7 @@ func TestApplyAndEliminateLeaveTheEarlierStateUnchanged(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			before := snapshot(tt.s)
 			tt.step(tt.s)
-			if diff := cmp.Diff(before, tt.s, cmp.AllowUnexported(state{})); diff != "" {
+			if diff := cmp.Diff(before, tt.s, cmp.AllowUnexported(state{}, game.Ending{})); diff != "" {
 				t.Errorf("earlier state changed (-before +after):\n%s", diff)
 			}
 		})
