@@ -102,7 +102,7 @@ func (f Finished) Update() protocol.GameUpdate {
 		Game:       f.Type,
 		Options:    f.Options,
 		Seq:        f.Finish.Seq,
-		Players:    append([]game.Player{}, f.Players...),
+		Players:    xslices.Clone(f.Players),
 		ToAct:      []game.UserID{},
 		Result:     &protocol.WireResult{Kind: f.Finish.Kind, Winners: f.winners(), Reason: f.Finish.Reason},
 		DrawAgreed: []game.UserID{},

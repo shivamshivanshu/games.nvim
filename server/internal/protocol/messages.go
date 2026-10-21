@@ -42,7 +42,7 @@ const (
 	OptionText OptionType = "text"
 )
 
-// optionTypeOf panics on an unknown kind, which game.Info.CheckOptions rejects at registration.
+// optionTypeOf panics on an unknown kind, which game.Info.Check rejects at registration.
 func optionTypeOf(k game.OptionKind) OptionType {
 	switch k {
 	case game.OptionKindEnum:
@@ -84,7 +84,7 @@ type OptionWire struct {
 }
 
 func optionToWire(spec game.OptionSpec) OptionWire {
-	wire := OptionWire{Type: optionTypeOf(spec.Kind), Values: append([]game.OptionValue{}, spec.Values...), Default: spec.Default, Role: spec.Role}
+	wire := OptionWire{Type: optionTypeOf(spec.Kind), Values: xslices.Clone(spec.Values), Default: spec.Default, Role: spec.Role}
 	if wire.Type == OptionText {
 		wire.MaxLen = spec.MaxLen
 	}
@@ -109,7 +109,7 @@ type ActionInputWire struct {
 func actionToWire(spec game.ActionSpec) ActionWire {
 	wire := ActionWire{Kind: spec.Kind, Description: spec.Description}
 	if in := spec.Input; in != nil {
-		wire.Input = &ActionInputWire{Field: in.Field, Description: in.Description, Pattern: in.Pattern, Values: append([]string{}, in.Values...)}
+		wire.Input = &ActionInputWire{Field: in.Field, Description: in.Description, Pattern: in.Pattern, Values: xslices.Clone(in.Values)}
 	}
 	return wire
 }
@@ -132,7 +132,7 @@ func InfoToWire(info game.Info) GameInfoWire {
 		ID:           info.Type,
 		Name:         info.Name,
 		Players:      PlayersWire{Min: info.Players.Min, Max: info.Players.Max},
-		Capabilities: append([]game.Capability{}, info.Capabilities...),
+		Capabilities: xslices.Clone(info.Capabilities),
 		Options:      options,
 		Actions:      xslices.Map(info.Actions, actionToWire),
 	}
