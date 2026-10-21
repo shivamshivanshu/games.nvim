@@ -33,7 +33,7 @@ const (
 // Action is a turn, with Direction one of grid.DirectionNames, or a pause, without one.
 type Action struct {
 	Kind      game.ActionKind `json:"kind"`
-	Direction string          `json:"direction"`
+	Direction string          `json:"direction,omitempty"`
 }
 
 // GhostName names a ghost, and with it how it hunts.

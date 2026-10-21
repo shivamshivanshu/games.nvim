@@ -29,3 +29,24 @@ func TestActionInputsMustBeStringFieldsOfTheAction(t *testing.T) {
 		}
 	}
 }
+
+func TestEveryActionKindMaySendOnlyItsKindAndInput(t *testing.T) {
+	doc := newDocument(nil, func(reflect.Type) *jsonschema.Schema { return nil })
+	ref, err := doc.ref(reflect.TypeFor[actionWithFields]())
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := doc.defs[ref.Ref[len(defsPrefix):]]
+	action.Required = []string{"kind", "text"}
+	for _, tc := range []struct {
+		spec    game.ActionSpec
+		wantErr bool
+	}{
+		{game.ActionSpec{Kind: "say", Input: &game.ActionInput{Field: "text", Pattern: "."}}, false},
+		{game.ActionSpec{Kind: "stop"}, true},
+	} {
+		if err := checkRequiredFields(game.Info{Actions: []game.ActionSpec{tc.spec}}, action); (err != nil) != tc.wantErr {
+			t.Errorf("action %s: got %v, want error %t", tc.spec.Kind, err, tc.wantErr)
+		}
+	}
+}

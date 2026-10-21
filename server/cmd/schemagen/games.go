@@ -38,7 +38,8 @@ func gameSchema(g game.Game, comments map[string]string) (*jsonschema.Schema, er
 	if err != nil {
 		return nil, err
 	}
-	if err := checkActionInputs(info, doc.defs[strings.TrimPrefix(action.Ref, defsPrefix)]); err != nil {
+	actionDef := doc.defs[strings.TrimPrefix(action.Ref, defsPrefix)]
+	if err := errors.Join(checkActionInputs(info, actionDef), checkRequiredFields(info, actionDef)); err != nil {
 		return nil, err
 	}
 	view, err := doc.ref(viewType)
@@ -79,6 +80,23 @@ func checkActionInputs(info game.Info, action *jsonschema.Schema) error {
 		}
 		if property == nil || property.Type != "string" {
 			return fmt.Errorf("action %q takes input %q, which is not a string field of its action", spec.Kind, spec.Input.Field)
+		}
+	}
+	return nil
+}
+
+// checkRequiredFields fails on an action kind the schema would refuse as the
+// catalogue describes it: one that must carry a field other than its kind and
+// its own input.
+func checkRequiredFields(info game.Info, action *jsonschema.Schema) error {
+	if action == nil {
+		return nil
+	}
+	for _, spec := range info.Actions {
+		for _, field := range action.Required {
+			if field != "kind" && (spec.Input == nil || spec.Input.Field != field) {
+				return fmt.Errorf("action %q does not take %q, which its action requires", spec.Kind, field)
+			}
 		}
 	}
 	return nil

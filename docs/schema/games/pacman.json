@@ -13,8 +13,7 @@
       "additionalProperties": false,
       "type": "object",
       "required": [
-        "kind",
-        "direction"
+        "kind"
       ],
       "description": "Action is a turn, with Direction one of grid.DirectionNames, or a pause, without one."
     },
