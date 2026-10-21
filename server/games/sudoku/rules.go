@@ -10,6 +10,14 @@ import (
 // Rules is solo Sudoku: fill the grid of a seeded puzzle that has a unique solution.
 type Rules struct{}
 
+const textField = "text"
+
+// EventTypes implements game.EventCatalog.
+func (Rules) EventTypes() []game.Event { return []game.Event{CellSetEvent{}} }
+
+// Reasons implements game.ReasonCatalog.
+func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonSolved} }
+
 // Info describes Sudoku to the core.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -21,6 +29,15 @@ func (Rules) Info() game.Info {
 			Name:    OptionDifficulty,
 			Values:  game.OptionValues(DifficultyEasy, DifficultyMedium, DifficultyHard),
 			Default: game.OptionValue(DifficultyMedium),
+		}},
+		Actions: []game.ActionSpec{{
+			Kind:        ActionSet,
+			Description: "Write a digit into a cell that is not a given, or clear it with 0.",
+			Input: &game.ActionInput{
+				Field:       textField,
+				Description: `Row, column, then the digit: "53 7" writes 7 at row 5, column 3; "53 0" clears it.`,
+				Pattern:     setPattern,
+			},
 		}},
 	}
 }

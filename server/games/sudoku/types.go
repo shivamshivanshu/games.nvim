@@ -29,24 +29,23 @@ type Opts struct {
 	Difficulty Difficulty `json:"difficulty"`
 }
 
-// ActionKind names an Action.
-type ActionKind string
-
 // ActionSet writes a digit into a cell, or clears it.
-const ActionSet ActionKind = "set"
+const ActionSet game.ActionKind = "set"
 
 // Action is typed input; for ActionSet, Text is "RC D", e.g. "53 7" for row 5, column 3, digit 7.
 type Action struct {
-	Kind ActionKind `json:"kind"`
-	Text string     `json:"text,omitempty"`
+	Kind game.ActionKind `json:"kind"`
+	Text string          `json:"text"`
 }
 
-// View is the grid in row-major order, with Empty for an unfilled cell.
-// Solution stays empty until the game finishes.
+// View is the grid in row-major order, with Empty for an unfilled cell. Conflicts marks
+// every filled cell whose digit repeats in its row, column or box. Solution stays empty
+// until the game finishes.
 type View struct {
-	Grid     Grid            `json:"grid"`
-	Given    [CellCount]bool `json:"given"`
-	Solution []Digit         `json:"solution"`
+	Grid      Grid            `json:"grid"`
+	Given     [CellCount]bool `json:"given"`
+	Conflicts [CellCount]bool `json:"conflicts"`
+	Solution  []Digit         `json:"solution"`
 }
 
 // CellSetEvent reports a cell written, or cleared when Digit is Empty; Row and Col are 1-based.

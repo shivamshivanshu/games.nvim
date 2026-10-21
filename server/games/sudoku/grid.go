@@ -20,6 +20,23 @@ type Grid [CellCount]Digit
 
 func cellIndex(row, col int) int { return (row-1)*Size + col - 1 }
 
+// conflicts marks every filled cell whose digit repeats in its row, column or box.
+func conflicts(g Grid) [CellCount]bool {
+	var marked [CellCount]bool
+	for a := range CellCount {
+		for b := a + 1; b < CellCount; b++ {
+			if g[a] != Empty && g[a] == g[b] && sharesUnit(a, b) {
+				marked[a], marked[b] = true, true
+			}
+		}
+	}
+	return marked
+}
+
+func sharesUnit(a, b int) bool {
+	return a/Size == b/Size || a%Size == b%Size || boxOf(a) == boxOf(b)
+}
+
 func boxOf(cell int) int {
 	row, col := cell/Size, cell%Size
 	return row/BoxSize*BoxSize + col/BoxSize

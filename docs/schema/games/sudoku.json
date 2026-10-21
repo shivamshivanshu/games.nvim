@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "text"
+      ],
+      "description": "Action is typed input; for ActionSet, Text is \"RC D\", e.g. \"53 7\" for row 5, column 3, digit 7."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "set"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "CellSetEvent": {
+      "properties": {
+        "kind": {
+          "const": "cell_set"
+        },
+        "by": {
+          "type": "string"
+        },
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "digit": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "row",
+        "col",
+        "digit"
+      ],
+      "description": "CellSetEvent reports a cell written, or cleared when Digit is Empty; Row and Col are 1-based."
+    },
+    "Grid": {
+      "items": {
+        "type": "integer"
+      },
+      "type": "array",
+      "maxItems": 81,
+      "minItems": 81,
+      "description": "Grid holds every cell in row-major order."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "solved"
+      ],
+      "description": "The result reasons Sudoku adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "given": {
+          "items": {
+            "type": "boolean"
+          },
+          "type": "array",
+          "maxItems": 81,
+          "minItems": 81
+        },
+        "conflicts": {
+          "items": {
+            "type": "boolean"
+          },
+          "type": "array",
+          "maxItems": 81,
+          "minItems": 81
+        },
+        "solution": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "grid",
+        "given",
+        "conflicts",
+        "solution"
+      ],
+      "description": "View is the grid in row-major order, with Empty for an unfilled cell. Conflicts marks\nevery filled cell whose digit repeats in its row, column or box. Solution stays empty\nuntil the game finishes."
+    }
+  },
+  "title": "Sudoku",
+  "description": "The game-specific bodies inside a sudoku game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "cell_set": {
+      "$ref": "#/$defs/CellSetEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

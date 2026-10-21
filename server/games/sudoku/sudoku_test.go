@@ -250,3 +250,61 @@ func TestEveryDifficultyReachesTheGeneratorThroughTheAdapter(t *testing.T) {
 		})
 	}
 }
+
+func TestConflictsMarkEveryCellWhoseDigitRepeatsInAUnit(t *testing.T) {
+	tests := []struct {
+		name  string
+		cells map[int]Digit
+		want  []int
+	}{
+		{"row", map[int]Digit{cellIndex(1, 1): 5, cellIndex(1, 9): 5}, []int{cellIndex(1, 1), cellIndex(1, 9)}},
+		{"column", map[int]Digit{cellIndex(2, 4): 3, cellIndex(8, 4): 3}, []int{cellIndex(2, 4), cellIndex(8, 4)}},
+		{"box", map[int]Digit{cellIndex(4, 4): 7, cellIndex(6, 6): 7}, []int{cellIndex(4, 4), cellIndex(6, 6)}},
+		{"three in a row, one also in a column", map[int]Digit{cellIndex(1, 1): 2, cellIndex(1, 5): 2, cellIndex(9, 5): 2}, []int{cellIndex(1, 1), cellIndex(1, 5), cellIndex(9, 5)}},
+		{"same digit sharing no unit", map[int]Digit{cellIndex(1, 1): 5, cellIndex(2, 4): 5}, nil},
+		{"different digits in a row", map[int]Digit{cellIndex(1, 1): 5, cellIndex(1, 2): 6}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var g Grid
+			for cell, d := range tt.cells {
+				g[cell] = d
+			}
+			var want [CellCount]bool
+			for _, cell := range tt.want {
+				want[cell] = true
+			}
+			if diff := cmp.Diff(want, conflicts(g)); diff != "" {
+				t.Errorf("conflicts (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestViewMarksAnEntryThatRepeatsAGiven(t *testing.T) {
+	next, _ := mustApply(t, wikipedia(t), set("13 5"))
+	view := next.View(SeatSolver)
+	var want [CellCount]bool
+	want[cellIndex(1, 1)], want[cellIndex(1, 3)] = true, true
+	if diff := cmp.Diff(want, view.Conflicts); diff != "" {
+		t.Errorf("conflicts (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff([CellCount]bool{}, wikipedia(t).View(SeatSolver).Conflicts); diff != "" {
+		t.Errorf("the puzzle alone has conflicts (-want +got):\n%s", diff)
+	}
+}
+
+func TestConcludeEndsAnUnfinishedGameAndKeepsAReachedResult(t *testing.T) {
+	aborted := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
+	st := wikipedia(t).Conclude(aborted)
+	if result, finished := st.Outcome(); !finished || !cmp.Equal(aborted, result) || len(st.ToAct()) != 0 {
+		t.Errorf("finished=%t result=%+v to_act=%v; want the imposed abort with nobody to act", finished, result, st.ToAct())
+	}
+	if got := st.View(SeatSolver).Solution; len(got) != CellCount {
+		t.Errorf("solution after an imposed end = %v, want all %d cells", got, CellCount)
+	}
+	solved, _ := mustApply(t, lastCellOpen(t), set("91 3"))
+	if result, _ := solved.Conclude(aborted).Outcome(); result.Reason != ReasonSolved {
+		t.Errorf("Conclude replaced a reached result with %+v", result)
+	}
+}

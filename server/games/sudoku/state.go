@@ -46,7 +46,7 @@ func (s state) applySet(set cellSet) (game.State[Action, View], []game.Event, er
 }
 
 func (s state) View(game.Seat) View {
-	view := View{Grid: s.grid, Solution: []Digit{}}
+	view := View{Grid: s.grid, Conflicts: conflicts(s.grid), Solution: []Digit{}}
 	for cell, d := range s.puzzle {
 		view.Given[cell] = d != Empty
 	}
@@ -66,9 +66,14 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason)), nil
+}
+
+// Conclude keeps a result already reached; otherwise result ends the game and the view reveals the solution.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
 	if s.finished {
-		return s, nil
+		return s
 	}
-	s.result, s.finished = game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason), true
-	return s, nil
+	s.result, s.finished = result, true
+	return s
 }
