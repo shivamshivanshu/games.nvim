@@ -172,6 +172,45 @@ function T.keys_act_on_the_item_under_the_cursor()
   end)
 end
 
+function T.r_on_a_solo_game_gives_it_up()
+  with_dashboard(function(_, conn)
+    local alone = helpers.chess_update({
+      game_id = "5010a1e0",
+      game = "sudoku",
+      players = { { user = "alice", seat = "solo" } },
+      controls = { "resign" },
+      view = {},
+      started_at = hub.NOW_MS,
+    })
+    conn:push("game.update", alone)
+    vim.wait(20)
+    local line = vim.iter(ipairs(shown_lines())):find(function(_, shown)
+      return shown:find("#5010", 1, true) ~= nil
+    end)
+    assert(line, vim.inspect(shown_lines()))
+    assert(shown_lines()[line]:find("sudoku solo", 1, true), shown_lines()[line])
+    cursor_to(line)
+    local asked
+    helpers.with_overrides({
+      {
+        vim.fn,
+        "confirm",
+        function(message)
+          asked = message
+          return 1
+        end,
+      },
+    }, function()
+      press("r")
+    end)
+    assert_eq("Give up this game?", asked)
+    assert_eq(
+      { game_id = alone.game_id, seq = 0, control = "resign" },
+      hub.sent(conn, "game.control")
+    )
+  end)
+end
+
 function T.enter_opens_the_board_in_the_window_under_the_float_and_closes_the_dashboard()
   with_dashboard(function()
     local tiled = vim.fn.win_getid(vim.fn.winnr("#"))

@@ -346,6 +346,35 @@ function T.solo_refuses_a_game_for_more_players()
   end)
 end
 
+function T.solo_reports_an_unknown_game_or_a_catalogue_without_solo_games()
+  local multiplayer_only = {
+    games = vim.tbl_filter(function(info)
+      return info.players.max > 1
+    end, CATALOG.games),
+  }
+  local cases = {
+    { args = { "solo", "nope" }, catalog = SOLO_CATALOG, notified = 'games: no game "nope"' },
+    { args = { "solo" }, catalog = multiplayer_only, notified = "games: no solo games available" },
+  }
+  for _, case in ipairs(cases) do
+    with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
+      conn:push("connected", LOGIN)
+      with_select_answers({}, function(selects)
+        commands.run(case.args)
+        respond(conn, MessageType.CATALOG_LIST, case.catalog)
+        assert_eq({}, selects)
+      end)
+      assert_eq({ case.notified }, prompts.notified)
+      assert_eq(
+        false,
+        vim.iter(conn.requests):any(function(request)
+          return request.type == MessageType.GAME_START
+        end)
+      )
+    end)
+  end
+end
+
 function T.solo_completes_the_catalogues_solo_games()
   with_stub_client({ username = "alice", password = "pw" }, function(conn)
     conn:push("connected", LOGIN)
