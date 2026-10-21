@@ -18,15 +18,18 @@ import (
 
 const maxGameSteps = 2000
 
-func users(n int) []game.UserID { return []game.UserID{"alice", "bob", "carol", "dave"}[:n] }
+var maxPlayers = Rules{}.Info().Players.Max
 
-func roll() Action           { return Action{Kind: ActionRoll} }
-func hold(die int) Action    { return Action{Kind: ActionHold, Die: strconv.Itoa(die)} }
-func scoreIn(box Box) Action { return Action{Kind: ActionScore, Box: string(box)} }
-func seat(n int) game.Seat   { return game.NumberedSeat(n - 1) }
-func newGame(t *testing.T, n int) state {
+func roll() Action                      { return Action{Kind: ActionRoll} }
+func hold(die int) Action               { return Action{Kind: ActionHold, Die: strconv.Itoa(die)} }
+func scoreIn(box Box) Action            { return Action{Kind: ActionScore, Box: string(box)} }
+func seat(n int) game.Seat              { return game.NumberedSeat(n - 1) }
+func newGame(t *testing.T, n int) state { return newGameFrom(t, n, 1) }
+
+func newGameFrom(t *testing.T, n int, seed game.Seed) state {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{}, users(n)[0], users(n)[1:], game.StepRNG(1, 0))
+	users := gametest.Users(n)
+	st, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,11 +38,7 @@ func newGame(t *testing.T, n int) state {
 
 func apply(t *testing.T, s state, by game.Seat, action Action, seq game.Seq) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(by, action, game.StepRNG(1, seq))
-	if err != nil {
-		t.Fatalf("%s %+v: %v", by, action, err)
-	}
-	return next.(state), events
+	return gametest.MustApply(t, s, by, action, game.StepRNG(1, seq))
 }
 
 // rolledTo is s with its seat to act having rolled once and shown h.
@@ -75,42 +74,17 @@ func commonest(faces []dice.Face) dice.Face {
 	return dice.Face(slices.Index(counts[:], slices.Max(counts[:])))
 }
 
-// playToFinish plays choose for every seat with the rng each step gets in the
-// server, and returns the steps and every state from the first to the final one.
+// playToFinish plays choose for every seat of n from seed, and returns the
+// steps and every state from the first to the final one.
 func playToFinish(t *testing.T, n int, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{}, users(n)[0], users(n)[1:], game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	states := []state{st.(state)}
-	var steps []gametest.Step[Action]
-	for seq := game.Seq(1); len(st.ToAct()) > 0; seq++ {
-		if seq > maxGameSteps {
-			t.Fatalf("%d players: no finish within %d steps", n, maxGameSteps)
-		}
-		by := st.ToAct()[0]
-		action := choose(st.View(by))
-		if st, _, err = st.Apply(by, action, game.StepRNG(seed, seq)); err != nil {
-			t.Fatalf("seq %d %s %+v: %v", seq, by, action, err)
-		}
-		steps = append(steps, gametest.Step[Action]{Seat: by, Action: action})
-		states = append(states, st.(state))
+	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, gametest.Users(n), seed, func(v View, _ game.Seat) Action { return choose(v) }, maxGameSteps)
+	states := []state{newGameFrom(t, n, seed)}
+	for i, step := range steps {
+		next, _ := gametest.MustApply(t, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
+		states = append(states, next)
 	}
 	return steps, states
-}
-
-func TestNewSeatsOneToFourPlayers(t *testing.T) {
-	for n := 1; n <= maxPlayers+1; n++ {
-		all := []game.UserID{"alice", "bob", "carol", "dave", "erin"}[:n]
-		_, seats, err := Rules{}.New(Opts{}, all[0], all[1:], nil)
-		if (n <= maxPlayers) != (err == nil) {
-			t.Errorf("%d players: err %v", n, err)
-		}
-		if err == nil && seats["alice"] != "p1" {
-			t.Errorf("%d players: the challenger sits at %s, want p1", n, seats["alice"])
-		}
-	}
 }
 
 func TestApplyRejects(t *testing.T) {
@@ -131,7 +105,6 @@ func TestApplyRejects(t *testing.T) {
 		action Action
 		want   string
 	}{
-		{"out of turn", fresh, seat(2), roll(), ""},
 		{"unknown kind", fresh, seat(1), Action{Kind: "pass"}, "unknown action: pass"},
 		{"hold before rolling", fresh, seat(1), hold(1), "roll first"},
 		{"score before rolling", fresh, seat(1), scoreIn(BoxChance), "roll first"},
@@ -149,11 +122,7 @@ func TestApplyRejects(t *testing.T) {
 	}
 	for _, tc := range cases {
 		_, _, err := tc.state.Apply(tc.by, tc.action, game.StepRNG(1, 1))
-		var illegal game.IllegalActionError
-		switch {
-		case tc.want == "" && !errors.Is(err, game.ErrNotYourTurn):
-			t.Errorf("%s: err %v, want not your turn", tc.name, err)
-		case tc.want != "" && (!errors.As(err, &illegal) || illegal.Msg != tc.want):
+		if illegal, ok := errors.AsType[game.IllegalActionError](err); !ok || illegal.Msg != tc.want {
 			t.Errorf("%s: err %v, want %q", tc.name, err, tc.want)
 		}
 	}
@@ -378,9 +347,6 @@ func TestConcludeOffersNothing(t *testing.T) {
 	if v := done.View(seat(1)); v.CanRoll || v.CanHold || len(v.Options) != 0 {
 		t.Errorf("concluded view offers %+v", v)
 	}
-	if again := done.(state).Conclude(game.Result{Kind: game.ResultDraw}); !cmp.Equal(again, done, cmp.AllowUnexported(state{}, card{})) {
-		t.Errorf("a second conclusion replaced the first")
-	}
 }
 
 func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
@@ -422,8 +388,8 @@ func TestConformance(t *testing.T) {
 			result, _ := states[len(states)-1].Outcome()
 			scripts = append(scripts, gametest.Script[Opts, Action]{
 				Name:       fmt.Sprintf("%d players seed %d", n, seed),
-				Challenger: users(n)[0],
-				Invitees:   users(n)[1:],
+				Challenger: gametest.Users(n)[0],
+				Invitees:   gametest.Users(n)[1:],
 				Seed:       seed,
 				Steps:      append(illegal, steps...),
 				WantResult: &result,
@@ -431,96 +397,9 @@ func TestConformance(t *testing.T) {
 		}
 		steps, _ := playToFinish(t, n, 5)
 		scripts = append(scripts, gametest.Script[Opts, Action]{
-			Name: fmt.Sprintf("%d players unfinished", n), Challenger: users(n)[0], Invitees: users(n)[1:], Seed: 5,
+			Name: fmt.Sprintf("%d players unfinished", n), Challenger: gametest.Users(n)[0], Invitees: gametest.Users(n)[1:], Seed: 5,
 			Steps: steps[:len(steps)/2],
 		})
 	}
 	gametest.Run(t, Rules{}, scripts)
-}
-
-type persistedStep struct {
-	seat   game.Seat
-	action json.RawMessage
-}
-
-func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
-	const (
-		seed      game.Seed = 11
-		restoreAt game.Seq  = 60
-		players             = 3
-	)
-	g := game.Adapt(Rules{})
-	opts, err := g.ResolveOptions(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	start := func() game.ErasedState {
-		st, _, err := g.New(opts, users(players)[0], users(players)[1:], game.StepRNG(seed, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return st
-	}
-	apply := func(st game.ErasedState, step persistedStep, seq game.Seq) (game.ErasedState, []json.RawMessage) {
-		next, events, err := st.Apply(step.seat, step.action, game.StepRNG(seed, seq))
-		if err != nil {
-			t.Fatalf("seq %d: %v", seq, err)
-		}
-		return next, events
-	}
-	next := func(st game.ErasedState) persistedStep {
-		by := st.ToAct()[0]
-		raw, err := st.View(by)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var view View
-		if err := json.Unmarshal(raw, &view); err != nil {
-			t.Fatal(err)
-		}
-		action, err := json.Marshal(choose(view))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return persistedStep{seat: by, action: action}
-	}
-
-	live := start()
-	var persisted []persistedStep
-	for seq := game.Seq(1); seq <= restoreAt; seq++ {
-		step := next(live)
-		live, _ = apply(live, step, seq)
-		persisted = append(persisted, step)
-	}
-	if _, finished := live.Outcome(); finished {
-		t.Fatalf("game finished before the restore point %d", restoreAt)
-	}
-	restored := start()
-	for i, step := range persisted {
-		restored, _ = apply(restored, step, game.Seq(i)+1)
-	}
-	for seq := restoreAt + 1; seq <= maxGameSteps; seq++ {
-		for i := range players {
-			liveView, _ := live.View(seat(i + 1))
-			restoredView, _ := restored.View(seat(i + 1))
-			if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
-				t.Fatalf("seq %d: %s's restored view differs (-live +restored):\n%s", seq, seat(i+1), diff)
-			}
-		}
-		if len(live.ToAct()) == 0 {
-			break
-		}
-		step := next(live)
-		var liveEvents, restoredEvents []json.RawMessage
-		live, liveEvents = apply(live, step, seq)
-		restored, restoredEvents = apply(restored, step, seq)
-		if diff := cmp.Diff(liveEvents, restoredEvents); diff != "" {
-			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
-		}
-	}
-	liveResult, _ := live.Outcome()
-	restoredResult, finished := restored.Outcome()
-	if diff := cmp.Diff(liveResult, restoredResult); !finished || diff != "" {
-		t.Errorf("restored finished=%t, result (-live +restored):\n%s", finished, diff)
-	}
 }

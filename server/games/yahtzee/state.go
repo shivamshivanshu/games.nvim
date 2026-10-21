@@ -1,7 +1,6 @@
 package yahtzee
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 
@@ -17,8 +16,7 @@ type state struct {
 	dice      hand
 	held      [DiceCount]bool
 	rollsLeft int
-	result    game.Result
-	finished  bool
+	game.Ending
 }
 
 func newState(order []game.Seat) state {
@@ -28,9 +26,6 @@ func newState(order []game.Seat) state {
 func (s state) rolled() bool { return s.rollsLeft < RollsPerTurn }
 
 func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	switch action.Kind {
 	case ActionRoll:
 		return s.applyRoll(rng)
@@ -39,7 +34,7 @@ func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[
 	case ActionScore:
 		return s.applyScore(action.Box)
 	}
-	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	return nil, nil, game.UnknownAction(action.Kind)
 }
 
 func (s state) allHeld() bool { return !slices.Contains(s.held[:], false) }
@@ -47,9 +42,9 @@ func (s state) allHeld() bool { return !slices.Contains(s.held[:], false) }
 func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	switch {
 	case s.rollsLeft == 0:
-		return nil, nil, game.IllegalActionError{Msg: "no rolls left: score a box"}
+		return nil, nil, game.Illegalf("no rolls left: score a box")
 	case s.allHeld():
-		return nil, nil, game.IllegalActionError{Msg: "every die is held: release one or score a box"}
+		return nil, nil, game.Illegalf("every die is held: release one or score a box")
 	}
 	next := s
 	var free []int
@@ -66,11 +61,11 @@ func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event
 }
 
 func parseDie(text string) (int, error) {
-	i := slices.Index(dieNumbers(), text)
-	if i < 0 {
-		return 0, game.IllegalActionError{Msg: fmt.Sprintf("die must be 1 to %d, got %q", DiceCount, text)}
+	n, ok := game.ParseNumbered(text, DiceCount)
+	if !ok {
+		return 0, game.Illegalf("die must be 1 to %d, got %q", DiceCount, text)
 	}
-	return i, nil
+	return n - 1, nil
 }
 
 func (s state) applyHold(text string) (game.State[Action, View], []game.Event, error) {
@@ -80,9 +75,9 @@ func (s state) applyHold(text string) (game.State[Action, View], []game.Event, e
 	}
 	switch {
 	case !s.rolled():
-		return nil, nil, game.IllegalActionError{Msg: "roll first"}
+		return nil, nil, game.Illegalf("roll first")
 	case s.rollsLeft == 0:
-		return nil, nil, game.IllegalActionError{Msg: "no rolls left: score a box"}
+		return nil, nil, game.Illegalf("no rolls left: score a box")
 	}
 	next := s
 	next.held[i] = !s.held[i]
@@ -92,7 +87,7 @@ func (s state) applyHold(text string) (game.State[Action, View], []game.Event, e
 func parseBox(text string) (Box, error) {
 	box := Box(text)
 	if _, ok := boxIndex(box); !ok {
-		return "", game.IllegalActionError{Msg: fmt.Sprintf("no box %q", text)}
+		return "", game.Illegalf("no box %q", text)
 	}
 	return box, nil
 }
@@ -103,17 +98,17 @@ func (s state) applyScore(text string) (game.State[Action, View], []game.Event, 
 		return nil, nil, err
 	}
 	if !s.rolled() {
-		return nil, nil, game.IllegalActionError{Msg: "roll first"}
+		return nil, nil, game.Illegalf("roll first")
 	}
 	c := s.cards[s.turn]
 	if c.isFilled(box) {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("%s is already scored", box)}
+		return nil, nil, game.Illegalf("%s is already scored", box)
 	}
 	options := c.options(s.dice)
 	at := slices.IndexFunc(options, func(o Option) bool { return o.Box == box })
 	if at < 0 {
 		boxes := xslices.Map(options, func(o Option) Box { return o.Box })
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("the joker rule allows only %v", boxes)}
+		return nil, nil, game.Illegalf("the joker rule allows only %v", boxes)
 	}
 	bonus := c.bonusFor(s.dice)
 	next := s
@@ -127,12 +122,7 @@ func (s state) applyScore(text string) (game.State[Action, View], []game.Event, 
 // once every seat still playing has filled its card.
 func (s state) passTurn() state {
 	s.dice, s.held, s.rollsLeft = hand{}, [DiceCount]bool{}, RollsPerTurn
-	for range s.order {
-		s.turn = (s.turn + 1) % len(s.order)
-		if !s.cards[s.turn].out {
-			break
-		}
-	}
+	s.turn = game.NextSeat(len(s.order), s.turn, func(i int) bool { return !s.cards[i].out })
 	if s.cards[s.turn].full() {
 		return s.finish(s.finalResult())
 	}
@@ -162,13 +152,13 @@ func (s state) finalResult() game.Result {
 		}
 	}
 	if len(winners) > 1 && len(winners) == len(s.order) {
-		return game.Result{Kind: game.ResultDraw, Reason: ReasonScorecardsFull}
+		return game.DrawBy(ReasonScorecardsFull)
 	}
-	return game.Result{Kind: game.ResultDecisive, Winners: winners, Reason: ReasonScorecardsFull}
+	return game.WinFor(ReasonScorecardsFull, winners...)
 }
 
 func (s state) finish(result game.Result) state {
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }
 
@@ -213,27 +203,20 @@ func (s state) cardViews() []Card {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
 	return []game.Seat{s.order[s.turn]}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 // Conclude takes a result the core imposed, such as an abort.
-func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	return s.finish(result)
-}
+func (s state) Conclude(result game.Result) game.State[Action, View] { return s.finish(result) }
 
 // Eliminate takes the seat out with its card as it stands. A solo game is
 // lost; with others, the last seat still playing wins, and otherwise play goes on.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	i := slices.Index(s.order, seat)
-	if s.finished || i < 0 || s.cards[i].out {
+	if s.Over() || i < 0 || s.cards[i].out {
 		return s, nil
 	}
 	playing := xslices.Map(s.playing(), func(i int) game.Seat { return s.order[i] })
