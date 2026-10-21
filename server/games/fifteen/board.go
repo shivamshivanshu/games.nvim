@@ -1,7 +1,6 @@
 package fifteen
 
 import (
-	"math/rand/v2"
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
@@ -21,11 +20,11 @@ func solvedBoard(side int) board {
 	return board{side: side, tiles: tiles}
 }
 
-// shuffled draws a random arrangement from rng, swaps two tiles if it cannot be solved, and
-// draws again if that leaves it solved.
-func shuffled(side int, rng *rand.Rand) board {
+// shuffled draws an arrangement from perm, such as rand.Rand's Perm, swaps two tiles if it
+// cannot be solved, and draws again if that leaves it solved.
+func shuffled(side int, perm func(n int) []int) board {
 	for {
-		b := board{side: side, tiles: rng.Perm(side * side)}
+		b := board{side: side, tiles: perm(side * side)}
 		if !b.solvable() {
 			b = b.swappedTiles()
 		}

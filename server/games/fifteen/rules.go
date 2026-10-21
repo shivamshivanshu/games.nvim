@@ -57,7 +57,7 @@ func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng 
 	if !ok {
 		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown size %q", opts.Size)}
 	}
-	return state{board: shuffled(side, rng)}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
+	return state{board: shuffled(side, rng.Perm)}, map[game.UserID]game.Seat{challenger: SeatSolver}, nil
 }
 
 func (s Size) side() (int, bool) {

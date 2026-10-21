@@ -45,14 +45,14 @@ func TestShuffleIsSeededSolvableAndNeverSolved(t *testing.T) {
 		distinct := map[string]bool{}
 		const games = 200
 		for seed := range game.Seed(games) {
-			b := shuffled(side, game.StepRNG(seed, 0))
+			b := shuffled(side, game.StepRNG(seed, 0).Perm)
 			if sorted := slices.Sorted(slices.Values(b.tiles)); !slices.Equal(sorted, slices.Sorted(slices.Values(solvedBoard(side).tiles))) {
 				t.Fatalf("%s seed %d: tiles %v are not each tile once", size, seed, b.tiles)
 			}
 			if !b.solvable() || b.solved() {
 				t.Errorf("%s seed %d: %v solvable %t, solved %t", size, seed, b.tiles, b.solvable(), b.solved())
 			}
-			if again := shuffled(side, game.StepRNG(seed, 0)); !slices.Equal(again.tiles, b.tiles) {
+			if again := shuffled(side, game.StepRNG(seed, 0).Perm); !slices.Equal(again.tiles, b.tiles) {
 				t.Errorf("%s seed %d: shuffled twice to %v and %v", size, seed, b.tiles, again.tiles)
 			}
 			distinct[string(tileBytes(b.tiles))] = true
@@ -60,6 +60,29 @@ func TestShuffleIsSeededSolvableAndNeverSolved(t *testing.T) {
 		if len(distinct) < games-5 {
 			t.Errorf("%s: %d distinct shuffles from %d seeds", size, len(distinct), games)
 		}
+	}
+}
+
+func TestShuffleDrawsAgainWhenItWouldStartSolved(t *testing.T) {
+	scrambled := []int{4, 1, 3, 7, 2, 6, 0, 5, 8}
+	tests := []struct {
+		name  string
+		draws [][]int
+	}{
+		{"a solved draw", [][]int{{1, 2, 3, 4, 5, 6, 7, 8, Blank}, scrambled}},
+		{"an unsolvable draw its swap would solve", [][]int{{2, 1, 3, 4, 5, 6, 7, 8, Blank}, scrambled}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			drawn := 0
+			perm := func(int) []int {
+				drawn++
+				return slices.Clone(tt.draws[drawn-1])
+			}
+			if got := shuffled(3, perm); !slices.Equal(got.tiles, scrambled) || drawn != 2 {
+				t.Errorf("shuffled to %v after %d draws; want %v after 2", got.tiles, drawn, scrambled)
+			}
+		})
 	}
 }
 
