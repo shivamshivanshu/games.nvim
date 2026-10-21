@@ -1,6 +1,7 @@
 local repo_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
 vim.opt.runtimepath:prepend(repo_root)
 package.path = repo_root .. "/tests/lua/?.lua;" .. package.path
+require("games").config = require("games.config").resolve({})
 
 local spec_files = vim.fn.glob(repo_root .. "/tests/lua/*_spec.lua", false, true)
 table.sort(spec_files)

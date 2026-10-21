@@ -106,11 +106,10 @@ function M.setup(opts)
   })
 end
 
----Options for every board this plugin opens, taken from the user's config, or the defaults
----before setup().
+---Options for every board this plugin opens, taken from the user's config.
 ---@return games.OpenOptions
 function M.open_options()
-  local resolved = M.config or config.resolve({})
+  local resolved = assert(M.config, "games: setup() has not run")
   return {
     glyphs = resolved.glyphs,
     max_cell_height = resolved.board.max_cell_height,
