@@ -105,6 +105,12 @@ local GAME_CLASS = {
     SlidEvent = "games.FifteenSlidEvent",
     View = "games.FifteenView",
   },
+  g2048 = {
+    MovedEvent = "games.G2048MovedEvent",
+    ReachedEvent = "games.G2048ReachedEvent",
+    Tile = "games.G2048Tile",
+    View = "games.G2048View",
+  },
 }
 
 ---Enums the server sends that the client adds no value to.
