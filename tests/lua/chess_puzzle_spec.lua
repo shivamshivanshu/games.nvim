@@ -7,6 +7,7 @@ local assert_eq = helpers.assert_eq
 
 local CATALOGUED = { move = true, reveal = true }
 local LINE = "g8f6 h5f7"
+local SCHOLARS = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
 local AFTER_NF6 = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
 local FIRST_BOARD_ROW = 3
 local BOARD_LINES = 9
@@ -29,7 +30,7 @@ local function update(mode, player, overrides)
     game_id = "0000",
     game = "chess_puzzle",
     seq = 0,
-    options = { mode = mode, fen = "", moves = LINE, player = player },
+    options = { mode = mode, fen = SCHOLARS, moves = LINE, player = player },
     players = { { user = "alice", seat = "solver" } },
     to_act = { "alice" },
     controls = { "resign", "abort" },
@@ -64,29 +65,29 @@ function T.board_faces_the_solvers_side_beside_the_status_and_hides_the_line()
     {
       player = "white",
       board = {
-        "8 ♜ · ♝ ♛ ♚ ♝ · ♜   ♔ K king          1. Nf6   mode       puzzle",
-        "7 ♟ ♟ ♟ ♟ · ♟ ♟ ♟   ♕ Q queen                  you play   white ",
-        "6 · · ♞ · · ♞ · ·   ♖ R rook                   moves left 1     ",
-        "5 · · · · ♟ · · ♕   ♗ B bishop                                  ",
-        "4 · · ♗ · ♙ · · ·   ♘ N knight                                  ",
-        "3 · · · · · · · ·   ♙   pawn: e4                                ",
-        "2 ♙ ♙ ♙ ♙ · ♙ ♙ ♙       castle: O-O                             ",
-        "1 ♖ ♘ ♗ · ♔ · ♘ ♖                                               ",
-        "  a b c d e f g h                                               ",
+        "8 ♜ · ♝ ♛ ♚ ♝ · ♜   ♔ K king          3. ... Nf6   mode       puzzle",
+        "7 ♟ ♟ ♟ ♟ · ♟ ♟ ♟   ♕ Q queen                      you play   white ",
+        "6 · · ♞ · · ♞ · ·   ♖ R rook                       moves left 1     ",
+        "5 · · · · ♟ · · ♕   ♗ B bishop                     misses     0     ",
+        "4 · · ♗ · ♙ · · ·   ♘ N knight                                      ",
+        "3 · · · · · · · ·   ♙   pawn: e4                                    ",
+        "2 ♙ ♙ ♙ ♙ · ♙ ♙ ♙       castle: O-O                                 ",
+        "1 ♖ ♘ ♗ · ♔ · ♘ ♖                                                   ",
+        "  a b c d e f g h                                                   ",
       },
     },
     {
       player = "black",
       board = {
-        "1 ♖ ♘ · ♔ · ♗ ♘ ♖   ♔ K king          1. Nf6   mode       puzzle",
-        "2 ♙ ♙ ♙ · ♙ ♙ ♙ ♙   ♕ Q queen                  you play   black ",
-        "3 · · · · · · · ·   ♖ R rook                   moves left 1     ",
-        "4 · · · ♙ · ♗ · ·   ♗ B bishop                                  ",
-        "5 ♕ · · ♟ · · · ·   ♘ N knight                                  ",
-        "6 · · ♞ · · ♞ · ·   ♙   pawn: e4                                ",
-        "7 ♟ ♟ ♟ · ♟ ♟ ♟ ♟       castle: O-O                             ",
-        "8 ♜ · ♝ ♚ ♛ ♝ · ♜                                               ",
-        "  h g f e d c b a                                               ",
+        "1 ♖ ♘ · ♔ · ♗ ♘ ♖   ♔ K king          3. ... Nf6   mode       puzzle",
+        "2 ♙ ♙ ♙ · ♙ ♙ ♙ ♙   ♕ Q queen                      you play   black ",
+        "3 · · · · · · · ·   ♖ R rook                       moves left 1     ",
+        "4 · · · ♙ · ♗ · ·   ♗ B bishop                     misses     0     ",
+        "5 ♕ · · ♟ · · · ·   ♘ N knight                                      ",
+        "6 · · ♞ · · ♞ · ·   ♙   pawn: e4                                    ",
+        "7 ♟ ♟ ♟ · ♟ ♟ ♟ ♟       castle: O-O                                 ",
+        "8 ♜ · ♝ ♚ ♛ ♝ · ♜                                                   ",
+        "  h g f e d c b a                                                   ",
       },
     },
   }) do
@@ -107,27 +108,26 @@ function T.board_faces_the_solvers_side_beside_the_status_and_hides_the_line()
   end
 end
 
-function T.the_finished_board_shows_the_solution_and_study_misses()
-  local over = finished(
-    update("study", "white"),
-    { kind = "decisive", winners = { "alice" }, reason = "completed" }
-  )
-  over.view.misses = 2
+function T.a_failed_puzzle_shows_its_miss_and_the_solution_numbered_from_the_fen()
+  local over =
+    finished(update("puzzle", "white"), { kind = "decisive", winners = {}, reason = "wrong_move" })
+  over.view.misses = 1
   local rendered = shell.render(over, puzzle, view_options("ascii"), "alice", 0, nil, CATALOGUED)
   assert_eq(
     {
-      "mode       study",
-      "you play   white",
-      "moves left 1    ",
-      "misses     2    ",
-      "                ",
-      "solution        ",
-      "1. Nf6 Qxf7#    ",
+      "mode       puzzle",
+      "you play   white ",
+      "moves left 1     ",
+      "misses     1     ",
+      "                 ",
+      "solution         ",
+      "3. ...   Nf6     ",
+      "4. Qxf7#         ",
     },
     vim
-      .iter(vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + 7))
+      .iter(vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + 8))
       :map(function(line)
-        return line:sub(-16)
+        return line:sub(-17)
       end)
       :totable()
   )

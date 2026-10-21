@@ -76,6 +76,7 @@ local COUNTED_KINDS = {
 
 ---Display columns the move list reserves: "999. exd8=Q+ exd1=Q#".
 local MOVELIST_WIDTH = 20
+local PLIES_PER_MOVE = 2
 
 ---@class (private) games.ChessLegendEntry
 ---@field piece? games.ChessPiece whose glyph the entry shows, when it is not the SAN letter itself
@@ -241,13 +242,30 @@ function M.player_extra(update, seat, ctx)
   return { compose.text(table.concat(glyphs) .. score, MATERIAL_HL) }
 end
 
----The board of view, with the SAN legend and the move list beside it, then extra_panels.
+---How many plies a game starting from fen has behind it, read from its side to move and
+---fullmove number, so its move list numbers on from there; 0 for "", the standard start.
+---@param fen string
+---@return integer
+function M.first_ply(fen)
+  local side, fullmove = fen:match("^%S+%s+([wb])%s+%S+%s+%S+%s+%d+%s+(%d+)")
+  if not side then
+    return 0
+  end
+  return (tonumber(fullmove) - 1) * PLIES_PER_MOVE + (side == "b" and 1 or 0)
+end
+
+---@class games.ChessBoardOpts
+---@field first_ply? integer plies played before history_san's first, as M.first_ply reads them; 0 by default
+---@field panels? games.BoardPanel[] drawn after the move list
+
+---The board of view, with the SAN legend and the move list beside it, then opts.panels.
 ---@param view games.ChessBoardView
 ---@param ctx games.LayoutCtx
 ---@param flip boolean whether black is at the bottom
----@param extra_panels? games.BoardPanel[]
+---@param opts? games.ChessBoardOpts
 ---@return games.Node
-function M.board(view, ctx, flip, extra_panels)
+function M.board(view, ctx, flip, opts)
+  opts = opts or {}
   local pieces = parse_placement(view.fen)
   local set = assert(ctx.art, "chess draws from an asset pack")
   return board({
@@ -278,14 +296,15 @@ function M.board(view, ctx, flip, extra_panels)
         node = function(max_height)
           return movelist({
             items = view.history_san,
-            columns = 2,
+            columns = PLIES_PER_MOVE,
             numbered = true,
+            offset = opts.first_ply,
             annotation = CHECK_ANNOTATION,
             max_lines = max_height,
           })
         end,
       },
-    }, extra_panels or {}),
+    }, opts.panels or {}),
   }, ctx)
 end
 

@@ -295,4 +295,18 @@ return {
       )
     end
   end,
+
+  movelist_offset_numbers_from_the_first_place_and_marks_the_skipped_ones = function()
+    local list = function(offset)
+      return compose.render(movelist({
+        items = { "Bxg3", "Rxe7", "Qd1+" },
+        columns = 2,
+        numbered = true,
+        offset = offset,
+      })).lines
+    end
+    assert_eq({ "12. ...  Bxg3", "13. Rxe7 Qd1+" }, list(23))
+    assert_eq({ " 9. Bxg3 Rxe7", "10. Qd1+" }, list(16))
+    assert_eq({ "1. Bxg3 Rxe7", "2. Qd1+" }, list(nil))
+  end,
 }

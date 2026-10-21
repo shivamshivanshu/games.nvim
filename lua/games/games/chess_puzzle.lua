@@ -45,6 +45,7 @@ local TEXT_FIELD = "text"
 local REVEAL_KIND = "reveal"
 ---Lines the status panel keeps above the solution: its heading and the blank line before it.
 local SOLUTION_HEADING_LINES = 2
+local STATUS_WIDTH = 20
 
 ---@param update games.ChessPuzzleUpdate
 ---@return string
@@ -60,25 +61,22 @@ end
 
 ---@param update games.ChessPuzzleUpdate
 ---@return games.KvPair[]
-local function status_pairs(update)
+local function status_rows(update)
   local view = update.view
-  local pairs = {
+  return {
     { "mode", view.mode },
     { "you play", solver_side(update) },
     { "moves left", tostring(view.remaining) },
+    { "misses", tostring(view.misses) },
   }
-  if view.mode == STUDY then
-    pairs[#pairs + 1] = { "misses", tostring(view.misses) }
-  end
-  return pairs
 end
 
 ---@param update games.ChessPuzzleUpdate
 ---@param max_height integer
 ---@return games.Node
 local function status_panel(update, max_height)
-  local pairs = status_pairs(update)
-  local status = kv({ pairs = pairs, key_hl = "GamesKey", value_hl = "GamesLabel" })
+  local rows = status_rows(update)
+  local status = kv({ pairs = rows, key_hl = "GamesKey", value_hl = "GamesLabel" })
   local solution = update.view.solution
   if #solution == 0 then
     return status
@@ -91,7 +89,8 @@ local function status_panel(update, max_height)
       items = solution,
       columns = 2,
       numbered = true,
-      max_lines = math.max(1, max_height - #pairs - SOLUTION_HEADING_LINES),
+      offset = chess.first_ply(update.options.fen),
+      max_lines = math.max(1, max_height - #rows - SOLUTION_HEADING_LINES),
     }),
   })
 end
@@ -106,11 +105,14 @@ M.asset_keys = chess.asset_keys
 function M.layout(update, ctx)
   local flip = (solver_side(update) == BLACK) ~= ctx.flipped
   return chess.board(update.view, ctx, flip, {
-    {
-      width = chess.MOVELIST_WIDTH,
-      node = function(max_height)
-        return status_panel(update, max_height)
-      end,
+    first_ply = chess.first_ply(update.options.fen),
+    panels = {
+      {
+        width = STATUS_WIDTH,
+        node = function(max_height)
+          return status_panel(update, max_height)
+        end,
+      },
     },
   })
 end

@@ -4,7 +4,7 @@ Solo chess along a line you import: find the moves of a puzzle, or guess the mov
 
 ## Rules as implemented
 - One seat, `solver`. The game is a start position (`fen`) and a line (`moves`, both sides), and you play one side (`player`).
-- **The one rule:** the server plays every move of the line that is not yours, at the start and after each move of yours that it accepts. A Lichess row needs no special case: its first move is the opponent's, played before you are asked.
+- **The one rule:** the server plays every move of the line that is not yours, at the start and after each move of yours that it accepts. A Lichess row needs no special case: its first move is the opponent's, played before you are asked. Each of these moves is a `replied` event, those at the start in the game's first update (seq 0).
 - Your move is checked against the line's move at that point. A move that is not legal is refused (`illegal_action`) and costs nothing.
 - **Puzzle mode** (strict):
   - the line's move is accepted;
@@ -70,7 +70,7 @@ Buffer-local, normal mode, in the board buffer.
 | `]g` | next game waiting on your move |
 | `q` | close |
 
-The board is chess's: the same asset pack, legend and move list, facing your side. Beside it a status panel shows the mode, your side, your moves left in the line, and in study mode your misses. Once the game is over the panel lists the solution.
+The board is chess's: the same asset pack, legend and move list, facing your side. The move list numbers on from the FEN's move number, so a line from a black-to-move FEN reads `12. ... Bxg3`, `13. Rxe7 …`. Beside it a status panel shows the mode, your side, your moves left in the line and your misses. Once the game is over the panel lists the solution, numbered the same way.
 
 ## Errors
 | Case | Message |
@@ -85,7 +85,6 @@ The board is chess's: the same asset pack, legend and move list, facing your sid
 Solved or completed +1; wrong move or gave up -1; abort 0. Solo games count in their own records but not in the all-games leaderboard. There are no puzzle ratings or statistics.
 
 ## Known limits
-- The move list numbers pairs from 1 whatever the FEN's move number, and a line that starts with black's move pairs it with white's next.
 - A study takes one side for every game of a PGN file; split the file to study different sides.
 - The finder's `puzzles` source does not list the sets yet; use `:Games puzzle`.
 - Two Neovims playing the same set can both start its next entry.
