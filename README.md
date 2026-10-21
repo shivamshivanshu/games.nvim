@@ -22,6 +22,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Mastermind | 1 (solo) | [docs/games/mastermind.md](docs/games/mastermind.md) |
 | Hangman | 1 (solo) | [docs/games/hangman.md](docs/games/hangman.md) |
 | Minesweeper | 1 (solo) | [docs/games/minesweeper.md](docs/games/minesweeper.md) |
+| 15-puzzle | 1 (solo) | [docs/games/fifteen.md](docs/games/fifteen.md) |
 
 ## Requirements
 
@@ -288,6 +289,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `m` (mastermind) | guess a code of 4 colour letters from `rgbyop`, e.g. `rgby` |
 | `m` (hangman) | guess one letter, or the whole word |
 | `m`, `f`, `c` (minesweeper) | reveal, flag or unflag, and chord a cell: `c12` is row c, column 12; `c` only when a number can be chorded |
+| `m`, `h` `j` `k` `l` (fifteen) | slide a tile by number, e.g. `7`, or the tile that moves left, down, up or right |
 | `]g` | next game waiting on your move |
 | `q` | close |
 

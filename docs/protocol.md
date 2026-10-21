@@ -357,6 +357,18 @@ An action object always carries `kind`.
 - Actions `reveal`, `flag` and `chord`, each with `cell`: a row letter `a`-`p`, either case, then a column number `1`-`30`, e.g. `"c12"`. The catalogue gives the pattern; a cell off the chosen board is an `illegal_action`.
 - The mines are placed by the first `reveal`, from that step's seeded random source, never on the revealed cell or its neighbours.
 
+### 15-puzzle
+
+- Solo: one seat, `solver`; type `fifteen`, start it with `game.start`. Option `size`: `3x3` or `4x4` (default).
+- Reasons: `solved`.
+- Events: `slid {by: seat, tile, direction}`, `direction` the way the tile moved.
+- View `{tiles, moves, movable}`:
+  - `tiles` is rows of integers, row 1 at the top, `0` for the blank;
+  - `moves` counts the slides so far, the score;
+  - `movable` lists `{tile, direction}` for each tile next to the blank and the way it would move; `[]` once over.
+- Actions: `slide` (`tile`: the number as text, `"1"` to `"15"`; one the board lacks is an `illegal_action`) and `move` (`direction`: `up`, `down`, `left` or `right`, the way the tile moves, so `up` moves the tile below the blank).
+- The shuffle is drawn at `game.start` from the seed, always solvable and never already solved.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
