@@ -2,6 +2,7 @@ package games
 
 import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/games/battleship"
 	"github.com/shivamshivanshu/games.nvim/server/games/checkers"
 	"github.com/shivamshivanshu/games.nvim/server/games/chess"
 	"github.com/shivamshivanshu/games.nvim/server/games/chesspuzzle"
@@ -48,5 +49,6 @@ func All() []game.Game {
 		game.Adapt(liarsdice.Rules{}),
 		game.Adapt(uno.Rules{}),
 		game.Adapt(hearts.Rules{}),
+		game.Adapt(battleship.Rules{}),
 	}
 }

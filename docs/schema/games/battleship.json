@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "cell": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action names its cell as text, such as \"c5\": empty for random."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "place_across",
+        "place_down",
+        "random",
+        "fire"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Anchors": {
+      "properties": {
+        "across": {
+          "items": {
+            "$ref": "#/$defs/Square"
+          },
+          "type": "array"
+        },
+        "down": {
+          "items": {
+            "$ref": "#/$defs/Square"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "across",
+        "down"
+      ],
+      "description": "Anchors are the squares the viewer's next ship may start on, its left end\nlying across or its top end lying down. Both are empty unless the viewer is placing."
+    },
+    "ReadyEvent": {
+      "properties": {
+        "kind": {
+          "const": "ready"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "ReadyEvent reports that By has placed its whole fleet."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "fleet_sunk"
+      ],
+      "description": "The result reasons Battleship adds to the core's."
+    },
+    "ShipSpec": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "size"
+      ],
+      "description": "ShipSpec is a ship of the fleet before it is placed."
+    },
+    "ShipStatus": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "size",
+        "state"
+      ],
+      "description": "ShipStatus is one ship of a fleet as the viewer may know it."
+    },
+    "ShotEvent": {
+      "properties": {
+        "by": {
+          "type": "string"
+        },
+        "cell": {
+          "$ref": "#/$defs/Square"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "ship": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "by",
+        "cell",
+        "outcome"
+      ],
+      "description": "ShotEvent reports By's shot at Cell of the opponent's waters; Ship names the\nship it sank, and is empty otherwise."
+    },
+    "ShotEvent_shot": {
+      "properties": {
+        "kind": {
+          "const": "shot"
+        },
+        "by": {
+          "type": "string"
+        },
+        "cell": {
+          "$ref": "#/$defs/Square"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "ship": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "cell",
+        "outcome"
+      ],
+      "description": "ShotEvent reports By's shot at Cell of the opponent's waters; Ship names the\nship it sank, and is empty otherwise."
+    },
+    "Square": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col"
+      ],
+      "description": "Square is a board position on the wire, 1-based: row 1 is the top, column 1 the left."
+    },
+    "View": {
+      "properties": {
+        "phase": {
+          "type": "string"
+        },
+        "own": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "target": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "fleet": {
+          "items": {
+            "$ref": "#/$defs/ShipStatus"
+          },
+          "type": "array"
+        },
+        "enemy": {
+          "items": {
+            "$ref": "#/$defs/ShipStatus"
+          },
+          "type": "array"
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ShipSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "anchors": {
+          "$ref": "#/$defs/Anchors"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/Square"
+          },
+          "type": "array"
+        },
+        "last": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ShotEvent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "phase",
+        "own",
+        "target",
+        "fleet",
+        "enemy",
+        "next",
+        "anchors",
+        "targets",
+        "last"
+      ],
+      "description": "View holds both boards as rows from the top: Own is the viewer's waters,\nTarget the opponent's as the viewer's shots found them. Next and Anchors are\nthe viewer's own placement; Targets the squares it may fire at, none unless\nit is to fire. Last is the latest shot of either seat."
+    }
+  },
+  "title": "Battleship",
+  "description": "The game-specific bodies inside a battleship game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "ready": {
+      "$ref": "#/$defs/ReadyEvent"
+    },
+    "shot": {
+      "$ref": "#/$defs/ShotEvent_shot"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

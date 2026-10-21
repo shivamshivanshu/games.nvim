@@ -1,0 +1,215 @@
+package battleship
+
+import (
+	"fmt"
+	"math/rand/v2"
+	"slices"
+
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
+)
+
+// state holds both seats' waters; order[0] fires first once both fleets are placed.
+type state struct {
+	order    []game.Seat
+	waters   map[game.Seat]waters
+	toFire   game.Seat
+	last     *ShotEvent
+	result   game.Result
+	finished bool
+}
+
+func newState(order []game.Seat) state {
+	all := make(map[game.Seat]waters, len(order))
+	for _, seat := range order {
+		all[seat] = newWaters()
+	}
+	return state{order: order, waters: all, toFire: order[0]}
+}
+
+func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
+	if !slices.Contains(s.ToAct(), seat) {
+		return nil, nil, game.ErrNotYourTurn
+	}
+	var (
+		next   state
+		events []game.Event
+		err    error
+	)
+	switch action.Kind {
+	case ActionPlaceAcross:
+		next, events, err = s.placeTyped(seat, action.Cell, Across)
+	case ActionPlaceDown:
+		next, events, err = s.placeTyped(seat, action.Cell, Down)
+	case ActionRandom:
+		next, events, err = s.placeRandom(seat, rng)
+	case ActionFire:
+		next, events, err = s.fire(seat, action.Cell)
+	default:
+		return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return next, events, nil
+}
+
+func parseSquare(text string) (grid.Point, error) {
+	c := coords()
+	p, ok := c.Parse(text)
+	if !ok {
+		return grid.Point{}, game.IllegalActionError{Msg: fmt.Sprintf("cell must be %s, a letter then a number, got %q", c.Range(), text)}
+	}
+	return p, nil
+}
+
+func (s state) placeTyped(seat game.Seat, cell string, o Orientation) (state, []game.Event, error) {
+	if s.phase() != PhaseSetup {
+		return state{}, nil, game.IllegalActionError{Msg: "the fleets are placed; fire at a cell"}
+	}
+	anchor, err := parseSquare(cell)
+	if err != nil {
+		return state{}, nil, err
+	}
+	own := s.waters[seat]
+	spec, _ := own.next()
+	if why := own.blocked(anchor, spec.Size, o); why != "" {
+		return state{}, nil, game.IllegalActionError{Msg: fmt.Sprintf("the %s %s from %s %s", spec.Name, o, coords().Name(anchor), why)}
+	}
+	next, events := s.withPlaced(seat, own.place(anchor, o))
+	return next, events, nil
+}
+
+// placeRandom places the rest of seat's fleet, each ship on one of its legal
+// anchors and orientations drawn from rng.
+func (s state) placeRandom(seat game.Seat, rng *rand.Rand) (state, []game.Event, error) {
+	if s.phase() != PhaseSetup {
+		return state{}, nil, game.IllegalActionError{Msg: "the fleets are placed; fire at a cell"}
+	}
+	own := s.waters[seat]
+	for spec, placing := own.next(); placing; spec, placing = own.next() {
+		type berth struct {
+			anchor grid.Point
+			o      Orientation
+		}
+		var berths []berth
+		for _, o := range orientations() {
+			for _, anchor := range own.anchors(spec.Size, o) {
+				berths = append(berths, berth{anchor: anchor, o: o})
+			}
+		}
+		if len(berths) == 0 {
+			return state{}, nil, game.IllegalActionError{Msg: fmt.Sprintf("no room left for the %s", spec.Name)}
+		}
+		chosen := berths[rng.IntN(len(berths))]
+		own = own.place(chosen.anchor, chosen.o)
+	}
+	next, events := s.withPlaced(seat, own)
+	return next, events, nil
+}
+
+// withPlaced is s with seat's waters replaced; a completed fleet reports
+// ready, and the second one starts the battle.
+func (s state) withPlaced(seat game.Seat, own waters) (state, []game.Event) {
+	s.waters = xslices.With(s.waters, seat, own)
+	if !own.complete() {
+		return s, []game.Event{}
+	}
+	return s, []game.Event{ReadyEvent{By: seat}}
+}
+
+func (s state) fire(seat game.Seat, cell string) (state, []game.Event, error) {
+	if s.phase() != PhaseBattle {
+		return state{}, nil, game.IllegalActionError{Msg: "fire once both fleets are placed"}
+	}
+	p, err := parseSquare(cell)
+	if err != nil {
+		return state{}, nil, err
+	}
+	opponent := s.opponent(seat)
+	target := s.waters[opponent]
+	if target.shot[index(p)] {
+		return state{}, nil, game.IllegalActionError{Msg: "you have already fired at " + coords().Name(p)}
+	}
+	hit, outcome, ship := target.fire(p)
+	shot := ShotEvent{By: seat, Cell: squareAt(p), Outcome: outcome, Ship: ship}
+	s.waters = xslices.With(s.waters, opponent, hit)
+	s.last = &shot
+	s.toFire = opponent
+	if hit.allSunk() {
+		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat}, Reason: ReasonFleetSunk}
+		s.finished = true
+	}
+	return s, []game.Event{shot}, nil
+}
+
+func (s state) opponent(seat game.Seat) game.Seat {
+	if seat == s.order[0] {
+		return s.order[1]
+	}
+	return s.order[0]
+}
+
+func (s state) phase() Phase {
+	switch {
+	case s.finished:
+		return PhaseOver
+	case slices.ContainsFunc(s.order, func(seat game.Seat) bool { return !s.waters[seat].complete() }):
+		return PhaseSetup
+	}
+	return PhaseBattle
+}
+
+func (s state) View(viewer game.Seat) View {
+	own, enemy := s.waters[viewer], s.waters[s.opponent(viewer)]
+	view := View{
+		Phase:   s.phase(),
+		Own:     own.tiles(true, false),
+		Target:  enemy.tiles(false, s.finished),
+		Fleet:   own.fleet(true),
+		Enemy:   enemy.fleet(false),
+		Anchors: Anchors{Across: []Square{}, Down: []Square{}},
+		Targets: []Square{},
+		Last:    s.last,
+	}
+	if !slices.Contains(s.ToAct(), viewer) {
+		return view
+	}
+	if spec, placing := own.next(); placing {
+		view.Next = &spec
+		view.Anchors = Anchors{
+			Across: xslices.Map(own.anchors(spec.Size, Across), squareAt),
+			Down:   xslices.Map(own.anchors(spec.Size, Down), squareAt),
+		}
+		return view
+	}
+	view.Targets = xslices.Map(enemy.unshot(), squareAt)
+	return view
+}
+
+func (s state) ToAct() []game.Seat {
+	switch s.phase() {
+	case PhaseOver:
+		return nil
+	case PhaseSetup:
+		return slices.DeleteFunc(slices.Clone(s.order), func(seat game.Seat) bool { return s.waters[seat].complete() })
+	}
+	return []game.Seat{s.toFire}
+}
+
+func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
+
+func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
+	return s.Conclude(game.ForfeitToRemaining(s.order, seat, reason)), nil
+}
+
+// Conclude keeps a result already reached; otherwise result ends the game, so
+// no seat is offered a placement or a target, and each sees the other's fleet.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
+	if s.finished {
+		return s
+	}
+	s.result, s.finished = result, true
+	return s
+}
