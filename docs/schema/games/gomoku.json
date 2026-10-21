@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "cell": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "cell"
+      ],
+      "description": "Action is a place on Cell, the cell's name as text, such as \"h8\"."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "place"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Cell": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "column"
+      ],
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, column 1 the left."
+    },
+    "PlacedEvent": {
+      "properties": {
+        "kind": {
+          "const": "placed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "cell": {
+          "$ref": "#/$defs/Cell"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "cell"
+      ],
+      "description": "PlacedEvent reports a stone placed on Cell."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "five_in_a_row",
+        "board_full"
+      ],
+      "description": "The result reasons Gomoku adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "cells": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "last": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Cell"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "winning_lines": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Cell"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "legal_cells": {
+          "items": {
+            "$ref": "#/$defs/Cell"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "cells",
+        "last",
+        "winning_lines",
+        "legal_cells"
+      ],
+      "description": "View holds Cells[row][column], each the seat whose stone fills it or \"\" when\nempty. LegalCells is the viewer's own: the empty cells, none unless it is to move."
+    }
+  },
+  "title": "Gomoku",
+  "description": "The game-specific bodies inside a gomoku game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "placed": {
+      "$ref": "#/$defs/PlacedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
