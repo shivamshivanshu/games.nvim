@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is typed input, sent raw and parsed by the server."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "guess"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "GuessedEvent": {
+      "properties": {
+        "kind": {
+          "const": "guessed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "guess": {
+          "type": "string"
+        },
+        "hit": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "guess",
+        "hit"
+      ],
+      "description": "GuessedEvent reports a guess, a letter or a whole word, and whether it hit."
+    },
+    "LetterGuess": {
+      "properties": {
+        "letter": {
+          "type": "string"
+        },
+        "hit": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "letter",
+        "hit"
+      ],
+      "description": "LetterGuess is a guessed letter and whether the word holds it."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "solved",
+        "hanged"
+      ],
+      "description": "The result reasons Hangman adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "pattern": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "guessed": {
+          "items": {
+            "$ref": "#/$defs/LetterGuess"
+          },
+          "type": "array"
+        },
+        "missed_words": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "misses": {
+          "type": "integer"
+        },
+        "remaining": {
+          "type": "integer"
+        },
+        "word": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "pattern",
+        "guessed",
+        "missed_words",
+        "misses",
+        "remaining"
+      ],
+      "description": "View shows the word as found so far. Pattern holds each letter of the word once revealed, \"\"\nwhile hidden; Guessed and MissedWords are oldest first; Misses counts both kinds of wrong guess.\nWord stays empty until the game finishes."
+    }
+  },
+  "title": "Hangman",
+  "description": "The game-specific bodies inside a hangman game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "guessed": {
+      "$ref": "#/$defs/GuessedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/chesspuzzle"
 	"github.com/shivamshivanshu/games.nvim/server/games/connect4"
 	"github.com/shivamshivanshu/games.nvim/server/games/gomoku"
+	"github.com/shivamshivanshu/games.nvim/server/games/hangman"
 	"github.com/shivamshivanshu/games.nvim/server/games/ludo"
 	"github.com/shivamshivanshu/games.nvim/server/games/mastermind"
 	"github.com/shivamshivanshu/games.nvim/server/games/poker"
@@ -30,5 +31,6 @@ func All() []game.Game {
 		game.Adapt(reversi.Rules{}),
 		game.Adapt(chesspuzzle.Rules{}),
 		game.Adapt(mastermind.Rules{}),
+		game.Adapt(hangman.Rules{}),
 	}
 }
