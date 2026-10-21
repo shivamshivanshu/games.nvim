@@ -8,11 +8,11 @@ import (
 	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/dice"
 )
 
 const (
-	dieFaces     = 6
-	bonusRoll    = Roll(dieFaces)
+	bonusRoll    = Roll(dice.Six)
 	forfeitSixes = 3
 )
 
@@ -34,7 +34,7 @@ func newState(seats []game.Seat, first game.Seat) state {
 	return state{order: clockwise(seats), tokens: tokens, turn: first, phase: PhaseRoll}
 }
 
-func rollDie(rng *rand.Rand) Roll { return Roll(rng.IntN(dieFaces) + 1) }
+func rollDie(rng *rand.Rand) Roll { return Roll(dice.Roll(rng, 1, dice.Six)[0]) }
 
 func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if !slices.Contains(s.ToAct(), seat) {
