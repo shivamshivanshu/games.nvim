@@ -308,6 +308,14 @@ function T.the_largest_board_and_panel_fit_eighty_by_twenty_four_at_one_line_a_c
   )
 end
 
+function T.the_player_waiting_reads_their_move()
+  local waiting = midgame({ view = { legal_edges = {} } })
+  assert_eq(
+    { "1 +---+   +   +   their move" },
+    lines_of(render(waiting, view_options("ascii"), "alice"), FIRST_BOARD_ROW, 1)
+  )
+end
+
 function T.describe_event_names_the_drawer_the_edge_the_boxes_it_completed_and_a_move_again()
   local function drawn(by, boxes, again)
     return {

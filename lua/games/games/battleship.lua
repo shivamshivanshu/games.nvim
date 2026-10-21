@@ -218,7 +218,7 @@ local function status_lines(update, ctx)
       berthable(view, at) and where or (where .. ": blocked"),
     }
   end
-  if firing(update) then
+  if players.is_to_act(update, ctx.me) then
     local where = "at " .. cell_name(at)
     return { "your shot", open_water(view, at) and where or (where .. ": fired") }
   end

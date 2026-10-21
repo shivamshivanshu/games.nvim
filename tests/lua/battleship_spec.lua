@@ -224,6 +224,16 @@ function T.the_battle_marks_hits_misses_sunk_ships_the_aim_and_the_latest_shot_b
   assert_eq("GamesCardRed", helpers.hl_at(rendered, FIRST_BOARD_ROW + 7, 3))
 end
 
+function T.the_player_waiting_on_the_other_s_shot_reads_their_shot()
+  local waiting = firing()
+  waiting.to_act = { "bob" }
+  waiting.view.targets = {}
+  assert_eq(
+    { "      your fleet                 target           their shot" },
+    lines_of(render(waiting, view_options("ascii"), CATALOGUED), FIRST_BOARD_ROW - 1, 1)
+  )
+end
+
 function T.a_finished_board_shows_the_opponents_ships_and_offers_nothing()
   local over = update({
     phase = "over",

@@ -129,7 +129,13 @@ M.actions = {
       return update.view.mode == STUDY
     end,
   },
-  chess.flip_action,
+  {
+    key = "F",
+    label = "flip",
+    local_fn = function(view)
+      return vim.tbl_extend("force", view, { flipped = not view.flipped })
+    end,
+  },
 }
 
 ---@param event games.Event

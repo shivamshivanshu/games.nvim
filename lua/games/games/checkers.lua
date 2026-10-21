@@ -2,7 +2,6 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local movelist = require("games.ui.widgets.movelist")
-local players = require("games.core.players")
 
 ---@alias games.CheckersPiece ""|"b"|"B"|"w"|"W" empty, black man, black king, white man, white king
 
@@ -28,8 +27,6 @@ local players = require("games.core.players")
 
 local SIZE = 8
 local SQUARES_PER_ROW = SIZE / 2
----@type games.CheckersSeat
-local BLACK = "black"
 local EMPTY_KEY = "empty"
 local LIGHT_KEY = "light"
 
@@ -100,28 +97,6 @@ local function numbering(flip)
   end, order))
 end
 
----@param history string[]
----@param max_lines? integer
----@return games.Node
-local function moves_node(history, max_lines)
-  return movelist({ items = history, columns = 2, numbered = true, max_lines = max_lines })
-end
-
----The move list's width over the whole game: MOVELIST_WIDTH unless long jump chains or move
----numbers past it need more, so an ordinary game never resizes the board.
----@param history string[]
----@return integer
-local function movelist_width(history)
-  return math.max(MOVELIST_WIDTH, compose.measure(moves_node(history)).w)
-end
-
----@param update games.CheckersUpdate
----@param ctx games.LayoutCtx
----@return boolean
-local function black_at_bottom(update, ctx)
-  return (players.seat_of_user(update, ctx.me) == BLACK) ~= ctx.flipped
-end
-
 local M = {}
 
 ---@type string[] keys every checkers asset pack draws
@@ -132,7 +107,7 @@ M.asset_keys = { "b", "B", "w", "W", EMPTY_KEY, LIGHT_KEY }
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local flip = black_at_bottom(update, ctx)
+  local flip = ctx.flip
   return board({
     grid = {
       rows = SIZE,
@@ -158,12 +133,7 @@ function M.layout(update, ctx)
           return compose.col({ numbering(flip), compose.text(NOTATION, NOTATION_HL) })
         end,
       },
-      {
-        width = movelist_width(view.history),
-        node = function(max_height)
-          return moves_node(view.history, max_height)
-        end,
-      },
+      movelist.panel({ items = view.history, columns = 2, min_width = MOVELIST_WIDTH }),
     },
   }, ctx)
 end
@@ -177,16 +147,8 @@ M.input = {
   end,
 }
 
----@type games.GameAction[]
-M.actions = {
-  {
-    key = "F",
-    label = "flip",
-    local_fn = function(view)
-      return vim.tbl_extend("force", view, { flipped = not view.flipped })
-    end,
-  },
-}
+---@type games.Flippable
+M.flippable = { bottom_seat = "black" }
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {

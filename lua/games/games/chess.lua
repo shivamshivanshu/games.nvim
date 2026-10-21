@@ -4,7 +4,6 @@ local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
-local players = require("games.core.players")
 
 ---@class games.ChessSquares
 ---@field from string
@@ -44,8 +43,6 @@ local players = require("games.core.players")
 
 local FILES = "abcdefgh"
 local RANKS = "87654321"
----@type games.ChessSeat
-local BLACK = "black"
 local EMPTY_KEY = "empty"
 local MOVE_KIND = "move"
 
@@ -193,16 +190,6 @@ end
 
 local M = {}
 
----Whether the board shows black at the bottom: the viewer plays black, xor the board is flipped.
----@param update games.ChessUpdate
----@param ctx games.LayoutCtx
----@return boolean
-function M.black_at_bottom(update, ctx)
-  return (players.seat_of_user(update, ctx.me) == BLACK) ~= ctx.flipped
-end
-
-M.MOVELIST_WIDTH = MOVELIST_WIDTH
-
 ---@type string[] keys every chess asset pack draws
 M.asset_keys = { "K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p", EMPTY_KEY }
 
@@ -283,19 +270,13 @@ function M.board(view, ctx, flip, opts)
           return kv.panel(san_legend(ctx.art --[[@as games.ArtSet]], ctx.ambiwidth))
         end,
       },
-      {
-        width = MOVELIST_WIDTH,
-        node = function(max_height)
-          return movelist({
-            items = view.history_san,
-            columns = PLIES_PER_MOVE,
-            numbered = true,
-            offset = opts.first_ply,
-            annotation = CHECK_ANNOTATION,
-            max_lines = max_height,
-          })
-        end,
-      },
+      movelist.panel({
+        items = view.history_san,
+        columns = PLIES_PER_MOVE,
+        min_width = MOVELIST_WIDTH,
+        offset = opts.first_ply,
+        annotation = CHECK_ANNOTATION,
+      }),
     }, opts.panels or {}),
   }, ctx)
 end
@@ -304,7 +285,7 @@ end
 ---@param ctx games.LayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
-  return M.board(update.view, ctx, M.black_at_bottom(update, ctx))
+  return M.board(update.view, ctx, ctx.flip)
 end
 
 ---The move prompt; parse puts the typed text, for the server to read, in field.
@@ -322,15 +303,6 @@ end
 
 M.input = M.move_input("move")
 
----@type games.GameAction turns the board around, for this buffer only
-M.flip_action = {
-  key = "F",
-  label = "flip",
-  local_fn = function(view)
-    return vim.tbl_extend("force", view, { flipped = not view.flipped })
-  end,
-}
-
 ---@type games.GameAction[]
 M.actions = {
   {
@@ -341,8 +313,10 @@ M.actions = {
       return update.view.claimable_draw
     end,
   },
-  M.flip_action,
 }
+
+---@type games.Flippable
+M.flippable = { bottom_seat = "black" }
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {

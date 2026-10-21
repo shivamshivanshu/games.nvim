@@ -24,7 +24,6 @@ local discs = require("games.ui.discs")
 ---@field kind "passed"
 ---@field by games.DiscSeat the seat that had no move
 
-local SIZE = 8
 local COUNT_HL = "GamesLabel"
 
 local M = {}
@@ -36,7 +35,7 @@ M.asset_keys = vim.list_extend(discs.asset_keys(), { discs.LEGAL_KEY })
 ---@param ctx games.LayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
-  return discs.layout(update, ctx, { size = SIZE, legal = update.view.legal_cells })
+  return discs.layout(update, ctx, { size = #update.view.cells, legal = update.view.legal_cells })
 end
 
 M.input = discs.input("d3")

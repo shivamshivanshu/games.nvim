@@ -14,8 +14,6 @@ local discs = require("games.ui.discs")
 ---@field by games.DiscSeat
 ---@field cell games.DiscCell
 
-local SIZE = 15
-
 local M = {}
 
 ---@type string[] keys every gomoku asset pack draws
@@ -26,7 +24,11 @@ M.asset_keys = discs.asset_keys()
 ---@param ctx games.LayoutCtx
 ---@return games.Node
 function M.layout(update, ctx)
-  return discs.layout(update, ctx, { size = SIZE, winning_lines = update.view.winning_lines })
+  return discs.layout(
+    update,
+    ctx,
+    { size = #update.view.cells, winning_lines = update.view.winning_lines }
+  )
 end
 
 M.input = discs.input("h8")

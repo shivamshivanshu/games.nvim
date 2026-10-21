@@ -61,6 +61,8 @@ local theme = require("games.ui.theme")
 local SIZE = 15
 local TOKENS_PER_SEAT = 4
 local MAX_MIXED_COUNT = 9
+---@type games.LudoSeat[] every seat, in the shared seat-colour order
+local SEATS = { "blue", "yellow", "red", "green" }
 local ARMS = 4
 local YARD_SIZE = 6
 
@@ -91,6 +93,7 @@ local FIRST_GOAL = { 8, 7 }
 
 local LAST_MOVE_HL = "GamesLastMove"
 local MOVABLE_KEY = "movable"
+local TRACK_KEY = "track"
 local PANEL_WIDTH = 16
 
 ---@param cell games.LudoCell
@@ -104,10 +107,17 @@ local function turned(cell, turns)
   return { r, c }
 end
 
+---@param row integer
+---@param col integer
+---@return integer
+local function key_at(row, col)
+  return (row - 1) * SIZE + col
+end
+
 ---@param cell games.LudoCell
----@return string
-local function cell_id(cell)
-  return cell[1] .. "," .. cell[2]
+---@return integer
+local function cell_key(cell)
+  return key_at(cell[1], cell[2])
 end
 
 ---@param cells games.LudoCell[]
@@ -161,17 +171,45 @@ local function loop_cell(square)
   return LOOP[square + 1]
 end
 
+---@type table<games.LudoSquare, games.LudoArm> each arm by the square it starts on
+local ARM_AT_START = (function()
+  local square_at = {}
+  for i, cell in ipairs(LOOP) do
+    square_at[cell_key(cell)] = i - 1
+  end
+  local arms = {}
+  for _, arm in ipairs(ARM_DRAWINGS) do
+    arms[square_at[cell_key(arm.start)]] = arm
+  end
+  return arms
+end)()
+
 ---@param start games.LudoSquare
 ---@return games.LudoArm the arm drawn at the start square
 local function arm_at(start)
-  local id = cell_id(loop_cell(start))
-  return assert(
-    vim.iter(ARM_DRAWINGS):find(function(arm)
-      return cell_id(arm.start) == id
-    end),
-    "no arm starts at square " .. start
-  )
+  return assert(ARM_AT_START[start], "no arm starts at square " .. start)
 end
+
+---@type table<integer, string> the asset key of each drawn cell but the centre's, whatever the view
+local STATIC_SQUARES = (function()
+  local squares = {}
+  for _, cell in ipairs(LOOP) do
+    squares[cell_key(cell)] = TRACK_KEY
+  end
+  for _, arm in ipairs(ARM_DRAWINGS) do
+    for _, cell in ipairs(arm.yard) do
+      squares[cell_key(cell)] = "yard"
+    end
+    for _, cell in ipairs(arm.spots) do
+      squares[cell_key(cell)] = "spot"
+    end
+    for _, cell in ipairs(arm.lane) do
+      squares[cell_key(cell)] = "lane"
+    end
+    squares[cell_key(arm.goal)] = "goal"
+  end
+  return squares
+end)()
 
 ---@param arm games.LudoArm
 ---@param token integer
@@ -191,30 +229,16 @@ local function cell_of(arm, token, location)
 end
 
 ---@class (private) games.LudoBoard what the view puts where
----@field tokens table<string, table<games.LudoSeat, integer>> tokens per seat on each occupied cell
----@field squares table<string, {key: string, seat?: games.LudoSeat}> each empty cell's key and owning seat
+---@field tokens table<integer, table<games.LudoSeat, integer>> tokens per seat on each occupied cell
+---@field owners table<integer, games.LudoSeat> the seat of each cell of a seat in play's arm
+---@field safe table<integer, true> the track cells where no capture happens
 
 ---@param view games.LudoView
 ---@return games.LudoBoard
 local function board_of(view)
-  local squares, tokens = {}, {}
-  for _, cell in ipairs(LOOP) do
-    squares[cell_id(cell)] = { key = "track" }
-  end
+  local safe, owners, tokens = {}, {}, {}
   for _, square in ipairs(view.safe) do
-    squares[cell_id(loop_cell(square))] = { key = "safe" }
-  end
-  for _, arm in ipairs(ARM_DRAWINGS) do
-    for _, cell in ipairs(arm.yard) do
-      squares[cell_id(cell)] = { key = "yard" }
-    end
-    for _, cell in ipairs(arm.spots) do
-      squares[cell_id(cell)] = { key = "spot" }
-    end
-    for _, cell in ipairs(arm.lane) do
-      squares[cell_id(cell)] = { key = "lane" }
-    end
-    squares[cell_id(arm.goal)] = { key = "goal" }
+    safe[cell_key(loop_cell(square))] = true
   end
   for seat, start in pairs(view.starts) do
     local arm = arm_at(start)
@@ -222,15 +246,15 @@ local function board_of(view)
     vim.list_extend(owned, arm.spots)
     vim.list_extend(owned, arm.lane)
     for _, cell in ipairs(owned) do
-      squares[cell_id(cell)].seat = seat
+      owners[cell_key(cell)] = seat
     end
     for token, location in ipairs(view.locations[seat]) do
-      local id = cell_id(cell_of(arm, token, location))
-      tokens[id] = tokens[id] or {}
-      tokens[id][seat] = (tokens[id][seat] or 0) + 1
+      local key = cell_key(cell_of(arm, token, location))
+      tokens[key] = tokens[key] or {}
+      tokens[key][seat] = (tokens[key][seat] or 0) + 1
     end
   end
-  return { tokens = tokens, squares = squares }
+  return { tokens = tokens, owners = owners, safe = safe }
 end
 
 ---@param here table<games.LudoSeat, integer>
@@ -246,8 +270,8 @@ end
 local function cells(update)
   local drawn = board_of(update.view)
   return function(r, c)
-    local id = cell_id({ r, c })
-    local here = drawn.tokens[id]
+    local key = key_at(r, c)
+    local here = drawn.tokens[key]
     if here then
       local seats = vim.tbl_keys(here)
       if #seats > 1 then
@@ -256,8 +280,12 @@ local function cells(update)
       local seat = seats[1]
       return { seat .. here[seat], theme.seat_hl_of(update, seat) }
     end
-    local square = drawn.squares[id] or { key = "center" }
-    return { square.key, square.seat and theme.seat_hl_of(update, square.seat) }
+    local square = STATIC_SQUARES[key]
+    local seat = drawn.owners[key]
+    return {
+      (square == TRACK_KEY and drawn.safe[key]) and "safe" or square or "center",
+      seat and theme.seat_hl_of(update, seat),
+    }
   end
 end
 
@@ -314,11 +342,14 @@ local M = {}
 
 ---@type integer
 M.glyph_width = 2
+M.TOKENS_PER_SEAT = TOKENS_PER_SEAT
+M.MAX_MIXED_COUNT = MAX_MIXED_COUNT
+M.SEATS = SEATS
 
 ---@type string[] keys every ludo asset pack draws
 M.asset_keys = (function()
-  local keys = { "track", "safe", "lane", "spot", "goal", "yard", "center", MOVABLE_KEY }
-  for _, seat in ipairs({ "blue", "yellow", "red", "green" }) do
+  local keys = { TRACK_KEY, "safe", "lane", "spot", "goal", "yard", "center", MOVABLE_KEY }
+  for _, seat in ipairs(SEATS) do
     for n = 1, TOKENS_PER_SEAT do
       keys[#keys + 1] = seat .. n
     end

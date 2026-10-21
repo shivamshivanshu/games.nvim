@@ -14,19 +14,11 @@ local function start_panel(update)
   return kv.panel({ { "position", tostring(update.view.start_position) } })
 end
 
-local M = {}
-
-M.asset_keys = chess.asset_keys
-M.player_extra = chess.player_extra
-M.input = chess.input
-M.actions = chess.actions
-M.describers = chess.describers
-
 ---@param update games.Chess960Update
 ---@param ctx games.LayoutCtx
 ---@return games.Node
-function M.layout(update, ctx)
-  return chess.board(update.view, ctx, chess.black_at_bottom(update, ctx), {
+local function layout(update, ctx)
+  return chess.board(update.view, ctx, ctx.flip, {
     first_ply = chess.first_ply(update.view.start_fen),
     panels = {
       {
@@ -38,4 +30,4 @@ function M.layout(update, ctx)
   })
 end
 
-return M
+return vim.tbl_extend("force", chess, { layout = layout })

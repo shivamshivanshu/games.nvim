@@ -3,6 +3,7 @@ local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local cursor = require("games.ui.cursor")
 local notation = require("games.ui.notation")
+local players = require("games.core.players")
 local text = require("games.ui.text")
 local theme = require("games.ui.theme")
 
@@ -131,7 +132,7 @@ local function panel(update, ctx)
   local lines = {}
   if update.result then
     lines[1] = compose.text("game over", STATUS_HL)
-  elseif drawing(update) then
+  elseif players.is_to_act(update, ctx.me) then
     local at = cursor.of(ctx)
     lines[1] = compose.text("your move", STATUS_HL)
     local where = "at " .. edge_name(at)
