@@ -222,8 +222,8 @@ func TestSidePotsGoToTheBestEligibleHandFromTheLastPotDown(t *testing.T) {
 			if diff := cmp.Diff(tt.wantWon, eventsOf[WonEvent](events)); diff != "" {
 				t.Errorf("won (-want +got):\n%s", diff)
 			}
-			if returned := eventsOf[ReturnedEvent](events); len(returned) != 1 || returned[0].Seat != "p3" || returned[0].Amount != 700 {
-				t.Errorf("returned %+v, want p3's uncalled 700", returned)
+			if returned := eventsOf[ReturnedEvent](events); len(returned) != 0 {
+				t.Errorf("returned %+v: p3's shove commits only the 300 an opponent can match", returned)
 			}
 			var got []Chips
 			for i := range 3 {
@@ -233,6 +233,29 @@ func TestSidePotsGoToTheBestEligibleHandFromTheLastPotDown(t *testing.T) {
 				t.Errorf("chips after the hand (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// Three all-ins of different sizes and a caller make a main pot and two side
+// pots; the two tied hands split both side pots.
+func TestThreeAllInsMakeSidePotsThatTiedHandsSplit(t *testing.T) {
+	s := withCards(t, table(t, 1, 0, 1000, 200, 400, 100),
+		map[int]string{0: "Qs 3d", 1: "8c 4s", 2: "Qd 3h", 3: "As Ad"}, "2c 7d 9h Jc Ks")
+	s, events := playAll(t, s, "p4:allin, p1:call, p2:allin, p3:allin, p1:call")
+	want := []WonEvent{
+		{By: "p1", Seat: "p3", Amount: 200, Pot: 2}, {By: "p1", Seat: "p1", Amount: 200, Pot: 2},
+		{By: "p1", Seat: "p3", Amount: 150, Pot: 1}, {By: "p1", Seat: "p1", Amount: 150, Pot: 1},
+		{By: "p1", Seat: "p4", Amount: 400},
+	}
+	if diff := cmp.Diff(want, eventsOf[WonEvent](events)); diff != "" {
+		t.Errorf("won (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff([]BustedEvent{{By: "p1", Seat: "p2"}}, eventsOf[BustedEvent](events)); diff != "" {
+		t.Errorf("busted (-want +got):\n%s", diff)
+	}
+	chips := s.hand.chips
+	if got := []Chips{chips.stack[0] + chips.committed[0], chips.stack[2] + chips.committed[2], chips.stack[3] + chips.committed[3]}; !slices.Equal(got, []Chips{950, 350, 400}) {
+		t.Errorf("p1, p3, p4 hold %v, want [950 350 400]", got)
 	}
 }
 
@@ -282,6 +305,36 @@ func TestEliminateAnAllInSeatLeavesItsUncalledRaiseInThePot(t *testing.T) {
 	}
 	if len(eventsOf[ReturnedEvent](events)) != 0 {
 		t.Error("p1's uncalled raise must stay in the pot")
+	}
+}
+
+// A shoves 1000 and leaves, B is all-in for 300 and C has 1000: C's call and
+// C's allin both commit 300, and A's dead 700 goes to whichever of B and C
+// wins, never to C uncontested.
+func TestALeaversDeadChipsAreContestedByTheSeatsStillInTheHand(t *testing.T) {
+	tests := []struct {
+		name  string
+		holes map[int]string
+		best  game.Seat
+	}{
+		{"the all-in seat has the best hand", map[int]string{0: "2s 3d", 1: "As Ad", 2: "Ks Kd"}, "p2"},
+		{"the seat with chips behind has the best hand", map[int]string{0: "2s 3d", 1: "Ks Kd", 2: "As Ad"}, "p3"},
+	}
+	for _, tt := range tests {
+		for _, move := range []string{"call", "allin"} {
+			t.Run(tt.name+" after "+move, func(t *testing.T) {
+				s := withCards(t, table(t, 1, 0, 1000, 300, 1000), tt.holes, "2c 7h 9h Js 4c")
+				s, _ = playAll(t, s, "p1:allin, p2:allin")
+				left, _ := s.Eliminate("p1", game.ReasonResign)
+				s, events := play(t, left.(state), 2, move)
+				if diff := cmp.Diff([]WonEvent{{By: "p3", Seat: tt.best, Amount: 1600}}, eventsOf[WonEvent](events)); diff != "" {
+					t.Errorf("one pot of 300 each from p2 and p3 and p1's whole 1000 (-want +got):\n%s", diff)
+				}
+				if behind := s.hand.chips.stack[2] + s.hand.chips.committed[2]; tt.best == "p2" && behind != 700 {
+					t.Errorf("p3 holds %d, want the 700 no one could match left behind", behind)
+				}
+			})
+		}
 	}
 }
 
@@ -504,5 +557,12 @@ func TestConcludeLeavesNoSeatToActAndOffersNoMoves(t *testing.T) {
 	}
 	if v := concluded.View(seatName(s.hand.toAct)); len(v.Legal) != 0 || v.ToCall != 0 {
 		t.Errorf("concluded view offers %v, %d to call", v.Legal, v.ToCall)
+	}
+}
+
+func TestScoresAfterAnImposedEndingAreZeroForEverySeat(t *testing.T) {
+	concluded := table(t, 1, 0, full(3)...).Conclude(game.Result{Kind: game.ResultAborted}).(state)
+	if diff := cmp.Diff(map[game.Seat]int64{"p1": 0, "p2": 0, "p3": 0}, concluded.Scores()); diff != "" {
+		t.Errorf("scores (-want +got):\n%s", diff)
 	}
 }

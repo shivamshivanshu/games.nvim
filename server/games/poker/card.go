@@ -47,13 +47,26 @@ type Card struct {
 	Suit Suit
 }
 
-// String is the card's wire form: rank letter then suit letter, e.g. "As" or "Td".
+const invalidCard = "??"
+
+func (c Card) valid() bool { return c.Rank >= Two && c.Rank <= Ace && c.Suit <= Spades }
+
+// String is the card's wire form: rank letter then suit letter, e.g. "As" or
+// "Td"; "??" for a value that is no card, such as the zero Card.
 func (c Card) String() string {
+	if !c.valid() {
+		return invalidCard
+	}
 	return string([]byte{rankLetters[c.Rank-Two], suitLetters[c.Suit]})
 }
 
-// MarshalText encodes the card in its wire form.
-func (c Card) MarshalText() ([]byte, error) { return []byte(c.String()), nil }
+// MarshalText encodes the card in its wire form, and fails on a value that is no card.
+func (c Card) MarshalText() ([]byte, error) {
+	if !c.valid() {
+		return nil, fmt.Errorf("card {%d %d} is no card", c.Rank, c.Suit)
+	}
+	return []byte(c.String()), nil
+}
 
 // JSONSchemaAlias has the wire schema describe a Card as the string it marshals to.
 func (Card) JSONSchemaAlias() any { return "" }

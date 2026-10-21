@@ -460,7 +460,7 @@
         "my_cards",
         "last_hand"
       ],
-      "description": "View is the table as one seat sees it: only its own hole cards, until a showdown reveals others in LastHand.\n\nLegal, ToCall and the raise range are given to the seat to act alone; every\nother viewer gets none and zeros. MinRaiseTo and MaxRaiseTo bound N in\n\"bet N\" or \"raise N\", a street total, when Legal holds bet or raise, and are\n0 otherwise; MaxRaiseTo is the all-in total."
+      "description": "View is the table as one seat sees it: only its own hole cards, until a showdown reveals others in LastHand.\n\nLegal, ToCall and the raise range are given to the seat to act alone; every\nother viewer gets none and zeros. MinRaiseTo and MaxRaiseTo bound N in\n\"bet N\" or \"raise N\", a street total, when Legal holds bet or raise, and are\n0 otherwise. MaxRaiseTo is what allin commits: the seat's whole stack, or\nless when no opponent still in the hand can match more."
     },
     "WonEvent": {
       "properties": {

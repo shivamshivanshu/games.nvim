@@ -98,7 +98,9 @@ func (s state) Apply(seat game.Seat, a Action, _ *rand.Rand) (game.State[Action,
 }
 
 // Eliminate folds seat out of the hand and out of the game. Chips it has put
-// in stay in the pots; the rest of its stack leaves play.
+// in stay in the pots as dead money; the rest of its stack is forfeited and
+// leaves play. So the chips in play, stacks and pots, plus the forfeited
+// stacks always total startingStack per player.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	i, ok := s.seatIndex(seat)
 	if !ok || s.finished || s.out[i] {
@@ -137,10 +139,15 @@ func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 // Scores are chip deltas at the finish. The winner holds every chip at the
 // table, including stacks forfeited by seats that left, so they sum to zero.
+// An ending without a winner, such as an abort, moves no chips.
 func (s state) Scores() map[game.Seat]int64 {
+	loss := -int64(startingStack)
+	if s.result.Kind != game.ResultDecisive {
+		loss = 0
+	}
 	scores := make(map[game.Seat]int64, s.n)
 	for i := range s.n {
-		scores[seatName(i)] = -int64(startingStack)
+		scores[seatName(i)] = loss
 	}
 	for _, winner := range s.result.Winners {
 		scores[winner] += int64(s.n) * int64(startingStack)
@@ -172,7 +179,7 @@ func (s state) View(seat game.Seat) View {
 	if !s.finished && i == h.toAct {
 		v.Legal, v.ToCall = h.chips.legalMoves(i), h.chips.toCall(i)
 		if slices.ContainsFunc(v.Legal, raisesTo) {
-			v.MinRaiseTo, v.MaxRaiseTo = h.chips.minRaiseTo(), h.chips.allInTotal(i)
+			v.MinRaiseTo, v.MaxRaiseTo = h.chips.minRaiseTo(), h.chips.matchable(i)
 		}
 	}
 	return v

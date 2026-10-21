@@ -54,12 +54,42 @@ func TestBettingRejectsIllegalSizesAndMoves(t *testing.T) {
 		{"raise after only an incomplete all-in", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin, 2:call, 0:raise 400", "not reopened"},
 		{"allin over the bet after only an incomplete all-in", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin, 2:call, 0:allin", "not reopened"},
 		{"raise when everyone else is all-in", []Chips{500, 1000}, "0:allin, 1:raise 1000", "everyone else is all-in"},
-		{"allin over an all-in no one else can call", []Chips{500, 1000}, "0:allin, 1:allin", "everyone else is all-in"},
+		{"bet more than any opponent can match", []Chips{1000, 60}, "0:bet 100", "bet 100 is more than any opponent can match: at most 60"},
+		{"raise more than any opponent can match", []Chips{300, 1000}, "0:bet 100, 1:raise 400", "raise 400 is more than any opponent can match: at most 300"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := moves(t, street(tt.stacks...), tt.script)
 			wantIllegal(t, err, tt.want)
+		})
+	}
+}
+
+func TestAllInCommitsNoMoreThanAnOpponentStillInTheHandCanMatch(t *testing.T) {
+	tests := []struct {
+		name      string
+		stacks    []Chips
+		script    string
+		seat      int
+		wantTotal Chips
+	}{
+		{"the bigger stack shoving leaves what no one can call behind", []Chips{1000, 300}, "0:allin", 0, 300},
+		{"facing an all-in no one else can call, allin is the call", []Chips{500, 1000}, "0:allin, 1:allin", 1, 500},
+		{"a folded seat's chips do not raise the cap", []Chips{1000, 200, 600}, "0:bet 500, 1:allin, 2:fold, 0:allin", 0, 500},
+		{"a shorter stack goes all-in for all it has", []Chips{1000, 300}, "0:bet 100, 1:allin", 1, 300},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, err := moves(t, street(tt.stacks...), tt.script)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := b.bet[tt.seat]; got != tt.wantTotal {
+				t.Errorf("seat %d has %d in, want %d", tt.seat, got, tt.wantTotal)
+			}
+			if got := b.bet[tt.seat] + b.stack[tt.seat]; got != tt.stacks[tt.seat] {
+				t.Errorf("seat %d holds %d in all, want its %d", tt.seat, got, tt.stacks[tt.seat])
+			}
 		})
 	}
 }
@@ -76,7 +106,7 @@ func TestBettingSizesRaisesFromTheLastFullIncrement(t *testing.T) {
 		{"a bigger raise grows it", []Chips{1000, 1000, 1000}, "0:bet 100, 1:raise 350", 350, 600},
 		{"an incomplete all-in raises the bet but not the increment", []Chips{1000, 150, 1000}, "0:bet 100, 1:allin", 150, 250},
 		{"an all-in below the big blind opens without changing it", []Chips{1000, 15}, "0:check, 1:allin", 15, 35},
-		{"an all-in call for less leaves the bet", []Chips{1000, 60}, "0:bet 100, 1:allin", 100, 200},
+		{"an all-in call for less leaves the bet", []Chips{1000, 60, 1000}, "0:bet 100, 1:allin", 100, 200},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -106,7 +136,7 @@ func TestLegalMovesFollowTheReopenRuleAndTheStack(t *testing.T) {
 		{"incomplete all-ins that add up to a full raise reopen", []Chips{1000, 150, 220, 1000}, "0:bet 100, 1:allin, 2:allin, 3:call", 0, []MoveKind{MoveFold, MoveCall, MoveRaise, MoveAllIn}},
 		{"a checker facing an all-in below the big blind may not", []Chips{1000, 15, 1000}, "0:check, 1:allin, 2:call", 0, []MoveKind{MoveFold, MoveCall}},
 		{"a stack short of the minimum raise may still go all-in", []Chips{1000, 150}, "0:bet 100", 1, []MoveKind{MoveFold, MoveCall, MoveAllIn}},
-		{"facing an all-in no one else can call: call or fold", []Chips{500, 1000}, "0:allin", 1, []MoveKind{MoveFold, MoveCall}},
+		{"facing an all-in no one else can call: allin only calls it", []Chips{500, 1000}, "0:allin", 1, []MoveKind{MoveFold, MoveCall, MoveAllIn}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

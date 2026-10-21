@@ -88,7 +88,8 @@ type Blinds struct {
 // Legal, ToCall and the raise range are given to the seat to act alone; every
 // other viewer gets none and zeros. MinRaiseTo and MaxRaiseTo bound N in
 // "bet N" or "raise N", a street total, when Legal holds bet or raise, and are
-// 0 otherwise; MaxRaiseTo is the all-in total.
+// 0 otherwise. MaxRaiseTo is what allin commits: the seat's whole stack, or
+// less when no opponent still in the hand can match more.
 type View struct {
 	HandNo     int          `json:"hand_no"`
 	Button     game.Seat    `json:"button"`

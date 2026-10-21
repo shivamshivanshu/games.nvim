@@ -76,17 +76,25 @@ func (b betting) othersCanBet(i int) bool {
 	return false
 }
 
-// toCall is what seat i must add to stay in. It never exceeds what an
-// opponent can put in this street, so a short all-in big blind is not
-// matched beyond its size by the last seat with chips.
-func (b betting) toCall(i int) Chips {
+// matchable is the most seat i may have in this street: its whole stack,
+// capped by the largest total an opponent still contesting has or can reach.
+// Chips above it stay behind, so no seat commits chips that only it, or a
+// seat that has folded or left, could contest.
+func (b betting) matchable(i int) Chips {
 	var reach Chips
 	for j := range b.n {
 		if j != i && b.contesting[j] {
 			reach = max(reach, b.allInTotal(j))
 		}
 	}
-	return min(b.stack[i], max(0, min(b.currentBet, reach)-b.bet[i]))
+	return min(b.allInTotal(i), reach)
+}
+
+// toCall is what seat i must add to stay in. It never exceeds what an
+// opponent can put in this street, so a short all-in big blind is not
+// matched beyond its size by the last seat with chips.
+func (b betting) toCall(i int) Chips {
+	return max(0, min(b.currentBet, b.matchable(i))-b.bet[i])
 }
 
 func (b betting) needsAction(i int) bool {
@@ -183,19 +191,22 @@ func (b betting) fullRaise(i int, m move) (betting, error) {
 	if most := b.allInTotal(i); m.amount > most {
 		return b, game.IllegalActionError{Msg: fmt.Sprintf("%s %d is more than your %d", m.kind, m.amount, most)}
 	}
+	if most := b.matchable(i); m.amount > most {
+		return b, game.IllegalActionError{Msg: fmt.Sprintf("%s %d is more than any opponent can match: at most %d", m.kind, m.amount, most)}
+	}
 	if least := b.minRaiseTo(); m.amount < least {
 		return b, game.IllegalActionError{Msg: fmt.Sprintf("the minimum %s is %d; allin for less", m.kind, least)}
 	}
 	return b.raiseTo(i, m.amount), nil
 }
 
-// allInMove commits the whole stack. Below the bet it is a call for less;
-// above it, a raise that changes the increment and reopens betting only
-// when it is a full raise.
+// allInMove commits the whole stack, or as much of it as an opponent can
+// match. Below the bet it is a call for less; above it, a raise that changes
+// the increment and reopens betting only when it is a full raise.
 func (b betting) allInMove(i int) (betting, error) {
-	total := b.allInTotal(i)
+	total := b.matchable(i)
 	if total <= b.currentBet {
-		return b.commit(i, b.stack[i]), nil
+		return b.commit(i, max(0, total-b.bet[i])), nil
 	}
 	if err := b.raiseBlocked(i); err != nil {
 		return b, err

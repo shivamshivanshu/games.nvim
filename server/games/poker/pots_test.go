@@ -51,6 +51,10 @@ func TestLayerPots(t *testing.T) {
 			[]pot{{820, []int{1}}},
 		},
 		{
+			"a leaver's dead chips above the live seats' level are contested by them all", []Chips{1000, 300, 300}, []bool{false, true, true},
+			[]pot{{1600, []int{1, 2}}},
+		},
+		{
 			"a contested seat that put in nothing takes the dead chips", []Chips{10, 10, 0}, []bool{false, false, true},
 			[]pot{{20, []int{2}}},
 		},
