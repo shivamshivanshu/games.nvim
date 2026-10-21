@@ -379,6 +379,7 @@ the current state are mapped; the footer lists them.
     n       reveal the line's move (chess puzzle, study mode only); counts
             as a miss
     m       mastermind: guess 4 colour letters from `rgbyop`, e.g. `rgby`
+    m       hangman: guess one letter, or the whole word
     ]g      next game waiting on your move
     q       close
 

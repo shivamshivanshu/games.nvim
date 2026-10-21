@@ -328,6 +328,19 @@ An action object always carries `kind`.
   - `secret` is absent until the game finishes, however it ends.
 - Actions: `guess` (`code`: 4 palette letters, any case, e.g. `"rgby"`; surrounding spaces are ignored). The catalogue gives the pattern.
 
+### Hangman
+
+- Solo: started with `game.start`; the only seat is `solver`.
+- Reasons: `solved`, `hanged`.
+- Events: `guessed {by: seat, guess, hit}`: `guess` is a letter or a whole word, `hit` whether the word holds the letter, or is that word.
+- View `{pattern, guessed, missed_words, misses, remaining, word?}`:
+  - `pattern` is one string per letter of the word (5): the letter once found, `""` while hidden; every letter once solved;
+  - `guessed` lists each letter guessed, oldest first, as `{letter, hit}`;
+  - `missed_words` lists each wrong whole-word guess, oldest first;
+  - `misses` counts wrong letters and wrong words; `remaining` is the misses left, 6 at the start;
+  - `word` is absent until the game finishes, however it ends.
+- Actions: `guess` (`text`: one letter, or a 5-letter word from the word list; any case, surrounding spaces ignored). A repeated guess, or a word outside the list, is an `illegal_action` and costs nothing. The catalogue gives the pattern.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
