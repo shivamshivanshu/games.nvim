@@ -55,6 +55,7 @@ local function playing(view)
       legal = { "3h", "8h", "Ah" },
       must_pass = 0,
       pass_to = "p1",
+      received_from = "p3",
       passed = { "As", "Kd", "Qh" },
       received = { "2c", "7c", "4s" },
       last_hand = {
@@ -66,6 +67,7 @@ local function playing(view)
           { seat = "p4", points = 5 },
         },
       },
+      prompt = "play",
     },
   }, { view = view })
 end
@@ -81,8 +83,10 @@ local function passing()
     legal = {},
     must_pass = 3,
     pass_to = "p4",
+    received_from = "p4",
     passed = {},
     received = {},
+    prompt = "pass",
   })
   update.to_act = { "bob", "carol" }
   for _, seat in ipairs(update.view.seats) do
@@ -207,7 +211,7 @@ end
 
 function T.a_seat_that_has_passed_waits_for_the_others()
   local update = passing()
-  update.view.must_pass, update.view.passed = 0, { "As", "Kd", "Qh" }
+  update.view.must_pass, update.view.passed, update.view.prompt = 0, { "As", "Kd", "Qh" }, "wait"
   local lines = render(update, "bob")
   assert(shows(lines, "Now        wait for the others to pass"), table.concat(lines, "\n"))
   assert(shows(lines, "Passed     As Kd Qh to dave"))
@@ -216,7 +220,7 @@ end
 
 function T.a_hand_without_passing_says_so()
   local update = playing({ pass = "hold", passed = {}, received = {} })
-  update.view.pass_to = nil
+  update.view.pass_to, update.view.received_from = nil, nil
   local lines = render(update, "bob")
   assert(shows(lines, "Hand       2, no passing"), table.concat(lines, "\n"))
   assert(not shows(lines, "Passed"))

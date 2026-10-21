@@ -59,12 +59,13 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
 
 **Wire:** `{"kind":"play","card":"r5"}`, `{"kind":"play","card":"w+4 b"}`, `{"kind":"draw"}`, `{"kind":"pass"}`, `{"kind":"challenge"}`, `{"kind":"accept"}`, `{"kind":"color","color":"G"}`.
 - `card` is text, matched case-insensitively by `^\s*(?:([RYGB])([0-9]|S|R|\+2)|(W(?:\+4)?)\s*([RYGB]))\s*$`; the action catalogue publishes the pattern. `color` is one of `R`, `Y`, `G`, `B`.
-- The view `{top, color, direction, phase, draw_pile, seats, my_hand, legal, playable}`:
+- The view `{top, color, direction, phase, draw_pile, seats, my_hand, legal, playable, prompt}`:
   - `top` is the discard pile's top card; `color` the colour in play, `""` only while a Wild turned up waits to be named;
   - `direction` is `clockwise` or `counterclockwise`; `phase` is `color`, `play`, `drawn` (the card just drawn may be played, if it matches, or kept) or `challenge`;
   - `seats` is every seat's `{seat, cards, out}`, `cards` the count it holds;
   - `my_hand` is the viewer's own cards; `[]` for a spectator;
-  - `legal` and `playable` are the viewer's own, `[]` unless it is to act.
+  - `legal`, `playable` and `prompt` are the viewer's own, `[]` and `""` unless it is to act;
+  - `prompt` is what the seat to act is to do: `color`, `play_or_draw`, `draw` (nothing to play), `play_or_keep` (the card drawn matches), `keep` (it does not) or `challenge`; the board words it and derives nothing.
 - Events: `started {dealer, top}`, `played {by, card, color}`, `drew {seat, count}`, `passed`, `skipped {seat}`, `reversed {direction}`, `color {by, color}`, `challenged {by, seat, guilty}`, `reshuffled {cards}`, `left`.
 
 ## Result and scoring

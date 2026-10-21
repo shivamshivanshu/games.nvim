@@ -419,6 +419,27 @@ func (s state) View(seat game.Seat) View {
 	slices.SortFunc(v.MyHand, cardOrder)
 	if !s.Over() && i == s.turn {
 		v.Legal, v.Playable = s.legal(), s.playable()
+		v.Prompt = promptFor(s.phase, v.Playable)
 	}
 	return v
+}
+
+func promptFor(phase Phase, playable []Card) Prompt {
+	switch phase {
+	case PhaseColor:
+		return PromptColor
+	case PhasePlay:
+		if len(playable) == 0 {
+			return PromptDraw
+		}
+		return PromptPlayOrDraw
+	case PhaseDrawn:
+		if len(playable) == 0 {
+			return PromptKeep
+		}
+		return PromptPlayOrKeep
+	case PhaseChallenge:
+		return PromptChallenge
+	}
+	return PromptNone
 }

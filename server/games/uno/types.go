@@ -68,11 +68,32 @@ const (
 	CounterClockwise Direction = "counterclockwise"
 )
 
+// Prompt is what the viewer is to do now.
+type Prompt string
+
+// The prompts.
+const (
+	// PromptNone is a viewer with nothing to do.
+	PromptNone Prompt = ""
+	// PromptColor is naming the colour for a Wild turned up to start.
+	PromptColor Prompt = "color"
+	// PromptPlayOrDraw is playing a card or drawing one.
+	PromptPlayOrDraw Prompt = "play_or_draw"
+	// PromptDraw is drawing, with no card to play.
+	PromptDraw Prompt = "draw"
+	// PromptPlayOrKeep is playing the card just drawn, or keeping it.
+	PromptPlayOrKeep Prompt = "play_or_keep"
+	// PromptKeep is keeping the card just drawn, which does not match.
+	PromptKeep Prompt = "keep"
+	// PromptChallenge is challenging a Wild Draw Four, or drawing its four cards.
+	PromptChallenge Prompt = "challenge"
+)
+
 // View is the table as one seat sees it: its own hand, and every other hand
 // only as a count.
 //
 // Color is the colour in play: the top card's, or the one its wild named.
-// Legal and Playable are the viewer's own, empty unless it is to act:
+// Legal, Playable and Prompt are the viewer's own, empty unless it is to act:
 // Legal the action kinds it may take, Playable the cards of its hand that
 // play accepts now, a wild listed bare, as it must still name a colour.
 type View struct {
@@ -85,6 +106,7 @@ type View struct {
 	MyHand    []Card            `json:"my_hand"`
 	Legal     []game.ActionKind `json:"legal"`
 	Playable  []Card            `json:"playable"`
+	Prompt    Prompt            `json:"prompt"`
 }
 
 // SeatView is one seat at the table, in seat order. Out is a seat that left

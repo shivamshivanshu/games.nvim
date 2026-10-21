@@ -9,6 +9,7 @@ local tables = require("games.core.tables")
 ---@alias games.UnoColor "R"|"Y"|"G"|"B"|"" none only before the colour of a Wild turned up is named
 ---@alias games.UnoPhase "color"|"play"|"drawn"|"challenge"
 ---@alias games.UnoDirection "clockwise"|"counterclockwise"
+---@alias games.UnoPrompt ""|"color"|"play_or_draw"|"draw"|"play_or_keep"|"keep"|"challenge" what the viewer is to do now; "" for nothing
 
 ---@class games.UnoSeatView
 ---@field seat games.Seat
@@ -25,6 +26,7 @@ local tables = require("games.core.tables")
 ---@field my_hand games.UnoCardKey[]
 ---@field legal games.ActionKind[] the viewer's own: empty unless it is to act
 ---@field playable games.UnoCardKey[] the viewer's own: the cards it may play now
+---@field prompt games.UnoPrompt the viewer's own
 
 ---@class games.UnoUpdate: games.GameUpdate
 ---@field view games.UnoView
@@ -95,16 +97,15 @@ for _, color in ipairs(cards.uno_colors) do
   COLOR_NAMES[color.letter] = color.name
 end
 
----@type table<games.UnoPhase, string> what the seat to act does in each phase
-local PHASE_HINTS = {
+---@type table<games.UnoPrompt, string>
+local PROMPT_TEXT = {
   color = "name the colour",
-  play = "play a card or draw",
-  drawn = "play the card drawn or keep it",
+  play_or_draw = "play a card or draw",
+  draw = "nothing to play: draw",
+  play_or_keep = "play the card drawn or keep it",
+  keep = "it does not match: keep it",
   challenge = "challenge the Wild Draw Four or accept it",
 }
----@type table<games.UnoPhase, string> what the seat to act does in a phase when it can play nothing
-local NOTHING_TO_PLAY_HINTS =
-  { play = "nothing to play: draw", drawn = "it does not match: keep it" }
 
 ---@param n integer
 ---@return string
@@ -127,18 +128,6 @@ local function legal(update, kind)
 end
 
 ---@param view games.UnoView
----@return string|nil
-local function hint(view)
-  if #view.legal == 0 then
-    return nil
-  end
-  if #view.playable == 0 and NOTHING_TO_PLAY_HINTS[view.phase] then
-    return NOTHING_TO_PLAY_HINTS[view.phase]
-  end
-  return PHASE_HINTS[view.phase]
-end
-
----@param view games.UnoView
 ---@return games.KvPair[]
 local function table_pairs(view)
   local pairs = {
@@ -146,7 +135,7 @@ local function table_pairs(view)
     { "Turns", view.direction },
     { "Draw pile", card_count(view.draw_pile) },
   }
-  local now = hint(view)
+  local now = PROMPT_TEXT[view.prompt]
   if now then
     pairs[#pairs + 1] = { "Now", now }
   end

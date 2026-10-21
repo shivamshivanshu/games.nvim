@@ -68,11 +68,16 @@ func passOf(handNo int) PassDirection {
 	return [...]PassDirection{PassLeft, PassRight, PassAcross, PassHold}[(handNo-1)%4]
 }
 
-// receiver is who seat i passes to this hand.
-func (s state) receiver(i int) int {
-	offset := map[PassDirection]int{PassLeft: 1, PassAcross: 2, PassRight: 3}[passOf(s.handNo)]
-	return (i + offset) % players
+// passOffset is how many seats on from the passer this hand's passes go.
+func (s state) passOffset() int {
+	return map[PassDirection]int{PassLeft: 1, PassAcross: 2, PassRight: 3}[passOf(s.handNo)]
 }
+
+// receiver is who seat i passes to this hand.
+func (s state) receiver(i int) int { return (i + s.passOffset()) % players }
+
+// giver is who passes to seat i this hand.
+func (s state) giver(i int) int { return (i + players - s.passOffset()) % players }
 
 // deal shuffles hand handNo's deck from the sub-seed and deals it one card
 // at a time round the table.
@@ -425,19 +430,35 @@ func (s state) View(seat game.Seat) View {
 	}
 	v.MyHand = append(v.MyHand, s.hands[i]...)
 	if passOf(s.handNo) != PassHold {
-		to := s.order[s.receiver(i)]
-		v.PassTo = &to
+		to, from := s.order[s.receiver(i)], s.order[s.giver(i)]
+		v.PassTo, v.ReceivedFrom = &to, &from
 	}
 	v.Passed = append(v.Passed, s.passes[i]...)
 	v.Received = append(v.Received, s.received[i]...)
-	switch {
-	case s.Over():
-	case s.phase == PhasePass && s.passes[i] == nil:
+	v.Prompt = s.prompt(i)
+	switch v.Prompt {
+	case PromptPass:
 		v.MustPass = passSize
-	case s.phase == PhasePlay && i == s.turn:
+	case PromptLead, PromptPlay:
 		v.Legal = s.legal(i)
 	}
 	return v
+}
+
+func (s state) prompt(i int) Prompt {
+	switch {
+	case s.Over():
+		return PromptNone
+	case s.phase == PhasePass && s.passes[i] == nil:
+		return PromptPass
+	case s.phase == PhasePass:
+		return PromptWait
+	case i == s.turn && len(s.trick) == 0:
+		return PromptLead
+	case i == s.turn:
+		return PromptPlay
+	}
+	return PromptNone
 }
 
 func (t *TrickResult) cloned() *TrickResult {

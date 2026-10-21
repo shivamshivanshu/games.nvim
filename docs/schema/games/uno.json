@@ -318,6 +318,9 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "prompt": {
+          "type": "string"
         }
       },
       "additionalProperties": false,
@@ -331,9 +334,10 @@
         "seats",
         "my_hand",
         "legal",
-        "playable"
+        "playable",
+        "prompt"
       ],
-      "description": "View is the table as one seat sees it: its own hand, and every other hand\nonly as a count.\n\nColor is the colour in play: the top card's, or the one its wild named.\nLegal and Playable are the viewer's own, empty unless it is to act:\nLegal the action kinds it may take, Playable the cards of its hand that\nplay accepts now, a wild listed bare, as it must still name a colour."
+      "description": "View is the table as one seat sees it: its own hand, and every other hand\nonly as a count.\n\nColor is the colour in play: the top card's, or the one its wild named.\nLegal, Playable and Prompt are the viewer's own, empty unless it is to act:\nLegal the action kinds it may take, Playable the cards of its hand that\nplay accepts now, a wild listed bare, as it must still name a colour."
     }
   },
   "title": "Uno",

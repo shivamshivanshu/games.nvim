@@ -43,25 +43,60 @@ func TestTheOpeningEventStartsHandOne(t *testing.T) {
 
 func TestPassesGoLeftRightAcrossThenHold(t *testing.T) {
 	tests := []struct {
-		handNo int
-		pass   PassDirection
-		to     int
+		handNo   int
+		pass     PassDirection
+		to, from int
 	}{
-		{1, PassLeft, 1}, {2, PassRight, 3}, {3, PassAcross, 2}, {4, PassHold, 0}, {5, PassLeft, 1},
+		{1, PassLeft, 1, 3}, {2, PassRight, 3, 1}, {3, PassAcross, 2, 2}, {4, PassHold, 0, 0}, {5, PassLeft, 1, 3},
 	}
 	for _, tt := range tests {
 		s := newGame(t, 1).deal(tt.handNo)
 		if passOf(tt.handNo) != tt.pass {
 			t.Errorf("hand %d passes %s, want %s", tt.handNo, passOf(tt.handNo), tt.pass)
 		}
+		view := s.View(s.order[0])
 		if tt.pass == PassHold {
 			if s.phase != PhasePlay || !slices.Contains(s.hands[s.turn], twoOfClubs) {
 				t.Errorf("held hand: phase %s, %s to lead without the two of clubs", s.phase, s.order[s.turn])
+			}
+			if view.PassTo != nil || view.ReceivedFrom != nil {
+				t.Errorf("held hand: p1 passes to %v and receives from %v, want neither", view.PassTo, view.ReceivedFrom)
 			}
 			continue
 		}
 		if got := s.receiver(0); got != tt.to {
 			t.Errorf("hand %d: p1 passes to seat index %d, want %d", tt.handNo, got, tt.to)
+		}
+		if got, want := view.ReceivedFrom, s.order[tt.from]; got == nil || *got != want {
+			t.Errorf("hand %d: p1 receives from %v, want %s", tt.handNo, got, want)
+		}
+	}
+}
+
+func TestPromptIsWhatTheViewerIsToDoNow(t *testing.T) {
+	dealt := newGame(t, 1)
+	chosen, _ := apply(t, dealt, seat(1), passing(texts(dealt.hands[0][:passSize])))
+	leading := tricks(t, 2, false, "2c 3h", "4c", "5c", "6c")
+	following := leading
+	following.trick, following.turn = []Play{{Seat: seat(1), Card: hand(t, "2c")[0]}}, 1
+	tests := []struct {
+		name   string
+		s      state
+		viewer game.Seat
+		want   Prompt
+	}{
+		{"to choose a pass", dealt, seat(1), PromptPass},
+		{"pass chosen", chosen, seat(1), PromptWait},
+		{"others still choosing", chosen, seat(2), PromptPass},
+		{"to lead", leading, seat(1), PromptLead},
+		{"to follow", following, seat(2), PromptPlay},
+		{"not to play", leading, seat(2), PromptNone},
+		{"a spectator", leading, "watcher", PromptNone},
+		{"the game over", leading.finish(game.Result{Kind: game.ResultAborted}), seat(1), PromptNone},
+	}
+	for _, tt := range tests {
+		if got := tt.s.View(tt.viewer).Prompt; got != tt.want {
+			t.Errorf("%s: prompt %q, want %q", tt.name, got, tt.want)
 		}
 	}
 }
@@ -365,7 +400,7 @@ func TestWireShape(t *testing.T) {
 		`{"seat":"p1","score":0,"taken":0,"pass_chosen":false,"out":false},{"seat":"p2","score":0,"taken":0,"pass_chosen":false,"out":false},` +
 		`{"seat":"p3","score":0,"taken":0,"pass_chosen":false,"out":false},{"seat":"p4","score":0,"taken":0,"pass_chosen":false,"out":false}],` +
 		`"trick":[],"last_trick":null,"hearts_broken":false,"my_hand":["2c","3h"],"legal":["2c"],"must_pass":0,"pass_to":"p2",` +
-		`"passed":[],"received":["3h"],"last_hand":null}`
+		`"received_from":"p4","passed":[],"received":["3h"],"last_hand":null,"prompt":"lead"}`
 	if got := gametest.ViewJSON(t, s.View(seat(1))); got != want {
 		t.Errorf("view\n got %s\nwant %s", got, want)
 	}

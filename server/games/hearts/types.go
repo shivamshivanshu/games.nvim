@@ -67,13 +67,30 @@ const (
 	PassHold   PassDirection = "hold"
 )
 
+// Prompt is what the viewer is to do now.
+type Prompt string
+
+// The prompts.
+const (
+	// PromptNone is a viewer with nothing to do.
+	PromptNone Prompt = ""
+	// PromptPass is choosing the cards to pass.
+	PromptPass Prompt = "pass"
+	// PromptWait is waiting for the others to choose theirs.
+	PromptWait Prompt = "wait"
+	// PromptLead is leading the trick.
+	PromptLead Prompt = "lead"
+	// PromptPlay is playing to the trick.
+	PromptPlay Prompt = "play"
+)
+
 // View is the table as one seat sees it: its own hand and passes, and every
 // trick played.
 //
 // Legal is the viewer's own, the cards it may play now, empty unless it is
 // to play. MustPass is the cards it must still choose to pass, 0 once
 // chosen. Passed is what it passed, or chose to, this hand; Received is what
-// was passed to it.
+// ReceivedFrom passed to it. Prompt is the viewer's own.
 type View struct {
 	HandNo       int           `json:"hand_no"`
 	Pass         PassDirection `json:"pass"`
@@ -87,9 +104,11 @@ type View struct {
 	Legal        []cards.Card  `json:"legal"`
 	MustPass     int           `json:"must_pass"`
 	PassTo       *game.Seat    `json:"pass_to" jsonschema:"nullable"`
+	ReceivedFrom *game.Seat    `json:"received_from" jsonschema:"nullable"`
 	Passed       []cards.Card  `json:"passed"`
 	Received     []cards.Card  `json:"received"`
 	LastHand     *HandScore    `json:"last_hand" jsonschema:"nullable"`
+	Prompt       Prompt        `json:"prompt"`
 }
 
 // SeatView is one seat at the table, in play order. Score is its total from

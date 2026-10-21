@@ -10,6 +10,7 @@ local text_util = require("games.ui.text")
 
 ---@alias games.HeartsPass "left"|"right"|"across"|"hold"
 ---@alias games.HeartsPhase "pass"|"play"
+---@alias games.HeartsPrompt ""|"pass"|"wait"|"lead"|"play" what the viewer is to do now; "" for nothing
 
 ---@class games.HeartsSeatView
 ---@field seat games.Seat
@@ -49,9 +50,11 @@ local text_util = require("games.ui.text")
 ---@field legal games.CardKey[] the viewer's own: the cards it may play now
 ---@field must_pass integer the viewer's own: cards it has still to choose to pass, else 0
 ---@field pass_to? games.Seat the viewer's own: whom its passes go to; nil in a hand without passing
+---@field received_from? games.Seat the viewer's own: who passes to it; nil in a hand without passing
 ---@field passed games.CardKey[] the viewer's own: the cards it chose to pass this hand
 ---@field received games.CardKey[] the viewer's own: the cards passed to it this hand
 ---@field last_hand? games.HeartsHandScore
+---@field prompt games.HeartsPrompt the viewer's own
 
 ---@class games.HeartsUpdate: games.GameUpdate
 ---@field view games.HeartsView
@@ -114,8 +117,16 @@ local PLACES = {
   { row = 1, col = 2, name = "across" },
   { row = 2, col = 3, name = "right" },
 }
----@type table<games.HeartsPass, integer> each pass direction's offset clockwise
-local PASS_OFFSETS = { left = 1, across = 2, right = 3 }
+---@type games.HeartsPrompt
+local PASS_PROMPT = "pass"
+---@type table<games.HeartsPrompt, string> the text of each prompt; the pass's takes the cards to
+---choose and whom they go to
+local PROMPT_TEXT = {
+  pass = "pass %d cards to %s",
+  wait = "wait for the others to pass",
+  lead = "lead a card",
+  play = "play a card",
+}
 local PLACE_WIDTH = text_util.widest(vim.tbl_values(PLACES), function(place)
   return place.name
 end)
@@ -195,24 +206,18 @@ end
 ---@param view games.HeartsView
 ---@param talk games.Talk
 ---@return string|nil what the viewer is to do now
-local function hint(view, talk)
-  if view.must_pass > 0 and view.pass_to then
-    return ("pass %d cards to %s"):format(view.must_pass, talk.name(view.pass_to))
+local function prompt_text(view, talk)
+  local text = PROMPT_TEXT[view.prompt]
+  if view.prompt == PASS_PROMPT then
+    return text:format(view.must_pass, talk.name(view.pass_to))
   end
-  if view.phase == "pass" and #view.passed > 0 then
-    return "wait for the others to pass"
-  end
-  if #view.legal > 0 then
-    return #view.trick == 0 and "lead a card" or "play a card"
-  end
-  return nil
+  return text
 end
 
 ---@param update games.HeartsUpdate
----@param me games.UserID
 ---@param talk games.Talk
 ---@return games.KvPair[]
-local function table_pairs(update, me, talk)
+local function table_pairs(update, talk)
   local view = update.view
   local pairs = {
     { "Hand", ("%d, %s"):format(view.hand_no, passing_text(view.pass)) },
@@ -236,12 +241,13 @@ local function table_pairs(update, me, talk)
     pairs[#pairs + 1] =
       { "Passed", ("%s to %s"):format(talk.cards(view.passed), talk.name(view.pass_to)) }
   end
-  if #view.received > 0 then
-    local giver = seat_at(update, me, SEATS - PASS_OFFSETS[view.pass])
-    pairs[#pairs + 1] =
-      { "Received", ("%s from %s"):format(talk.cards(view.received), talk.name(giver)) }
+  if #view.received > 0 and view.received_from then
+    pairs[#pairs + 1] = {
+      "Received",
+      ("%s from %s"):format(talk.cards(view.received), talk.name(view.received_from)),
+    }
   end
-  local now = hint(view, talk)
+  local now = prompt_text(view, talk)
   if now then
     pairs[#pairs + 1] = { "Now", now }
   end
@@ -318,7 +324,7 @@ function M.layout(update, ctx)
       {
         width = PANEL_WIDTH,
         node = function()
-          local nodes = { kv({ pairs = table_pairs(update, ctx.me, talk), key_hl = KEY_HL }) }
+          local nodes = { kv({ pairs = table_pairs(update, talk), key_hl = KEY_HL }) }
           vim.list_extend(nodes, hand_lines(view, ctx))
           return compose.col(vim.list_extend(nodes, last_hand_lines(view.last_hand, talk)))
         end,

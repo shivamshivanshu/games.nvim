@@ -440,12 +440,13 @@ An action object always carries `kind`.
 - Reasons: `went_out`.
 - Cards are colour then face: `R`, `Y`, `G`, `B` and `0`-`9`, `S` (skip), `R` (reverse), `+2`; wilds `W` and `W+4`.
 - Events: `started {by, dealer, top}`; `played {by, card, color}`, `color` the colour in play after it; `drew {by, seat, count}`, the cards drawn reaching only `seat`'s view; `passed {by}`, keeping the card drawn; `skipped {by, seat}`; `reversed {by, direction}`; `color {by, color}`, naming the colour for a Wild turned up; `challenged {by, seat, guilty}`; `reshuffled {by, cards}`, a new draw pile of `cards`; `left {by}`.
-- View `{top, color, direction, phase, draw_pile, seats, my_hand, legal, playable}`:
+- View `{top, color, direction, phase, draw_pile, seats, my_hand, legal, playable, prompt}`:
   - `color` is `""` only while a Wild turned up waits to be named; `direction` is `clockwise` or `counterclockwise`;
   - `phase` is `color`, `play`, `drawn` (play the card drawn, if it matches, or keep it; every draw that takes a card enters it) or `challenge` (challenge the Wild Draw Four or accept it);
   - `seats` is every seat's `{seat, cards, out}`, `cards` the count it holds;
   - `my_hand` holds the viewer's own cards only; no other seat's cards, nor the draw pile's, reach a view or event;
-  - `legal` (action kinds) and `playable` (cards) are the viewer's own, `[]` unless it is to act.
+  - `legal` (action kinds), `playable` (cards) and `prompt` are the viewer's own, `[]` and `""` unless it is to act;
+  - `prompt` is what the seat to act is to do: `color`, `play_or_draw`, `draw` (nothing to play), `play_or_keep` (the card drawn matches), `keep` (it does not) or `challenge`.
 - Actions: `play` (`card`: e.g. `"r5"`, or a wild and the colour it names, `"w g"`; the catalogue gives the pattern), `draw`, `pass`, `challenge`, `accept`, `color` (`color`: `R`, `Y`, `G` or `B`). The rulings are in `docs/games/uno.md`.
 
 ### Hearts
@@ -453,12 +454,13 @@ An action object always carries `kind`.
 - Seats `p1`-`p4` in invite order, clockwise; exactly four players. Hands are played until a score reaches 100.
 - Reasons: `score_limit`. All four tied at the end is a draw.
 - Events: `hand_started {by, hand_no, pass}`, hand 1's in the game's first update; `pass_chosen {by, seat}`, naming no cards; `passed {by, pass}`, the cards changing hands; `played {by, seat, card}`; `trick_won {by, seat, points}`; `hand_scored {by, score: {hand_no, points: [{seat, points}], moon}}`; `left {by}`. `seat` differs from `by` for a seat that left and is played for.
-- View `{hand_no, pass, phase, score_limit, seats, trick, last_trick, hearts_broken, my_hand, legal, must_pass, pass_to, passed, received, last_hand}`:
+- View `{hand_no, pass, phase, score_limit, seats, trick, last_trick, hearts_broken, my_hand, legal, must_pass, pass_to, received_from, passed, received, last_hand, prompt}`:
   - `pass` is `left`, `right`, `across` or `hold`; `phase` is `pass` or `play`;
   - `seats` is every seat's `{seat, score, taken, pass_chosen, out}`;
   - `trick` is `[{seat, card}]` in play order; `last_trick` is `{plays, winner, points}` or `null`; `last_hand` is a `hand_scored` score or `null`;
-  - `my_hand`, `legal`, `must_pass`, `pass_to`, `passed` and `received` are the viewer's own; the cards a seat passes reach only its view and its receiver's;
-  - `legal` is `[]` unless the viewer is to play, `must_pass` 0 once it has chosen, `pass_to` `null` in a hand without passing.
+  - `my_hand`, `legal`, `must_pass`, `pass_to`, `received_from`, `passed`, `received` and `prompt` are the viewer's own; the cards a seat passes reach only its view and its receiver's;
+  - `legal` is `[]` unless the viewer is to play, `must_pass` 0 once it has chosen, `pass_to` and `received_from` (who passes to the viewer) `null` in a hand without passing;
+  - `prompt` is what the viewer is to do now: `pass` (choose its cards), `wait` (for the others to choose theirs), `lead`, `play`, or `""` for nothing, including once the game is over.
 - Actions: `pass` (`cards`: three cards apart, e.g. `"2c qs ah"`) and `play` (`card`: e.g. `"qs"`); the catalogue gives the patterns. The rules are in `docs/games/hearts.md`.
 
 ### Battleship

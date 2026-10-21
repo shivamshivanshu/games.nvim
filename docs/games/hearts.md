@@ -42,11 +42,12 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
 
 **Wire:** `{"kind":"pass","cards":"2c qs ah"}` and `{"kind":"play","card":"qs"}`.
 - `cards` is three cards apart, `card` one, matched case-insensitively by `^\s*([2-9TJQKA][CDHS])\s+([2-9TJQKA][CDHS])\s+([2-9TJQKA][CDHS])\s*$` and `^\s*([2-9TJQKA][CDHS])\s*$`; the action catalogue publishes the patterns. Cards on the wire are rank then suit, `Qs`, `Th`, `2c`.
-- The view `{hand_no, pass, phase, score_limit, seats, trick, last_trick, hearts_broken, my_hand, legal, must_pass, pass_to, passed, received, last_hand}`:
+- The view `{hand_no, pass, phase, score_limit, seats, trick, last_trick, hearts_broken, my_hand, legal, must_pass, pass_to, received_from, passed, received, last_hand, prompt}`:
   - `pass` is `left`, `right`, `across` or `hold`; `phase` is `pass` or `play`;
   - `seats` is every seat's `{seat, score, taken, pass_chosen, out}`, `taken` the points it has taken this hand;
   - `trick` is the trick in play, `[{seat, card}]` in play order; `last_trick` the last one taken, `{plays, winner, points}`, or `null` before the first;
-  - `my_hand`, `legal`, `must_pass`, `pass_to`, `passed` and `received` are the viewer's own: `legal` is `[]` unless it is to play, `must_pass` 0 once it has chosen, `pass_to` `null` in a hand without passing;
+  - `my_hand`, `legal`, `must_pass`, `pass_to`, `received_from`, `passed`, `received` and `prompt` are the viewer's own: `legal` is `[]` unless it is to play, `must_pass` 0 once it has chosen, `pass_to` and `received_from` `null` in a hand without passing;
+  - `prompt` is what the viewer is to do now: `pass` (choose its cards), `wait` (for the others to choose theirs), `lead`, `play`, or `""` for nothing; the board words it and derives nothing;
   - `last_hand` is the last hand's `{hand_no, points: [{seat, points}], moon}`, `moon` the seat that shot it or `null`; `null` before the first hand ends.
 - Events: `hand_started {hand_no, pass}`, hand 1's in the game's first update, `pass_chosen {seat}`, `passed {pass}` once the cards change hands, `played {seat, card}`, `trick_won {seat, points}`, `hand_scored {score}`, `left`. An event's `seat` differs from its `by` for a seat played for.
 

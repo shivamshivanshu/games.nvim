@@ -372,6 +372,16 @@
             }
           ]
         },
+        "received_from": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "passed": {
           "items": {
             "type": "string"
@@ -393,6 +403,9 @@
               "type": "null"
             }
           ]
+        },
+        "prompt": {
+          "type": "string"
         }
       },
       "additionalProperties": false,
@@ -410,11 +423,13 @@
         "legal",
         "must_pass",
         "pass_to",
+        "received_from",
         "passed",
         "received",
-        "last_hand"
+        "last_hand",
+        "prompt"
       ],
-      "description": "View is the table as one seat sees it: its own hand and passes, and every\ntrick played.\n\nLegal is the viewer's own, the cards it may play now, empty unless it is\nto play. MustPass is the cards it must still choose to pass, 0 once\nchosen. Passed is what it passed, or chose to, this hand; Received is what\nwas passed to it."
+      "description": "View is the table as one seat sees it: its own hand and passes, and every\ntrick played.\n\nLegal is the viewer's own, the cards it may play now, empty unless it is\nto play. MustPass is the cards it must still choose to pass, 0 once\nchosen. Passed is what it passed, or chose to, this hand; Received is what\nReceivedFrom passed to it. Prompt is the viewer's own."
     }
   },
   "title": "Hearts",

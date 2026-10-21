@@ -398,17 +398,46 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 	}
 }
 
+func TestPromptIsWhatTheSeatToActIsToDoNow(t *testing.T) {
+	colorless := table(t, "W", "G1", "R7", "Y1")
+	colorless.phase, colorless.color = PhaseColor, NoColor
+	stuck := table(t, "R5", "R9 G1", "B7 B1", "Y1")
+	matching, _ := apply(t, stuck, seat(1), kind(ActionDraw))
+	unmatched, _ := apply(t, table(t, "R5", "G9 G1", "B7 B1", "Y1"), seat(1), kind(ActionDraw))
+	facing, _ := apply(t, table(t, "R5", "G1 G2 G3 G4", "W+4 B1", "Y1 Y2"), seat(1), playing("w+4 b"))
+	tests := []struct {
+		name   string
+		s      state
+		viewer game.Seat
+		want   Prompt
+	}{
+		{"a wild turned up", colorless, seat(1), PromptColor},
+		{"a card to play", table(t, "R5", "G1", "R7 B1", "Y1"), seat(1), PromptPlayOrDraw},
+		{"nothing to play", stuck, seat(1), PromptDraw},
+		{"the card drawn matches", matching, seat(1), PromptPlayOrKeep},
+		{"the card drawn does not match", unmatched, seat(1), PromptKeep},
+		{"facing a Wild Draw Four", facing, seat(2), PromptChallenge},
+		{"not to act", stuck, seat(2), PromptNone},
+		{"the game over", stuck.Conclude(game.Result{Kind: game.ResultAborted}).(state), seat(1), PromptNone},
+	}
+	for _, tt := range tests {
+		if got := tt.s.View(tt.viewer).Prompt; got != tt.want {
+			t.Errorf("%s: prompt %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
 func TestWireShape(t *testing.T) {
 	s := table(t, "R5", "G1 G2", "R7 W+4 B1", "Y1")
 	want := `{"top":"R5","color":"R","direction":"clockwise","phase":"play","draw_pile":2,` +
 		`"seats":[{"seat":"p1","cards":3,"out":false},{"seat":"p2","cards":1,"out":false}],` +
-		`"my_hand":["R7","B1","W+4"],"legal":["play","draw"],"playable":["R7","W+4"]}`
+		`"my_hand":["R7","B1","W+4"],"legal":["play","draw"],"playable":["R7","W+4"],"prompt":"play_or_draw"}`
 	if got := gametest.ViewJSON(t, s.View(seat(1))); got != want {
 		t.Errorf("view\n got %s\nwant %s", got, want)
 	}
 	waiting := `{"top":"R5","color":"R","direction":"clockwise","phase":"play","draw_pile":2,` +
 		`"seats":[{"seat":"p1","cards":3,"out":false},{"seat":"p2","cards":1,"out":false}],` +
-		`"my_hand":["Y1"],"legal":[],"playable":[]}`
+		`"my_hand":["Y1"],"legal":[],"playable":[],"prompt":""}`
 	if got := gametest.ViewJSON(t, s.View(seat(2))); got != waiting {
 		t.Errorf("waiting view\n got %s\nwant %s", got, waiting)
 	}

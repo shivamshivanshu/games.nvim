@@ -48,6 +48,7 @@ local function playing(view)
       my_hand = { "R5", "RS", "G+2", "BR", "W+4" },
       legal = { "play", "draw" },
       playable = { "G+2", "W+4" },
+      prompt = "play_or_draw",
     },
   }, { view = view })
 end
@@ -116,27 +117,37 @@ end
 function T.the_seat_to_act_sees_what_to_do_in_each_phase()
   for _, case in ipairs({
     {
-      view = { legal = { "draw" }, playable = {} },
+      view = { legal = { "draw" }, playable = {}, prompt = "draw" },
       now = "nothing to play: draw",
       keys = "d draw",
     },
     {
-      view = { phase = "drawn", legal = { "play", "pass" }, playable = { "BR" } },
+      view = {
+        phase = "drawn",
+        legal = { "play", "pass" },
+        playable = { "BR" },
+        prompt = "play_or_keep",
+      },
       now = "play the card drawn or keep it",
       keys = "k keep",
     },
     {
-      view = { phase = "drawn", legal = { "pass" }, playable = {} },
+      view = { phase = "drawn", legal = { "pass" }, playable = {}, prompt = "keep" },
       now = "it does not match: keep it",
       keys = "k keep",
     },
     {
-      view = { phase = "challenge", legal = { "challenge", "accept" }, playable = {} },
+      view = {
+        phase = "challenge",
+        legal = { "challenge", "accept" },
+        playable = {},
+        prompt = "challenge",
+      },
       now = "challenge the Wild Draw Four or accept it",
       keys = "c challenge  a accept",
     },
     {
-      view = { phase = "color", color = "", legal = { "color" }, playable = {} },
+      view = { phase = "color", color = "", legal = { "color" }, playable = {}, prompt = "color" },
       now = "name the colour",
       keys = "r red  y yellow  g green  b blue",
     },
@@ -151,12 +162,14 @@ function T.the_seat_to_act_sees_what_to_do_in_each_phase()
 end
 
 function T.before_a_wild_turned_up_is_named_there_is_no_colour()
-  local lines = render(playing({ phase = "color", color = "", legal = {}, playable = {} }), "bob")
+  local lines =
+    render(playing({ phase = "color", color = "", legal = {}, playable = {}, prompt = "" }), "bob")
   assert(shows(lines, "Colour    not named yet"), table.concat(lines, "\n"))
 end
 
 function T.a_waiting_seat_sees_no_hint_marks_or_moves()
-  local lines = render(playing({ legal = {}, playable = {}, my_hand = { "Y1", "B2" } }), "bob")
+  local lines =
+    render(playing({ legal = {}, playable = {}, my_hand = { "Y1", "B2" }, prompt = "" }), "bob")
   assert(not shows(lines, "Now"))
   local hand = assert(line_of(lines, "Y1  B2"))
   assert_eq("", vim.trim(lines[hand + 1]))
