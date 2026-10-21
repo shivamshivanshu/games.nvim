@@ -27,7 +27,7 @@ Solo: find a hidden five-letter word in six guesses. Server: `server/games/wordl
 ## Other endings (core)
 - Give up (`R`, confirms): a loss, reason `resign`; the answer is revealed.
 - Abort (`A`): only before the first guess; result `aborted`, no winner, scores nothing. The answer is revealed.
-- The state is a `game.Concluder`, so an imposed ending reveals the answer too.
+- The state's `Conclude` ends the game, so an imposed ending reveals the answer too.
 
 ## Options
 None.

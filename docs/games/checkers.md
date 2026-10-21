@@ -78,7 +78,7 @@ The keys are buffer-local, in Normal mode, in the board buffer. Only keys valid 
 ## Wire
 - **View:** `{board[32], legal[][], last[], history[]}`.
   - `board[i]` is square i+1: `""` for empty, `b`/`B` for Black's men and kings, `w`/`W` for White's.
-  - `legal` lists the viewer's own legal moves as square paths, origin first. It is empty unless the viewer is to move, and empty once the game ends, including an imposed end (`game.Concluder`).
+  - `legal` lists the viewer's own legal moves as square paths, origin first. It is empty unless the viewer is to move, and empty once the game ends, including an imposed end (`Conclude`).
   - `last` is the last move's path, `[]` before the first move.
   - `history` holds the moves in notation.
 - **Event:** `moved {by, move, crowned}`.

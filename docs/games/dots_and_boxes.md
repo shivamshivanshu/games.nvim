@@ -26,7 +26,7 @@ Two players take turns drawing a line between two adjacent dots; whoever complet
 - **Draw by agreement** (`D` to offer or accept, `X` to decline): reason `draw_agreed`.
 - **Timeout:** the player whose clock reaches 0 loses, reason `timeout`.
 - **Abort** (`A`): available until both players have moved once; result `aborted`.
-- After any of these, `legal_edges` is empty, because dots_and_boxes implements `game.Concluder`.
+- After any of these, `legal_edges` is empty, because dots_and_boxes's `Conclude` ends the game.
 
 ## Clock
 The core runs it as for chess. After completing a box the mover keeps the turn: its clock keeps running, and that move earns no increment, since the core adds the increment only when the turn leaves the mover.

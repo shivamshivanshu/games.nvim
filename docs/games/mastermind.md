@@ -36,7 +36,7 @@ Solo: find a hidden code of four coloured pegs in ten guesses. Server: `server/g
 ## Other endings (core)
 - Give up (`R`, confirms): a loss, reason `resign`; the secret is revealed.
 - Abort (`A`): only before the first guess; result `aborted`, no winner, scores nothing. The secret is revealed.
-- The state is a `game.Concluder`, so an imposed ending reveals the secret too.
+- The state's `Conclude` ends the game, so an imposed ending reveals the secret too.
 
 ## Options
 None.

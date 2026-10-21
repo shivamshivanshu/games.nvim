@@ -345,7 +345,7 @@ Checkers moves are entered with `m` as square numbers 1-32: `11-15` for a step, 
 No core edits.
 
 1. `server/games/<id>/`: implement `game.Rules[Opts, Action, View]` with typed options, actions, and view; its test calls `gametest.Run(t, <id>.Rules{}, scripts)`.
-2. Add one line to `server/games/registry.go`. Have `Rules` list its events (`game.EventCatalog`) and, if it adds any, its result reasons (`game.ReasonCatalog`), then run `make schema`.
+2. Add one line to `server/games/registry.go`. Have its `Info` list its events (`Events`) and, if it adds any, its result reasons (`Reasons`), then run `make schema`.
 3. `lua/games/games/<id>.lua`: a declarative layout plus an action table (20-60 lines, no window, buffer, keymap, or highlight code). The shell loads it by game id.
 
 ## Security

@@ -27,7 +27,7 @@ Two players, freestyle Gomoku. Server: `server/games/gomoku/`, with the board an
 - **Draw by agreement** (`D` to offer or accept, `X` to decline): reason `draw_agreed`.
 - **Timeout:** the player whose clock reaches 0 loses, reason `timeout`.
 - **Abort** (`A`): available until both players have moved once; result `aborted`, no winner, no score.
-- After any of these, `legal_cells` is empty, because gomoku implements `game.Concluder`.
+- After any of these, `legal_cells` is empty, because gomoku's `Conclude` ends the game.
 
 ## Clock
 The core runs it as for chess: it starts once both players have moved, and the increment goes to the mover after each stone. The server decides timeouts.

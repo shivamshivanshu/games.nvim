@@ -24,7 +24,7 @@ Two players, classic Connect Four. Server: `server/games/connect4/`; board UI: `
 - **Draw by agreement** (`D` to offer or accept, `X` to decline): reason `draw_agreed`.
 - **Timeout:** the player whose clock reaches 0 loses, reason `timeout`.
 - **Abort** (`A`): available until both players have moved once. The result is `aborted`, with no winner and no score.
-- After any of these, `legal_columns` is empty, because connect4 implements `game.Concluder`.
+- After any of these, `legal_columns` is empty, because connect4's `Conclude` ends the game.
 
 ## Clock
 - The core runs the clock exactly as it does for chess. It starts after both players have moved once, and the increment goes to the mover after each drop.

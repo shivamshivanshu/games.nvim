@@ -25,7 +25,7 @@ Two players, Reversi (Othello rules) on 8 × 8. Server: `server/games/reversi/`,
 - **Draw by agreement** (`D` to offer or accept, `X` to decline): reason `draw_agreed`.
 - **Timeout:** the player whose clock reaches 0 loses, reason `timeout`.
 - **Abort** (`A`): available until both players have moved once; result `aborted`.
-- After any of these, `legal_cells` is empty, because reversi implements `game.Concluder`.
+- After any of these, `legal_cells` is empty, because reversi's `Conclude` ends the game.
 
 ## Clock
 The core runs it as for chess. When the opponent passes, the mover keeps the turn: its clock keeps running, and that move earns no increment, since the core adds the increment only when the turn leaves the mover.

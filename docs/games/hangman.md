@@ -24,7 +24,7 @@ Solo: find a hidden five-letter word, a letter at a time, before six misses hang
 ## Other endings (core)
 - Give up (`R`, confirms): a loss, reason `resign`; the word is revealed.
 - Abort (`A`): only before the first guess; result `aborted`, no winner, scores nothing. The word is revealed.
-- The state is a `game.Concluder`, so an imposed ending reveals the word too.
+- The state's `Conclude` ends the game, so an imposed ending reveals the word too.
 
 ## Options
 None.

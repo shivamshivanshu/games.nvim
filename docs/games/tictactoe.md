@@ -20,7 +20,7 @@ Two players, three in a row on a 3x3 board. Server: `server/games/tictactoe/`; b
 ## Other endings (core)
 - Resign (`R`, confirms): the opponent wins, reason `resign`.
 - Abort (`A`): only until both players have moved once; result `aborted`, no winner, scores nothing.
-- After an imposed ending the view drops `legal_cells` (the state is a `game.Concluder`).
+- After an imposed ending the view drops `legal_cells` (the state's `Conclude` ends the game).
 
 ## Options
 | Option | Values | Default | Meaning |

@@ -41,7 +41,7 @@ Solo, in real time: steer Pac-Man through the arcade maze, eating every dot whil
 ## Other endings (core)
 - Give up (`R`, confirms): a loss with no winner, reason `resign`.
 - Abort (`A`): only before your first turn; result `aborted`, scores nothing.
-- After either, `can_turn` and `can_pause` are false and no tick comes, because pacman implements `game.Concluder`.
+- After either, `can_turn` and `can_pause` are false and no tick comes, because pacman's `Conclude` ends the game.
 
 ## Options
 None.

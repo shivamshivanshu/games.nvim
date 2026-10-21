@@ -31,7 +31,7 @@ Two players, classic Battleship on 10 × 10. Server: `server/games/battleship/`,
 - **Resign** (`R`, confirms): the opponent wins, reason `resign`.
 - **Abort** (`A`): available until both players have acted once; result `aborted`.
 - There is no draw offer and no clock: placing is simultaneous, which a per-turn clock does not fit.
-- After any of these the views offer no placement and no target, and show both fleets, because battleship implements `game.Concluder`.
+- After any of these the views offer no placement and no target, and show both fleets, because battleship's `Conclude` ends the game.
 
 ## Options
 | Option | Values | Default | Meaning |

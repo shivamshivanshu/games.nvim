@@ -27,7 +27,7 @@ Two players, Kalah(6,4): six pits a side with four seeds each, and a store per p
 - **Draw by agreement** (`D` to offer or accept, `X` to decline): reason `draw_agreed`.
 - **Timeout:** the player whose clock reaches 0 loses, reason `timeout`.
 - **Abort** (`A`): available until both players have moved once; result `aborted`.
-- After any of these, `legal_pits` is empty, because mancala implements `game.Concluder`.
+- After any of these, `legal_pits` is empty, because mancala's `Conclude` ends the game.
 
 ## Clock
 The core runs it as for chess. On an extra turn the mover keeps the turn: its clock keeps running, and that sowing earns no increment, since the core adds the increment only when the turn leaves the mover.
