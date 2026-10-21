@@ -282,12 +282,14 @@ func (s state) applyPlay(seat game.Seat, text string) (stepped, error) {
 	return played.then(s.afterPlay(seat, p.card)), nil
 }
 
-// applyDraw draws one card; the seat may play it at once if it matches,
-// and otherwise the turn passes.
+// applyDraw draws one card, which the seat then plays, if it matches, or
+// keeps. Every draw that takes a card waits on that choice, so that the turn
+// shows no other seat whether the card could be played. With nothing left to
+// draw the turn passes.
 func (s state) applyDraw(seat game.Seat) stepped {
 	drew := s.draw(seat, s.turn, 1)
 	hand := drew.hands[drew.turn]
-	if len(hand) > len(s.hands[s.turn]) && drew.matches(hand[len(hand)-1]) {
+	if len(hand) > len(s.hands[s.turn]) {
 		drew.phase, drew.drawn = PhaseDrawn, hand[len(hand)-1]
 		return drew
 	}
@@ -345,7 +347,9 @@ func (s state) legal() []game.ActionKind {
 func (s state) playable() []Card {
 	switch s.phase {
 	case PhaseDrawn:
-		return []Card{s.drawn}
+		if s.matches(s.drawn) {
+			return []Card{s.drawn}
+		}
 	case PhasePlay:
 		matching := slices.DeleteFunc(append([]Card{}, s.hands[s.turn]...), func(c Card) bool { return !s.matches(c) })
 		slices.SortFunc(matching, cardOrder)

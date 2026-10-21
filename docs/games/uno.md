@@ -10,7 +10,7 @@ The shedding card game for 2 to 6 players, by the official rules: match the top 
   - a Skip skips the player left of the dealer; a Draw Two makes them draw two and lose their turn;
   - a Reverse turns play counterclockwise, so the dealer plays first;
   - a Wild lets the player left of the dealer name the colour, then play.
-- **Your turn.** Play a card matching the colour in play or the top card's face, or any wild; or draw one card. A card you draw that can be played may be played at once, or kept; one that cannot is kept and the turn passes.
+- **Your turn.** Play a card matching the colour in play or the top card's face, or any wild; or draw one card. After drawing you play the card drawn, if it matches, or keep it (`k`), which ends your turn. Every draw waits on that choice, matching card or not, so no other player learns whether you could have played it.
 - **Action cards.**
   - Skip: the next player loses their turn.
   - Reverse: play turns round. With two players left it acts as a Skip.
@@ -31,7 +31,7 @@ The shedding card game for 2 to 6 players, by the official rules: match the top 
 6. **The last card ends the game at once.** A Draw Two or Wild Draw Four played as the last card does not make the next player draw.
 7. **Drawing when both piles are spent** takes no card and passes the turn.
 8. **A player who leaves** (resign or timeout) takes their hand out of play. When one player remains, they win. A Wild Draw Four the leaver played, or faced, is void; if the leaver was to act, the turn passes on.
-9. **Secrecy.** A hand reaches only its own player's view (`my_hand`); `drew` events carry the count, not the cards. Tests change one hand, or the draw pile, and require every other player's views and events to stay byte for byte the same.
+9. **Secrecy.** A hand reaches only its own player's view (`my_hand`); `drew` events carry the count, not the cards, and a draw goes on the same way whether or not the card drawn can be played. Tests change one hand, or the draw pile, and require every other player's views and events to stay byte for byte the same.
 10. **The server computes legality.** For the seat to act, the view lists the action kinds it may take (`legal`) and the cards it may play (`playable`); the Lua board marks them and does no matching.
 11. **No options and no clock.** Abort is the core's: allowed until every player has acted.
 
@@ -61,7 +61,7 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
 - `card` is text, matched case-insensitively by `^\s*(?:([RYGB])([0-9]|S|R|\+2)|(W(?:\+4)?)\s*([RYGB]))\s*$`; the action catalogue publishes the pattern. `color` is one of `R`, `Y`, `G`, `B`.
 - The view `{top, color, direction, phase, draw_pile, seats, my_hand, legal, playable}`:
   - `top` is the discard pile's top card; `color` the colour in play, `""` only while a Wild turned up waits to be named;
-  - `direction` is `clockwise` or `counterclockwise`; `phase` is `color`, `play`, `drawn` (the card just drawn may be played or kept) or `challenge`;
+  - `direction` is `clockwise` or `counterclockwise`; `phase` is `color`, `play`, `drawn` (the card just drawn may be played, if it matches, or kept) or `challenge`;
   - `seats` is every seat's `{seat, cards, out}`, `cards` the count it holds;
   - `my_hand` is the viewer's own cards; `[]` for a spectator;
   - `legal` and `playable` are the viewer's own, `[]` unless it is to act.

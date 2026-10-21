@@ -112,6 +112,9 @@ func choose(v View) Action {
 		}
 		return kind(ActionAccept)
 	}
+	if len(v.Playable) == 0 && v.Phase == PhaseDrawn {
+		return kind(ActionPass)
+	}
 	if len(v.Playable) == 0 {
 		return kind(ActionDraw)
 	}

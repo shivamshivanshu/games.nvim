@@ -124,6 +124,11 @@ function T.the_seat_to_act_sees_what_to_do_in_each_phase()
       keys = "k keep",
     },
     {
+      view = { phase = "drawn", legal = { "pass" }, playable = {} },
+      now = "it does not match: keep it",
+      keys = "k keep",
+    },
+    {
       view = { phase = "challenge", legal = { "challenge", "accept" }, playable = {} },
       now = "challenge the Wild Draw Four or accept it",
       keys = "c challenge  a accept",

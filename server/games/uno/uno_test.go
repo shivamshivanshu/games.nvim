@@ -235,11 +235,21 @@ func TestDrawing(t *testing.T) {
 			t.Errorf("keeping the card: %v", keptEvents)
 		}
 	})
-	t.Run("a card that does not match ends the turn", func(t *testing.T) {
+	t.Run("a card that does not match is kept, as a matching one may be", func(t *testing.T) {
 		s := table(t, "R5", "G9 G1", "R7 B1", "Y1")
 		drew, _ := apply(t, s, seat(1), kind(ActionDraw))
-		if drew.phase != PhasePlay || drew.ToAct()[0] != seat(2) || len(drew.hands[0]) != 3 {
-			t.Errorf("phase %s to act %v holding %d", drew.phase, drew.ToAct(), len(drew.hands[0]))
+		if drew.phase != PhaseDrawn || drew.ToAct()[0] != seat(1) || len(drew.hands[0]) != 3 {
+			t.Fatalf("phase %s to act %v holding %d", drew.phase, drew.ToAct(), len(drew.hands[0]))
+		}
+		if v := drew.View(seat(1)); len(v.Playable) != 0 || !slices.Equal(v.Legal, []game.ActionKind{ActionPass}) {
+			t.Errorf("drawn view offers %v %v", v.Legal, v.Playable)
+		}
+		if _, _, err := drew.Apply(seat(1), playing("g9"), nil); err == nil || !strings.Contains(err.Error(), "does not match") {
+			t.Errorf("playing the card drawn: %v", err)
+		}
+		kept, events := apply(t, drew, seat(1), kind(ActionPass))
+		if kept.ToAct()[0] != seat(2) || len(events) != 1 || events[0] != (PassedEvent{By: seat(1)}) {
+			t.Errorf("kept to act %v events %v", kept.ToAct(), events)
 		}
 	})
 	t.Run("an empty draw pile is the discard pile under its top, shuffled", func(t *testing.T) {

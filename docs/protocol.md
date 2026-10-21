@@ -429,7 +429,7 @@ An action object always carries `kind`.
 - Events: `started {by, dealer, top}`; `played {by, card, color}`, `color` the colour in play after it; `drew {by, seat, count}`, the cards drawn reaching only `seat`'s view; `passed {by}`, keeping the card drawn; `skipped {by, seat}`; `reversed {by, direction}`; `color {by, color}`, naming the colour for a Wild turned up; `challenged {by, seat, guilty}`; `reshuffled {by, cards}`, a new draw pile of `cards`; `left {by}`.
 - View `{top, color, direction, phase, draw_pile, seats, my_hand, legal, playable}`:
   - `color` is `""` only while a Wild turned up waits to be named; `direction` is `clockwise` or `counterclockwise`;
-  - `phase` is `color`, `play`, `drawn` (play the card drawn or keep it) or `challenge` (challenge the Wild Draw Four or accept it);
+  - `phase` is `color`, `play`, `drawn` (play the card drawn, if it matches, or keep it; every draw that takes a card enters it) or `challenge` (challenge the Wild Draw Four or accept it);
   - `seats` is every seat's `{seat, cards, out}`, `cards` the count it holds;
   - `my_hand` holds the viewer's own cards only; no other seat's cards, nor the draw pile's, reach a view or event;
   - `legal` (action kinds) and `playable` (cards) are the viewer's own, `[]` unless it is to act.

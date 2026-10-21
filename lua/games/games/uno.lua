@@ -92,7 +92,9 @@ local PHASE_HINTS = {
   drawn = "play the card drawn or keep it",
   challenge = "challenge the Wild Draw Four or accept it",
 }
-local NOTHING_TO_PLAY_HINT = "nothing to play: draw"
+---@type table<games.UnoPhase, string> what the seat to act does in a phase when it can play nothing
+local NOTHING_TO_PLAY_HINTS =
+  { play = "nothing to play: draw", drawn = "it does not match: keep it" }
 
 ---@param n integer
 ---@return string
@@ -120,8 +122,8 @@ local function hint(view)
   if #view.legal == 0 then
     return nil
   end
-  if view.phase == "play" and #view.playable == 0 then
-    return NOTHING_TO_PLAY_HINT
+  if #view.playable == 0 and NOTHING_TO_PLAY_HINTS[view.phase] then
+    return NOTHING_TO_PLAY_HINTS[view.phase]
   end
   return PHASE_HINTS[view.phase]
 end

@@ -211,8 +211,7 @@ func TestAHandReachesNoOtherSeat(t *testing.T) {
 
 // TestADrawnCardReachesOnlyItsDrawer turns the draw pile upside down, so a
 // step draws other cards, and requires no event of a step, nor the view of any seat that drew
-// nothing in it, to change. A step that is a draw is left out: whether the
-// card drawn can be played shows in the turn that follows.
+// nothing in it, to change.
 func TestADrawnCardReachesOnlyItsDrawer(t *testing.T) {
 	checked := 0
 	for n := minPlayers; n <= maxPlayers; n++ {
@@ -221,7 +220,7 @@ func TestADrawnCardReachesOnlyItsDrawer(t *testing.T) {
 			changed := s
 			changed.pile = slices.Clone(s.pile)
 			slices.Reverse(changed.pile)
-			if len(s.pile) <= 2*failedChallenge || slices.Equal(s.pile[:failedChallenge], changed.pile[:failedChallenge]) || steps[k].Action.Kind == ActionDraw {
+			if len(s.pile) <= 2*failedChallenge || slices.Equal(s.pile[:failedChallenge], changed.pile[:failedChallenge]) {
 				continue
 			}
 			next, _, _ := s.Apply(steps[k].Seat, steps[k].Action, nil)
