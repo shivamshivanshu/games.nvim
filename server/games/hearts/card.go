@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 var (
@@ -24,17 +25,15 @@ func points(c cards.Card) int {
 }
 
 // suitOrder sorts a hand clubs, diamonds, spades, hearts, so colours alternate.
-func suitOrder(s cards.Suit) int {
-	return slices.Index([]cards.Suit{cards.Clubs, cards.Diamonds, cards.Spades, cards.Hearts}, s)
-}
+var suitOrder = [...]int{cards.Clubs: 0, cards.Diamonds: 1, cards.Spades: 2, cards.Hearts: 3}
 
 // handOrder sorts by suit, then rank from low to high.
 func handOrder(a, b cards.Card) int {
-	return cmp.Or(cmp.Compare(suitOrder(a.Suit), suitOrder(b.Suit)), cmp.Compare(a.Rank, b.Rank))
+	return cmp.Or(cmp.Compare(suitOrder[a.Suit], suitOrder[b.Suit]), cmp.Compare(a.Rank, b.Rank))
 }
 
 func sorted(hand []cards.Card) []cards.Card {
-	out := append([]cards.Card{}, hand...)
+	out := xslices.Clone(hand)
 	slices.SortFunc(out, handOrder)
 	return out
 }

@@ -4,7 +4,6 @@
 package hearts
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -12,17 +11,6 @@ import (
 
 // Rules implements game.Rules for Hearts.
 type Rules struct{}
-
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event {
-	return []game.Event{
-		HandStartedEvent{}, PassChosenEvent{}, PassedEvent{}, PlayedEvent{},
-		TrickWonEvent{}, HandScoredEvent{}, LeftEvent{},
-	}
-}
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonScoreLimit} }
 
 // Info describes Hearts: exactly four players, no options and no clock.
 func (Rules) Info() game.Info {
@@ -51,17 +39,17 @@ func (Rules) Info() game.Info {
 				},
 			},
 		},
+		Events: []game.Event{
+			HandStartedEvent{}, PassChosenEvent{}, PassedEvent{}, PlayedEvent{},
+			TrickWonEvent{}, HandScoredEvent{}, LeftEvent{},
+		},
+		Reasons: []game.ResultReason{ReasonScoreLimit},
 	}
 }
 
 // New seats the challenger as p1 and the invitees clockwise after, draws the
 // sub-seed every hand's deck is shuffled from, and deals hand 1.
 func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	users := append([]game.UserID{challenger}, invitees...)
-	if len(users) != players {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("hearts takes exactly %d players, got %d", players, len(users))}
-	}
-	order, seats := game.NumberSeats(users)
-	s := newState(order, rng.Uint64())
-	return opened{state: s, start: []game.Event{HandStartedEvent{By: order[0], HandNo: s.handNo, Pass: passOf(s.handNo)}}}, seats, nil
+	order, seats := game.NumberSeats(game.Participants(challenger, invitees))
+	return newState(order, rng.Uint64()).opened(), seats, nil
 }

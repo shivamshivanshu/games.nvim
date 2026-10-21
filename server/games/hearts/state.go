@@ -31,8 +31,7 @@ type state struct {
 	lastTrick *TrickResult
 	lastHand  *HandScore
 	out       []bool
-	result    game.Result
-	finished  bool
+	game.Ending
 }
 
 // stepped is a state after a step, with the events it made.
@@ -50,6 +49,11 @@ func (s stepped) with(events ...game.Event) stepped {
 type opened struct {
 	state
 	start []game.Event
+}
+
+// opened is s as New hands it over, starting its hand.
+func (s state) opened() opened {
+	return opened{state: s, start: []game.Event{HandStartedEvent{By: s.order[0], HandNo: s.handNo, Pass: passOf(s.handNo)}}}
 }
 
 // OpeningEvents implements game.Opener.
@@ -144,12 +148,6 @@ func (s state) whyIllegal(i int, c cards.Card) string {
 // Apply takes a seat's pass, or the card of the seat to play, then plays
 // on for seats that left.
 func (s state) Apply(seat game.Seat, a Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if s.finished {
-		return nil, nil, game.IllegalActionError{Msg: "game is over"}
-	}
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	i := slices.Index(s.order, seat)
 	var (
 		next stepped
@@ -161,11 +159,11 @@ func (s state) Apply(seat game.Seat, a Action, _ *rand.Rand) (game.State[Action,
 	case a.Kind == ActionPlay && s.phase == PhasePlay:
 		next, err = s.playCard(seat, i, a.Card)
 	case a.Kind == ActionPass:
-		err = game.IllegalActionError{Msg: "you cannot pass now: play a card to the trick"}
+		err = game.Illegalf("you cannot pass now: play a card to the trick")
 	case a.Kind == ActionPlay:
-		err = game.IllegalActionError{Msg: fmt.Sprintf("you cannot play now: choose three cards to pass %s", passOf(s.handNo))}
+		err = game.Illegalf("you cannot play now: choose three cards to pass %s", passOf(s.handNo))
 	default:
-		err = game.IllegalActionError{Msg: fmt.Sprintf("unknown action %q: want %q or %q", a.Kind, ActionPass, ActionPlay)}
+		err = game.Illegalf("unknown action %q: want %q or %q", a.Kind, ActionPass, ActionPlay)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -180,7 +178,7 @@ func (s state) choosePass(seat game.Seat, i int, text string) (stepped, error) {
 	}
 	for _, c := range pass {
 		if !slices.Contains(s.hands[i], c) {
-			return stepped{}, game.IllegalActionError{Msg: fmt.Sprintf("you hold no %s", c)}
+			return stepped{}, game.Illegalf("you hold no %s", c)
 		}
 	}
 	chosen := s.withPass(seat, i, sorted(pass))
@@ -199,7 +197,7 @@ func (s state) playCard(seat game.Seat, i int, text string) (stepped, error) {
 		return stepped{}, err
 	}
 	if !slices.Contains(s.hands[i], c) {
-		return stepped{}, game.IllegalActionError{Msg: fmt.Sprintf("you hold no %s", c)}
+		return stepped{}, game.Illegalf("you hold no %s", c)
 	}
 	if !slices.Contains(s.legal(i), c) {
 		return stepped{}, game.IllegalActionError{Msg: s.whyIllegal(i, c)}
@@ -286,9 +284,9 @@ func (s stepped) scoreHand(by game.Seat) stepped {
 func (s state) finalResult() game.Result {
 	winners := s.lowest()
 	if len(winners) == players {
-		return game.Result{Kind: game.ResultDraw, Reason: ReasonScoreLimit}
+		return game.DrawBy(ReasonScoreLimit)
 	}
-	return game.Result{Kind: game.ResultDecisive, Winners: winners, Reason: ReasonScoreLimit}
+	return game.WinFor(ReasonScoreLimit, winners...)
 }
 
 // lowest are the seats still in the game with the lowest score.
@@ -308,7 +306,7 @@ func (s state) lowest() []game.Seat {
 }
 
 func (s state) finish(result game.Result) state {
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }
 
@@ -317,7 +315,7 @@ func (s state) finish(result game.Result) state {
 // game is to act. Once every pass is chosen, the cards change hands.
 func (s state) advance(by game.Seat) stepped {
 	next := stepped{state: s}
-	for !next.finished {
+	for !next.Over() {
 		switch {
 		case next.phase == PhasePass:
 			for i, out := range next.out {
@@ -367,7 +365,7 @@ func (s state) exchange() state {
 // ToAct are the seats still to choose a pass, or the seat to play.
 func (s state) ToAct() []game.Seat {
 	switch {
-	case s.finished:
+	case s.Over():
 		return []game.Seat{}
 	case s.phase == PhasePass:
 		var seats []game.Seat
@@ -381,29 +379,21 @@ func (s state) ToAct() []game.Seat {
 	return []game.Seat{s.order[s.turn]}
 }
 
-// Outcome is the result once a hand ends with a seat at ScoreLimit or more.
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 // Conclude takes a result the core imposed, such as an abort, so that no seat is left to act.
-func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	return s.finish(result)
-}
+func (s state) Conclude(result game.Result) game.State[Action, View] { return s.finish(result) }
 
 // Eliminate has the seat's cards played for it from now on, and it cannot
 // win. The last seat still in the game wins.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	i := slices.Index(s.order, seat)
-	if s.finished || i < 0 || s.out[i] {
+	if s.Over() || i < 0 || s.out[i] {
 		return s, nil
 	}
 	s.out = slices.Clone(s.out)
 	s.out[i] = true
 	if s.activeCount() == 1 {
 		winner := s.order[slices.Index(s.out, false)]
-		return s.finish(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{winner}, Reason: reason}), []game.Event{LeftEvent{By: seat}}
+		return s.finish(game.WinFor(reason, winner)), []game.Event{LeftEvent{By: seat}}
 	}
 	next := s.advance(seat).withEarlier([]game.Event{LeftEvent{By: seat}})
 	return next.state, next.events
@@ -441,7 +431,7 @@ func (s state) View(seat game.Seat) View {
 	v.Passed = append(v.Passed, s.passes[i]...)
 	v.Received = append(v.Received, s.received[i]...)
 	switch {
-	case s.finished:
+	case s.Over():
 	case s.phase == PhasePass && s.passes[i] == nil:
 		v.MustPass = passSize
 	case s.phase == PhasePlay && i == s.turn:

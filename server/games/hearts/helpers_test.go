@@ -1,16 +1,16 @@
 package hearts
 
 import (
-	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
-func users() []game.UserID { return []game.UserID{"alice", "bob", "carol", "dave"} }
+func users() []game.UserID { return gametest.Users(players) }
 
 func seat(n int) game.Seat { return game.NumberedSeat(n - 1) }
 
@@ -60,33 +60,7 @@ func passing(text string) Action { return Action{Kind: ActionPass, Cards: text} 
 
 func apply(t testing.TB, s state, by game.Seat, a Action) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(by, a, nil)
-	if err != nil {
-		t.Fatalf("%s %+v: %v", by, a, err)
-	}
-	return next.(state), events
-}
-
-func encoded(t testing.TB, v any) string {
-	t.Helper()
-	raw, err := json.Marshal(v)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(raw)
-}
-
-func encodedEvents(t testing.TB, events []game.Event) []string {
-	t.Helper()
-	out := make([]string, len(events))
-	for i, e := range events {
-		raw, err := game.EncodeEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		out[i] = string(raw)
-	}
-	return out
+	return gametest.MustApply(t, s, by, a, nil)
 }
 
 func texts(hand []cards.Card) string {

@@ -1,6 +1,7 @@
 package hearts
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -9,16 +10,10 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
-func TestNewTakesExactlyFourAndDealsThirteenEach(t *testing.T) {
-	for n := 1; n <= 5; n++ {
-		all := append(users(), "erin")[:n]
-		_, _, err := Rules{}.New(Opts{}, all[0], all[1:], game.StepRNG(1, 0))
-		if (n == players) != (err == nil) {
-			t.Fatalf("%d players: err %v", n, err)
-		}
-	}
+func TestNewDealsThirteenEach(t *testing.T) {
 	s := newGame(t, 1)
 	seen := map[cards.Card]bool{}
 	for _, h := range s.hands {
@@ -132,7 +127,7 @@ func TestPassRejects(t *testing.T) {
 		})
 	}
 	chose, _ := apply(t, s, seat(1), passing(texts(mine[:3])))
-	if _, _, err := chose.Apply(seat(1), passing(texts(mine[3:6])), nil); err != game.ErrNotYourTurn {
+	if err := game.CheckTurn(chose, seat(1)); !errors.Is(err, game.ErrNotYourTurn) {
 		t.Errorf("choosing twice: %v", err)
 	}
 }
@@ -164,7 +159,7 @@ func TestPlayRules(t *testing.T) {
 			if _, _, err := s.Apply(seat(tt.by), playing(tt.play), nil); err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("err %v, want %q", err, tt.want)
 			}
-			if _, _, err := s.Apply(seat(tt.by%players+1), playing(tt.play), nil); err != game.ErrNotYourTurn {
+			if err := game.CheckTurn(s, seat(tt.by%players+1)); !errors.Is(err, game.ErrNotYourTurn) {
 				t.Errorf("out of turn: %v", err)
 			}
 		})
@@ -347,7 +342,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 	for _, s := range states {
 		before := map[game.Seat]string{}
 		for _, at := range s.order {
-			before[at] = encoded(t, s.View(at))
+			before[at] = gametest.ViewJSON(t, s.View(at))
 		}
 		at := s.ToAct()[0]
 		next, _ := apply(t, s, at, choose(s.View(at)))
@@ -356,7 +351,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 			next, _ = apply(t, next, by, choose(next.View(by)))
 		}
 		for _, at := range s.order {
-			if got := encoded(t, s.View(at)); got != before[at] {
+			if got := gametest.ViewJSON(t, s.View(at)); got != before[at] {
 				t.Errorf("playing on changed %s's earlier view:\n%s\n%s", at, before[at], got)
 			}
 		}
@@ -371,7 +366,7 @@ func TestWireShape(t *testing.T) {
 		`{"seat":"p3","score":0,"taken":0,"pass_chosen":false,"out":false},{"seat":"p4","score":0,"taken":0,"pass_chosen":false,"out":false}],` +
 		`"trick":[],"last_trick":null,"hearts_broken":false,"my_hand":["2c","3h"],"legal":["2c"],"must_pass":0,"pass_to":"p2",` +
 		`"passed":[],"received":["3h"],"last_hand":null}`
-	if got := encoded(t, s.View(seat(1))); got != want {
+	if got := gametest.ViewJSON(t, s.View(seat(1))); got != want {
 		t.Errorf("view\n got %s\nwant %s", got, want)
 	}
 }
