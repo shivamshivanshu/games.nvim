@@ -19,6 +19,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/reversi"
 	"github.com/shivamshivanshu/games.nvim/server/games/sudoku"
 	"github.com/shivamshivanshu/games.nvim/server/games/tictactoe"
+	"github.com/shivamshivanshu/games.nvim/server/games/uno"
 	"github.com/shivamshivanshu/games.nvim/server/games/wordle"
 	"github.com/shivamshivanshu/games.nvim/server/games/yahtzee"
 )
@@ -44,5 +45,6 @@ func All() []game.Game {
 		game.Adapt(mancala.Rules{}),
 		game.Adapt(yahtzee.Rules{}),
 		game.Adapt(liarsdice.Rules{}),
+		game.Adapt(uno.Rules{}),
 	}
 }

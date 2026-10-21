@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "card": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is a move. Play takes Card, a card from the hand as typed, e.g.\n\"r5\", or a wild and the colour it names, \"w g\" or \"w+4 b\". Color takes\nColor, the colour named for a Wild turned up to start. The others take\nnothing."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "play",
+        "draw",
+        "pass",
+        "challenge",
+        "accept",
+        "color"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "ChallengedEvent": {
+      "properties": {
+        "kind": {
+          "const": "challenged"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        },
+        "guilty": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat",
+        "guilty"
+      ],
+      "description": "ChallengedEvent is By challenging Seat's Wild Draw Four. Guilty is whether\nSeat held a card of the colour in play before it, which the server checks\nwithout showing the hand."
+    },
+    "ColorEvent": {
+      "properties": {
+        "kind": {
+          "const": "color"
+        },
+        "by": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "color"
+      ],
+      "description": "ColorEvent is By naming the colour for a Wild turned up to start."
+    },
+    "DrewEvent": {
+      "properties": {
+        "kind": {
+          "const": "drew"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat",
+        "count"
+      ],
+      "description": "DrewEvent is Seat drawing Count cards, which only Seat sees."
+    },
+    "LeftEvent": {
+      "properties": {
+        "kind": {
+          "const": "left"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "LeftEvent is By leaving the game; its hand leaves play."
+    },
+    "PassedEvent": {
+      "properties": {
+        "kind": {
+          "const": "passed"
+        },
+        "by": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by"
+      ],
+      "description": "PassedEvent is By keeping the card it drew."
+    },
+    "PlayedEvent": {
+      "properties": {
+        "kind": {
+          "const": "played"
+        },
+        "by": {
+          "type": "string"
+        },
+        "card": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "card",
+        "color"
+      ],
+      "description": "PlayedEvent is By playing Card; Color is the colour in play after it."
+    },
+    "ReshuffledEvent": {
+      "properties": {
+        "kind": {
+          "const": "reshuffled"
+        },
+        "by": {
+          "type": "string"
+        },
+        "cards": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "cards"
+      ],
+      "description": "ReshuffledEvent turns the discard pile under its top card into a new draw pile of Cards cards."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "went_out"
+      ],
+      "description": "The result reasons Uno adds to the core's."
+    },
+    "ReversedEvent": {
+      "properties": {
+        "kind": {
+          "const": "reversed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "direction"
+      ],
+      "description": "ReversedEvent turns play round to Direction."
+    },
+    "SeatView": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "cards": {
+          "type": "integer"
+        },
+        "out": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "cards",
+        "out"
+      ],
+      "description": "SeatView is one seat at the table, in seat order. Out is a seat that left\nthe game."
+    },
+    "SkippedEvent": {
+      "properties": {
+        "kind": {
+          "const": "skipped"
+        },
+        "by": {
+          "type": "string"
+        },
+        "seat": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "seat"
+      ],
+      "description": "SkippedEvent is Seat losing its turn."
+    },
+    "StartedEvent": {
+      "properties": {
+        "kind": {
+          "const": "started"
+        },
+        "by": {
+          "type": "string"
+        },
+        "dealer": {
+          "type": "string"
+        },
+        "top": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "dealer",
+        "top"
+      ],
+      "description": "StartedEvent is the deal: Top is the card turned up to start the discard pile."
+    },
+    "View": {
+      "properties": {
+        "top": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "draw_pile": {
+          "type": "integer"
+        },
+        "seats": {
+          "items": {
+            "$ref": "#/$defs/SeatView"
+          },
+          "type": "array"
+        },
+        "my_hand": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "legal": {
+          "items": {
+            "$ref": "#/$defs/ActionKind"
+          },
+          "type": "array"
+        },
+        "playable": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "top",
+        "color",
+        "direction",
+        "phase",
+        "draw_pile",
+        "seats",
+        "my_hand",
+        "legal",
+        "playable"
+      ],
+      "description": "View is the table as one seat sees it: its own hand, and every other hand\nonly as a count.\n\nColor is the colour in play: the top card's, or the one its wild named.\nLegal and Playable are the viewer's own, empty unless it is to act:\nLegal the action kinds it may take, Playable the cards of its hand that\nplay accepts now, a wild listed bare, as it must still name a colour."
+    }
+  },
+  "title": "Uno",
+  "description": "The game-specific bodies inside a uno game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "challenged": {
+      "$ref": "#/$defs/ChallengedEvent"
+    },
+    "color": {
+      "$ref": "#/$defs/ColorEvent"
+    },
+    "drew": {
+      "$ref": "#/$defs/DrewEvent"
+    },
+    "left": {
+      "$ref": "#/$defs/LeftEvent"
+    },
+    "passed": {
+      "$ref": "#/$defs/PassedEvent"
+    },
+    "played": {
+      "$ref": "#/$defs/PlayedEvent"
+    },
+    "reshuffled": {
+      "$ref": "#/$defs/ReshuffledEvent"
+    },
+    "reversed": {
+      "$ref": "#/$defs/ReversedEvent"
+    },
+    "skipped": {
+      "$ref": "#/$defs/SkippedEvent"
+    },
+    "started": {
+      "$ref": "#/$defs/StartedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
