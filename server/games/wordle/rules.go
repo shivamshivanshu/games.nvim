@@ -8,8 +8,21 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
+const (
+	guessField   = "text"
+	guessPattern = `^\s*[A-Za-z]{5}\s*$`
+)
+
 // Rules implements game.Rules for Wordle.
 type Rules struct{}
+
+// EventTypes implements game.EventCatalog.
+func (Rules) EventTypes() []game.Event { return []game.Event{GuessedEvent{}} }
+
+// Reasons implements game.ReasonCatalog.
+func (Rules) Reasons() []game.ResultReason {
+	return []game.ResultReason{ReasonSolved, ReasonOutOfGuesses}
+}
 
 // Info describes Wordle: solo, no options.
 func (Rules) Info() game.Info {
@@ -18,6 +31,15 @@ func (Rules) Info() game.Info {
 		Name:         "Wordle",
 		Players:      game.PlayerRange{Min: 1, Max: 1},
 		Capabilities: []game.Capability{game.CapResign, game.CapAbort},
+		Actions: []game.ActionSpec{{
+			Kind:        ActionGuess,
+			Description: "Guess the hidden word.",
+			Input: &game.ActionInput{
+				Field:       guessField,
+				Description: "A five-letter word from the word list, in any case.",
+				Pattern:     guessPattern,
+			},
+		}},
 	}
 }
 

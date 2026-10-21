@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is typed input, sent raw and parsed by the server."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "guess"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Feedback": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "maxItems": 5,
+      "minItems": 5,
+      "description": "Feedback holds one Mark per letter of a guess, in order."
+    },
+    "Guess": {
+      "properties": {
+        "word": {
+          "type": "string"
+        },
+        "feedback": {
+          "$ref": "#/$defs/Feedback"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "word",
+        "feedback"
+      ],
+      "description": "Guess is a valid guess and its feedback."
+    },
+    "GuessedEvent": {
+      "properties": {
+        "kind": {
+          "const": "guessed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "word": {
+          "type": "string"
+        },
+        "feedback": {
+          "$ref": "#/$defs/Feedback"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "word",
+        "feedback"
+      ],
+      "description": "GuessedEvent reports a valid guess and its feedback."
+    },
+    "Keyboard": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object",
+      "description": "Keyboard is the best Mark each guessed letter has earned so far; a letter not yet guessed is absent."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "solved",
+        "out_of_guesses"
+      ],
+      "description": "The result reasons Wordle adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "guesses": {
+          "items": {
+            "$ref": "#/$defs/Guess"
+          },
+          "type": "array"
+        },
+        "keyboard": {
+          "$ref": "#/$defs/Keyboard"
+        },
+        "remaining": {
+          "type": "integer"
+        },
+        "answer": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "guesses",
+        "keyboard",
+        "remaining"
+      ],
+      "description": "View lists the guesses so far, oldest first. Answer stays empty until the game finishes."
+    }
+  },
+  "title": "Wordle",
+  "description": "The game-specific bodies inside a wordle game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "guessed": {
+      "$ref": "#/$defs/GuessedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}

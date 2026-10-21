@@ -23,16 +23,13 @@ const (
 // Opts is empty: Wordle has no options.
 type Opts struct{}
 
-// ActionKind names an Action.
-type ActionKind string
-
 // ActionGuess submits Text as the next guess.
-const ActionGuess ActionKind = "guess"
+const ActionGuess game.ActionKind = "guess"
 
 // Action is typed input, sent raw and parsed by the server.
 type Action struct {
-	Kind ActionKind `json:"kind"`
-	Text string     `json:"text,omitempty"`
+	Kind game.ActionKind `json:"kind"`
+	Text string          `json:"text,omitempty"`
 }
 
 // Mark is the feedback for one letter of a guess.
@@ -54,11 +51,15 @@ type Guess struct {
 	Feedback Feedback `json:"feedback"`
 }
 
+// Keyboard is the best Mark each guessed letter has earned so far; a letter not yet guessed is absent.
+type Keyboard map[string]Mark
+
 // View lists the guesses so far, oldest first. Answer stays empty until the game finishes.
 type View struct {
-	Guesses   []Guess `json:"guesses"`
-	Remaining int     `json:"remaining"`
-	Answer    string  `json:"answer,omitempty"`
+	Guesses   []Guess  `json:"guesses"`
+	Keyboard  Keyboard `json:"keyboard"`
+	Remaining int      `json:"remaining"`
+	Answer    string   `json:"answer,omitempty"`
 }
 
 // GuessedEvent reports a valid guess and its feedback.

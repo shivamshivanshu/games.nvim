@@ -160,3 +160,30 @@ func TestAnswerIsDrawnFromSeed(t *testing.T) {
 		}
 	}
 }
+
+func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
+	st := newState(t, 1)
+	aborted := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
+	solvedResult := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatSolver}, Reason: ReasonSolved}
+	solved := play(t, st, st.answer)
+	tests := []struct {
+		name  string
+		state game.State[Action, View]
+		want  game.Result
+	}{
+		{"abort before a guess", st.Conclude(aborted), aborted},
+		{"abort after the solve", solved.(state).Conclude(aborted), solvedResult},
+		{"give up after the solve", eliminated(solved.(state)), solvedResult},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, finished := tt.state.Outcome()
+			if !finished || !cmp.Equal(got, tt.want) {
+				t.Errorf("outcome = %+v, %t; want %+v", got, finished, tt.want)
+			}
+			if view := tt.state.View(SeatSolver); view.Answer != st.answer || len(tt.state.ToAct()) != 0 {
+				t.Errorf("view %+v, to act %v; want the answer %q and nobody to act", view, tt.state.ToAct(), st.answer)
+			}
+		})
+	}
+}

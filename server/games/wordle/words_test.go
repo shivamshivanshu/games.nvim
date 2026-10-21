@@ -1,6 +1,7 @@
 package wordle
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -44,6 +45,36 @@ func TestInWordListFindsBothEndsAndRejectsGaps(t *testing.T) {
 	for _, tt := range tests {
 		if got := inWordList(tt.word); got != tt.want {
 			t.Errorf("inWordList(%q) = %t, want %t", tt.word, got, tt.want)
+		}
+	}
+}
+
+// TestEveryAnswerIsAllowed walks both sorted lists once, side by side.
+func TestEveryAnswerIsAllowed(t *testing.T) {
+	allowed, answers := allowedWords(), answerWords()
+	var missing []string
+	next := 0
+	for i := range answers.len() {
+		word := answers.at(i)
+		for next < allowed.len() && allowed.at(next) < word {
+			next++
+		}
+		if next == allowed.len() || allowed.at(next) != word {
+			missing = append(missing, word)
+		}
+	}
+	if len(missing) > 0 {
+		t.Errorf("answers not in the allowed list: %v", missing)
+	}
+}
+
+func TestCatalogueInputPatternMatchesTheGuessesParsed(t *testing.T) {
+	pattern := regexp.MustCompile(Rules{}.Info().Actions[0].Input.Pattern)
+	for _, text := range []string{"crane", " CRANE ", "Crane\t", "cranes", "cran", "cr4ne", "crané", "", "cr ne"} {
+		_, err := parseGuess(text)
+		shaped := err == nil || strings.HasPrefix(err.Error(), "not in word list")
+		if got := pattern.MatchString(text); got != shaped {
+			t.Errorf("pattern matches %q: %t, but the server parses it as a word: %t", text, got, shaped)
 		}
 	}
 }

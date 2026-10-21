@@ -55,7 +55,11 @@ func (s state) with(latest Guess) state {
 }
 
 func (s state) View(game.Seat) View {
-	view := View{Guesses: append([]Guess{}, s.guesses...), Remaining: MaxGuesses - len(s.guesses)}
+	view := View{
+		Guesses:   append([]Guess{}, s.guesses...),
+		Keyboard:  keyboardOf(s.guesses),
+		Remaining: MaxGuesses - len(s.guesses),
+	}
 	if s.finished {
 		view.Answer = s.answer
 	}
@@ -72,9 +76,14 @@ func (s state) ToAct() []game.Seat {
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason)), nil
+}
+
+// Conclude keeps a result already reached; otherwise result ends the game and reveals the answer.
+func (s state) Conclude(result game.Result) game.State[Action, View] {
 	if s.finished {
-		return s, nil
+		return s
 	}
-	s.result, s.finished = game.ForfeitToRemaining([]game.Seat{SeatSolver}, seat, reason), true
-	return s, nil
+	s.result, s.finished = result, true
+	return s
 }
