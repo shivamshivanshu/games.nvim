@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "code": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "description": "Action is typed input, sent raw and parsed by the server."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "guess"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "Guess": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "black": {
+          "type": "integer"
+        },
+        "white": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "code",
+        "black",
+        "white"
+      ],
+      "description": "Guess is a guess and its feedback: Black pegs are the right colour in the right place, White\npegs the right colour in the wrong place."
+    },
+    "GuessedEvent": {
+      "properties": {
+        "kind": {
+          "const": "guessed"
+        },
+        "by": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "black": {
+          "type": "integer"
+        },
+        "white": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "code",
+        "black",
+        "white"
+      ],
+      "description": "GuessedEvent reports a guess and its feedback."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "solved",
+        "out_of_guesses"
+      ],
+      "description": "The result reasons Mastermind adds to the core's."
+    },
+    "View": {
+      "properties": {
+        "palette": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "code_length": {
+          "type": "integer"
+        },
+        "guesses": {
+          "items": {
+            "$ref": "#/$defs/Guess"
+          },
+          "type": "array"
+        },
+        "remaining": {
+          "type": "integer"
+        },
+        "secret": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "palette",
+        "code_length",
+        "guesses",
+        "remaining"
+      ],
+      "description": "View lists the guesses so far, oldest first. Secret stays empty until the game finishes."
+    }
+  },
+  "title": "Mastermind",
+  "description": "The game-specific bodies inside a mastermind game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "guessed": {
+      "$ref": "#/$defs/GuessedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
