@@ -321,6 +321,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `r` | roll the die (ludo), on your roll |
 | `1`-`4` | move that token by your roll (ludo), when it can move |
 | `m` (sudoku) | set a cell: `53 7` writes 7 at row 5, column 3; `53 0` clears it |
+| `x` (sudoku) | clear a cell: `53` clears row 5, column 3 |
 | `m` (chess puzzle) | your move, SAN or UCI as in chess; in puzzle mode a wrong move ends the game |
 | `n` | reveal the line's move (chess puzzle, study mode only); counts as a miss |
 | `m` (mastermind) | guess a code of 4 colour letters from `rgbyop`, e.g. `rgby` |

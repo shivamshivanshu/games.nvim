@@ -5,7 +5,7 @@ Solo: fill a 9x9 grid so every row, column and 3x3 box holds 1-9. Server: `serve
 ## Rules as implemented
 - One seat, `solver`. Start with `:Games solo sudoku`.
 - The puzzle's givens cannot change.
-- Write a digit 1-9 into any other cell, overwrite it, or clear it with 0.
+- Write a digit 1-9 into any other cell, overwrite it, or clear it with 0 or the `clear` action.
 - Any digit is accepted, even one that repeats in its row, column or box. The view marks such cells as `conflicts`, so you can see them, but nothing is refused.
 - The game is solved, reason `solved`, when the grid equals the solution. The puzzle has exactly one solution, so a full grid with no conflicts is the solution.
 - A full grid with a wrong digit plays on until you fix it.
@@ -21,7 +21,7 @@ Generation takes under a millisecond.
 
 ## Rulings
 - Difficulty means the givens count only, not the solving techniques needed.
-- Input is typed text, `RC D`: row, column, digit. `53 7` writes 7 at row 5, column 3; `53 0` clears it. Rows and columns are 1-9 from the top left.
+- Input is typed text, `RC D`: row, column, digit. `53 7` writes 7 at row 5, column 3; `53 0` clears it, as does `clear` with `RC`, e.g. `53`. Rows and columns are 1-9 from the top left.
 - Wrong digits are not revealed while you play: only repeats visible on the grid itself are marked. The solution reaches the client only when the game is over.
 - No clock: a puzzle takes as long as it takes.
 
@@ -41,6 +41,7 @@ Buffer-local, normal mode, in the board buffer.
 | Key | Action |
 |---|---|
 | `m` | set a cell: type `RC D`, e.g. `53 7`; `53 0` clears it |
+| `x` | clear a cell: type `RC`, e.g. `53` |
 | `R` | give up |
 | `A` | abort, before your first move |
 | `]g` | next game waiting on your move |
@@ -52,6 +53,7 @@ Rows and columns are labelled 1-9, and thin lines mark the 3x3 boxes. Givens are
 | Case | Message |
 |---|---|
 | text not `RC D` | `want "RC D", e.g. "53 7" for row 5, column 3, digit 7 (0 clears); got "<text>"` |
+| a cleared cell not `RC` | `want "RC", e.g. "53" for row 5, column 3; got "<cell>"` |
 | a given | `cell R,C is a given` |
 | writing the digit already there | `cell R,C already holds D` |
 | clearing an empty cell | `cell R,C is already empty` |

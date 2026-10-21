@@ -127,6 +127,28 @@ function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_confl
   )
 end
 
+function T.x_prompts_for_a_cell_and_sends_clear()
+  local _, _, bindings =
+    shell.render(update(), sudoku, view_options("ascii"), "alice", 0, nil, CATALOGUED)
+  local clear = vim.iter(bindings):find(function(binding)
+    return binding.key == "x"
+  end)
+  local acted = {}
+  local board = {
+    update = update(),
+    client = {
+      game_act = function(_, request)
+        acted[#acted + 1] = request
+      end,
+    },
+  }
+  helpers.with_input_answers({ "53" }, function(prompts)
+    clear.run(board)
+    assert_eq({ { prompt = "Clear, e.g. 53: " } }, prompts)
+  end)
+  assert_eq({ { game_id = "0000", seq = 1, action = { kind = "clear", cell = "53" } } }, acted)
+end
+
 function T.events_name_the_cell_and_digit()
   local events = {
     { kind = "cell_set", by = "solver", row = 5, col = 3, digit = 7 },

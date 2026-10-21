@@ -32,6 +32,7 @@ local EMPTY_KEY = "empty"
 ---@enum games.SudokuMarker drawn into the glyph, so a cell's state never rests on colour alone
 local Marker = { CONFLICT = "conflict", REVEALED = "revealed" }
 local SET_KIND = "set"
+local CLEAR_KIND = "clear"
 ---@type games.SudokuSeat
 local SOLVER = "solver"
 
@@ -152,6 +153,11 @@ end
 M.input = {
   kind = SET_KIND,
   prompt = "Set, e.g. 53 7: ",
+}
+
+---@type games.GameAction[]
+M.actions = {
+  { key = "x", label = "clear", input = { kind = CLEAR_KIND, prompt = "Clear, e.g. 53: " } },
 }
 
 ---@type table<games.EventKind, games.Describer>
