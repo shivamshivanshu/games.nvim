@@ -146,6 +146,11 @@ func (e erased[Action, View]) KnockedOut() []Seat {
 	return knockout.KnockedOut()
 }
 
+func (e erased[Action, View]) RealTime() bool {
+	_, ok := e.state.(Ticking[Action, View])
+	return ok
+}
+
 func (e erased[Action, View]) NextTick() (time.Duration, bool) {
 	ticking, ok := e.state.(Ticking[Action, View])
 	if !ok {

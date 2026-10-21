@@ -209,8 +209,8 @@ func TestAdaptTicksOnlyATickingState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, due := counter.NextTick(); due {
-		t.Error("a counter, which does not tick, wants a tick")
+	if _, due := counter.NextTick(); due || counter.RealTime() {
+		t.Errorf("a counter, which does not tick, wants a tick (%t) or is real-time (%t)", due, counter.RealTime())
 	}
 	if _, _, err := counter.Tick(game.StepRNG(1, 1)); err == nil {
 		t.Error("ticking a counter succeeded")
@@ -227,8 +227,8 @@ func TestAdaptTicksOnlyATickingState(t *testing.T) {
 	if err != nil || len(events) != 1 || !strings.Contains(string(events[0]), `"kind":"beat"`) {
 		t.Fatalf("metronome tick events %s, %v; want one beat", events, err)
 	}
-	if _, due := ticked.Pause().NextTick(); due {
-		t.Error("a paused metronome wants a tick")
+	if _, due := ticked.Pause().NextTick(); due || !ticked.Pause().RealTime() {
+		t.Errorf("a paused metronome wants a tick (%t) or is not real-time (%t)", due, ticked.Pause().RealTime())
 	}
 	if _, due := ticked.NextTick(); !due {
 		t.Error("pausing changed the state it paused")

@@ -191,21 +191,21 @@ func (s roomState) apply(g Setup, st step) (roomState, error) {
 	next.since, next.lastStepAt = st.at, st.at
 	next.remaining = s.clockAfter(g, st, next)
 	next.nextTickAt = s.tickAfter(st, next)
-	if s.makesStale(st, next) {
+	if s.makesStale(st) {
 		next.freshFrom = st.seq
 	}
 	return next, nil
 }
 
-// makesStale is whether st, taking s to next, makes the seqs before it stale.
-// Ticks and pauses never do, nor does an action in a game ticking before or
-// after it: real-time input is an intent that holds against any state, so a
-// stale check would only lose the player's newest key.
-func (s roomState) makesStale(st step, next roomState) bool {
+// makesStale is whether st makes the seqs before it stale. Ticks and pauses
+// never do, nor does an action in a real-time game, paused or not: its input
+// is an intent that holds against any state, so a stale check would only lose
+// the player's newest key.
+func (s roomState) makesStale(st step) bool {
 	if st.paces() {
 		return false
 	}
-	return st.kind != store.StepAction || !s.ticking() && !next.ticking()
+	return st.kind != store.StepAction || !s.game.RealTime()
 }
 
 func (s roomState) ticking() bool { return !s.nextTickAt.IsZero() }

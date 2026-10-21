@@ -115,6 +115,19 @@ func TestTickingGameInputIsNeverStale(t *testing.T) {
 	}
 }
 
+func TestPausedTickingGameInputIsNeverStale(t *testing.T) {
+	h := newMetronomeHarness(t)
+	h.metronome(t, 0, gametest.MetronomePause)
+	for want := game.Seq(2); want <= 3; want++ {
+		if got := h.metronome(t, 0, gametest.MetronomeTap); got != want {
+			t.Fatalf("tap on seq 0 while paused got seq %d, want %d", got, want)
+		}
+	}
+	if u := h.snapshot(t, alice); !metronomeView(t, u).Paused {
+		t.Fatalf("taps resumed the game: %s", u.View)
+	}
+}
+
 func TestPauseStopsTicksUntilThePlayerResumes(t *testing.T) {
 	h := newMetronomeHarness(t)
 	h.advance(t, gametest.MetronomeInterval)

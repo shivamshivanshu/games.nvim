@@ -118,6 +118,8 @@ type ErasedState interface {
 	// KnockedOut are the seats a Knockout state's rules put out, and empty
 	// otherwise.
 	KnockedOut() []Seat
+	// RealTime is whether the state is Ticking, even while no tick is due.
+	RealTime() bool
 	// NextTick is a Ticking state's own, and false for any other.
 	NextTick() (time.Duration, bool)
 	// Tick fails for a state that is not Ticking.
