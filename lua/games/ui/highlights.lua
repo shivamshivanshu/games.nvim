@@ -295,6 +295,50 @@ local GROUPS = {
     theme = { from("DiagnosticInfo"), from("Function") },
     vivid = { fg = "#1565c0" },
   },
+  {
+    name = "GamesPacman",
+    role = Role.FOREGROUND,
+    theme = { from("DiagnosticWarn"), from("WarningMsg") },
+    theme_style = { bold = true },
+    vivid = { fg = "#ffd700", bold = true },
+  },
+  {
+    name = "GamesPacmanWall",
+    role = Role.FOREGROUND,
+    theme = { from("Function"), from("DiagnosticInfo") },
+    vivid = { fg = "#2121de" },
+  },
+  {
+    name = "GamesGhostBlinky",
+    role = Role.FOREGROUND,
+    theme = { from("DiagnosticError"), from("ErrorMsg") },
+    vivid = { fg = "#ff0000" },
+  },
+  {
+    name = "GamesGhostPinky",
+    role = Role.FOREGROUND,
+    theme = { from("Statement"), from("Keyword") },
+    vivid = { fg = "#ffb8ff" },
+  },
+  {
+    name = "GamesGhostInky",
+    role = Role.FOREGROUND,
+    theme = { from("Special"), from("Type") },
+    vivid = { fg = "#00ffff" },
+  },
+  {
+    name = "GamesGhostClyde",
+    role = Role.FOREGROUND,
+    theme = { from("Constant"), from("Number") },
+    vivid = { fg = "#ffb852" },
+  },
+  {
+    name = "GamesGhostFrightened",
+    role = Role.FOREGROUND,
+    theme = { from("DiagnosticInfo"), from("Identifier") },
+    theme_style = { italic = true },
+    vivid = { fg = "#6f6fff", italic = true },
+  },
 }
 
 ---@type games.HlGroupSpec[] background groups, each with an ink group for the text over it
