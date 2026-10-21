@@ -2,7 +2,6 @@ local chess = require("games.games.chess")
 local compose = require("games.ui.compose")
 local kv = require("games.ui.widgets.kv")
 local movelist = require("games.ui.widgets.movelist")
-local players = require("games.core.players")
 
 ---@alias games.ChessPuzzleMode "puzzle"|"study"
 ---@alias games.ChessPuzzleSeat "solver"
@@ -137,21 +136,27 @@ M.actions = {
   },
 }
 
----@param event games.Event
----@param update games.ChessPuzzleUpdate
----@return string|nil
-function M.describe_event(event, update)
-  local who = players.name_of_seat(update, event.by)
-  if event.kind == "moved" then
-    return ("%s played %s"):format(who, event.san)
-  elseif event.kind == "replied" then
-    return ("%s replied %s"):format(replying_side(update), event.san)
-  elseif event.kind == "missed" then
-    return ("%s tried %s, not the move"):format(who, event.san)
-  elseif event.kind == "revealed" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  moved = function(event, talk)
+    ---@cast event games.ChessPuzzleMovedEvent
+    return ("%s played %s"):format(talk.name(event.by), event.san)
+  end,
+  replied = function(event, talk)
+    ---@cast event games.ChessPuzzleRepliedEvent
+    return ("%s replied %s"):format(
+      replying_side(talk.update --[[@as games.ChessPuzzleUpdate]]),
+      event.san
+    )
+  end,
+  missed = function(event, talk)
+    ---@cast event games.ChessPuzzleMissedEvent
+    return ("%s tried %s, not the move"):format(talk.name(event.by), event.san)
+  end,
+  revealed = function(event)
+    ---@cast event games.ChessPuzzleRevealedEvent
     return ("the move was %s"):format(event.san)
-  end
-  return nil
-end
+  end,
+}
 
 return M

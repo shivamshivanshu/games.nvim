@@ -155,7 +155,7 @@ function T.m_types_a_cell_while_the_game_is_on()
   assert_eq("]g next game  q close", footer(vim.tbl_extend("force", won(), { controls = {} })))
 end
 
-function T.describe_event_names_the_player_and_cell()
+function T.events_name_the_player_and_cell()
   local event = { kind = "placed", by = "white", cell = cell("o15") }
   assert_eq("bob placed o15", described(update_with(), event))
 end

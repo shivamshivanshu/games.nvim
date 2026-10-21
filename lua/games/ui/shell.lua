@@ -63,7 +63,6 @@ local Control = types.Control
 ---@field input? games.GameInput
 ---@field actions? games.GameAction[]
 ---@field describers? table<games.EventKind, games.Describer> what text each event kind reads as; a kind without one, or one that returns nil, reads generically
----@field describe_event? fun(event: games.Event, update: games.GameUpdate, ctx: games.DescribeCtx): string|nil the old form of describers, which describers replaces
 ---@field asset_keys? string[] keys every asset pack of the game must draw
 ---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
 ---@field picture_keys? string[] keys its packs draw as whole pictures beside the board

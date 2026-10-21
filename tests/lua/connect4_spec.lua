@@ -137,7 +137,7 @@ function T.a_drop_key_sends_its_column_as_text()
   assert_eq({ kind = "drop", column = "4" }, four.action)
 end
 
-function T.describe_event_names_the_player_and_column()
+function T.events_name_the_player_and_column()
   local event = { kind = "dropped", by = "yellow", row = 5, column = 3 }
   assert_eq("bob dropped in column 3", described(update_with(), event))
 end

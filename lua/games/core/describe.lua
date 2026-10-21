@@ -11,6 +11,7 @@ local SECONDS_PER_MINUTE = 60
 
 ---How event text names seats and draws a game's pieces, built once per update.
 ---@class games.Talk
+---@field update games.GameUpdate the update whose events it tells
 ---@field name fun(seat: games.Seat): string
 ---@field art? games.ArtSet the game's asset pack in the user's glyph mode
 ---@field ambiwidth games.Ambiwidth
@@ -238,6 +239,7 @@ end
 function M.talk(update, ctx)
   local art, ambiwidth = ctx.art, ctx.ambiwidth
   return {
+    update = update,
     name = function(seat)
       return players.name_of_seat(update, seat)
     end,
@@ -260,22 +262,15 @@ end
 ---@return fun(event: games.Event): string|nil what the game's module says of an event, if anything
 local function module_describer(update)
   local loaded, module = pcall(registry.game_module, update.game)
-  if not (loaded and module and (module.describers or module.describe_event)) then
+  local describers = loaded and module and module.describers
+  if not describers then
     return says_nothing
   end
-  local ctx = describe_ctx(update.game, module)
-  local describers = module.describers
-  if describers then
-    local talk = M.talk(update, ctx)
-    return function(event)
-      local describer = describers[event.kind]
-      return describer and describer(event, talk)
-    end
-  end
-  local describe_event = module.describe_event
-  ---@cast describe_event -nil
+  ---@cast module -nil
+  local talk = M.talk(update, describe_ctx(update.game, module))
   return function(event)
-    return describe_event(event, update, ctx)
+    local describer = describers[event.kind]
+    return describer and describer(event, talk)
   end
 end
 
@@ -283,9 +278,9 @@ end
 ---@param update games.GameUpdate
 ---@return string
 function M.events(update)
-  local describe_event = module_describer(update)
+  local module_says = module_describer(update)
   local descriptions = vim.tbl_map(function(event)
-    return describe_event(event) or fallback_description(event, update)
+    return module_says(event) or fallback_description(event, update)
   end, update.events)
   return table.concat(descriptions, "; ")
 end

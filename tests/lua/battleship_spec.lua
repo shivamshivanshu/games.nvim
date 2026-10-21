@@ -364,7 +364,7 @@ function T.the_board_and_panel_fit_eighty_columns_at_one_line_a_cell()
   assert(text_util.max_display_width(body) <= 80, table.concat(body, "\n"))
 end
 
-function T.describe_event_names_the_shooter_the_cell_and_what_it_found()
+function T.events_name_the_shooter_the_cell_and_what_it_found()
   for _, case in ipairs({
     { { kind = "ready", by = "p2" }, "bob's fleet is ready" },
     {

@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local puzzle = require("games.games.chess_puzzle")
 local shell = require("games.ui.shell")
@@ -159,22 +160,17 @@ function T.reveal_is_offered_only_in_a_running_study()
 end
 
 function T.events_read_as_the_solver_and_the_side_the_server_plays()
-  local state = update("study", "black")
-  assert_eq(
-    {
-      "alice played e5",
-      "white replied Nf3",
-      "alice tried Nc6, not the move",
-      "the move was Nf6",
-    },
-    vim.tbl_map(function(event)
-      return puzzle.describe_event(event, state)
-    end, {
+  local state = update("study", "black", {
+    events = {
       { kind = "moved", by = "solver", san = "e5" },
       { kind = "replied", by = "solver", san = "Nf3" },
       { kind = "missed", by = "solver", san = "Nc6" },
       { kind = "revealed", by = "solver", san = "Nf6" },
-    })
+    },
+  })
+  assert_eq(
+    "alice played e5; white replied Nf3; alice tried Nc6, not the move; the move was Nf6",
+    describe.events(state)
   )
 end
 

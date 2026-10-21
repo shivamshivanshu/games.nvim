@@ -114,7 +114,7 @@ function T.a_sow_key_sends_its_pit_as_text()
   assert_eq(6, #mancala.actions)
 end
 
-function T.describe_event_tells_captures_extra_turns_and_the_final_collection()
+function T.events_tell_captures_extra_turns_and_the_final_collection()
   local update = update_with()
   local function sowed(fields)
     return vim.tbl_extend(

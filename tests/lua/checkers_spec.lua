@@ -190,7 +190,7 @@ function T.long_jump_chains_and_move_numbers_past_99_stay_inside_the_window()
   )
 end
 
-function T.describe_event_names_the_player_and_a_crowning()
+function T.events_name_the_player_and_a_crowning()
   local update = checkers_update({})
   assert_eq(
     "alice played 22x31, crowned",

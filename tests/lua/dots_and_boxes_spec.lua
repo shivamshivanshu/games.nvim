@@ -316,7 +316,7 @@ function T.the_player_waiting_reads_their_move()
   )
 end
 
-function T.describe_event_names_the_drawer_the_edge_the_boxes_it_completed_and_a_move_again()
+function T.events_name_the_drawer_the_edge_the_boxes_it_completed_and_a_move_again()
   local function drawn(by, boxes, again)
     return {
       kind = "drawn",

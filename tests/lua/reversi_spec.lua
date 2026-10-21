@@ -120,7 +120,7 @@ function T.m_types_a_cell()
   )
 end
 
-function T.describe_event_names_the_move_and_the_automatic_pass()
+function T.events_name_the_move_and_the_automatic_pass()
   local placed = { kind = "placed", by = "black", cell = cell("d3"), flipped = { cell("d4") } }
   assert_eq("alice placed d3, flipping 1", described(start(), placed))
   assert_eq("bob has no move and passes", described(start(), { kind = "passed", by = "white" }))

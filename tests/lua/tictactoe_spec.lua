@@ -145,7 +145,7 @@ function T.a_roomy_window_draws_the_marks_as_art()
   )
 end
 
-function T.describe_event_names_the_player_and_cell()
+function T.events_name_the_player_and_cell()
   assert_eq("bob took cell 5", described(update(), { kind = "placed", by = "o", cell = 5 }))
 end
 
