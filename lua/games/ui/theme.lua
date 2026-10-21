@@ -76,7 +76,7 @@ local function warn_cut_override(group, dropped)
   end
   warned_overrides[group] = true
   notify.say(
-    ("games: highlights.%s: %s ignored; this group sets only its %s"):format(
+    ("highlights.%s: %s ignored; this group sets only its %s"):format(
       group,
       table.concat(dropped, ", "),
       highlights.ROLES[group] == highlights.Role.BACKGROUND and "background" or "foreground"
@@ -103,7 +103,7 @@ local function showable_palette(requested)
   end
   if not warned_no_truecolor then
     warned_no_truecolor = true
-    notify.say('games: palette "vivid" needs \'termguicolors\'; using "theme"', vim.log.levels.WARN)
+    notify.say('palette "vivid" needs \'termguicolors\'; using "theme"', vim.log.levels.WARN)
   end
   return types.Palette.THEME
 end

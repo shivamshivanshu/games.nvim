@@ -157,7 +157,7 @@ function Archive:refuse(game_id, reason, on_done)
   local key = tostring(game_id)
   if not self.refused[key] then
     self.refused[key] = true
-    notify.say(("games: archive %s: %s; not archiving it"):format(key, reason), ERROR)
+    notify.say(("archive %s: %s; not archiving it"):format(key, reason), ERROR)
   end
   on_done(Outcome.REFUSED)
 end
@@ -183,11 +183,11 @@ function Archive:run_next()
   self.queue_head = self.queue_head + 1
   fs.run(job.run, function(ok, result)
     if not ok then
-      notify.say(("games: archive %s: %s"):format(job.game.label, result), ERROR)
+      notify.say(("archive %s: %s"):format(job.game.label, result), ERROR)
     end
     local reported, err = pcall(job.on_done, ok and result or Outcome.FAILED)
     if not reported then
-      notify.say(("games: archive %s: %s"):format(job.game.label, err), ERROR)
+      notify.say(("archive %s: %s"):format(job.game.label, err), ERROR)
     end
     self:run_next()
   end)

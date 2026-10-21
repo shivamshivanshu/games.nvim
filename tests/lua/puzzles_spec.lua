@@ -179,7 +179,7 @@ function T.importing_a_csv_writes_the_set_from_its_first_entry_and_makes_it_the_
     assert_eq({ "lichess" }, puzzles.set_names())
     assert_eq(
       table.concat({
-        "games: imported 4 into puzzle set lichess, 2 failed:",
+        "imported 4 into puzzle set lichess, 2 failed:",
         "  line 7: no moves",
         "  line 8: the FEN has no side to move",
       }, "\n"),
@@ -236,7 +236,7 @@ function T.a_file_with_no_readable_entry_writes_no_set()
     local err, result = import(empty, nil)
     assert_eq(nil, err)
     assert_eq(
-      "games: imported nothing, 1 failed:\n  game 1: no moves",
+      "imported nothing, 1 failed:\n  game 1: no moves",
       puzzles.import_summary(assert(result))
     )
     assert_eq({}, puzzles.set_names())
@@ -274,7 +274,7 @@ function T.an_import_keeps_the_first_max_entries_and_reads_no_further()
     assert_eq({ "P1", "P2", "P3", "P4", "P5" }, ids)
     assert_eq({ 4 }, progress)
     assert_eq(
-      "games: imported 5 into puzzle set big; kept 5, more entries left unread",
+      "imported 5 into puzzle set big; kept 5, more entries left unread",
       puzzles.import_summary(assert(result))
     )
   end)

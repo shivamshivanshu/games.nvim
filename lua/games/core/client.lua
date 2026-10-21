@@ -83,7 +83,7 @@ end
 ---@param what string e.g. "update for game <id>"
 local function emit(signal, item, is_new, what)
   for _, err in ipairs(signal.emit(item, is_new)) do
-    notify.say(("games: handling %s failed: %s"):format(what, err), vim.log.levels.ERROR)
+    notify.say(("handling %s failed: %s"):format(what, err), vim.log.levels.ERROR)
   end
 end
 
@@ -224,7 +224,7 @@ end
 function Client:finished_games(fn)
   self:game_list({ status = types.GameStatus.FINISHED }, function(err, result)
     if err then
-      notify.say("games: " .. err.message, vim.log.levels.ERROR)
+      notify.say(err.message, vim.log.levels.ERROR)
     elseif result then
       fn(result.games)
     end

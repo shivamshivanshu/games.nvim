@@ -40,7 +40,7 @@ local function hold(state, label, run)
   local replaced = take_pending(state)
   if replaced then
     notify.say(
-      ("games: still connecting — replaced pending `%s` with `%s`"):format(replaced.label, label)
+      ("still connecting — replaced pending `%s` with `%s`"):format(replaced.label, label)
     )
   end
   state.pending = { label = label, run = run }
@@ -85,7 +85,7 @@ local function arm_timeout(client, state, pending)
       local last_error = client.conn:last_error()
       local reason = last_error and (": " .. last_error.message) or ""
       notify.say(
-        ("games: could not reach server %s%s"):format(client.conn:address(), reason),
+        ("could not reach server %s%s"):format(client.conn:address(), reason),
         vim.log.levels.ERROR
       )
     end)

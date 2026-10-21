@@ -34,7 +34,7 @@ function T.a_control_sent_while_disconnected_fails_as_an_error_naming_the_game()
     end, "the failure")
   end)
   assert_eq(
-    { { describe.title(update, "alice") .. ": not connected", vim.log.levels.ERROR } },
+    { { "games: " .. describe.title(update, "alice") .. ": not connected", vim.log.levels.ERROR } },
     notified
   )
 end

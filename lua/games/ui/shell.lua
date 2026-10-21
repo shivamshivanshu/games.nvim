@@ -912,7 +912,7 @@ function M.open(client, game_id, opts)
   end
   client:game_snapshot({ game_id = game_id }, function(err, snapshot)
     if err then
-      notify.say(("games: game %s: %s"):format(game_id, err.message), vim.log.levels.ERROR)
+      notify.say(("game %s: %s"):format(game_id, err.message), vim.log.levels.ERROR)
     elseif snapshot and not board_for(client, game_id) then
       open_update(client, snapshot, me, opts)
     end
@@ -924,7 +924,7 @@ open_update = function(client, update, me, opts)
   local game_id = update.game_id
   local module = registry.game_module(update.game)
   if not module then
-    notify.say(("games: no board for game type %s"):format(update.game), vim.log.levels.ERROR)
+    notify.say(("no board for game type %s"):format(update.game), vim.log.levels.ERROR)
     return nil
   end
   check_action_keys(module)
@@ -981,7 +981,7 @@ function M.open_next(client, after_game_id, opts)
     return update.game_id ~= after_game_id and players.is_to_act(update, me)
   end, client:games())
   if #waiting == 0 then
-    notify.say("games: no game is waiting for your move")
+    notify.say("no game is waiting for your move")
     return nil
   end
   table.sort(waiting, function(a, b)

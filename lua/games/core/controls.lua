@@ -20,7 +20,7 @@ end
 ---@type games.ReplyCallback
 function M.report_message(err)
   if err then
-    notify.say("games: " .. err.message, vim.log.levels.ERROR)
+    notify.say(err.message, vim.log.levels.ERROR)
   end
 end
 

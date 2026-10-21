@@ -54,7 +54,10 @@ function T.own_moves_do_not_notify()
     assert_eq({}, notified)
 
     conn:push("game.update", chess_update(2, "black", { "alice" }))
-    assert_eq({ { "chess vs bob: bob played e4 — your move", vim.log.levels.INFO } }, notified)
+    assert_eq(
+      { { "games: chess vs bob: bob played e4 — your move", vim.log.levels.INFO } },
+      notified
+    )
   end)
 end
 

@@ -38,7 +38,7 @@ function M.picker_name(forced)
       return forced
     end
     notify.say(
-      ("games: picker %q is not installed; using vim.ui.select"):format(forced),
+      ("picker %q is not installed; using vim.ui.select"):format(forced),
       vim.log.levels.WARN
     )
     return PickerName.SELECT
@@ -54,7 +54,7 @@ end
 function M.choose(source, item)
   local actions = sources.applicable(source, item)
   if #actions == 0 then
-    notify.say("games: nothing to do with " .. source.format(item))
+    notify.say("nothing to do with " .. source.format(item))
     return
   end
   picker.pick(actions, {
@@ -99,7 +99,7 @@ end
 ---@param forced? games.PickerName
 function M.open(source, forced)
   if #source.items == 0 then
-    notify.say(("games: no %s"):format(source.title:lower()))
+    notify.say(("no %s"):format(source.title:lower()))
     return
   end
   M.adapter(M.picker_name(forced)).open(source, M.handlers(source))

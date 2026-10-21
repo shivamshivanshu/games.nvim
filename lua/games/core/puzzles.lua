@@ -247,7 +247,7 @@ function M.load(name, on_done)
     local set_name = name or vim.trim(fs.read(latest_path()) or "")
     if set_name ~= "" and not M.is_set_name(set_name) then
       notify.say(
-        ("games: ignoring %s: %q is not a puzzle set name"):format(latest_path(), set_name),
+        ("ignoring %s: %q is not a puzzle set name"):format(latest_path(), set_name),
         vim.log.levels.WARN
       )
       set_name = ""
@@ -320,8 +320,8 @@ end
 function M.import_summary(result)
   local failed = #result.failures
   local imported = result.imported > 0
-      and ("games: imported %d into puzzle set %s"):format(result.imported, result.set)
-    or "games: imported nothing"
+      and ("imported %d into puzzle set %s"):format(result.imported, result.set)
+    or "imported nothing"
   local capped = result.capped and ("; kept %d, more entries left unread"):format(result.imported)
     or ""
   local lines = { imported .. capped .. (failed > 0 and (", %d failed:"):format(failed) or "") }

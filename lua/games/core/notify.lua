@@ -7,10 +7,11 @@ local ChallengeState = types.ChallengeState
 local ErrorCode = types.ErrorCode
 
 local NOTIFY_OPTS = { title = "games" }
+local PREFIX = "games: "
 ---@type table<games.ErrorCode, string> what to say when the conn gives up after this error
 local GIVE_UP_MESSAGES = {
-  [ErrorCode.AUTH_FAILED] = "games: login failed (%s); not reconnecting, check username and password",
-  [ErrorCode.VERSION_MISMATCH] = "games: server speaks another protocol version (%s); update the plugin",
+  [ErrorCode.AUTH_FAILED] = "login failed (%s); not reconnecting, check username and password",
+  [ErrorCode.VERSION_MISMATCH] = "server speaks another protocol version (%s); update the plugin",
 }
 
 ---@class (private) games.NotifyState
@@ -22,11 +23,11 @@ local M = {}
 ---@type table<games.Client, games.NotifyState>
 local states = setmetatable({}, { __mode = "k" })
 
----vim.notify under the plugin's title; level defaults to INFO.
+---vim.notify under the plugin's title and after its prefix; level defaults to INFO.
 ---@param message string
 ---@param level? integer
 function M.say(message, level)
-  vim.notify(message, level or vim.log.levels.INFO, NOTIFY_OPTS)
+  vim.notify(PREFIX .. message, level or vim.log.levels.INFO, NOTIFY_OPTS)
 end
 
 ---The logged-in user; while disconnected it warns and returns nil.
@@ -35,7 +36,7 @@ end
 function M.require_me(client)
   local me = client:me()
   if not me then
-    M.say("games: not connected", vim.log.levels.WARN)
+    M.say("not connected", vim.log.levels.WARN)
   end
   return me
 end

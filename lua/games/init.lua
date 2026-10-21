@@ -69,7 +69,7 @@ end
 ---@param opts games.SetupOpts
 function M.setup(opts)
   if not M.neovim_supported() then
-    notify.say(("games: needs Neovim %s or newer"):format(M.REQUIRED_NVIM), vim.log.levels.ERROR)
+    notify.say(("needs Neovim %s or newer"):format(M.REQUIRED_NVIM), vim.log.levels.ERROR)
     return
   end
   M.config = config.resolve(opts)

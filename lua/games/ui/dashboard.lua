@@ -263,7 +263,7 @@ local function act(names, verb)
     local target = target_at_cursor(state)
     local action = target and sources.find_action(target.source, target.item, names)
     if not (target and action) then
-      notify.say(("games: nothing to %s here"):format(verb))
+      notify.say(("nothing to %s here"):format(verb))
       return
     end
     action.run(target.item)

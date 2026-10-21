@@ -49,7 +49,7 @@ local say = notify.say
 local function on_ok(on_result)
   return function(err, result)
     if err then
-      say("games: " .. err.message, ERROR)
+      say(err.message, ERROR)
       return
     end
     if on_result then
@@ -125,7 +125,7 @@ local function pick_opponents(client, me, range, on_done)
       function(result)
         local others = sources.other_players(result.users, me)
         if #others == 0 then
-          say("games: no other users")
+          say("no other users")
           return
         end
         pick_opponents_from(vim.tbl_map(opponent_choice, others), range, on_done)
@@ -180,7 +180,7 @@ local function pick_game(client, game_type, players, on_game)
       return takes_players(info, players)
     end, client:catalog_games())
     if #playable == 0 then
-      say(("games: no %d-player games available"):format(players), ERROR)
+      say(("no %d-player games available"):format(players), ERROR)
       return
     end
     pick_info(playable, "Game:", on_game)
@@ -188,7 +188,7 @@ local function pick_game(client, game_type, players, on_game)
   end
   local info = client:game_info(game_type)
   if not (info and takes_players(info, players)) then
-    say(("games: no %d-player game %q"):format(players, game_type), ERROR)
+    say(("no %d-player game %q"):format(players, game_type), ERROR)
     return
   end
   on_game(info)
@@ -233,7 +233,7 @@ local function input_text_option(name, option, typed, on_value)
     end
     local problem = text_option_problem(name, option, value)
     if problem then
-      say("games: " .. problem, ERROR)
+      say(problem, ERROR)
       input_text_option(name, option, value, on_value)
       return
     end
@@ -314,8 +314,8 @@ function M.challenge(client, me, game_type, invitees)
     local range = opponent_range(catalog.games, game_type)
     if not range then
       say(
-        game_type and ("games: no game %q to challenge anyone to"):format(game_type)
-          or "games: no games available",
+        game_type and ("no game %q to challenge anyone to"):format(game_type)
+          or "no games available",
         ERROR
       )
       return
@@ -369,7 +369,7 @@ local function solo(client, _, args)
       if not game_type then
         local solo_games = vim.tbl_filter(players.can_start_solo, client:catalog_games())
         if #solo_games == 0 then
-          say("games: no solo games available", ERROR)
+          say("no solo games available", ERROR)
           return
         end
         pick_info(solo_games, "Solo game:", function(info)
@@ -379,12 +379,12 @@ local function solo(client, _, args)
       end
       local info = client:game_info(game_type)
       if not info then
-        say(("games: no game %q"):format(game_type), ERROR)
+        say(("no game %q"):format(game_type), ERROR)
         return
       end
       if not players.can_start_solo(info) then
         say(
-          ("games: %s is not a solo game; challenge someone with :Games challenge %s"):format(
+          ("%s is not a solo game; challenge someone with :Games challenge %s"):format(
             game_type,
             game_type
           ),
@@ -460,7 +460,7 @@ function M.respond(client, me, challenge, label)
     return candidate.label == label
   end)
   if not action then
-    say(("games: cannot %s this challenge"):format(label), ERROR)
+    say(("cannot %s this challenge"):format(label), ERROR)
     return
   end
   action.send(client, { challenge_id = challenge.challenge_id }, on_ok())
@@ -473,7 +473,7 @@ local function challenges(client, me)
     on_ok(function()
       local pending = client:pending_challenges()
       if #pending == 0 then
-        say("games: no pending challenges")
+        say("no pending challenges")
         return
       end
       table.sort(pending, sources.incoming_first(me))
@@ -495,7 +495,7 @@ end
 local function list(client, me, args)
   local status = args[1] or GameStatus.ONGOING
   if not vim.tbl_contains(GAME_STATUSES, status) then
-    say(("games: list takes %s, not %q"):format(table.concat(GAME_STATUSES, " or "), status), ERROR)
+    say(("list takes %s, not %q"):format(table.concat(GAME_STATUSES, " or "), status), ERROR)
     return
   end
   client:game_list(
@@ -504,7 +504,7 @@ local function list(client, me, args)
       ---@param result games.GameListResult
       function(result)
         if #result.games == 0 then
-          say(("games: no %s games"):format(status))
+          say(("no %s games"):format(status))
           return
         end
         client:game_infos(function(infos)
@@ -545,7 +545,7 @@ function M.show_stats(client, user)
       function(result)
         show_rows(
           " stats: " .. user .. " ",
-          ("games: %s has no finished games"):format(user),
+          ("%s has no finished games"):format(user),
           stats.stats_pairs(result)
         )
       end
@@ -564,7 +564,7 @@ function M.show_leaderboard(client, game)
       function(result)
         show_rows(
           (" leaderboard: %s "):format(game or "all games"),
-          ("games: no finished %sgames"):format(game and (game .. " ") or ""),
+          ("no finished %sgames"):format(game and (game .. " ") or ""),
           stats.leaderboard_pairs(result, game)
         )
       end
@@ -594,14 +594,14 @@ local function export_summary(tally)
   if failed > 0 then
     table.insert(parts, ("%d failed"):format(failed))
   end
-  return "games: export: " .. table.concat(parts, ", ")
+  return "export: " .. table.concat(parts, ", ")
 end
 
 ---@type games.SubcommandRun
 local function export(client)
   local archive = require("games").archive
   if not archive then
-    say("games: export needs archive.dir in setup()", ERROR)
+    say("export needs archive.dir in setup()", ERROR)
     return
   end
   client:finished_games(function(finished)
@@ -684,7 +684,7 @@ local function find(client, me, args)
     return
   end
   if not sources.is_source_name(name) then
-    say(("games: find takes %s, not %q"):format(table.concat(sources.NAMES, ", "), name), ERROR)
+    say(("find takes %s, not %q"):format(table.concat(sources.NAMES, ", "), name), ERROR)
     return
   end
   M.find(client, me, name)
@@ -706,24 +706,24 @@ end
 local function import(args)
   local path, name, max = args[1], args[2], args[3]
   if not path then
-    say("games: import takes a file: :Games import <file.csv|file.pgn> [set] [max]", ERROR)
+    say("import takes a file: :Games import <file.csv|file.pgn> [set] [max]", ERROR)
     return
   end
   local max_entries = max == nil and puzzle_max_entries() or tonumber(max)
   if not predicates.is_positive_integer(max_entries) then
-    say(("games: import: max %q is not a positive whole number"):format(max), ERROR)
+    say(("import: max %q is not a positive whole number"):format(max), ERROR)
     return
   end
   local opts = {
     name = name,
     max_entries = max_entries,
     on_progress = function(lines)
-      say(("games: import: read %d lines of %s"):format(lines, path))
+      say(("import: read %d lines of %s"):format(lines, path))
     end,
   }
   puzzles.import(vim.fn.expand(path), opts, function(err, result)
     if err then
-      say("games: import: " .. err, ERROR)
+      say("import: " .. err, ERROR)
       return
     end
     ---@cast result games.PuzzleImport
@@ -738,7 +738,7 @@ end
 function M.start_puzzle(client, name)
   puzzles.load(name, function(err, set_name, set)
     if err then
-      say("games: " .. err, ERROR)
+      say(err, ERROR)
       return
     end
     ---@cast set_name string
@@ -746,7 +746,7 @@ function M.start_puzzle(client, name)
     local entry = set.entries[set.next]
     if not entry then
       say(
-        ("games: puzzle set %s is done, all %d played; restart it from :Games find puzzles"):format(
+        ("puzzle set %s is done, all %d played; restart it from :Games find puzzles"):format(
           set_name,
           #set.entries
         )
@@ -759,7 +759,7 @@ function M.start_puzzle(client, name)
       ---@param update games.GameUpdate|nil
       function(start_err, update)
         if start_err and start_err.code ~= types.ErrorCode.BAD_REQUEST then
-          say("games: " .. start_err.message, ERROR)
+          say(start_err.message, ERROR)
           return
         end
         if not (start_err or update) then
@@ -767,14 +767,14 @@ function M.start_puzzle(client, name)
         end
         local save_err = puzzles.advance(set_name, entry)
         if save_err then
-          say(("games: puzzle set %s: %s"):format(set_name, save_err), ERROR)
+          say(("puzzle set %s: %s"):format(set_name, save_err), ERROR)
         end
         if start_err then
-          say(("games: skipped %s: %s"):format(label, start_err.message), ERROR)
+          say(("skipped %s: %s"):format(label, start_err.message), ERROR)
           return
         end
         ---@cast update games.GameUpdate
-        say("games: puzzle " .. label)
+        say("puzzle " .. label)
         shell.open(client, update.game_id)
       end
     )
@@ -789,10 +789,10 @@ function M.restart_puzzles(name)
   end
   local err = puzzles.restart(name)
   if err then
-    say(("games: puzzle set %s: %s"):format(name, err), ERROR)
+    say(("puzzle set %s: %s"):format(name, err), ERROR)
     return
   end
-  say(("games: puzzle set %s starts again from its first entry"):format(name))
+  say(("puzzle set %s starts again from its first entry"):format(name))
 end
 
 ---@type games.SubcommandRun
@@ -866,7 +866,7 @@ end
 function M.run(fargs)
   local client = require("games").client
   if not client then
-    say('games: call require("games").setup() first', ERROR)
+    say('call require("games").setup() first', ERROR)
     return
   end
   local name = fargs[1]
@@ -876,7 +876,7 @@ function M.run(fargs)
   end
   local subcommand = find_subcommand(name)
   if not subcommand then
-    say(("games: unknown subcommand %q"):format(name), ERROR)
+    say(("unknown subcommand %q"):format(name), ERROR)
     return
   end
   local args = vim.list_slice(fargs, 2)
