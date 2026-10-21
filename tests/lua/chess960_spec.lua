@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local chess960 = require("games.games.chess960")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -12,11 +11,10 @@ local FIRST_BOARD_ROW = 4
 local BOARD_LINES = 9
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = chess960.asset_keys, glyph_width = 1 }
-  local pack = assets.load("chess960", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("chess960", chess960, glyphs, extra)
 end
 
 ---alice (white) and bob after both castled kingside from start position 413.

@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local puzzle = require("games.games.chess_puzzle")
 local shell = require("games.ui.shell")
@@ -13,11 +12,10 @@ local FIRST_BOARD_ROW = 3
 local BOARD_LINES = 9
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = puzzle.asset_keys, glyph_width = 1 }
-  local pack = assets.load("chess_puzzle", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("chess_puzzle", puzzle, glyphs, extra)
 end
 
 ---alice's puzzle after the server's setup move Nf6, white to find Qxf7#.

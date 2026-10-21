@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local sudoku = require("games.games.sudoku")
@@ -13,11 +12,10 @@ local BOARD_LINES = 12
 local FOOTER_ROW = 16
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = sudoku.asset_keys, glyph_width = sudoku.glyph_width }
-  local pack = assets.load("sudoku", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("sudoku", sudoku, glyphs, extra)
 end
 
 ---@param digits string
@@ -60,21 +58,6 @@ local function gave_up()
   })
   over.view.solution = digits_of(SOLUTION)
   return over
-end
-
----@param rendered games.Rendered
----@param row integer 0-based
----@return games.Hl[]
-local function row_hls(rendered, row)
-  return vim
-    .iter(rendered.extmarks)
-    :filter(function(mark)
-      return mark.row == row
-    end)
-    :map(function(mark)
-      return mark.hl
-    end)
-    :totable()
 end
 
 local T = {}
@@ -155,7 +138,7 @@ function T.givens_are_bold_and_muted_entries_take_the_seat_colour_and_conflicts_
     shell.render(update(), sudoku, view_options("unicode"), "alice", 0, nil, CATALOGUED)
   assert_eq(
     { { "GamesCheck", "GamesGiven" }, "GamesGiven", { "GamesCheck", "GamesSeat1" } },
-    vim.list_slice(row_hls(rendered, FIRST_BOARD_ROW), 1, 3)
+    vim.list_slice(helpers.hls_on_row(rendered, FIRST_BOARD_ROW), 1, 3)
   )
 end
 
@@ -168,7 +151,7 @@ function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_confl
   )
   assert_eq(
     { "GamesGiven", "GamesGiven", { "GamesMiss", "GamesMuted" } },
-    vim.list_slice(row_hls(rendered, FIRST_BOARD_ROW), 1, 3)
+    vim.list_slice(helpers.hls_on_row(rendered, FIRST_BOARD_ROW), 1, 3)
   )
 end
 

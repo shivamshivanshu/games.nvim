@@ -10,8 +10,8 @@ local assert_eq = helpers.assert_eq
 
 local AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 local FOOLS_MATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
-local ASCII = helpers.chess_view("ascii")
-local UNICODE = helpers.chess_view("unicode")
+local ASCII = helpers.view_options("chess", chess, "ascii")
+local UNICODE = helpers.view_options("chess", chess, "unicode")
 
 local chess_update = helpers.chess_update
 
@@ -29,12 +29,7 @@ local function hl_at_square(rendered, square)
   local file, rank = square:byte(1) - ("a"):byte() + 1, square:sub(2, 2)
   for i, line in ipairs(rendered.lines) do
     if vim.startswith(line, rank .. " ") then
-      local col = 2 + (file - 1) * 2
-      for _, mark in ipairs(rendered.extmarks) do
-        if mark.row == i - 1 and mark.col == col then
-          return mark.hl
-        end
-      end
+      return helpers.hl_at(rendered, i - 1, 2 + (file - 1) * 2)
     end
   end
 end
@@ -47,12 +42,7 @@ local function hl_of(rendered, needle)
   for i, line in ipairs(rendered.lines) do
     local start = line:find(needle, 1, true)
     if start then
-      for _, mark in ipairs(rendered.extmarks) do
-        if mark.row == i - 1 and mark.col == start - 1 then
-          return mark.hl
-        end
-      end
-      return nil
+      return helpers.hl_at(rendered, i - 1, start - 1)
     end
   end
   error(("%q not rendered"):format(needle))

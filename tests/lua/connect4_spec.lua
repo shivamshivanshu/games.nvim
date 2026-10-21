@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local connect4 = require("games.games.connect4")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -13,11 +12,10 @@ local BOARD_TOP = 4
 local BOARD_LEFT = 1
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = connect4.asset_keys, glyph_width = 1 }
-  local pack = assets.load("connect4", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("connect4", connect4, glyphs, extra)
 end
 
 ---alice (red) has three along the bottom under bob's three; bob is to move.
@@ -61,12 +59,7 @@ end
 ---@param c integer
 ---@return string[]
 local function cell_hl(rendered, r, c)
-  local row, col = BOARD_TOP + r - 1, BOARD_LEFT + (c - 1) * 2
-  local mark = vim.iter(rendered.extmarks):find(function(m)
-    return m.row == row and m.col == col
-  end)
-  local hl = assert(mark, ("no extmark on cell %d,%d"):format(r, c)).hl
-  return type(hl) == "table" and hl or { hl }
+  return helpers.hl_stack_at(rendered, BOARD_TOP + r - 1, BOARD_LEFT + (c - 1) * 2)
 end
 
 local T = {}

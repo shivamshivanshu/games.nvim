@@ -172,15 +172,65 @@ function M.with_overrides(overrides, fn)
   end
 end
 
----A chess board's view options, drawing from the default asset pack.
+---A game's view options in glyphs, drawing from its default asset pack, with extra (e.g. cursor
+---or flipped) on top.
+---@param game games.GameType
+---@param module games.GameModule
 ---@param glyphs games.Glyphs
----@param flipped? boolean
+---@param extra? table
 ---@return games.ViewOptions
-function M.chess_view(glyphs, flipped)
-  local assets = require("games.ui.assets")
-  local spec = { keys = require("games.games.chess").asset_keys, glyph_width = 1 }
-  local pack = assets.load("chess", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = flipped == true, art = assets.art_set(pack, glyphs) }
+function M.view_options(game, module, glyphs, extra)
+  local art = require("games.ui.assets").module_art(game, module, { glyphs = glyphs })
+  return vim.tbl_extend("force", { glyphs = glyphs, flipped = false, art = art }, extra or {})
+end
+
+---The highlight of the extmark that starts at row and col, both 0-based.
+---@param rendered games.Rendered
+---@param row integer
+---@param col integer byte column
+---@return games.Hl|nil
+function M.hl_at(rendered, row, col)
+  local mark = vim.iter(rendered.extmarks):find(function(candidate)
+    return candidate.row == row and candidate.col == col
+  end)
+  return mark and mark.hl
+end
+
+---The highlight stack at row and col, both 0-based: one group as a list of one, none as {}.
+---@param rendered games.Rendered
+---@param row integer
+---@param col integer byte column
+---@return string[]
+function M.hl_stack_at(rendered, row, col)
+  local hl = M.hl_at(rendered, row, col)
+  return type(hl) == "table" and hl or { hl }
+end
+
+---The highlights of the extmarks on row (0-based) in column order, only those starting before
+---end_col when it is given.
+---@param rendered games.Rendered
+---@param row integer
+---@param end_col? integer byte column
+---@return games.Hl[]
+function M.hls_on_row(rendered, row, end_col)
+  local marks = vim
+    .iter(ipairs(rendered.extmarks))
+    :filter(function(_, mark)
+      return mark.row == row and mark.col < (end_col or math.huge)
+    end)
+    :map(function(index, mark)
+      return { index = index, mark = mark }
+    end)
+    :totable()
+  table.sort(marks, function(a, b)
+    if a.mark.col ~= b.mark.col then
+      return a.mark.col < b.mark.col
+    end
+    return a.index < b.index
+  end)
+  return vim.tbl_map(function(entry)
+    return entry.mark.hl
+  end, marks)
 end
 
 local CHESS_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"

@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local hangman = require("games.games.hangman")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -10,10 +9,10 @@ local BOARD_ROWS = { 4, 9 }
 local FOOTER_ROW = 11
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local pack = assets.load("hangman", assets.DEFAULT_PACK, assets.spec_of(hangman))
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("hangman", hangman, glyphs, extra)
 end
 
 ---sam, alone, against "about": b and o found, e and q missed, and the word crane missed.

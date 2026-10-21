@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local liars_dice = require("games.games.liars_dice")
 local shell = require("games.ui.shell")
@@ -8,14 +7,10 @@ local assert_eq = helpers.assert_eq
 local CATALOGUE = { bid = true, dudo = true }
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local pack = assets.load(
-    "liars_dice",
-    assets.DEFAULT_PACK,
-    { keys = liars_dice.asset_keys, glyph_width = 1 }
-  )
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("liars_dice", liars_dice, glyphs, extra)
 end
 
 ---alice (p1) to raise bob's bid in round 2; carol is out and round 1 was revealed.

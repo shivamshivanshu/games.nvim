@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local dots_and_boxes = require("games.games.dots_and_boxes")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -11,12 +10,10 @@ local FIRST_BOARD_ROW = 5
 local CONTROLS = { "resign", "offer_draw" }
 
 ---@param glyphs games.Glyphs
----@param at? games.GridCursor
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs, at)
-  local spec = { keys = dots_and_boxes.asset_keys, glyph_width = 1 }
-  local pack = assets.load("dots_and_boxes", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs), cursor = at }
+local function view_options(glyphs, extra)
+  return helpers.view_options("dots_and_boxes", dots_and_boxes, glyphs, extra)
 end
 
 ---@param rows integer
@@ -113,17 +110,6 @@ local function lines_of(rendered, from, count)
   end, vim.list_slice(rendered.lines, from, from + count - 1))
 end
 
----@param rendered games.Rendered
----@param line integer 1-based
----@param col integer 0-based byte column
----@return games.Hl|nil
-local function hl_at(rendered, line, col)
-  local mark = vim.iter(rendered.extmarks):find(function(m)
-    return m.row == line - 1 and m.col == col
-  end)
-  return mark and mark.hl
-end
-
 ---@param bindings games.KeyBinding[]
 ---@param key string
 ---@return games.KeyBinding|nil
@@ -159,36 +145,36 @@ function T.the_board_draws_dots_edges_owned_boxes_the_latest_edge_and_the_cursor
       "  a   b   c   d",
     },
   }) do
-    local rendered = render(midgame(), view_options(glyphs, at))
+    local rendered = render(midgame(), view_options(glyphs, { cursor = at }))
     assert_eq(want, lines_of(rendered, FIRST_BOARD_ROW, 8))
   end
-  local rendered = render(midgame(), view_options("ascii", at))
-  assert_eq("GamesLastMove", hl_at(rendered, FIRST_BOARD_ROW + 1, 6))
-  assert_eq("GamesMovable", hl_at(rendered, FIRST_BOARD_ROW + 3, 6))
+  local rendered = render(midgame(), view_options("ascii", { cursor = at }))
+  assert_eq("GamesLastMove", helpers.hl_at(rendered, FIRST_BOARD_ROW, 6))
+  assert_eq("GamesMovable", helpers.hl_at(rendered, FIRST_BOARD_ROW + 2, 6))
 end
 
 function T.a_box_takes_its_owners_glyph_and_header_colour()
   local rendered = render(midgame(), view_options("ascii"))
-  local box = hl_at(rendered, FIRST_BOARD_ROW + 1, 3)
+  local box = helpers.hl_at(rendered, FIRST_BOARD_ROW, 3)
   assert_eq("GamesSeat2", type(box) == "table" and box[#box] or box)
   assert_eq("O", rendered.lines[FIRST_BOARD_ROW + 1]:sub(5, 5))
 end
 
 function T.the_cursor_on_a_drawn_edge_is_blocked_and_enter_sends_nothing()
   local at = { row = 1, col = 1, orientation = "across" }
-  local rendered, bindings = render(midgame(), view_options("ascii", at))
+  local rendered, bindings = render(midgame(), view_options("ascii", { cursor = at }))
   assert_eq(
     { "1 +xxx+   +   +   your move", "  | O #           at a1h: drawn" },
     lines_of(rendered, FIRST_BOARD_ROW, 2)
   )
-  assert_eq("GamesCheck", hl_at(rendered, FIRST_BOARD_ROW, 3))
+  assert_eq("GamesCheck", helpers.hl_at(rendered, FIRST_BOARD_ROW - 1, 3))
   assert_eq(nil, binding(bindings, "<CR>"))
 end
 
 function T.enter_sends_the_edge_under_the_cursor_lying_its_way()
   local function sent(at)
     local state = midgame()
-    local _, bindings = render(state, view_options("ascii", at))
+    local _, bindings = render(state, view_options("ascii", { cursor = at }))
     local acted
     binding(bindings, "<CR>").run({
       update = state,
@@ -255,8 +241,11 @@ function T.keys_follow_the_turn()
     if me == "alice" then
       state.view.legal_edges = {}
     end
-    local rendered =
-      render(state, view_options("ascii", { row = 2, col = 2, orientation = "down" }), me)
+    local rendered = render(
+      state,
+      view_options("ascii", { cursor = { row = 2, col = 2, orientation = "down" } }),
+      me
+    )
     assert_eq(want, rendered.lines[#rendered.lines])
   end
   local rendered = render(over, view_options("ascii"))
@@ -274,11 +263,15 @@ end
 function T.the_largest_board_and_panel_fit_eighty_by_twenty_four_at_one_line_a_cell()
   local seven = midgame({ view = view_of(7, {}, {}, "p2") })
   seven.view.legal_edges = { { row = 1, col = 1, orientation = "across" } }
-  local rendered =
-    render(seven, view_options("unicode", { row = 8, col = 7, orientation = "across" }), "bob", {
+  local rendered = render(
+    seven,
+    view_options("unicode", { cursor = { row = 8, col = 7, orientation = "across" } }),
+    "bob",
+    {
       text_area = { w = 80, h = 22 },
       seats = 2,
-    })
+    }
+  )
   local body = vim.list_slice(rendered.lines, FIRST_BOARD_ROW, #rendered.lines - 2)
   assert(text_util.max_display_width(body) <= 80, table.concat(body, "\n"))
   assert(#rendered.lines <= 22, #rendered.lines)

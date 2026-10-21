@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local battleship = require("games.games.battleship")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -12,12 +11,10 @@ local TILE_CODES = { ["."] = "empty", ["#"] = "ship", o = "miss", x = "hit", ["*
 local WATER = ("."):rep(10)
 
 ---@param glyphs games.Glyphs
----@param at? games.GridCursor
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs, at)
-  local spec = { keys = battleship.asset_keys, glyph_width = 1 }
-  local pack = assets.load("battleship", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs), cursor = at }
+local function view_options(glyphs, extra)
+  return helpers.view_options("battleship", battleship, glyphs, extra)
 end
 
 ---@param rows string[] "." water, "#" ship, "o" miss, "x" hit, "*" sunk; water fills out each row
@@ -126,17 +123,6 @@ local function lines_of(rendered, from, count)
   end, vim.list_slice(rendered.lines, from, from + count - 1))
 end
 
----@param rendered games.Rendered
----@param line integer 1-based
----@param col integer 0-based byte column
----@return games.Hl|nil
-local function hl_at(rendered, line, col)
-  local mark = vim.iter(rendered.extmarks):find(function(m)
-    return m.row == line - 1 and m.col == col
-  end)
-  return mark and mark.hl
-end
-
 ---@param state games.BattleshipUpdate
 ---@param view games.ViewOptions
 ---@param catalogued? table<string, true>
@@ -179,12 +165,14 @@ function T.placing_shows_the_next_ship_where_it_fits_or_where_it_is_blocked()
       },
     },
   }) do
-    local rendered = render(placing(), view_options(case.glyphs, case.at), CATALOGUED)
+    local rendered = render(placing(), view_options(case.glyphs, { cursor = case.at }), CATALOGUED)
     assert_eq(case.board, lines_of(rendered, FIRST_BOARD_ROW - 1, 3))
   end
-  local rendered =
-    render(placing(), view_options("ascii", { row = 1, col = 8, orientation = "down" }))
-  assert_eq("GamesCheck", hl_at(rendered, FIRST_BOARD_ROW, 3 + 7 * 2)[1])
+  local rendered = render(
+    placing(),
+    view_options("ascii", { cursor = { row = 1, col = 8, orientation = "down" } })
+  )
+  assert_eq("GamesCheck", helpers.hl_at(rendered, FIRST_BOARD_ROW - 1, 3 + 7 * 2)[1])
   assert_eq(
     "battleship 4 unplaced afloat",
     vim.trim(lines_of(rendered, FIRST_BOARD_ROW + 3, 1)[1]:sub(51))
@@ -207,7 +195,7 @@ function T.the_battle_marks_hits_misses_sunk_ships_the_aim_and_the_latest_shot_b
       "3  # # # # . . . . . .   3  . @ . . . . . . . .   carrier 5    afloat   afloat",
     },
   }) do
-    local rendered = render(firing(), view_options(glyphs, at), CATALOGUED)
+    local rendered = render(firing(), view_options(glyphs, { cursor = at }), CATALOGUED)
     assert_eq(want, lines_of(rendered, FIRST_BOARD_ROW - 1, 4))
     local tail = lines_of(rendered, FIRST_BOARD_ROW + 7, 2)
     assert_eq(
@@ -217,18 +205,18 @@ function T.the_battle_marks_hits_misses_sunk_ships_the_aim_and_the_latest_shot_b
       end, tail)
     )
   end
-  local rendered = render(firing(), view_options("ascii", at), CATALOGUED)
+  local rendered = render(firing(), view_options("ascii", { cursor = at }), CATALOGUED)
   local grid_width, grid_gap, labels_width = 22, 3, 3
   local target_col = grid_width + grid_gap + labels_width
   assert_eq(
     { "GamesMovable", "GamesMovableInk" },
-    hl_at(rendered, FIRST_BOARD_ROW + 2, target_col + 2)
+    helpers.hl_at(rendered, FIRST_BOARD_ROW + 1, target_col + 2)
   )
   assert_eq(
     { "GamesLastMove", "GamesCardRed" },
-    hl_at(rendered, FIRST_BOARD_ROW + 1, target_col + 16)
+    helpers.hl_at(rendered, FIRST_BOARD_ROW, target_col + 16)
   )
-  assert_eq("GamesCardRed", hl_at(rendered, FIRST_BOARD_ROW + 8, 3))
+  assert_eq("GamesCardRed", helpers.hl_at(rendered, FIRST_BOARD_ROW + 7, 3))
 end
 
 function T.a_finished_board_shows_the_opponents_ships_and_offers_nothing()
@@ -274,7 +262,7 @@ end
 
 function T.enter_sends_the_cursors_cell_as_a_placement_lying_its_way_or_a_shot()
   local function sent(state, at, key)
-    local _, bindings = render(state, view_options("ascii", at), CATALOGUED)
+    local _, bindings = render(state, view_options("ascii", { cursor = at }), CATALOGUED)
     local binding = vim.iter(bindings):find(function(b)
       return b.key == key
     end)
@@ -318,12 +306,12 @@ function T.aiming_where_the_view_offers_no_shot_marks_it_blocked_and_enter_sends
     { not_offered, { row = 4, col = 3, orientation = "across" }, "c4" },
   }) do
     local state, at, name = case[1], case[2], case[3]
-    local rendered, bindings = render(state, view_options("ascii", at), CATALOGUED)
+    local rendered, bindings = render(state, view_options("ascii", { cursor = at }), CATALOGUED)
     local line = rendered.lines[FIRST_BOARD_ROW + at.row - 1]
     assert_eq("!", line:sub(target_col + 1 + 2 * (at.col - 1), target_col + 1 + 2 * (at.col - 1)))
     assert_eq(
       "GamesCheck",
-      hl_at(rendered, FIRST_BOARD_ROW + at.row - 1, target_col + 2 * (at.col - 1))[1]
+      helpers.hl_at(rendered, FIRST_BOARD_ROW + at.row - 2, target_col + 2 * (at.col - 1))[1]
     )
     assert_eq(
       "at " .. name .. ": fired",
@@ -339,8 +327,10 @@ function T.aiming_where_the_view_offers_no_shot_marks_it_blocked_and_enter_sends
 end
 
 function T.the_board_and_panel_fit_eighty_columns_at_one_line_a_cell()
-  local rendered =
-    render(placing(), view_options("unicode", { row = 10, col = 10, orientation = "down" }))
+  local rendered = render(
+    placing(),
+    view_options("unicode", { cursor = { row = 10, col = 10, orientation = "down" } })
+  )
   local body = vim.list_slice(rendered.lines, FIRST_BOARD_ROW - 1, #rendered.lines - 2)
   assert(text_util.max_display_width(body) <= 80, table.concat(body, "\n"))
 end

@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local minesweeper = require("games.games.minesweeper")
 local shell = require("games.ui.shell")
@@ -17,11 +16,10 @@ local CELL_CODES = {
 }
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = minesweeper.asset_keys, glyph_width = minesweeper.glyph_width }
-  local pack = assets.load("minesweeper", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("minesweeper", minesweeper, glyphs, extra)
 end
 
 ---@param rows string[] "#" hidden, "F" flag, a digit revealed, and "*", "M", "X", "!" once over
@@ -87,15 +85,7 @@ end
 local function hls_on_line_with(rendered, needle)
   for i, line in ipairs(rendered.lines) do
     if line:find(needle, 1, true) then
-      return vim
-        .iter(rendered.extmarks)
-        :filter(function(mark)
-          return mark.row == i - 1
-        end)
-        :map(function(mark)
-          return mark.hl
-        end)
-        :totable()
+      return helpers.hls_on_row(rendered, i - 1)
     end
   end
   error(("%q not rendered"):format(needle))

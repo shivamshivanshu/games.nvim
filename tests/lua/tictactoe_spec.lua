@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local tictactoe = require("games.games.tictactoe")
@@ -10,11 +9,10 @@ local BOARD_ROWS = { 4, 8 }
 local FOOTER_ROW = 10
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = tictactoe.asset_keys, glyph_width = tictactoe.glyph_width }
-  local pack = assets.load("tictactoe", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("tictactoe", tictactoe, glyphs, extra)
 end
 
 ---alice (x) and bob (o) after x 1, o 4, x 2: bob to move, last move on 2.
@@ -37,21 +35,6 @@ local function update(overrides)
       legal_cells = { 3, 5, 6, 7, 8, 9 },
     },
   }, overrides or {})
-end
-
----@param rendered games.Rendered
----@param row integer 0-based
----@return games.Hl[]
-local function row_hls(rendered, row)
-  return vim
-    .iter(rendered.extmarks)
-    :filter(function(mark)
-      return mark.row == row
-    end)
-    :map(function(mark)
-      return mark.hl
-    end)
-    :totable()
 end
 
 local T = {}
@@ -130,17 +113,20 @@ function T.marks_take_their_seats_colour_in_player_order_with_last_move_and_win_
     { "GamesLastMove", "GamesSeat1" },
     "GamesMuted",
     "GamesMuted",
-  }, row_hls(rendered, BOARD_ROWS[1]))
+  }, helpers.hls_on_row(rendered, BOARD_ROWS[1]))
   assert_eq(
     { "GamesSeat2", "GamesMuted", { "GamesWin", "GamesMuted" }, "GamesMuted", "GamesMuted" },
-    row_hls(rendered, BOARD_ROWS[1] + 2)
+    helpers.hls_on_row(rendered, BOARD_ROWS[1] + 2)
   )
 
   local bob_first =
     update({ players = { { user = "bob", seat = "o" }, { user = "alice", seat = "x" } } })
   local swapped =
     shell.render(bob_first, tictactoe, view_options("unicode"), "bob", 0, nil, CATALOGUED)
-  assert_eq({ "GamesSeat2", "GamesMuted" }, vim.list_slice(row_hls(swapped, BOARD_ROWS[1]), 1, 2))
+  assert_eq(
+    { "GamesSeat2", "GamesMuted" },
+    vim.list_slice(helpers.hls_on_row(swapped, BOARD_ROWS[1]), 1, 2)
+  )
 end
 
 function T.a_roomy_window_draws_the_marks_as_art()

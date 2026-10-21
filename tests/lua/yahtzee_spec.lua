@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local yahtzee = require("games.games.yahtzee")
@@ -11,11 +10,10 @@ local DICE_COUNT = 5
 local DICE_TOP = 5
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local pack =
-    assets.load("yahtzee", assets.DEFAULT_PACK, { keys = yahtzee.asset_keys, glyph_width = 1 })
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("yahtzee", yahtzee, glyphs, extra)
 end
 
 ---@param seat games.Seat

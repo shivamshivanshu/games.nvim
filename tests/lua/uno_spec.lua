@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local uno = require("games.games.uno")
@@ -9,10 +8,10 @@ local CATALOGUE =
   { play = true, draw = true, pass = true, challenge = true, accept = true, color = true }
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local pack = assets.load("uno", assets.DEFAULT_PACK, assets.spec_of(uno))
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("uno", uno, glyphs, extra)
 end
 
 ---alice (p1) to play on a wild that named green; bob has one card left and carol left.

@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local hearts = require("games.games.hearts")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -8,10 +7,10 @@ local assert_eq = helpers.assert_eq
 local CATALOGUE = { play = true, pass = true }
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local pack = assets.load("hearts", assets.DEFAULT_PACK, assets.spec_of(hearts))
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("hearts", hearts, glyphs, extra)
 end
 
 ---bob (p2) to play the third card of a trick in hand 2, which passed right; dave left.

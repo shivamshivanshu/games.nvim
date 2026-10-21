@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local mancala = require("games.games.mancala")
 local shell = require("games.ui.shell")
@@ -12,11 +11,10 @@ local BOARD_TOP = 4
 local CELL_STEP = 5
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = mancala.asset_keys, glyph_width = mancala.glyph_width }
-  local pack = assets.load("mancala", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("mancala", mancala, glyphs, extra)
 end
 
 ---alice (south) sowed pit 1, then bob (north) captured; bob is to move again after a store landing.
@@ -53,12 +51,7 @@ end
 ---@param c integer
 ---@return games.Hl[] the highlight stack on cell r, c at cell height 1
 local function cell_hl(rendered, r, c)
-  local row, col = BOARD_TOP + r - 1, 1 + (c - 1) * CELL_STEP
-  local mark = vim.iter(rendered.extmarks):find(function(m)
-    return m.row == row and m.col == col
-  end)
-  local hl = assert(mark, ("no extmark on cell %d,%d"):format(r, c)).hl
-  return type(hl) == "table" and hl or { hl }
+  return helpers.hl_stack_at(rendered, BOARD_TOP + r - 1, 1 + (c - 1) * CELL_STEP)
 end
 
 ---@param rendered games.Rendered

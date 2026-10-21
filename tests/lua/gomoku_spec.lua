@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local gomoku = require("games.games.gomoku")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -13,11 +12,10 @@ local BOARD_TOP = 4
 local BOARD_LEFT = 3
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local pack =
-    assets.load("gomoku", assets.DEFAULT_PACK, { keys = gomoku.asset_keys, glyph_width = 1 })
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("gomoku", gomoku, glyphs, extra)
 end
 
 ---@param name string e.g. "h8"
@@ -83,14 +81,7 @@ end
 ---@return string[]
 local function cell_hl(rendered, name)
   local at = cell(name)
-  local row, col = BOARD_TOP + at.row - 1, BOARD_LEFT + (at.column - 1) * 2
-  local mark = vim.iter(rendered.extmarks):find(function(m)
-    return m.row == row and m.col == col
-  end)
-  if not mark then
-    return {}
-  end
-  return type(mark.hl) == "table" and mark.hl or { mark.hl }
+  return helpers.hl_stack_at(rendered, BOARD_TOP + at.row - 1, BOARD_LEFT + (at.column - 1) * 2)
 end
 
 ---The note beside board line r, such as "last h8"; nil when there is none.

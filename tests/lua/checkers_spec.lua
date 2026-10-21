@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local checkers = require("games.games.checkers")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -8,12 +7,10 @@ local assert_eq = helpers.assert_eq
 local MOVABLE = "GamesMovable"
 
 ---@param glyphs games.Glyphs
----@param flipped? boolean
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs, flipped)
-  local spec = { keys = checkers.asset_keys, glyph_width = 1 }
-  local pack = assets.load("checkers", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = flipped == true, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("checkers", checkers, glyphs, extra)
 end
 
 ---@return games.CheckersPiece[]
@@ -57,11 +54,7 @@ end
 ---@param col integer
 ---@return games.Hl|nil
 local function hl_at(rendered, header_height, row, col)
-  for _, mark in ipairs(rendered.extmarks) do
-    if mark.row == header_height + row and mark.col == (col - 1) * 2 then
-      return mark.hl
-    end
-  end
+  return helpers.hl_at(rendered, header_height + row, (col - 1) * 2)
 end
 
 ---@param rendered games.Rendered
@@ -112,7 +105,7 @@ end
 
 function T.flip_mirrors_the_drawing_and_the_numbering_together()
   local rendered, header_height =
-    shell.render(checkers_update({}), checkers, view_options("ascii", true), "bob")
+    shell.render(checkers_update({}), checkers, view_options("ascii", { flipped = true }), "bob")
   assert_eq("  w   w   w   w     32  31  30  29", board_lines(rendered, header_height)[1])
 end
 

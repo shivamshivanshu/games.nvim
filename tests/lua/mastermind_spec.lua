@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local mastermind = require("games.games.mastermind")
 local shell = require("games.ui.shell")
@@ -12,11 +11,10 @@ local BOARD_WIDTH = 34
 local FOOTER_ROW = 17
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = mastermind.asset_keys, glyph_width = mastermind.glyph_width }
-  local pack = assets.load("mastermind", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("mastermind", mastermind, glyphs, extra)
 end
 
 ---sam, alone, after rgby and oopp: eight guesses left.
@@ -80,15 +78,7 @@ end
 ---@param row integer 0-based
 ---@return games.Hl[]
 local function cell_hls(rendered, row)
-  return vim
-    .iter(rendered.extmarks)
-    :filter(function(mark)
-      return mark.row == row and mark.col < BOARD_WIDTH
-    end)
-    :map(function(mark)
-      return mark.hl
-    end)
-    :totable()
+  return helpers.hls_on_row(rendered, row, BOARD_WIDTH)
 end
 
 local T = {}

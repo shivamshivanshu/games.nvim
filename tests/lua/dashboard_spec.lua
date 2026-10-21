@@ -25,21 +25,6 @@ local GOLDEN_LINES = {
   "<CR> open  / find  ? keys  q close",
 }
 
----@param rendered games.Rendered
----@param row integer 0-based
----@return games.Hl[] the highlights on row, in column order
-local function highlights_on(rendered, row)
-  local marks = vim.tbl_filter(function(mark)
-    return mark.row == row
-  end, rendered.extmarks)
-  table.sort(marks, function(a, b)
-    return a.col < b.col
-  end)
-  return vim.tbl_map(function(mark)
-    return mark.hl
-  end, marks)
-end
-
 ---@param line integer 1-based
 local function cursor_to(line)
   vim.api.nvim_win_set_cursor(0, { line, 0 })
@@ -107,13 +92,13 @@ function T.renders_each_section_with_its_items_as_the_golden()
   local client = hub.client()
   local view = dashboard.view(hub.snapshot(client), CONNECTED_VIEW)
   assert_eq(GOLDEN_LINES, view.rendered.lines)
-  assert_eq({ "GamesDashSection" }, highlights_on(view.rendered, 0))
-  assert_eq({ "GamesWon" }, highlights_on(view.rendered, 11))
-  assert_eq({ "GamesKey" }, highlights_on(view.rendered, 14))
+  assert_eq({ "GamesDashSection" }, helpers.hls_on_row(view.rendered, 0))
+  assert_eq({ "GamesWon" }, helpers.hls_on_row(view.rendered, 11))
+  assert_eq({ "GamesKey" }, helpers.hls_on_row(view.rendered, 14))
   local without_recent =
     dashboard.view(hub.snapshot(client, { finished = {} }), CONNECTED_VIEW).rendered
   assert_eq("  none", without_recent.lines[12])
-  assert_eq({ "GamesMuted" }, highlights_on(without_recent, 11))
+  assert_eq({ "GamesMuted" }, helpers.hls_on_row(without_recent, 11))
   assert_eq(hub.INCOMING, view.targets[2].item)
   assert_eq(hub.YOUR_MOVE, view.targets[6].item)
   assert_eq("Sudoku", view.starts[2].item.name)

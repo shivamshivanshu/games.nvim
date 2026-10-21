@@ -1,4 +1,3 @@
-local assets = require("games.ui.assets")
 local fifteen = require("games.games.fifteen")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -9,11 +8,10 @@ local CATALOGUED = { slide = true, move = true }
 local FIRST_BOARD_ROW = 3
 
 ---@param glyphs games.Glyphs
+---@param extra? table
 ---@return games.ViewOptions
-local function view_options(glyphs)
-  local spec = { keys = fifteen.asset_keys, glyph_width = fifteen.glyph_width }
-  local pack = assets.load("fifteen", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
+local function view_options(glyphs, extra)
+  return helpers.view_options("fifteen", fifteen, glyphs, extra)
 end
 
 ---alice's 3x3 puzzle with the blank in the bottom right corner's left neighbour.
@@ -52,21 +50,6 @@ local function solved()
   })
 end
 
----@param rendered games.Rendered
----@param row integer 0-based
----@return games.Hl[]
-local function row_hls(rendered, row)
-  return vim
-    .iter(rendered.extmarks)
-    :filter(function(mark)
-      return mark.row == row
-    end)
-    :map(function(mark)
-      return mark.hl
-    end)
-    :totable()
-end
-
 local T = {}
 
 function T.board_brackets_and_tints_the_movable_tiles_beside_the_move_count()
@@ -82,8 +65,8 @@ function T.board_brackets_and_tints_the_movable_tiles_beside_the_move_count()
   local rendered =
     shell.render(update(), fifteen, view_options("unicode"), "alice", 0, nil, CATALOGUED)
   local movable = { "GamesMovable", "GamesMovableInk" }
-  assert_eq({ movable }, row_hls(rendered, FIRST_BOARD_ROW + 1))
-  assert_eq({ movable, movable }, row_hls(rendered, FIRST_BOARD_ROW + 2))
+  assert_eq({ movable }, helpers.hls_on_row(rendered, FIRST_BOARD_ROW + 1))
+  assert_eq({ movable, movable }, helpers.hls_on_row(rendered, FIRST_BOARD_ROW + 2))
 end
 
 function T.a_solved_board_tints_every_tile_and_offers_no_move()
@@ -91,7 +74,7 @@ function T.a_solved_board_tints_every_tile_and_offers_no_move()
     shell.render(solved(), fifteen, view_options("ascii"), "alice", 0, nil, CATALOGUED)
   assert_eq("  1    2    3    moves 5", rendered.lines[FIRST_BOARD_ROW + 1])
   local won = { "GamesWin", "GamesWinInk" }
-  assert_eq({ won, won }, row_hls(rendered, FIRST_BOARD_ROW + 2))
+  assert_eq({ won, won }, helpers.hls_on_row(rendered, FIRST_BOARD_ROW + 2))
   assert_eq("]g next game  q close", rendered.lines[#rendered.lines])
 end
 

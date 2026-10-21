@@ -27,7 +27,7 @@ end
 ---@return string[] lines
 local function cell_height(update, text_area, max_cell_height)
   local view =
-    vim.tbl_extend("force", helpers.chess_view("unicode"), { max_cell_height = max_cell_height })
+    helpers.view_options("chess", chess, "unicode", { max_cell_height = max_cell_height })
   local display = { text_area = text_area, ambiwidth = vim.o.ambiwidth }
   local rendered = shell.render(update, chess, view, "alice", 0, display)
   local board_lines = #rendered.lines - HEADER_LINES - BODY_CHROME_LINES - LABEL_LINES

@@ -18,14 +18,6 @@ local function small_grid(overrides)
   }, overrides or {}))
 end
 
-local function hl_at(rendered, row, col)
-  for _, mark in ipairs(rendered.extmarks) do
-    if mark.row == row and mark.col == col then
-      return mark.hl
-    end
-  end
-end
-
 local function assert_uniform_width(lines)
   local width = vim.fn.strdisplaywidth(lines[1])
   for _, line in ipairs(lines) do
@@ -97,8 +89,8 @@ return {
   grid_checker_and_labels = function()
     local rendered = compose.render(small_grid())
     assert_eq({ "2 x x", "1 x x", "  a b" }, rendered.lines)
-    assert_eq({ "GamesSquareLight", "GamesSquareLightInk" }, hl_at(rendered, 0, 2))
-    assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, hl_at(rendered, 0, 4))
+    assert_eq({ "GamesSquareLight", "GamesSquareLightInk" }, helpers.hl_at(rendered, 0, 2))
+    assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, helpers.hl_at(rendered, 0, 4))
   end,
 
   grid_gap_sets_the_columns_between_one_line_cells = function()
@@ -132,9 +124,9 @@ return {
     }))
     assert_eq(
       { "GamesSquareLight", "GamesLastMove", "GamesLastMoveDark", "GamesPieceWhite" },
-      hl_at(rendered, 0, 2)
+      helpers.hl_at(rendered, 0, 2)
     )
-    assert_eq({ "GamesSquareDark", "GamesPieceWhite" }, hl_at(rendered, 0, 4))
+    assert_eq({ "GamesSquareDark", "GamesPieceWhite" }, helpers.hl_at(rendered, 0, 4))
   end,
 
   row_pads_mixed_width = function()
@@ -180,7 +172,7 @@ return {
       "  a b c d e f",
     }, rendered.lines)
     assert_uniform_width(rendered.lines)
-    assert_eq("GamesMuted", hl_at(rendered, 0, 7))
+    assert_eq("GamesMuted", helpers.hl_at(rendered, 0, 7))
   end,
 
   grid_blocks_use_ascii_separators_in_ascii_mode = function()
@@ -245,9 +237,9 @@ return {
       compose.render(tall_grid({ marks = { { row = 1, col = 1, hl = "GamesLastMove" } } }))
     for row = 0, 2 do
       local expected = { "GamesSquareLight", "GamesLastMove", "GamesLastMoveInk" }
-      assert_eq(expected, hl_at(rendered, row, 2))
+      assert_eq(expected, helpers.hl_at(rendered, row, 2))
     end
-    assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, hl_at(rendered, 1, 8))
+    assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, helpers.hl_at(rendered, 1, 8))
   end,
 
   grid_tall_cells_repeat_block_separators_and_reserve_widest_label = function()
@@ -265,7 +257,7 @@ return {
       "     │  ",
       "   a  b ",
     }, rendered.lines)
-    assert_eq("GamesMuted", hl_at(rendered, 1, 5))
+    assert_eq("GamesMuted", helpers.hl_at(rendered, 1, 5))
   end,
 
   grid_labels_split_by_character = function()
@@ -302,8 +294,8 @@ return {
       "3 +---+---+",
       "  a   b   c",
     }, rendered.lines)
-    assert_eq("GamesLastMove", hl_at(rendered, 0, 3))
-    assert_eq(nil, hl_at(rendered, 0, 7))
+    assert_eq("GamesLastMove", helpers.hl_at(rendered, 0, 3))
+    assert_eq(nil, helpers.hl_at(rendered, 0, 7))
   end,
 
   grid_edges_resolve_glyphs_and_run_the_height_of_tall_cells = function()
