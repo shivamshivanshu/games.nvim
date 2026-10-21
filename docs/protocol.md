@@ -316,6 +316,18 @@ An action object always carries `kind`.
   - `solution` is `[]` until the game is over, then the whole line in SAN.
 - Actions: `move` (`text`: SAN or UCI, any case) and `reveal` (study mode only). A move that is not legal is an `illegal_action` and costs nothing. In puzzle mode a move other than the line's that mates is accepted as the solve.
 
+### Mastermind
+
+- Solo: started with `game.start`; the only seat is `solver`.
+- Reasons: `solved`, `out_of_guesses`.
+- Events: `guessed {by: seat, code, black, white}`.
+- View `{palette, code_length, guesses, remaining, secret?}`:
+  - `palette` is the 6 colour letters, `["r", "g", "b", "y", "o", "p"]`; `code_length` is 4;
+  - `guesses` lists each guess, oldest first, as `{code, black, white}`; `[]` at the start. `black` counts pegs of the right colour in the right place, `white` the right colour in the wrong place;
+  - `remaining` is the number of guesses left, 10 at the start;
+  - `secret` is absent until the game finishes, however it ends.
+- Actions: `guess` (`code`: 4 palette letters, any case, e.g. `"rgby"`; surrounding spaces are ignored). The catalogue gives the pattern.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

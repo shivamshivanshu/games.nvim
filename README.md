@@ -19,6 +19,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Gomoku | 2 | [docs/games/gomoku.md](docs/games/gomoku.md) |
 | Reversi | 2 | [docs/games/reversi.md](docs/games/reversi.md) |
 | Chess puzzles and study | 1 (solo) | [docs/games/chess_puzzle.md](docs/games/chess_puzzle.md) |
+| Mastermind | 1 (solo) | [docs/games/mastermind.md](docs/games/mastermind.md) |
 
 ## Requirements
 
@@ -141,7 +142,7 @@ Board cells stack highlight groups, so a background layer and a foreground layer
 | Role | Groups |
 |---|---|
 | background | `GamesSquareLight`, `GamesSquareDark`, `GamesLastMove`, `GamesLastMoveDark` (layered over `GamesLastMove` on dark squares), `GamesCheck`, `GamesWin`, `GamesHit`, `GamesPresent`, `GamesMiss`, `GamesMovable` |
-| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection`, `GamesGiven` (sudoku givens: the muted colour in bold), `GamesCardRed` (hearts and diamonds) |
+| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection`, `GamesGiven` (sudoku givens: the muted colour in bold), `GamesCardRed` (hearts and diamonds), `GamesPegRed`, `GamesPegGreen`, `GamesPegBlue`, `GamesPegYellow`, `GamesPegOrange`, `GamesPegPurple` (mastermind pegs) |
 | ink (foreground) | `<background group>Ink` for each background group above, e.g. `GamesLastMoveInk`: dark or light text, whichever contrasts more with that background; stacked over it where text has no colour of its own (empty squares, the latest move in the move list) |
 | badge (both) | `GamesYourTurn` |
 
@@ -282,6 +283,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `m` (sudoku) | set a cell: `53 7` writes 7 at row 5, column 3; `53 0` clears it |
 | `m` (chess puzzle) | your move, SAN or UCI as in chess; in puzzle mode a wrong move ends the game |
 | `n` | reveal the line's move (chess puzzle, study mode only); counts as a miss |
+| `m` (mastermind) | guess a code of 4 colour letters from `rgbyop`, e.g. `rgby` |
 | `]g` | next game waiting on your move |
 | `q` | close |
 
