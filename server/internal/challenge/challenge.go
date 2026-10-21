@@ -69,34 +69,39 @@ func (r *Registry) Create(from game.UserID, to []game.UserID, info game.Info, op
 }
 
 func (r *Registry) Accept(id protocol.ChallengeID, by game.UserID) error {
-	changed, err := locked(&r.mu, func() (*protocol.Challenge, error) { return r.acceptLocked(id, by) })
-	if err == nil && changed != nil && allAccepted(*changed) {
-		changed = new(r.started(*changed))
+	r.mu.Lock()
+	c, err := r.invitedLocked(id, by)
+	if err != nil || slices.Contains(c.Accepted, by) {
+		r.mu.Unlock()
+		return err
 	}
-	return r.announce(changed, err)
+	c.Accepted = append(c.Accepted, by)
+	acceptedByAll := len(c.Accepted) == len(c.To)
+	if acceptedByAll {
+		r.resolveLocked(c)
+	}
+	accepted := c.snapshot()
+	r.mu.Unlock()
+
+	if acceptedByAll {
+		accepted = r.started(accepted)
+	}
+	r.onChange(accepted)
+	return nil
 }
 
 func (r *Registry) Decline(id protocol.ChallengeID, by game.UserID) error {
-	return r.announce(locked(&r.mu, func() (*protocol.Challenge, error) {
-		c, err := r.invitedLocked(id, by)
-		if err != nil {
-			return nil, err
-		}
-		return r.closeLocked(c, protocol.ChallengeDeclined, &by), nil
-	}))
+	return r.close(func() (*pendingChallenge, error) { return r.invitedLocked(id, by) }, protocol.ChallengeDeclined, &by)
 }
 
 func (r *Registry) Cancel(id protocol.ChallengeID, by game.UserID) error {
-	return r.announce(locked(&r.mu, func() (*protocol.Challenge, error) {
-		c, ok := r.pending[id]
-		if !ok {
-			return nil, unknownChallenge(id)
-		}
-		if by != c.From {
+	return r.close(func() (*pendingChallenge, error) {
+		c, err := r.pendingLocked(id)
+		if err == nil && by != c.From {
 			return nil, protocol.BadRequestf("only the challenger can cancel a challenge")
 		}
-		return r.closeLocked(c, protocol.ChallengeCancelled, &by), nil
-	}))
+		return c, err
+	}, protocol.ChallengeCancelled, &by)
 }
 
 func (r *Registry) Pending(user game.UserID) []protocol.Challenge {
@@ -116,13 +121,7 @@ func (r *Registry) Pending(user game.UserID) []protocol.Challenge {
 }
 
 func (r *Registry) expire(id protocol.ChallengeID) {
-	_ = r.announce(locked(&r.mu, func() (*protocol.Challenge, error) {
-		c, ok := r.pending[id]
-		if !ok {
-			return nil, nil
-		}
-		return r.closeLocked(c, protocol.ChallengeExpired, nil), nil
-	}))
+	_ = r.close(func() (*pendingChallenge, error) { return r.pendingLocked(id) }, protocol.ChallengeExpired, nil)
 }
 
 // started runs the game for a fully accepted challenge. The challenge is
@@ -137,52 +136,41 @@ func (r *Registry) started(c protocol.Challenge) protocol.Challenge {
 	return c
 }
 
-func (r *Registry) announce(changed *protocol.Challenge, err error) error {
-	if err != nil || changed == nil {
+// close ends the pending challenge that find picks under the lock, then
+// announces it.
+func (r *Registry) close(find func() (*pendingChallenge, error), state protocol.ChallengeState, by *game.UserID) error {
+	r.mu.Lock()
+	c, err := find()
+	if err != nil {
+		r.mu.Unlock()
 		return err
 	}
-	r.onChange(*changed)
+	r.resolveLocked(c)
+	c.State, c.By = state, by
+	closed := c.snapshot()
+	r.mu.Unlock()
+
+	r.onChange(closed)
 	return nil
 }
 
-func locked[T any](mu *sync.Mutex, fn func() (T, error)) (T, error) {
-	mu.Lock()
-	defer mu.Unlock()
-	return fn()
-}
-
-func (r *Registry) acceptLocked(id protocol.ChallengeID, by game.UserID) (*protocol.Challenge, error) {
-	c, err := r.invitedLocked(id, by)
-	if err != nil {
-		return nil, err
-	}
-	if slices.Contains(c.Accepted, by) {
-		return nil, nil
-	}
-	c.Accepted = append(c.Accepted, by)
-	if allAccepted(c.Challenge) {
-		r.resolveLocked(c)
-	}
-	return new(c.snapshot()), nil
-}
-
-func allAccepted(c protocol.Challenge) bool { return len(c.Accepted) == len(c.To) }
-
-func (r *Registry) invitedLocked(id protocol.ChallengeID, user game.UserID) (*pendingChallenge, error) {
+func (r *Registry) pendingLocked(id protocol.ChallengeID) (*pendingChallenge, error) {
 	c, ok := r.pending[id]
 	if !ok {
 		return nil, unknownChallenge(id)
+	}
+	return c, nil
+}
+
+func (r *Registry) invitedLocked(id protocol.ChallengeID, user game.UserID) (*pendingChallenge, error) {
+	c, err := r.pendingLocked(id)
+	if err != nil {
+		return nil, err
 	}
 	if !slices.Contains(c.To, user) {
 		return nil, protocol.BadRequestf("you are not invited to this challenge")
 	}
 	return c, nil
-}
-
-func (r *Registry) closeLocked(c *pendingChallenge, state protocol.ChallengeState, by *game.UserID) *protocol.Challenge {
-	r.resolveLocked(c)
-	c.State, c.By = state, by
-	return new(c.snapshot())
 }
 
 func (r *Registry) resolveLocked(c *pendingChallenge) {
