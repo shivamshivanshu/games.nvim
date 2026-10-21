@@ -435,6 +435,19 @@ An action object always carries `kind`.
   - `legal` (action kinds) and `playable` (cards) are the viewer's own, `[]` unless it is to act.
 - Actions: `play` (`card`: e.g. `"r5"`, or a wild and the colour it names, `"w g"`; the catalogue gives the pattern), `draw`, `pass`, `challenge`, `accept`, `color` (`color`: `R`, `Y`, `G` or `B`). The rulings are in `docs/games/uno.md`.
 
+### Hearts
+
+- Seats `p1`-`p4` in invite order, clockwise; exactly four players. Hands are played until a score reaches 100.
+- Reasons: `score_limit`. All four tied at the end is a draw.
+- Events: `hand_started {by, hand_no, pass}`; `pass_chosen {by, seat}`, naming no cards; `passed {by, pass}`, the cards changing hands; `played {by, seat, card}`; `trick_won {by, seat, points}`; `hand_scored {by, score: {hand_no, points: [{seat, points}], moon}}`; `left {by}`. `seat` differs from `by` for a seat that left and is played for.
+- View `{hand_no, pass, phase, score_limit, seats, trick, last_trick, hearts_broken, my_hand, legal, must_pass, pass_to, passed, received, last_hand}`:
+  - `pass` is `left`, `right`, `across` or `hold`; `phase` is `pass` or `play`;
+  - `seats` is every seat's `{seat, score, taken, pass_chosen, out}`;
+  - `trick` is `[{seat, card}]` in play order; `last_trick` is `{plays, winner, points}` or `null`; `last_hand` is a `hand_scored` score or `null`;
+  - `my_hand`, `legal`, `must_pass`, `pass_to`, `passed` and `received` are the viewer's own; the cards a seat passes reach only its view and its receiver's;
+  - `legal` is `[]` unless the viewer is to play, `must_pass` 0 once it has chosen, `pass_to` `null` in a hand without passing.
+- Actions: `pass` (`cards`: three cards apart, e.g. `"2c qs ah"`) and `play` (`card`: e.g. `"qs"`); the catalogue gives the patterns. The rules are in `docs/games/hearts.md`.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
@@ -468,7 +481,7 @@ milliseconds: `heartbeat_ms` and `remaining_ms`.
 ## Conformance
 
 Each `conformance/*.ndjson` file is a transcript replayed against a fresh
-server with users `alice`, `bob` and `carol`, all with the password
+server with users `alice`, `bob`, `carol` and `dave`, all with the password
 `correct horse`. Each line is one of:
 
 ```json

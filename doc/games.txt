@@ -406,6 +406,8 @@ the current state are mapped; the footer lists them.
     c       challenge the Wild Draw Four played on you (uno)
     a       accept the Wild Draw Four played on you: draw four (uno)
     r y g b name the colour for a Wild turned up to start (uno)
+    m       hearts: play a card to the trick, `qs` is the queen of spades
+    p       hearts: pass three cards, e.g. `2c qs ah`, before the hand's play
     ]g      next game waiting on your move
     q       close
 
