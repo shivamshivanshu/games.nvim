@@ -856,4 +856,95 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
   end
 end
 
+function T.an_act_entry_sends_the_action_its_view_options_build_and_binds_nothing_without_one()
+  ---@type games.GameModule
+  local module = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    actions = {
+      {
+        key = "<CR>",
+        label = "go",
+        act = function(update, view)
+          local at = view.cursor
+          return at
+              and update.view.can_go
+              and { kind = "go", cell = ("%d,%d"):format(at.row, at.col) }
+            or nil
+        end,
+      },
+    },
+  }
+  local update = chess_update({ game_id = "act001", seq = 2, view = { can_go = true } })
+  local aimed =
+    vim.tbl_extend("force", ASCII, { cursor = { row = 3, col = 4, orientation = "down" } })
+  local function go_binding(state, view, catalogued)
+    local _, _, bindings = shell.render(state, module, view, "alice", 0, nil, catalogued)
+    return vim.iter(bindings):find(function(b)
+      return b.key == "<CR>"
+    end)
+  end
+
+  assert(not go_binding(update, ASCII, { go = true }), "bound with nothing to send")
+  assert(not go_binding(update, aimed, { move = true }), "bound without the catalogue listing it")
+  assert(not go_binding(chess_update({ view = { can_go = false } }), aimed, { go = true }))
+  local acted = {}
+  go_binding(update, aimed, { go = true }).run({
+    update = update,
+    client = {
+      game_act = function(_, request)
+        acted[#acted + 1] = request
+      end,
+    },
+  })
+  assert_eq({ { game_id = "act001", seq = 2, action = { kind = "go", cell = "3,4" } } }, acted)
+end
+
+function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
+  ---@type games.GameModule
+  local module = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    input = {
+      kind = "go",
+      prompt = "Go to: ",
+      available = function(update)
+        return update.view.open
+      end,
+      parse = function(text)
+        return { kind = "go", cell = text }
+      end,
+    },
+    actions = {
+      {
+        key = "r",
+        label = "rotate",
+        available = function(update)
+          return update.view.open
+        end,
+        local_fn = function(view)
+          return view
+        end,
+      },
+    },
+  }
+  local function footer(open)
+    local rendered = shell.render(
+      chess_update({ view = { open = open } }),
+      module,
+      ASCII,
+      "alice",
+      0,
+      nil,
+      { go = true }
+    )
+    return rendered.lines[#rendered.lines]
+  end
+  local controls = "R resign  D offer draw  A abort  "
+  assert_eq(controls .. "m go to  r rotate  ]g next game  q close", footer(true))
+  assert_eq(controls .. "]g next game  q close", footer(false))
+end
+
 return T

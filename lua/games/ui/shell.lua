@@ -21,6 +21,7 @@ local Control = types.Control
 ---@field flipped boolean perspective toggled away from the player's default
 ---@field max_cell_height? integer
 ---@field art? games.ArtSet the game's asset pack in this glyph mode
+---@field cursor? games.GridCursor where the game's cursor keys left the cursor; nil until moved
 
 ---@class games.LayoutCtx: games.ViewOptions
 ---@field me games.UserID
@@ -40,13 +41,15 @@ local Control = types.Control
 ---@field kind games.ActionKind of the action parse builds
 ---@field prompt string
 ---@field parse fun(text: string): games.Action
+---@field available? fun(update: games.GameUpdate): boolean whether it applies now; default always
 
 ---@class games.GameAction
 ---@field key string
 ---@field label string|fun(update: games.GameUpdate): string a function reads the label off the update, e.g. "call 40"
 ---@field action? games.Action
 ---@field input? games.GameInput prompts for text and sends the action it parses, in place of action
----@field available? fun(update: games.GameUpdate): boolean whether action or input applies now; default always
+---@field act? fun(update: games.GameUpdate, view: games.ViewOptions): games.Action|nil builds the action from the board's view options, such as its cursor, in place of action; nil binds nothing
+---@field available? fun(update: games.GameUpdate): boolean whether the entry applies now; default always
 ---@field local_fn? fun(view: games.ViewOptions): games.ViewOptions
 
 ---@class games.GameModule
@@ -383,11 +386,19 @@ local function label_of(entry, update)
   return label
 end
 
+---@param entry games.GameAction|games.GameInput
+---@param update games.GameUpdate
+---@return boolean
+local function is_available(entry, update)
+  return not entry.available or entry.available(update)
+end
+
 ---@param update games.GameUpdate
 ---@param module games.GameModule
+---@param view games.ViewOptions
 ---@param catalogued? table<games.ActionKind, true> the action kinds the server lists for the game
 ---@return games.KeyBinding[]
-local function bindings_for(update, module, catalogued)
+local function bindings_for(update, module, view, catalogued)
   check_action_keys(module)
   local ongoing = update.result == nil
   local bindings = {}
@@ -404,7 +415,12 @@ local function bindings_for(update, module, catalogued)
     end
   end
   local input = module.input
-  if ongoing and input and is_catalogued(catalogued, input.kind) then
+  if
+    ongoing
+    and input
+    and is_catalogued(catalogued, input.kind)
+    and is_available(input, update)
+  then
     bindings[#bindings + 1] = {
       key = INPUT_KEY,
       label = (input.prompt:gsub(":%s*$", ""):lower()),
@@ -414,9 +430,10 @@ local function bindings_for(update, module, catalogued)
     }
   end
   for _, entry in ipairs(module.actions or {}) do
-    local local_fn, game_action, entry_input = entry.local_fn, entry.action, entry.input
+    local local_fn, entry_input = entry.local_fn, entry.input
+    local game_action = entry.act and entry.act(update, view) or entry.action
     local kind = game_action and game_action.kind or entry_input and entry_input.kind
-    if local_fn then
+    if local_fn and is_available(entry, update) then
       bindings[#bindings + 1] = {
         key = entry.key,
         label = label_of(entry, update),
@@ -425,12 +442,7 @@ local function bindings_for(update, module, catalogued)
           render_board(board)
         end,
       }
-    elseif
-      ongoing
-      and kind
-      and is_catalogued(catalogued, kind)
-      and (not entry.available or entry.available(update))
-    then
+    elseif ongoing and kind and is_catalogued(catalogued, kind) and is_available(entry, update) then
       bindings[#bindings + 1] = {
         key = entry.key,
         label = label_of(entry, update),
@@ -487,7 +499,7 @@ function M.render(update, module, view, me, elapsed_ms, display, catalogued)
   }) --[[@as games.LayoutCtx]]
   local header, clocks =
     render_header(update, me, elapsed_ms or 0, extras_column(update, module, ctx))
-  local bindings = bindings_for(update, module, catalogued)
+  local bindings = bindings_for(update, module, view, catalogued)
   local body = compose.render(compose.col({
     compose.text(""),
     module.layout(update, ctx),

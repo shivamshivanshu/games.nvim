@@ -1,7 +1,10 @@
 local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
+local text_util = require("games.ui.text")
 
 local PANEL_GAP = 3
+local GRID_GAP = 3
+local TITLE_HL = "GamesLabel"
 ---Display columns per cell line: terminal cells are about twice as tall as wide.
 local CELL_ASPECT = 2
 
@@ -15,18 +18,47 @@ local CELL_ASPECT = 2
 ---@class games.BoardProps
 ---@field grid games.GridProps the board sets cell_height, art, ambiwidth, and cell_width above h = 1
 ---@field art? games.ArtSet
----@field panels? games.BoardPanel[] beside the board, left to right
+---@field beside? games.GridProps[] more grids right of grid, left to right, with as many rows and drawn at its cell height
+---@field titles? string[] a line centred above each grid, grid's first; a game that titles its grids titles them in every state
+---@field panels? games.BoardPanel[] beside the grids, left to right
 
+---@param grid_props games.GridProps
+---@param art games.ArtSet|nil
+---@param cell_height integer
+---@param ambiwidth games.Ambiwidth
+---@return games.Node
+local function grid_at(grid_props, art, cell_height, ambiwidth)
+  local scaled = { cell_height = cell_height, art = art, ambiwidth = ambiwidth }
+  if cell_height > 1 then
+    scaled.cell_width = math.max(grid_props.cell_width or 1, CELL_ASPECT * cell_height)
+  end
+  return grid(vim.tbl_extend("force", grid_props, scaled))
+end
+
+---@param node games.Node
+---@param title string|nil
+---@return games.Node node under its title centred over it, or node alone without one
+local function titled(node, title)
+  if not title then
+    return node
+  end
+  local centred = text_util.center_to_width(title, compose.measure(node).w)
+  return compose.col({ compose.text(centred, TITLE_HL), node })
+end
+
+---Every grid of props at cell_height side by side, each under its title.
 ---@param props games.BoardProps
 ---@param cell_height integer
 ---@param ambiwidth games.Ambiwidth
 ---@return games.Node
-local function grid_at(props, cell_height, ambiwidth)
-  local scaled = { cell_height = cell_height, art = props.art, ambiwidth = ambiwidth }
-  if cell_height > 1 then
-    scaled.cell_width = math.max(props.grid.cell_width or 1, CELL_ASPECT * cell_height)
+local function grids_at(props, cell_height, ambiwidth)
+  local titles = props.titles or {}
+  local parts = {}
+  for i, grid_props in ipairs(vim.list_extend({ props.grid }, props.beside or {})) do
+    local node = titled(grid_at(grid_props, props.art, cell_height, ambiwidth), titles[i])
+    parts[i] = i > 1 and compose.pad(GRID_GAP, node) or node
   end
-  return grid(vim.tbl_extend("force", props.grid, scaled))
+  return #parts == 1 and parts[1] or compose.row(parts)
 end
 
 ---@param panels games.BoardPanel[]
@@ -51,8 +83,8 @@ local function tallest_cell(props, space, max_cell_height)
   return math.max(1, math.min(tallest, max_cell_height or tallest))
 end
 
----A grid scaled to fill ctx.space, its cells as tall as fit, with panels beside it. Without a
----space the cells are one line tall.
+---A grid, and any grids beside it, scaled to fill ctx.space, the cells as tall as fit, with panels
+---beside them. Without a space the cells are one line tall.
 ---@param props games.BoardProps
 ---@param ctx games.LayoutCtx
 ---@return games.Node
@@ -62,7 +94,7 @@ return function(props, ctx)
   local candidates = {}
   for cell_height = tallest_cell(props, space, ctx.max_cell_height), 1, -1 do
     candidates[#candidates + 1] = function()
-      return grid_at(props, cell_height, ctx.ambiwidth)
+      return grids_at(props, cell_height, ctx.ambiwidth)
     end
   end
   local board, size

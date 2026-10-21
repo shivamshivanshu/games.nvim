@@ -113,4 +113,44 @@ return {
     local _, banner = cell_height(offered, area)
     assert_eq(#plain, #banner)
   end,
+
+  grids_beside_the_first_share_its_cell_height_under_their_titles = function()
+    local function small(key)
+      return {
+        rows = 2,
+        cols = 2,
+        shade = "plain",
+        labels = { cols = "ab", rows = "12" },
+        cell = function()
+          return { key }
+        end,
+      }
+    end
+    local props = { grid = small("x"), beside = { small("o") }, titles = { "mine", "theirs" } }
+    local panel = {
+      width = 4,
+      node = function()
+        return compose.text("note")
+      end,
+    }
+    local narrow = compose.render(board(vim.tbl_extend("force", props, { panels = { panel } }), {}))
+    assert_eq(
+      {
+        "mine    theirs   note",
+        "1 x x   1 o o",
+        "2 x x   2 o o",
+        "  a b     a b",
+      },
+      vim.tbl_map(function(line)
+        return (line:gsub("%s+$", ""))
+      end, narrow.lines)
+    )
+
+    local roomy = compose.render(board(props, { space = { w = 40, h = 9 }, ambiwidth = "single" }))
+    local cell_height = 3
+    assert_eq(1 + 2 * cell_height + 1, #roomy.lines)
+    for i, line in ipairs(roomy.lines) do
+      assert_eq({ i, line:find("x", 1, true) ~= nil }, { i, line:find("o", 1, true) ~= nil })
+    end
+  end,
 }
