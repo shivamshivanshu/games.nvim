@@ -99,8 +99,9 @@ type GameRecord struct {
 // no file of its own exists only inside its connection, so it reads through
 // the writer.
 type Store struct {
-	writer *sql.DB
-	reader *sql.DB
+	writer     *sql.DB
+	reader     *sql.DB
+	insertStep *sql.Stmt
 	// afterResolve runs between resolving loadGames' ids and reading them; tests use it.
 	afterResolve func()
 }
@@ -120,15 +121,22 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = writer.Close()
 		return nil, fmt.Errorf("store: apply schema: %w", err)
 	}
+	insertStep, err := writer.PrepareContext(ctx,
+		`INSERT INTO actions (game_id, seq, username, kind, action_json, server_ts, clock_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		_ = writer.Close()
+		return nil, fmt.Errorf("store: prepare step insert: %w", err)
+	}
 	if !hasFile(path) {
-		return &Store{writer: writer, reader: writer}, nil
+		return &Store{writer: writer, reader: writer, insertStep: insertStep}, nil
 	}
 	reader, err := sql.Open("sqlite", dsn(path, readerPragmas))
 	if err != nil {
 		_ = writer.Close()
 		return nil, fmt.Errorf("store: open %s for reading: %w", path, err)
 	}
-	return &Store{writer: writer, reader: reader}, nil
+	return &Store{writer: writer, reader: reader, insertStep: insertStep}, nil
 }
 
 func hasFile(path string) bool { return path != "" && path != ":memory:" }
@@ -142,10 +150,11 @@ func dsn(path string, pragmas []string) string {
 }
 
 func (s *Store) Close() error {
+	closed := s.insertStep.Close()
 	if s.reader == s.writer {
-		return s.writer.Close()
+		return errors.Join(closed, s.writer.Close())
 	}
-	return errors.Join(s.reader.Close(), s.writer.Close())
+	return errors.Join(closed, s.reader.Close(), s.writer.Close())
 }
 
 // CreateUser refuses a name game.CheckUserID rejects.
@@ -198,17 +207,13 @@ func (s *Store) CreateGame(ctx context.Context, rec GameRecord) error {
 				return err
 			}
 		}
-		for _, step := range rec.Steps {
-			if err := insertStep(ctx, tx, rec.ID, step); err != nil {
-				return err
-			}
-		}
-		return nil
+		return insertSteps(ctx, tx.StmtContext(ctx, s.insertStep), rec.ID, rec.Steps)
 	})
 }
 
-func (s *Store) AppendStep(ctx context.Context, id game.GameID, step StepRecord) error {
-	return insertStep(ctx, s.writer, id, step)
+// AppendSteps stores steps in one transaction: all of them or none.
+func (s *Store) AppendSteps(ctx context.Context, id game.GameID, steps ...StepRecord) error {
+	return s.inTx(ctx, func(tx *sql.Tx) error { return insertSteps(ctx, tx.StmtContext(ctx, s.insertStep), id, steps) })
 }
 
 // FinishGame stores a game's ending and summary and deletes its steps.
@@ -461,19 +466,20 @@ type execer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
-func insertStep(ctx context.Context, db execer, id game.GameID, step StepRecord) error {
-	var clock []byte
-	if step.ClockRemaining != nil {
-		var err error
-		if clock, err = json.Marshal(xslices.MapValues(step.ClockRemaining, time.Duration.Milliseconds)); err != nil {
-			return fmt.Errorf("store: encode clock: %w", err)
+func insertSteps(ctx context.Context, insert *sql.Stmt, id game.GameID, steps []StepRecord) error {
+	for _, step := range steps {
+		var clock []byte
+		if step.ClockRemaining != nil {
+			var err error
+			if clock, err = json.Marshal(xslices.MapValues(step.ClockRemaining, time.Duration.Milliseconds)); err != nil {
+				return fmt.Errorf("store: encode clock: %w", err)
+			}
+		}
+		if _, err := insert.ExecContext(ctx, id, int64(step.Seq), step.User, step.Kind, []byte(step.Payload), step.At.UnixMilli(), clock); err != nil {
+			return err
 		}
 	}
-	_, err := db.ExecContext(ctx,
-		`INSERT INTO actions (game_id, seq, username, kind, action_json, server_ts, clock_json)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, int64(step.Seq), step.User, step.Kind, []byte(step.Payload), step.At.UnixMilli(), clock)
-	return err
+	return nil
 }
 
 func (s *Store) inTx(ctx context.Context, fn func(*sql.Tx) error) error {

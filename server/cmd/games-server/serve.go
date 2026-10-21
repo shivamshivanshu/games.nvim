@@ -60,6 +60,8 @@ func serve(args []string) error {
 
 	err = session.Serve(ctx, ln, lim, h.Login(), h.Routes(), h.Hooks())
 	slog.Info("shutting down")
+	stop()
+	h.Wait()
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}

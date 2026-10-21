@@ -76,7 +76,7 @@ func TestStepsRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	for seq := game.Seq(1); seq <= 3; seq++ {
-		if err := s.AppendStep(ctx, "g1", step(seq, alice)); err != nil {
+		if err := s.AppendSteps(ctx, "g1", step(seq, alice)); err != nil {
 			t.Fatal(err)
 		}
 		rec.Steps = append(rec.Steps, step(seq, alice))
@@ -87,7 +87,7 @@ func TestStepsRoundTrip(t *testing.T) {
 	control.Payload = json.RawMessage(`{"op":"resign"}`)
 	timeout := store.StepRecord{Seq: 5, Kind: store.StepTimeout, At: clocktest.Epoch.Add(time.Minute)}
 	for _, st := range []store.StepRecord{control, timeout} {
-		if err := s.AppendStep(ctx, "g1", st); err != nil {
+		if err := s.AppendSteps(ctx, "g1", st); err != nil {
 			t.Fatal(err)
 		}
 		rec.Steps = append(rec.Steps, st)
@@ -134,7 +134,7 @@ func TestClockStoredAsMillisecondsOrNull(t *testing.T) {
 	untimed := step(2, bob)
 	untimed.ClockRemaining = nil
 	for _, st := range []store.StepRecord{step(3, alice), untimed} {
-		if err := s.AppendStep(ctx, "g1", st); err != nil {
+		if err := s.AppendSteps(ctx, "g1", st); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -204,13 +204,34 @@ func TestCreateGameRejectsEmptyOptions(t *testing.T) {
 	}
 }
 
+func TestAppendStepsWritesAllOrNone(t *testing.T) {
+	ctx := t.Context()
+	s := storetest.Open(t, passwordHash, alice, bob)
+	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AppendSteps(ctx, "g1", step(1, alice), step(2, alice)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AppendSteps(ctx, "g1", step(3, alice), step(2, alice)); err == nil {
+		t.Fatal("a batch repeating a stored seq was written")
+	}
+	got, err := s.LoadGame(ctx, "g1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff([]store.StepRecord{step(1, alice), step(2, alice)}, got.Steps); diff != "" {
+		t.Fatalf("steps after a failed batch (-want +got):\n%s", diff)
+	}
+}
+
 func TestFinishGameRejectsOutcomeForNonPlayer(t *testing.T) {
 	ctx := t.Context()
 	s := storetest.Open(t, passwordHash, alice, bob)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AppendStep(ctx, "g1", step(1, alice)); err != nil {
+	if err := s.AppendSteps(ctx, "g1", step(1, alice)); err != nil {
 		t.Fatal(err)
 	}
 	err := s.FinishGame(ctx, "g1", finishOf(2, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{"mallory": won}))
@@ -229,7 +250,7 @@ func TestFinishGameStoresEndingAndDeletesSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 	for seq := game.Seq(1); seq <= 3; seq++ {
-		if err := s.AppendStep(ctx, "g1", step(seq, alice)); err != nil {
+		if err := s.AppendSteps(ctx, "g1", step(seq, alice)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -471,7 +492,7 @@ func TestStatsLeaderboardLeavesOutGamesPlayedAlone(t *testing.T) {
 	}
 }
 
-func TestReadInProgressDoesNotBlockAppendStep(t *testing.T) {
+func TestReadInProgressDoesNotBlockAppendSteps(t *testing.T) {
 	ctx := t.Context()
 	s := storetest.Open(t, passwordHash, alice, bob)
 	if err := s.CreateGame(ctx, newGame("g1")); err != nil {
@@ -487,7 +508,7 @@ func TestReadInProgressDoesNotBlockAppendStep(t *testing.T) {
 	}
 	writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := s.AppendStep(writeCtx, "g1", step(1, alice)); err != nil {
+	if err := s.AppendSteps(writeCtx, "g1", step(1, alice)); err != nil {
 		t.Fatalf("append while a read is open: %v", err)
 	}
 }

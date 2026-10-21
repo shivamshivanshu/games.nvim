@@ -97,6 +97,7 @@ func (e *env) start(t *testing.T) server {
 		case <-time.After(shutdownWait):
 			t.Error("serve did not return after shutdown")
 		}
+		h.Wait()
 	})
 	t.Cleanup(stop)
 	return server{addr: ln.Addr().String(), stop: stop, hub: h}

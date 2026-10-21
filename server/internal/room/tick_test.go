@@ -1,6 +1,7 @@
 package room
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -77,13 +78,48 @@ func TestTickFiresAsARecordedStepAndRearms(t *testing.T) {
 	if len(sent.Events) != 1 || sent.Seq != 1 {
 		t.Fatalf("tick broadcast seq %d events %s, want seq 1 and one beat", sent.Seq, sent.Events)
 	}
+	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(gametest.MetronomeInterval)}, h.clock.Armed()); diff != "" {
+		t.Fatalf("armed after the tick (-want +got):\n%s", diff)
+	}
+	if steps, _ := h.persist.recorded(); len(steps) != 0 {
+		t.Fatalf("a lone tick was written at once: %v", steps)
+	}
+	h.stop()
 	steps, _ := h.persist.recorded()
 	want := []store.StepRecord{{Seq: 1, Kind: store.StepTick, At: h.clock.Now()}}
 	if diff := cmp.Diff(want, steps); diff != "" {
-		t.Fatalf("recorded steps (-want +got):\n%s", diff)
+		t.Fatalf("recorded steps once stopped (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(gametest.MetronomeInterval)}, h.clock.Armed()); diff != "" {
-		t.Fatalf("armed after the tick (-want +got):\n%s", diff)
+}
+
+func TestTicksAreWrittenInBatchesAndACrashLosesOnlyTheHeldBack(t *testing.T) {
+	h := newMetronomeHarness(t)
+	var crashed []store.StepRecord
+	for range 3 * tickBatchRows {
+		seq := h.advance(t, gametest.MetronomeInterval).Seq
+		crashed, _ = h.persist.recorded()
+		held := int(seq) - len(crashed)
+		if held >= tickBatchRows || time.Duration(held-1)*gametest.MetronomeInterval >= tickBatchAge {
+			t.Fatalf("at seq %d, %d ticks held back past a batch", seq, held)
+		}
+	}
+	if writes := h.persist.attempted(); writes >= len(crashed) {
+		t.Fatalf("%d writes for %d ticks", writes, len(crashed))
+	}
+
+	p := h.params
+	p.Persist = &fakePersister{steps: crashed}
+	restored, err := Restore(t.Context(), newSetup(t, p), crashed, away)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := restored.Snapshot(t.Context(), prototest.Alice)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := replayedMetronome(t, p)
+	if diff := cmp.Diff(want, metronomeView(t, s.Update)); diff != "" || !want.Paused || s.Update.Seq != game.Seq(len(crashed))+1 {
+		t.Fatalf("restored after a crash at seq %d, %d steps written; view (-replayed +room):\n%s", s.Update.Seq, len(crashed), diff)
 	}
 }
 
@@ -170,6 +206,7 @@ func TestPauseStopsTicksUntilThePlayerResumes(t *testing.T) {
 		t.Fatalf("armed after resuming (-want +got):\n%s", diff)
 	}
 	h.advance(t, gametest.MetronomeInterval)
+	h.stop()
 	steps, _ := h.persist.recorded()
 	want := []store.StepKind{store.StepTick, store.StepPause, store.StepAction, store.StepTick}
 	if diff := cmp.Diff(want, stepKinds(steps)); diff != "" || seq != 3 {
@@ -185,6 +222,7 @@ func TestPauseIsDroppedOnceThePlayerIsBack(t *testing.T) {
 	if u := h.advance(t, gametest.MetronomeInterval); u.Seq != 1 || metronomeView(t, u).Paused {
 		t.Fatalf("after a pause for a player who is back: seq %d, view %s", u.Seq, u.View)
 	}
+	h.stop()
 	if steps, _ := h.persist.recorded(); !slices.Equal(stepKinds(steps), []store.StepKind{store.StepTick}) {
 		t.Fatalf("recorded %v, want only the tick", stepKinds(steps))
 	}
@@ -230,8 +268,9 @@ func TestRestoreReplaysTicksAndWaitsPaused(t *testing.T) {
 	}
 	seq = h.metronome(t, seq, gametest.MetronomeTap)
 	before := metronomeView(t, h.advance(t, gametest.MetronomeInterval))
+	h.stop()
 	steps, _ := h.persist.recorded()
-	if err := h.restart(t, away); err != nil {
+	if err := h.restore(t, away); err != nil {
 		t.Fatal(err)
 	}
 	u := h.snapshot(t, prototest.Alice)
@@ -248,24 +287,32 @@ func TestRestoreReplaysTicksAndWaitsPaused(t *testing.T) {
 
 	h.metronome(t, u.Seq, gametest.MetronomeResume)
 	got := metronomeView(t, h.advance(t, gametest.MetronomeInterval))
+	h.stop()
 	want := replayedMetronome(t, h.params)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("first tick after the restore (-replayed +room):\n%s", diff)
 	}
 }
 
-// restart stops h's room and restores its game from the steps it persisted,
-// as the hub does when the server restarts.
-func (h *harness) restart(t *testing.T, away func() bool) error {
-	t.Helper()
+// stop stops h's room as the server does on shutdown, writing what it held back.
+func (h *harness) stop() {
 	h.cancel()
-	<-h.room.exited
+	<-h.room.Exited()
+}
+
+// restore restores h's game from the steps it persisted, as the hub does when
+// the server restarts.
+func (h *harness) restore(t *testing.T, away func() bool) error {
+	t.Helper()
 	steps, _ := h.persist.recorded()
-	restored, err := Restore(t.Context(), newSetup(t, h.params), steps, away)
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+	restored, err := Restore(ctx, newSetup(t, h.params), steps, away)
 	if err != nil {
+		cancel()
 		return err
 	}
-	h.room = restored
+	h.room, h.cancel = restored, cancel
 	return nil
 }
 
@@ -284,11 +331,13 @@ func waitFor(t *testing.T, what string, done func() bool) {
 
 func TestRestoreWhosePauseFailsToPersistStartsAndRetriesOnItsTimer(t *testing.T) {
 	failing, healthy := newMetronomeHarness(t), newMetronomeHarness(t)
-	failing.advance(t, gametest.MetronomeInterval)
-	healthy.advance(t, gametest.MetronomeInterval)
+	for _, h := range []*harness{failing, healthy} {
+		h.advance(t, gametest.MetronomeInterval)
+		h.stop()
+	}
 	failing.persist.setFail(errors.New("disk full"))
 	for _, h := range []*harness{failing, healthy} {
-		if err := h.restart(t, away); err != nil {
+		if err := h.restore(t, away); err != nil {
 			t.Fatalf("restore: %v", err)
 		}
 	}
@@ -336,15 +385,17 @@ func TestRestoreWhosePauseFailsToPersistStartsAndRetriesOnItsTimer(t *testing.T)
 func TestRestorePauseThatFailedIsDroppedOnceThePlayerIsBack(t *testing.T) {
 	h := newMetronomeHarness(t)
 	h.advance(t, gametest.MetronomeInterval)
+	h.stop()
 	h.persist.setFail(errors.New("disk full"))
 	gone := true
-	if err := h.restart(t, func() bool { return gone }); err != nil {
+	if err := h.restore(t, func() bool { return gone }); err != nil {
 		t.Fatalf("restore: %v", err)
 	}
 	h.snapshot(t, prototest.Alice)
 	gone = false
 	h.persist.setFail(nil)
 	u := h.advance(t, retryDelay)
+	h.stop()
 	steps, _ := h.persist.recorded()
 	if !slices.Equal(stepKinds(steps), []store.StepKind{store.StepTick, store.StepTick}) || u.Seq != 2 || metronomeView(t, u).Paused {
 		t.Fatalf("player back before the retry: recorded %v, seq %d, view %s; want ticking on", stepKinds(steps), u.Seq, u.View)
@@ -384,16 +435,24 @@ func replayedMetronome(t *testing.T, p Params) gametest.MetronomeView {
 	return view
 }
 
-func TestFailedTickPersistRetriesAfterDelay(t *testing.T) {
+func TestFailedTickBatchRetriesAfterDelay(t *testing.T) {
 	h := newMetronomeHarness(t)
 	h.persist.setFail(errors.New("disk full"))
-	h.advance(t, gametest.MetronomeInterval)
-	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(retryDelay)}, h.clock.Armed()); diff != "" {
-		t.Fatalf("armed after a failed tick (-want +got):\n%s", diff)
+	var u protocol.GameUpdate
+	for h.persist.attempted() == 0 {
+		u = h.advance(t, gametest.MetronomeInterval)
 	}
+	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(retryDelay)}, h.clock.Armed()); diff != "" {
+		t.Fatalf("armed after a failed batch (-want +got):\n%s", diff)
+	}
+	held := u.Seq
 	h.persist.setFail(nil)
-	if u := h.advance(t, retryDelay); u.Seq != 1 {
-		t.Fatalf("seq %d after the retry, want 1", u.Seq)
+	if u := h.advance(t, retryDelay); u.Seq != held+1 {
+		t.Fatalf("seq %d after the retry, want %d", u.Seq, held+1)
+	}
+	steps, _ := h.persist.recorded()
+	if len(steps) != int(held)+1 || steps[len(steps)-1].Seq != held+1 {
+		t.Fatalf("the retry wrote %v, want seqs 1 to %d", steps, held+1)
 	}
 }
 

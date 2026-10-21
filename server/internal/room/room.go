@@ -17,6 +17,13 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
+// A room writes the ticks of a ticking game in batches of at most
+// tickBatchRows, spanning at most tickBatchAge.
+const (
+	tickBatchRows = 16
+	tickBatchAge  = 250 * time.Millisecond
+)
+
 var (
 	ErrStale      = protocol.Error{Code: protocol.CodeStale, Msg: "room: stale seq"}
 	ErrNotAPlayer = protocol.Error{Code: protocol.CodeNotFound, Msg: "room: not a player in this game"}
@@ -24,7 +31,7 @@ var (
 )
 
 type Persister interface {
-	AppendStep(ctx context.Context, id game.GameID, step store.StepRecord) error
+	AppendSteps(ctx context.Context, id game.GameID, steps ...store.StepRecord) error
 	FinishGame(ctx context.Context, id game.GameID, f store.Finish) error
 }
 
@@ -397,6 +404,9 @@ type Room struct {
 	inbox  chan func()
 	done   chan struct{}
 	exited chan struct{}
+	// unflushed are the ticks since the last write, held back to be written
+	// with the next step that is written.
+	unflushed []store.StepRecord
 
 	// pauseWanted is a pause asked for, while its player is away, that has
 	// yet to persist; one that failed is retried no sooner than pauseRetryAt.
@@ -427,6 +437,9 @@ func newRoom(ctx context.Context, g Setup, s roomState) *Room {
 
 func (r *Room) Done() <-chan struct{} { return r.done }
 
+// Exited is closed once the room has stopped, with every step it took written.
+func (r *Room) Exited() <-chan struct{} { return r.exited }
+
 func (r *Room) run() {
 	defer close(r.exited)
 	defer r.stopTimer()
@@ -440,6 +453,7 @@ func (r *Room) run() {
 			r.tickIfDue()
 			msg()
 		case <-r.ctx.Done():
+			r.flush()
 			return
 		}
 	}
@@ -533,6 +547,9 @@ func (r *Room) commit(st step) (game.Seq, error) {
 // persist runs on the room's context, not the request's: a client hanging up
 // mid-write must not leave memory behind a row that already committed. The
 // finishing step is not stored: the finish replaces all steps with a summary.
+// A tick that leaves the game ticking is held back until a batch is due, so a
+// crash loses at most that batch, and the game restores paused at the step
+// before it.
 func (r *Room) persist(st step, next roomState) (roomState, error) {
 	if next.finished() {
 		final, err := r.setup.sealed(next, st.at)
@@ -546,7 +563,31 @@ func (r *Room) persist(st step, next roomState) (roomState, error) {
 	if err != nil {
 		return roomState{}, err
 	}
-	return next, r.setup.Persist.AppendStep(r.ctx, r.setup.ID, rec)
+	pending := append(r.unflushed, rec)
+	if st.kind == store.StepTick && next.ticking() && !batchDue(pending) {
+		r.unflushed = pending
+		return next, nil
+	}
+	if err := r.setup.Persist.AppendSteps(r.ctx, r.setup.ID, pending...); err != nil {
+		return roomState{}, err
+	}
+	r.unflushed = pending[:0]
+	return next, nil
+}
+
+func batchDue(pending []store.StepRecord) bool {
+	return len(pending) >= tickBatchRows || pending[len(pending)-1].At.Sub(pending[0].At) >= tickBatchAge
+}
+
+// flush writes the held back ticks once the room is stopping, past its
+// cancelled context.
+func (r *Room) flush() {
+	if len(r.unflushed) == 0 {
+		return
+	}
+	if err := r.setup.Persist.AppendSteps(context.WithoutCancel(r.ctx), r.setup.ID, r.unflushed...); err != nil {
+		slog.Error("room: persist held back ticks", "game", r.setup.ID, "ticks", len(r.unflushed), "err", err)
+	}
 }
 
 func (r *Room) broadcast() {

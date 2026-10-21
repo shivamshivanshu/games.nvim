@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -171,6 +172,17 @@ func (h *Hub) dropWhenFinished(id game.GameID, r *room.Room) {
 		delete(h.live, id)
 		h.mu.Unlock()
 	case <-h.ctx.Done():
+	}
+}
+
+// Wait returns once every room has stopped, its last steps written, which
+// they do once the hub's context is cancelled.
+func (h *Hub) Wait() {
+	h.mu.Lock()
+	live := slices.Collect(maps.Values(h.live))
+	h.mu.Unlock()
+	for _, g := range live {
+		<-g.room.Exited()
 	}
 }
 

@@ -96,3 +96,19 @@ func TestADisconnectPauseArrivingAfterTheUserIsBackIsDropped(t *testing.T) {
 		t.Fatalf("a late disconnect pause stopped the game alice resumed: %+v", u)
 	}
 }
+
+func TestShutdownWritesTheTicksARoomHeldBack(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	srv := e.start(t)
+	a := srv.login(t, prototest.Alice)
+	id := call[protocol.GameUpdate](t, a, protocol.TypeGameStart, protocol.GameStartRequest{Game: metronomeType}).GameID
+	e.clock.Advance(gametest.MetronomeInterval)
+	waitUpdate(t, a, 1)
+	srv.stop()
+
+	c := e.start(t).login(t, prototest.Alice)
+	if u := snapshotOf(t, c, id); u.Seq != 2 || !metronomeOf(t, u).Paused || metronomeOf(t, u).Ticks != 1 {
+		t.Fatalf("after a restart %+v, want seq 2 paused after its one tick", u)
+	}
+}

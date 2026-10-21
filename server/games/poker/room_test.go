@@ -28,10 +28,10 @@ type recorder struct {
 	last     map[game.UserID]protocol.GameUpdate
 }
 
-func (r *recorder) AppendStep(_ context.Context, _ game.GameID, step store.StepRecord) error {
+func (r *recorder) AppendSteps(_ context.Context, _ game.GameID, steps ...store.StepRecord) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.steps = append(r.steps, step)
+	r.steps = append(r.steps, steps...)
 	return nil
 }
 

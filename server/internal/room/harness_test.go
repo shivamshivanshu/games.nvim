@@ -26,14 +26,14 @@ type fakePersister struct {
 	attempts int
 }
 
-func (p *fakePersister) AppendStep(_ context.Context, _ game.GameID, step store.StepRecord) error {
+func (p *fakePersister) AppendSteps(_ context.Context, _ game.GameID, steps ...store.StepRecord) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.attempts++
 	if p.fail != nil {
 		return p.fail
 	}
-	p.steps = append(p.steps, step)
+	p.steps = append(p.steps, steps...)
 	return nil
 }
 
