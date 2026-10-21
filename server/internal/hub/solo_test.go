@@ -24,12 +24,12 @@ func startSolo(t *testing.T, c *prototest.Client, rawOpts string) protocol.GameU
 
 func TestSoloStartCreatesOnePlayerGame(t *testing.T) {
 	t.Parallel()
-	a := newEnv(t).start(t).login(t, alice)
+	a := newEnv(t).start(t).login(t, prototest.Alice)
 
 	first := startSolo(t, a, `{"step":"2"}`)
 	if !uuidV4.MatchString(string(first.GameID)) || first.Seq != 0 || first.Result != nil ||
-		!cmp.Equal(first.Players, []game.Player{{User: alice, Seat: "a"}}) ||
-		!cmp.Equal(first.ToAct, []game.UserID{alice}) || !cmp.Equal(first.Options, game.Options{"step": "2", "note": ""}) {
+		!cmp.Equal(first.Players, []game.Player{{User: prototest.Alice, Seat: "a"}}) ||
+		!cmp.Equal(first.ToAct, []game.UserID{prototest.Alice}) || !cmp.Equal(first.Options, game.Options{"step": "2", "note": ""}) {
 		t.Fatalf("first update = %+v, want alice alone to move", first)
 	}
 	if diff := cmp.Diff(first, waitUpdate(t, a, 0)); diff != "" {
@@ -42,17 +42,17 @@ func TestSoloStartCreatesOnePlayerGame(t *testing.T) {
 
 func TestSoloStartSeatsAloneAGameThatAlsoTakesOpponents(t *testing.T) {
 	t.Parallel()
-	a := newEnv(t).start(t).login(t, alice)
+	a := newEnv(t).start(t).login(t, prototest.Alice)
 
 	first := call[protocol.GameUpdate](t, a, protocol.TypeGameStart, protocol.GameStartRequest{Game: counterType})
-	if !cmp.Equal(first.Players, []game.Player{{User: alice, Seat: "a"}}) || !cmp.Equal(first.ToAct, []game.UserID{alice}) {
+	if !cmp.Equal(first.Players, []game.Player{{User: prototest.Alice, Seat: "a"}}) || !cmp.Equal(first.ToAct, []game.UserID{prototest.Alice}) {
 		t.Fatalf("first update = %+v, want alice alone to move", first)
 	}
 }
 
 func TestSoloStartRejectsBadRequests(t *testing.T) {
 	t.Parallel()
-	a := newEnv(t).start(t).login(t, alice)
+	a := newEnv(t).start(t).login(t, prototest.Alice)
 	for name, req := range map[string]protocol.GameStartRequest{
 		"chess":             {Game: chessType},
 		"unknown game":      {Game: "nope"},
@@ -76,13 +76,13 @@ func TestSoloGameSurvivesRestartAndFinishes(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a := srv.login(t, alice)
+	a := srv.login(t, prototest.Alice)
 	id := startSolo(t, a, `{"note":"hi"}`).GameID
 	seq := add(t, a, id, 0, 3)
 	before := ongoing(t, a)
 	srv.stop()
 
-	a = e.start(t).login(t, alice)
+	a = e.start(t).login(t, prototest.Alice)
 	if diff := cmp.Diff(before, ongoing(t, a)); diff != "" {
 		t.Fatalf("game.list across restart (-before +after):\n%s", diff)
 	}
@@ -91,7 +91,7 @@ func TestSoloGameSurvivesRestartAndFinishes(t *testing.T) {
 	}
 	final := waitUpdate(t, a, add(t, a, id, seq+1, 4))
 	e.requireSealed(t, final)
-	wantResult := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{alice}, Reason: gametest.ReasonTargetReached}
+	wantResult := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{prototest.Alice}, Reason: gametest.ReasonTargetReached}
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}
@@ -100,7 +100,7 @@ func TestSoloGameSurvivesRestartAndFinishes(t *testing.T) {
 func TestSoloGiveUpSealsLossWithNoWinner(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	a := e.start(t).login(t, alice)
+	a := e.start(t).login(t, prototest.Alice)
 	id := startSolo(t, a, `{}`).GameID
 	seq := call[protocol.SeqResult](t, a, protocol.TypeGameControl,
 		protocol.GameControlRequest{GameID: id, Seq: 0, Control: protocol.ControlResign}).Seq
@@ -111,11 +111,11 @@ func TestSoloGiveUpSealsLossWithNoWinner(t *testing.T) {
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}
-	if want := []archive.Standing{{User: alice, Score: -1}}; !cmp.Equal(want, summaryOutcomes(t, final)) {
+	if want := []archive.Standing{{User: prototest.Alice, Score: -1}}; !cmp.Equal(want, summaryOutcomes(t, final)) {
 		t.Errorf("outcomes %+v, want %+v", summaryOutcomes(t, final), want)
 	}
 	stats := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.Empty{})
-	if want := []protocol.StatsRecord{{User: alice, Game: soloCounterType, Tally: protocol.Tally{Losses: 1}}}; !cmp.Equal(want, stats.Records) {
+	if want := []protocol.StatsRecord{{User: prototest.Alice, Game: soloCounterType, Tally: protocol.Tally{Losses: 1}}}; !cmp.Equal(want, stats.Records) {
 		t.Errorf("stats %+v, want the solo loss on its own game's board", stats.Records)
 	}
 	if len(stats.Leaderboard) != 0 {

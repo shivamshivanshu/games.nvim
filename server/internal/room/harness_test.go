@@ -3,7 +3,6 @@ package room
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"slices"
 	"sync"
 	"testing"
@@ -13,13 +12,8 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/chess"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
-)
-
-const (
-	alice game.UserID = "alice"
-	bob   game.UserID = "bob"
-	carol game.UserID = "carol"
 )
 
 const waitTimeout = 5 * time.Second
@@ -107,7 +101,7 @@ type harness struct {
 
 func newHarness(t *testing.T, timeControl game.TimeControl) *harness {
 	t.Helper()
-	return startHarness(t, game.Adapt(chess.Rules{}), `{"color":"white","time_control":"`+string(timeControl)+`"}`, bob)
+	return startHarness(t, game.Adapt(chess.Rules{}), `{"color":"white","time_control":"`+string(timeControl)+`"}`, prototest.Bob)
 }
 
 func startHarness(t *testing.T, g game.Game, options string, invitees ...game.UserID) *harness {
@@ -117,7 +111,7 @@ func startHarness(t *testing.T, g game.Game, options string, invitees ...game.Us
 		t.Fatal(err)
 	}
 	const seed = 42
-	state, seats, err := g.New(opts, alice, invitees, game.StepRNG(seed, 0))
+	state, seats, err := g.New(opts, prototest.Alice, invitees, game.StepRNG(seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,12 +120,12 @@ func startHarness(t *testing.T, g game.Game, options string, invitees ...game.Us
 		sent:    &recordingBroadcaster{},
 		clock:   clocktest.New(clocktest.Epoch),
 	}
-	players, err := game.PlayersOf(game.Participants(alice, invitees), seats)
+	players, err := game.PlayersOf(game.Participants(prototest.Alice, invitees), seats)
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.params = Params{
-		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: alice, Players: players,
+		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: prototest.Alice, Players: players,
 		Persist: h.persist, Broadcast: h.sent, Time: h.clock,
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -184,11 +178,6 @@ func (h *harness) fullSnapshot(t *testing.T, user game.UserID) Snapshot {
 		t.Fatal(err)
 	}
 	return s
-}
-
-func isCode(err error, code protocol.ErrorCode) bool {
-	e, ok := errors.AsType[protocol.Error](err)
-	return ok && e.Code == code
 }
 
 func waitDone(t *testing.T, r *Room) {

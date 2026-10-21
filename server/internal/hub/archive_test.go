@@ -77,14 +77,14 @@ func TestFinishSealsCanonicalSummaryAndDeletesSteps(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
-	id := playCounter(t, counterType, b, a, alice)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
+	id := playCounter(t, counterType, b, a, prototest.Alice)
 
-	finals := map[game.UserID]protocol.GameUpdate{alice: waitUpdate(t, a, 3), bob: waitUpdate(t, b, 3)}
-	if diff := cmp.Diff(finals[alice], finals[bob]); diff != "" {
+	finals := map[game.UserID]protocol.GameUpdate{prototest.Alice: waitUpdate(t, a, 3), prototest.Bob: waitUpdate(t, b, 3)}
+	if diff := cmp.Diff(finals[prototest.Alice], finals[prototest.Bob]); diff != "" {
 		t.Fatalf("final updates differ (-alice +bob):\n%s", diff)
 	}
-	final := finals[alice]
+	final := finals[prototest.Alice]
 	e.requireSealed(t, final)
 	at := e.clock.Now().UnixMilli()
 	want := fmt.Sprintf(`{"game_id":%q,"game":"counter","started_at":%d,"finished_at":%d,"reason":"target_reached",`+
@@ -92,11 +92,11 @@ func TestFinishSealsCanonicalSummaryAndDeletesSteps(t *testing.T) {
 	if *final.Summary != want {
 		t.Fatalf("summary\n got %s\nwant %s", *final.Summary, want)
 	}
-	wantResult := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{bob}, Reason: "target_reached"}
+	wantResult := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{prototest.Bob}, Reason: "target_reached"}
 	if diff := cmp.Diff(wantResult, final.Result); diff != "" {
 		t.Errorf("final result (-want +got):\n%s", diff)
 	}
-	for user, c := range map[game.UserID]*prototest.Client{alice: a, bob: b} {
+	for user, c := range map[game.UserID]*prototest.Client{prototest.Alice: a, prototest.Bob: b} {
 		listed := call[protocol.GameListResult](t, c, protocol.TypeGameList, protocol.GameListRequest{Status: protocol.StatusFinished}).Games
 		if diff := cmp.Diff([]protocol.GameUpdate{laterRead(final)}, listed); diff != "" {
 			t.Errorf("%s's finished list (-want +listed):\n%s", user, diff)
@@ -108,10 +108,10 @@ func TestFinishingBroadcastAddsLastStepToEveryLaterRead(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
-	id := playCounter(t, counterType, a, b, bob)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
+	id := playCounter(t, counterType, a, b, prototest.Bob)
 
-	for user, c := range map[game.UserID]*prototest.Client{alice: a, bob: b} {
+	for user, c := range map[game.UserID]*prototest.Client{prototest.Alice: a, prototest.Bob: b} {
 		finishing := waitUpdate(t, c, 3)
 		e.requireSealed(t, finishing)
 		events := make([]string, 0, len(finishing.Events))
@@ -131,8 +131,8 @@ func TestFinishingBroadcastAddsLastStepToEveryLaterRead(t *testing.T) {
 func TestVerifyAcceptsOnlyTheStoredSummary(t *testing.T) {
 	t.Parallel()
 	srv := newEnv(t).start(t)
-	a, b, c := srv.login(t, alice), srv.login(t, bob), srv.login(t, carol)
-	id := playCounter(t, counterType, a, b, bob)
+	a, b, c := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob), srv.login(t, prototest.Carol)
+	id := playCounter(t, counterType, a, b, prototest.Bob)
 	summary := *waitUpdate(t, a, 3).Summary
 	verify := func(summary string) error {
 		_, err := c.Request(protocol.TypeGameVerify, protocol.GameVerifyRequest{Summary: summary})
@@ -146,7 +146,7 @@ func TestVerifyAcceptsOnlyTheStoredSummary(t *testing.T) {
 	if flipped == summary {
 		t.Fatalf("test setup: no score to change in %s", summary)
 	}
-	ongoing := startGameOf(t, srv.login(t, alice), srv.login(t, bob), bob, counterType, json.RawMessage(`{}`))
+	ongoing := startGameOf(t, srv.login(t, prototest.Alice), srv.login(t, prototest.Bob), prototest.Bob, counterType, json.RawMessage(`{}`))
 	for name, bad := range map[string]string{
 		"one byte changed": flipped,
 		"truncated":        summary[:len(summary)-1],
@@ -164,19 +164,19 @@ func TestScorerReplacesDefaultScores(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
-	playCounter(t, scoredCounterType, a, b, bob)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
+	playCounter(t, scoredCounterType, a, b, prototest.Bob)
 
 	final := waitUpdate(t, a, 3)
 	e.requireSealed(t, final)
 	outcomes := summaryOutcomes(t, final)
-	if want := []archive.Standing{{User: alice, Score: 9}, {User: bob, Score: -9}}; !cmp.Equal(want, outcomes) {
+	if want := []archive.Standing{{User: prototest.Alice, Score: 9}, {User: prototest.Bob, Score: -9}}; !cmp.Equal(want, outcomes) {
 		t.Fatalf("scores %+v, want the scorer's zero-sum %+v", outcomes, want)
 	}
 	stats := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.Empty{})
 	want := []protocol.StatsRecord{
-		{User: alice, Game: scoredCounterType, Tally: protocol.Tally{Wins: 1}},
-		{User: bob, Game: scoredCounterType, Tally: protocol.Tally{Losses: 1}},
+		{User: prototest.Alice, Game: scoredCounterType, Tally: protocol.Tally{Wins: 1}},
+		{User: prototest.Bob, Game: scoredCounterType, Tally: protocol.Tally{Losses: 1}},
 	}
 	if diff := cmp.Diff(want, stats.Records); diff != "" {
 		t.Fatalf("stats (-want +got):\n%s", diff)

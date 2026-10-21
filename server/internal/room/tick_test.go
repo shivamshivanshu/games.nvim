@@ -12,6 +12,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
@@ -28,7 +29,7 @@ func metronomeAction(kind game.ActionKind) json.RawMessage {
 
 func (h *harness) metronome(t *testing.T, seq game.Seq, kind game.ActionKind) game.Seq {
 	t.Helper()
-	next, err := h.room.Act(t.Context(), alice, seq, metronomeAction(kind))
+	next, err := h.room.Act(t.Context(), prototest.Alice, seq, metronomeAction(kind))
 	if err != nil {
 		t.Fatalf("%s at seq %d: %v", kind, seq, err)
 	}
@@ -39,7 +40,7 @@ func (h *harness) metronome(t *testing.T, seq game.Seq, kind game.ActionKind) ga
 func (h *harness) advance(t *testing.T, d time.Duration) protocol.GameUpdate {
 	t.Helper()
 	h.clock.Advance(d)
-	return h.snapshot(t, alice)
+	return h.snapshot(t, prototest.Alice)
 }
 
 func metronomeView(t *testing.T, u protocol.GameUpdate) gametest.MetronomeView {
@@ -61,7 +62,7 @@ func stepKinds(steps []store.StepRecord) []store.StepKind {
 
 func TestTickFiresAsARecordedStepAndRearms(t *testing.T) {
 	h := newMetronomeHarness(t)
-	h.snapshot(t, alice)
+	h.snapshot(t, prototest.Alice)
 	if diff := cmp.Diff([]time.Time{h.clock.Now().Add(gametest.MetronomeInterval)}, h.clock.Armed()); diff != "" {
 		t.Fatalf("armed at start (-want +got):\n%s", diff)
 	}
@@ -72,7 +73,7 @@ func TestTickFiresAsARecordedStepAndRearms(t *testing.T) {
 	if u.Seq != 1 || metronomeView(t, u).Ticks != 1 {
 		t.Fatalf("after the tick: seq %d, view %s", u.Seq, u.View)
 	}
-	sent, _ := h.sent.last(alice)
+	sent, _ := h.sent.last(prototest.Alice)
 	if len(sent.Events) != 1 || sent.Seq != 1 {
 		t.Fatalf("tick broadcast seq %d events %s, want seq 1 and one beat", sent.Seq, sent.Events)
 	}
@@ -110,7 +111,7 @@ func TestTickingGameInputIsNeverStale(t *testing.T) {
 			t.Fatalf("%s on seq 0 got seq %d, want %d", kind, got, seq)
 		}
 	}
-	if _, err := h.room.Act(t.Context(), alice, seq+1, metronomeAction(gametest.MetronomeTap)); !errors.Is(err, ErrStale) {
+	if _, err := h.room.Act(t.Context(), prototest.Alice, seq+1, metronomeAction(gametest.MetronomeTap)); !errors.Is(err, ErrStale) {
 		t.Errorf("tap on seq %d, past the game's %d: want stale, got %v", seq+1, seq, err)
 	}
 }
@@ -123,7 +124,7 @@ func TestPausedTickingGameInputIsNeverStale(t *testing.T) {
 			t.Fatalf("tap on seq 0 while paused got seq %d, want %d", got, want)
 		}
 	}
-	if u := h.snapshot(t, alice); !metronomeView(t, u).Paused {
+	if u := h.snapshot(t, prototest.Alice); !metronomeView(t, u).Paused {
 		t.Fatalf("taps resumed the game: %s", u.View)
 	}
 }
@@ -176,10 +177,10 @@ func TestNoTickAfterTheGameFinishes(t *testing.T) {
 		{"by a tick", func(t *testing.T, h *harness) {
 			for !h.finishedYet() {
 				h.clock.Advance(gametest.MetronomeInterval)
-				h.snapshot(t, alice)
+				h.snapshot(t, prototest.Alice)
 			}
 		}},
-		{"by a resignation", func(t *testing.T, h *harness) { h.control(t, alice, 0, protocol.ControlResign) }},
+		{"by a resignation", func(t *testing.T, h *harness) { h.control(t, prototest.Alice, 0, protocol.ControlResign) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newMetronomeHarness(t)
@@ -217,7 +218,7 @@ func TestRestoreReplaysTicksAndWaitsPaused(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.room = restored
-	u := h.snapshot(t, alice)
+	u := h.snapshot(t, prototest.Alice)
 	before.Paused = true
 	if diff := cmp.Diff(before, metronomeView(t, u)); diff != "" || u.Seq != seq+2 {
 		t.Fatalf("restored at seq %d, want %d; view (-want +got):\n%s", u.Seq, seq+2, diff)
@@ -242,7 +243,7 @@ func TestRestoreReplaysTicksAndWaitsPaused(t *testing.T) {
 func replayedMetronome(t *testing.T, p Params) gametest.MetronomeView {
 	t.Helper()
 	steps, _ := p.Persist.(*fakePersister).recorded()
-	state, _, err := p.Game.New(p.Options, alice, nil, game.StepRNG(p.Seed, 0))
+	state, _, err := p.Game.New(p.Options, prototest.Alice, nil, game.StepRNG(p.Seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}

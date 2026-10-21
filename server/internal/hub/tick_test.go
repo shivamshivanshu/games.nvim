@@ -47,13 +47,13 @@ func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a := srv.login(t, alice)
+	a := srv.login(t, prototest.Alice)
 	id := call[protocol.GameUpdate](t, a, protocol.TypeGameStart, protocol.GameStartRequest{Game: metronomeType}).GameID
 	e.clock.Advance(gametest.MetronomeInterval)
 	if u := waitUpdate(t, a, 1); metronomeOf(t, u).Ticks != 1 || len(u.Events) != 1 {
 		t.Fatalf("tick update %+v, want one tick and its beat", u)
 	}
-	again := srv.login(t, alice)
+	again := srv.login(t, prototest.Alice)
 	_ = a.Close()
 	time.Sleep(10 * time.Millisecond)
 	if u := snapshotOf(t, again, id); metronomeOf(t, u).Paused {
@@ -61,7 +61,7 @@ func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {
 	}
 	_ = again.Close()
 
-	b := srv.login(t, alice)
+	b := srv.login(t, prototest.Alice)
 	paused := pausedSnapshot(t, b, id)
 	e.clock.Advance(time.Hour)
 	if u := snapshotOf(t, b, id); u.Seq != paused.Seq {
@@ -72,7 +72,7 @@ func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {
 	}).Seq
 	srv.stop()
 
-	c := e.start(t).login(t, alice)
+	c := e.start(t).login(t, prototest.Alice)
 	if u := snapshotOf(t, c, id); u.Seq != resumed+1 || !metronomeOf(t, u).Paused || metronomeOf(t, u).Ticks != 1 {
 		t.Fatalf("after a restart %+v, want seq %d paused after one tick", u, resumed+1)
 	}
@@ -82,16 +82,16 @@ func TestADisconnectPauseArrivingAfterTheUserIsBackIsDropped(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	gone := srv.login(t, alice)
+	gone := srv.login(t, prototest.Alice)
 	id := call[protocol.GameUpdate](t, gone, protocol.TypeGameStart, protocol.GameStartRequest{Game: metronomeType}).GameID
 	_ = gone.Close()
-	back := srv.login(t, alice)
+	back := srv.login(t, prototest.Alice)
 	paused := pausedSnapshot(t, back, id)
 	call[protocol.SeqResult](t, back, protocol.TypeGameAct, protocol.GameActRequest{
 		GameID: id, Seq: paused.Seq, Action: json.RawMessage(`{"kind":"resume"}`),
 	})
 
-	srv.hub.PauseGamesOf(alice)
+	srv.hub.PauseGamesOf(prototest.Alice)
 	if u := snapshotOf(t, back, id); metronomeOf(t, u).Paused {
 		t.Fatalf("a late disconnect pause stopped the game alice resumed: %+v", u)
 	}

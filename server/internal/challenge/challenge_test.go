@@ -16,14 +16,11 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (
-	alice game.UserID = "alice"
-	bob   game.UserID = "bob"
-	carol game.UserID = "carol"
-
 	ttl = 5 * time.Minute
 )
 
@@ -63,35 +60,28 @@ func (h *harness) states() []protocol.ChallengeState {
 
 func (h *harness) create(t *testing.T, to ...game.UserID) protocol.Challenge {
 	t.Helper()
-	c, err := h.reg.Create(alice, to, info, nil)
+	c, err := h.reg.Create(prototest.Alice, to, info, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return c
 }
 
-func wantBadRequest(t *testing.T, err error) {
-	t.Helper()
-	if e, ok := errors.AsType[protocol.Error](err); !ok || e.Code != protocol.CodeBadRequest {
-		t.Fatalf("got %v, want bad_request", err)
-	}
-}
-
 func TestCreateValidation(t *testing.T) {
 	cases := map[string]struct {
 		to []game.UserID
 	}{
-		"self":       {[]game.UserID{alice}},
-		"duplicate":  {[]game.UserID{bob, bob}},
-		"too many":   {[]game.UserID{bob, carol, "d", "e"}},
+		"self":       {[]game.UserID{prototest.Alice}},
+		"duplicate":  {[]game.UserID{prototest.Bob, prototest.Bob}},
+		"too many":   {[]game.UserID{prototest.Bob, prototest.Carol, "d", "e"}},
 		"empty":      {nil},
-		"self among": {[]game.UserID{bob, alice}},
+		"self among": {[]game.UserID{prototest.Bob, prototest.Alice}},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := newHarness(t)
-			_, err := h.reg.Create(alice, tc.to, info, nil)
-			wantBadRequest(t, err)
+			_, err := h.reg.Create(prototest.Alice, tc.to, info, nil)
+			prototest.WantCode(t, err, protocol.CodeBadRequest)
 			if len(h.states()) != 0 {
 				t.Fatal("rejected create must not notify")
 			}
@@ -101,8 +91,8 @@ func TestCreateValidation(t *testing.T) {
 
 func TestAllAcceptStartsGame(t *testing.T) {
 	h := newHarness(t)
-	c := h.create(t, bob, carol)
-	for _, u := range []game.UserID{bob, bob, carol} {
+	c := h.create(t, prototest.Bob, prototest.Carol)
+	for _, u := range []game.UserID{prototest.Bob, prototest.Bob, prototest.Carol} {
 		if err := h.reg.Accept(c.ChallengeID, u); err != nil {
 			t.Fatal(err)
 		}
@@ -115,20 +105,20 @@ func TestAllAcceptStartsGame(t *testing.T) {
 	if last.GameID == nil || *last.GameID != "g1" {
 		t.Fatalf("game id = %v", last.GameID)
 	}
-	if diff := cmp.Diff([]game.UserID{bob}, h.changes[1].Accepted); diff != "" {
+	if diff := cmp.Diff([]game.UserID{prototest.Bob}, h.changes[1].Accepted); diff != "" {
 		t.Fatal(diff)
 	}
-	if h.starts.Load() != 1 || len(h.reg.Pending(alice)) != 0 {
-		t.Fatalf("starts=%d pending=%v", h.starts.Load(), h.reg.Pending(alice))
+	if h.starts.Load() != 1 || len(h.reg.Pending(prototest.Alice)) != 0 {
+		t.Fatalf("starts=%d pending=%v", h.starts.Load(), h.reg.Pending(prototest.Alice))
 	}
-	wantBadRequest(t, h.reg.Accept(c.ChallengeID, bob))
+	prototest.WantCode(t, h.reg.Accept(c.ChallengeID, prototest.Bob), protocol.CodeBadRequest)
 }
 
 func TestStartFailureCancels(t *testing.T) {
 	h := newHarness(t)
 	h.startFn = func(protocol.Challenge) (game.GameID, error) { return "", errors.New("boom") }
-	c := h.create(t, bob)
-	if err := h.reg.Accept(c.ChallengeID, bob); err != nil {
+	c := h.create(t, prototest.Bob)
+	if err := h.reg.Accept(c.ChallengeID, prototest.Bob); err != nil {
 		t.Fatal(err)
 	}
 	want := []protocol.ChallengeState{protocol.ChallengePending, protocol.ChallengeCancelled}
@@ -139,49 +129,49 @@ func TestStartFailureCancels(t *testing.T) {
 
 func TestDeclineResolves(t *testing.T) {
 	h := newHarness(t)
-	c := h.create(t, bob, carol)
-	wantBadRequest(t, h.reg.Decline(c.ChallengeID, "mallory"))
-	if err := h.reg.Decline(c.ChallengeID, carol); err != nil {
+	c := h.create(t, prototest.Bob, prototest.Carol)
+	prototest.WantCode(t, h.reg.Decline(c.ChallengeID, "mallory"), protocol.CodeBadRequest)
+	if err := h.reg.Decline(c.ChallengeID, prototest.Carol); err != nil {
 		t.Fatal(err)
 	}
 	last := h.changes[len(h.changes)-1]
-	if last.State != protocol.ChallengeDeclined || last.By == nil || *last.By != carol {
+	if last.State != protocol.ChallengeDeclined || last.By == nil || *last.By != prototest.Carol {
 		t.Fatalf("got %+v", last)
 	}
-	wantBadRequest(t, h.reg.Accept(c.ChallengeID, bob))
+	prototest.WantCode(t, h.reg.Accept(c.ChallengeID, prototest.Bob), protocol.CodeBadRequest)
 }
 
 func TestCancelOnlyByChallenger(t *testing.T) {
 	h := newHarness(t)
-	c := h.create(t, bob)
-	wantBadRequest(t, h.reg.Cancel(c.ChallengeID, bob))
-	if err := h.reg.Cancel(c.ChallengeID, alice); err != nil {
+	c := h.create(t, prototest.Bob)
+	prototest.WantCode(t, h.reg.Cancel(c.ChallengeID, prototest.Bob), protocol.CodeBadRequest)
+	if err := h.reg.Cancel(c.ChallengeID, prototest.Alice); err != nil {
 		t.Fatal(err)
 	}
 	if got := h.states(); got[len(got)-1] != protocol.ChallengeCancelled {
 		t.Fatalf("states %v", got)
 	}
-	wantBadRequest(t, h.reg.Cancel(c.ChallengeID, alice))
+	prototest.WantCode(t, h.reg.Cancel(c.ChallengeID, prototest.Alice), protocol.CodeBadRequest)
 }
 
 func TestExpiresAfterTTL(t *testing.T) {
 	h := newHarness(t)
-	c := h.create(t, bob)
+	c := h.create(t, prototest.Bob)
 	h.clock.Advance(ttl - time.Second)
-	if len(h.reg.Pending(bob)) != 1 {
+	if len(h.reg.Pending(prototest.Bob)) != 1 {
 		t.Fatal("expired early")
 	}
 	h.clock.Advance(time.Second)
 	if got := h.states(); got[len(got)-1] != protocol.ChallengeExpired {
 		t.Fatalf("states %v", got)
 	}
-	wantBadRequest(t, h.reg.Accept(c.ChallengeID, bob))
+	prototest.WantCode(t, h.reg.Accept(c.ChallengeID, prototest.Bob), protocol.CodeBadRequest)
 }
 
 func TestResolutionStopsExpiry(t *testing.T) {
 	h := newHarness(t)
-	c := h.create(t, bob)
-	if err := h.reg.Decline(c.ChallengeID, bob); err != nil {
+	c := h.create(t, prototest.Bob)
+	if err := h.reg.Decline(c.ChallengeID, prototest.Bob); err != nil {
 		t.Fatal(err)
 	}
 	if armed := h.clock.Armed(); len(armed) != 0 {
@@ -195,20 +185,20 @@ func TestResolutionStopsExpiry(t *testing.T) {
 
 func TestPendingOrderAndScope(t *testing.T) {
 	h := newHarness(t)
-	if got := h.reg.Pending(alice); got == nil || len(got) != 0 {
+	if got := h.reg.Pending(prototest.Alice); got == nil || len(got) != 0 {
 		t.Fatalf("want empty non-nil, got %#v", got)
 	}
-	first := h.create(t, bob)
+	first := h.create(t, prototest.Bob)
 	h.clock.Advance(time.Second)
-	second := h.create(t, carol)
-	third := h.create(t, carol)
+	second := h.create(t, prototest.Carol)
+	third := h.create(t, prototest.Carol)
 	ids := func(cs []protocol.Challenge) []protocol.ChallengeID {
 		return xslices.Map(cs, func(c protocol.Challenge) protocol.ChallengeID { return c.ChallengeID })
 	}
-	if got := ids(h.reg.Pending(bob)); !slices.Equal(got, []protocol.ChallengeID{first.ChallengeID}) {
+	if got := ids(h.reg.Pending(prototest.Bob)); !slices.Equal(got, []protocol.ChallengeID{first.ChallengeID}) {
 		t.Fatalf("bob sees %v", got)
 	}
-	got := h.reg.Pending(alice)
+	got := h.reg.Pending(prototest.Alice)
 	wantTail := []protocol.ChallengeID{second.ChallengeID, third.ChallengeID}
 	slices.Sort(wantTail)
 	if want := append([]protocol.ChallengeID{first.ChallengeID}, wantTail...); !slices.Equal(ids(got), want) {
@@ -218,7 +208,7 @@ func TestPendingOrderAndScope(t *testing.T) {
 
 func TestThreeInviteesEachSeeTheChallengeAndItStartsAfterTheLastAccept(t *testing.T) {
 	h := newHarness(t)
-	invitees := []game.UserID{bob, carol, "dave"}
+	invitees := []game.UserID{prototest.Bob, prototest.Carol, "dave"}
 	c := h.create(t, invitees...)
 	for _, u := range invitees {
 		if pending := h.reg.Pending(u); len(pending) != 1 || pending[0].ChallengeID != c.ChallengeID {
@@ -259,7 +249,7 @@ func TestConcurrentAcceptsStartOnce(t *testing.T) {
 
 func TestExpiresAtIsUnixMillisecondsOfNowPlusTheTTL(t *testing.T) {
 	h := newHarness(t)
-	raw, err := json.Marshal(h.create(t, bob))
+	raw, err := json.Marshal(h.create(t, prototest.Bob))
 	if err != nil {
 		t.Fatal(err)
 	}

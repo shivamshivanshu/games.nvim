@@ -14,6 +14,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/games/chess"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
@@ -22,7 +23,7 @@ func TestNewSetupRejectsChallengerOutsidePlayers(t *testing.T) {
 	h := newHarness(t, game.TimeControlNone)
 	noPlayers, outsider := h.params, h.params
 	noPlayers.Players = nil
-	outsider.Challenger = carol
+	outsider.Challenger = prototest.Carol
 	for name, p := range map[string]Params{"no players": noPlayers, "challenger absent": outsider} {
 		if _, err := NewSetup(p); err == nil {
 			t.Errorf("%s: want error", name)
@@ -32,18 +33,18 @@ func TestNewSetupRejectsChallengerOutsidePlayers(t *testing.T) {
 
 func TestUpdateDoesNotShareRoomState(t *testing.T) {
 	h := newHarness(t, game.TimeControlNone)
-	u := h.snapshot(t, alice)
-	u.Players[0].User = carol
+	u := h.snapshot(t, prototest.Alice)
+	u.Players[0].User = prototest.Carol
 	u.Options[game.OptionTimeControl] = "1+0"
-	if got := h.snapshot(t, alice); got.Players[0].User != alice || got.Options[game.OptionTimeControl] != "none" {
+	if got := h.snapshot(t, prototest.Alice); got.Players[0].User != prototest.Alice || got.Options[game.OptionTimeControl] != "none" {
 		t.Fatalf("mutating an update changed the room: players %v, options %v", got.Players, got.Options)
 	}
 }
 
 func TestMovedEventWireShape(t *testing.T) {
 	h := newHarness(t, game.TimeControlNone)
-	h.play(t, alice, 0, "e4")
-	events := h.snapshot(t, bob).Events
+	h.play(t, prototest.Alice, 0, "e4")
+	events := h.snapshot(t, prototest.Bob).Events
 	if want := `{"by":"white","kind":"moved","san":"e4"}`; len(events) != 1 || string(events[0]) != want {
 		t.Fatalf("events %s, want [%s]", events, want)
 	}
@@ -51,61 +52,61 @@ func TestMovedEventWireShape(t *testing.T) {
 
 func TestStaleSeqRejected(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	if _, err := h.room.Act(t.Context(), alice, 1, move("e4")); !errors.Is(err, ErrStale) {
+	if _, err := h.room.Act(t.Context(), prototest.Alice, 1, move("e4")); !errors.Is(err, ErrStale) {
 		t.Fatalf("want ErrStale, got %v", err)
 	}
-	seq := h.play(t, alice, 0, "e4")
-	if _, err := h.room.Control(t.Context(), bob, seq-1, protocol.ControlResign); !errors.Is(err, ErrStale) {
+	seq := h.play(t, prototest.Alice, 0, "e4")
+	if _, err := h.room.Control(t.Context(), prototest.Bob, seq-1, protocol.ControlResign); !errors.Is(err, ErrStale) {
 		t.Fatalf("control: want ErrStale, got %v", err)
 	}
 	if steps, _ := h.persist.recorded(); len(steps) != 1 {
 		t.Fatalf("rejected attempts persisted: %d steps", len(steps))
 	}
-	if got := h.snapshot(t, bob).Seq; got != 1 {
+	if got := h.snapshot(t, prototest.Bob).Seq; got != 1 {
 		t.Fatalf("seq %d, want 1", got)
 	}
 }
 
 func TestNotYourTurn(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	if _, err := h.room.Act(t.Context(), bob, 0, move("e5")); !errors.Is(err, game.ErrNotYourTurn) {
+	if _, err := h.room.Act(t.Context(), prototest.Bob, 0, move("e5")); !errors.Is(err, game.ErrNotYourTurn) {
 		t.Fatalf("want ErrNotYourTurn, got %v", err)
 	}
-	if _, n := h.sent.last(alice); n != 0 {
+	if _, n := h.sent.last(prototest.Alice); n != 0 {
 		t.Fatalf("rejected action broadcast %d updates", n)
 	}
 }
 
 func TestNonPlayerRejected(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	if _, err := h.room.Act(t.Context(), carol, 0, move("e4")); !errors.Is(err, ErrNotAPlayer) {
+	if _, err := h.room.Act(t.Context(), prototest.Carol, 0, move("e4")); !errors.Is(err, ErrNotAPlayer) {
 		t.Fatalf("act: want ErrNotAPlayer, got %v", err)
 	}
-	if _, err := h.room.Snapshot(t.Context(), carol); !errors.Is(err, ErrNotAPlayer) {
+	if _, err := h.room.Snapshot(t.Context(), prototest.Carol); !errors.Is(err, ErrNotAPlayer) {
 		t.Fatalf("snapshot: want ErrNotAPlayer, got %v", err)
 	}
 }
 
 func TestResignEndsGame(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	seq := h.play(t, alice, 0, "e4")
-	h.control(t, bob, seq, protocol.ControlResign)
+	seq := h.play(t, prototest.Alice, 0, "e4")
+	h.control(t, prototest.Bob, seq, protocol.ControlResign)
 	waitDone(t, h.room)
 
 	steps, finished := h.persist.recorded()
 	if finished == nil || finished.Reason != game.ReasonResign || finished.Kind != game.ResultDecisive || finished.Seq != 2 {
 		t.Fatalf("finish record %+v", finished)
 	}
-	want := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeWin, Score: 1}, bob: {Outcome: store.OutcomeLoss, Score: -1}}
+	want := map[game.UserID]store.Standing{prototest.Alice: {Outcome: store.OutcomeWin, Score: 1}, prototest.Bob: {Outcome: store.OutcomeLoss, Score: -1}}
 	if diff := cmp.Diff(want, finished.Standings); diff != "" {
 		t.Fatalf("standings (-want +got):\n%s", diff)
 	}
 	if len(steps) != 1 {
 		t.Fatalf("persisted %d steps, want only the move: the finish replaces steps", len(steps))
 	}
-	for _, user := range []game.UserID{alice, bob} {
+	for _, user := range []game.UserID{prototest.Alice, prototest.Bob} {
 		u, _ := h.sent.last(user)
-		want := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{alice}, Reason: game.ReasonResign}
+		want := &protocol.WireResult{Kind: game.ResultDecisive, Winners: []game.UserID{prototest.Alice}, Reason: game.ReasonResign}
 		if diff := cmp.Diff(want, u.Result); diff != "" {
 			t.Errorf("%s final result (-want +got):\n%s", user, diff)
 		}
@@ -118,35 +119,35 @@ func TestResignEndsGame(t *testing.T) {
 func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 	t.Run("agree", func(t *testing.T) {
 		h := newHarness(t, game.TimeControl10Plus5)
-		seq := h.control(t, alice, 0, protocol.ControlOfferDraw)
-		h.control(t, bob, seq, protocol.ControlOfferDraw)
+		seq := h.control(t, prototest.Alice, 0, protocol.ControlOfferDraw)
+		h.control(t, prototest.Bob, seq, protocol.ControlOfferDraw)
 		waitDone(t, h.room)
 		_, finished := h.persist.recorded()
 		if finished == nil || finished.Reason != game.ReasonDrawAgreed || finished.Kind != game.ResultDraw {
 			t.Fatalf("finish record %+v", finished)
 		}
 		draw := store.Standing{Outcome: store.OutcomeDraw}
-		if diff := cmp.Diff(map[game.UserID]store.Standing{alice: draw, bob: draw}, finished.Standings); diff != "" {
+		if diff := cmp.Diff(map[game.UserID]store.Standing{prototest.Alice: draw, prototest.Bob: draw}, finished.Standings); diff != "" {
 			t.Fatalf("standings (-want +got):\n%s", diff)
 		}
 	})
 	t.Run("decline", func(t *testing.T) {
 		h := newHarness(t, game.TimeControl10Plus5)
-		seq := h.control(t, alice, 0, protocol.ControlOfferDraw)
-		if got := h.snapshot(t, bob).DrawAgreed; !slices.Equal(got, []game.UserID{alice}) {
+		seq := h.control(t, prototest.Alice, 0, protocol.ControlOfferDraw)
+		if got := h.snapshot(t, prototest.Bob).DrawAgreed; !slices.Equal(got, []game.UserID{prototest.Alice}) {
 			t.Fatalf("draw_agreed %v after offer", got)
 		}
-		h.control(t, bob, seq, protocol.ControlDeclineDraw)
-		if got := h.snapshot(t, alice).DrawAgreed; got == nil || len(got) > 0 {
+		h.control(t, prototest.Bob, seq, protocol.ControlDeclineDraw)
+		if got := h.snapshot(t, prototest.Alice).DrawAgreed; got == nil || len(got) > 0 {
 			t.Fatalf("draw_agreed %#v after decline, want empty and not null", got)
 		}
 	})
 	t.Run("cleared by move", func(t *testing.T) {
 		h := newHarness(t, game.TimeControl10Plus5)
-		seq := h.play(t, alice, 0, "e4")
-		seq = h.control(t, alice, seq, protocol.ControlOfferDraw)
-		h.play(t, bob, seq, "e5")
-		if got := h.snapshot(t, alice).DrawAgreed; got == nil || len(got) > 0 {
+		seq := h.play(t, prototest.Alice, 0, "e4")
+		seq = h.control(t, prototest.Alice, seq, protocol.ControlOfferDraw)
+		h.play(t, prototest.Bob, seq, "e5")
+		if got := h.snapshot(t, prototest.Alice).DrawAgreed; got == nil || len(got) > 0 {
 			t.Fatalf("draw_agreed %#v after a move, want empty and not null", got)
 		}
 	})
@@ -154,32 +155,31 @@ func TestDrawAgreeDeclineAndClearedByMove(t *testing.T) {
 
 func TestAbortWindow(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	seq := h.play(t, alice, 0, "e4")
-	if !slices.Contains(h.snapshot(t, bob).Controls, protocol.ControlAbort) {
+	seq := h.play(t, prototest.Alice, 0, "e4")
+	if !slices.Contains(h.snapshot(t, prototest.Bob).Controls, protocol.ControlAbort) {
 		t.Fatal("abort missing after one player's first move")
 	}
-	h.play(t, bob, seq, "e5")
-	if controls := h.snapshot(t, alice).Controls; slices.Contains(controls, protocol.ControlAbort) {
+	h.play(t, prototest.Bob, seq, "e5")
+	if controls := h.snapshot(t, prototest.Alice).Controls; slices.Contains(controls, protocol.ControlAbort) {
 		t.Fatalf("abort still offered after both moved: %v", controls)
 	}
-	if _, err := h.room.Control(t.Context(), alice, seq+1, protocol.ControlAbort); !isCode(err, protocol.CodeIllegalAction) {
-		t.Fatalf("want illegal_action, got %v", err)
-	}
+	_, err := h.room.Control(t.Context(), prototest.Alice, seq+1, protocol.ControlAbort)
+	prototest.WantCode(t, err, protocol.CodeIllegalAction)
 
 	early := newHarness(t, game.TimeControl10Plus5)
-	early.control(t, bob, early.play(t, alice, 0, "e4"), protocol.ControlAbort)
+	early.control(t, prototest.Bob, early.play(t, prototest.Alice, 0, "e4"), protocol.ControlAbort)
 	waitDone(t, early.room)
 	_, finished := early.persist.recorded()
 	none := store.Standing{Outcome: store.OutcomeNone}
 	if finished == nil || finished.Reason != game.ReasonAborted || finished.Kind != game.ResultAborted ||
-		!maps.Equal(finished.Standings, map[game.UserID]store.Standing{alice: none, bob: none}) {
+		!maps.Equal(finished.Standings, map[game.UserID]store.Standing{prototest.Alice: none, prototest.Bob: none}) {
 		t.Fatalf("abort finish record %+v", finished)
 	}
 }
 
 func TestTimeoutEliminates(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	h.play(t, bob, h.play(t, alice, 0, "e4"), "e5")
+	h.play(t, prototest.Bob, h.play(t, prototest.Alice, 0, "e4"), "e5")
 	h.clock.Advance(10 * time.Minute)
 	waitDone(t, h.room)
 
@@ -187,37 +187,37 @@ func TestTimeoutEliminates(t *testing.T) {
 	if finished == nil || finished.Reason != game.ReasonTimeout || !finished.At.Equal(h.clock.Now()) {
 		t.Fatalf("finish record %+v at %v", finished, h.clock.Now())
 	}
-	want := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeLoss, Score: -1}, bob: {Outcome: store.OutcomeWin, Score: 1}}
+	want := map[game.UserID]store.Standing{prototest.Alice: {Outcome: store.OutcomeLoss, Score: -1}, prototest.Bob: {Outcome: store.OutcomeWin, Score: 1}}
 	if diff := cmp.Diff(want, finished.Standings); diff != "" {
 		t.Fatalf("standings (-want +got):\n%s", diff)
 	}
-	if u, _ := h.sent.last(bob); u.Result == nil || u.Result.Reason != game.ReasonTimeout {
+	if u, _ := h.sent.last(prototest.Bob); u.Result == nil || u.Result.Reason != game.ReasonTimeout {
 		t.Fatalf("bob's final update result %+v", u.Result)
 	}
 }
 
 func TestClockNotChargedBeforeFirstMoves(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	initial := map[game.UserID]int64{alice: 600_000, bob: 600_000}
+	initial := map[game.UserID]int64{prototest.Alice: 600_000, prototest.Bob: 600_000}
 	h.clock.Advance(5 * time.Minute)
-	seq := h.play(t, alice, 0, "e4")
+	seq := h.play(t, prototest.Alice, 0, "e4")
 	h.clock.Advance(5 * time.Minute)
-	clock := h.snapshot(t, alice).Clock
+	clock := h.snapshot(t, prototest.Alice).Clock
 	if diff := cmp.Diff(&protocol.WireClock{RemainingMS: initial, AsOfMS: protocol.UnixMSOf(h.clock.Now())}, clock); diff != "" {
 		t.Fatalf("clock before both first moves (-want +got):\n%s", diff)
 	}
 
-	seq = h.play(t, bob, seq, "e5")
+	seq = h.play(t, prototest.Bob, seq, "e5")
 	h.clock.Advance(time.Minute)
-	clock = h.snapshot(t, bob).Clock
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000}, Running: new(alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
+	clock = h.snapshot(t, prototest.Bob).Clock
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{prototest.Alice: 540_000, prototest.Bob: 600_000}, Running: new(prototest.Alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, clock); diff != "" {
 		t.Fatalf("clock once running (-want +got):\n%s", diff)
 	}
 
-	h.play(t, alice, seq, "Nf3")
-	clock = h.snapshot(t, bob).Clock
-	want = &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 545_000, bob: 600_000}, Running: new(bob), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
+	h.play(t, prototest.Alice, seq, "Nf3")
+	clock = h.snapshot(t, prototest.Bob).Clock
+	want = &protocol.WireClock{RemainingMS: map[game.UserID]int64{prototest.Alice: 545_000, prototest.Bob: 600_000}, Running: new(prototest.Bob), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, clock); diff != "" {
 		t.Fatalf("clock after an incremented move (-want +got):\n%s", diff)
 	}
@@ -228,9 +228,9 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 	seq := game.Seq(0)
 	for i, san := range []string{"e4", "e5", "Nf3", "Nc6"} {
 		h.clock.Advance(time.Duration(i+1) * 7 * time.Second)
-		seq = h.play(t, []game.UserID{alice, bob}[i%2], seq, san)
+		seq = h.play(t, []game.UserID{prototest.Alice, prototest.Bob}[i%2], seq, san)
 	}
-	want := map[game.UserID]Snapshot{alice: h.fullSnapshot(t, alice), bob: h.fullSnapshot(t, bob)}
+	want := map[game.UserID]Snapshot{prototest.Alice: h.fullSnapshot(t, prototest.Alice), prototest.Bob: h.fullSnapshot(t, prototest.Bob)}
 	h.cancel()
 
 	steps, _ := h.persist.recorded()
@@ -258,9 +258,9 @@ func TestRestoreReplaysAndResumesClock(t *testing.T) {
 
 func TestUpdateViewIsPerRecipient(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	h.control(t, alice, 0, protocol.ControlOfferDraw)
-	offerer, _ := h.sent.last(alice)
-	opponent, _ := h.sent.last(bob)
+	h.control(t, prototest.Alice, 0, protocol.ControlOfferDraw)
+	offerer, _ := h.sent.last(prototest.Alice)
+	opponent, _ := h.sent.last(prototest.Bob)
 	if slices.Contains(offerer.Controls, protocol.ControlOfferDraw) {
 		t.Errorf("offerer can offer again: %v", offerer.Controls)
 	}
@@ -275,9 +275,9 @@ func TestUpdateViewIsPerRecipient(t *testing.T) {
 }
 
 func TestBroadcastMatchesEachPlayersSnapshot(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
-	h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlOfferDraw)
-	for _, user := range []game.UserID{alice, bob, carol} {
+	h := newRelayHarness(t, game.TimeControl10Plus5, prototest.Bob, prototest.Carol)
+	h.control(t, prototest.Bob, h.relay(t, prototest.Alice, 0, relayPass), protocol.ControlOfferDraw)
+	for _, user := range []game.UserID{prototest.Alice, prototest.Bob, prototest.Carol} {
 		sent, _ := h.sent.last(user)
 		if diff := cmp.Diff(h.snapshot(t, user), sent); diff != "" {
 			t.Errorf("%s broadcast vs snapshot (-snapshot +broadcast):\n%s", user, diff)
@@ -293,13 +293,13 @@ func TestFinishingBroadcastAddsStepToSealedUpdate(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
 	seq := game.Seq(0)
 	for i, san := range []string{"f3", "e5", "g4"} {
-		seq = h.play(t, []game.UserID{alice, bob}[i%2], seq, san)
+		seq = h.play(t, []game.UserID{prototest.Alice, prototest.Bob}[i%2], seq, san)
 	}
 	h.clock.Advance(time.Minute)
-	h.play(t, bob, seq, "Qh4#")
+	h.play(t, prototest.Bob, seq, "Qh4#")
 	waitDone(t, h.room)
-	wantClock := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 605_000, bob: 545_000}, AsOfMS: protocol.UnixMSOf(h.clock.Now())}
-	for _, user := range []game.UserID{alice, bob} {
+	wantClock := &protocol.WireClock{RemainingMS: map[game.UserID]int64{prototest.Alice: 605_000, prototest.Bob: 545_000}, AsOfMS: protocol.UnixMSOf(h.clock.Now())}
+	for _, user := range []game.UserID{prototest.Alice, prototest.Bob} {
 		sent, _ := h.sent.last(user)
 		sealed := h.snapshot(t, user)
 		if diff := cmp.Diff(wantClock, sent.Clock); diff != "" {
@@ -322,21 +322,21 @@ func TestPersistFailureLeavesStateUnchanged(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
 	diskFull := errors.New("disk full")
 	h.persist.fail = diskFull
-	if _, err := h.room.Act(t.Context(), alice, 0, move("e4")); !errors.Is(err, diskFull) {
+	if _, err := h.room.Act(t.Context(), prototest.Alice, 0, move("e4")); !errors.Is(err, diskFull) {
 		t.Fatalf("want persist error, got %v", err)
 	}
-	if _, n := h.sent.last(alice); n != 0 {
+	if _, n := h.sent.last(prototest.Alice); n != 0 {
 		t.Fatalf("failed step broadcast %d updates", n)
 	}
 	h.persist.setFail(nil)
-	if got := h.play(t, alice, 0, "e4"); got != 1 {
+	if got := h.play(t, prototest.Alice, 0, "e4"); got != 1 {
 		t.Fatalf("retry seq %d, want 1", got)
 	}
 }
 
 func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
 	h := newHarness(t, game.TimeControl10Plus5)
-	h.play(t, bob, h.play(t, alice, 0, "e4"), "e5")
+	h.play(t, prototest.Bob, h.play(t, prototest.Alice, 0, "e4"), "e5")
 	h.persist.setFail(errors.New("disk full"))
 	h.clock.Advance(10 * time.Minute)
 
@@ -360,10 +360,10 @@ func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
 
 func TestWireArraysAreNeverNull(t *testing.T) {
 	h := newHarness(t, game.TimeControlNone)
-	h.control(t, bob, 0, protocol.ControlAbort)
+	h.control(t, prototest.Bob, 0, protocol.ControlAbort)
 	waitDone(t, h.room)
-	final, _ := h.sent.last(bob)
-	for _, u := range []protocol.GameUpdate{h.snapshot(t, alice), final} {
+	final, _ := h.sent.last(prototest.Bob)
+	for _, u := range []protocol.GameUpdate{h.snapshot(t, prototest.Alice), final} {
 		raw, err := json.Marshal(u)
 		if err != nil {
 			t.Fatal(err)
@@ -392,30 +392,29 @@ func TestWireArraysAreNeverNull(t *testing.T) {
 }
 
 func TestResignedPlayerSpectatesWhileOthersPlayOn(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControlNone, bob, carol)
-	seq := h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlResign)
-	if u, _ := h.sent.last(bob); len(u.Controls) != 0 || u.Result != nil {
+	h := newRelayHarness(t, game.TimeControlNone, prototest.Bob, prototest.Carol)
+	seq := h.control(t, prototest.Bob, h.relay(t, prototest.Alice, 0, relayPass), protocol.ControlResign)
+	if u, _ := h.sent.last(prototest.Bob); len(u.Controls) != 0 || u.Result != nil {
 		t.Fatalf("resigned player: controls %v, result %+v; want no controls in a running game", u.Controls, u.Result)
 	}
 	for _, c := range []protocol.Control{protocol.ControlResign, protocol.ControlAbort} {
-		if _, err := h.room.Control(t.Context(), bob, seq, c); !isCode(err, protocol.CodeIllegalAction) {
-			t.Errorf("resigned player's %s: want illegal_action, got %v", c, err)
-		}
+		_, err := h.room.Control(t.Context(), prototest.Bob, seq, c)
+		prototest.WantCode(t, err, protocol.CodeIllegalAction)
 	}
-	_, before := h.sent.last(bob)
-	h.relay(t, alice, h.relay(t, carol, seq, relayPass), relayPass)
-	if u, after := h.sent.last(bob); after != before+2 || !slices.Equal(u.ToAct, []game.UserID{carol}) {
+	_, before := h.sent.last(prototest.Bob)
+	h.relay(t, prototest.Alice, h.relay(t, prototest.Carol, seq, relayPass), relayPass)
+	if u, after := h.sent.last(prototest.Bob); after != before+2 || !slices.Equal(u.ToAct, []game.UserID{prototest.Carol}) {
 		t.Fatalf("spectator got %d more updates, to_act %v; want 2 more and carol to act", after-before, u.ToAct)
 	}
 }
 
 func TestClockStartsOnceRemainingPlayersActed(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
-	seq := h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlResign)
-	h.relay(t, carol, seq, relayPass)
+	h := newRelayHarness(t, game.TimeControl10Plus5, prototest.Bob, prototest.Carol)
+	seq := h.control(t, prototest.Bob, h.relay(t, prototest.Alice, 0, relayPass), protocol.ControlResign)
+	h.relay(t, prototest.Carol, seq, relayPass)
 	h.clock.Advance(time.Minute)
-	u := h.snapshot(t, alice)
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
+	u := h.snapshot(t, prototest.Alice)
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{prototest.Alice: 540_000, prototest.Bob: 600_000, prototest.Carol: 600_000}, Running: new(prototest.Alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
 	if diff := cmp.Diff(want, u.Clock); diff != "" {
 		t.Fatalf("clock after the remaining players acted (-want +got):\n%s", diff)
 	}
@@ -425,14 +424,14 @@ func TestClockStartsOnceRemainingPlayersActed(t *testing.T) {
 }
 
 func TestIncrementOncePerTurnHandover(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControl10Plus5, bob)
-	seq := h.relay(t, bob, h.relay(t, alice, 0, relayPass), relayPass)
+	h := newRelayHarness(t, game.TimeControl10Plus5, prototest.Bob)
+	seq := h.relay(t, prototest.Bob, h.relay(t, prototest.Alice, 0, relayPass), relayPass)
 	for _, m := range []relayMove{relayKeep, relayPass} {
 		h.clock.Advance(10 * time.Second)
-		seq = h.relay(t, alice, seq, m)
+		seq = h.relay(t, prototest.Alice, seq, m)
 	}
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 585_000, bob: 600_000}, Running: new(bob), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
-	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{prototest.Alice: 585_000, prototest.Bob: 600_000}, Running: new(prototest.Bob), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
+	if diff := cmp.Diff(want, h.snapshot(t, prototest.Alice).Clock); diff != "" {
 		t.Fatalf("clock after a two-action turn (-want +got):\n%s", diff)
 	}
 }
@@ -470,23 +469,23 @@ func TestImposedEndingKeepsEliminatedPlayersLoss(t *testing.T) {
 	}{
 		{
 			"draw offered after a resign",
-			[]controlStep{{bob, protocol.ControlResign}, {alice, protocol.ControlOfferDraw}, {carol, protocol.ControlOfferDraw}},
-			game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: draw, bob: loss, carol: draw},
+			[]controlStep{{prototest.Bob, protocol.ControlResign}, {prototest.Alice, protocol.ControlOfferDraw}, {prototest.Carol, protocol.ControlOfferDraw}},
+			game.ReasonDrawAgreed, map[game.UserID]store.Standing{prototest.Alice: draw, prototest.Bob: loss, prototest.Carol: draw},
 		},
 		{
 			"holdout resigns after the others offered",
-			[]controlStep{{alice, protocol.ControlOfferDraw}, {carol, protocol.ControlOfferDraw}, {bob, protocol.ControlResign}},
-			game.ReasonDrawAgreed, map[game.UserID]store.Standing{alice: draw, bob: loss, carol: draw},
+			[]controlStep{{prototest.Alice, protocol.ControlOfferDraw}, {prototest.Carol, protocol.ControlOfferDraw}, {prototest.Bob, protocol.ControlResign}},
+			game.ReasonDrawAgreed, map[game.UserID]store.Standing{prototest.Alice: draw, prototest.Bob: loss, prototest.Carol: draw},
 		},
 		{
 			"abort after a resign",
-			[]controlStep{{bob, protocol.ControlResign}, {alice, protocol.ControlAbort}},
-			game.ReasonAborted, map[game.UserID]store.Standing{alice: none, bob: loss, carol: none},
+			[]controlStep{{prototest.Bob, protocol.ControlResign}, {prototest.Alice, protocol.ControlAbort}},
+			game.ReasonAborted, map[game.UserID]store.Standing{prototest.Alice: none, prototest.Bob: loss, prototest.Carol: none},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := newRelayHarness(t, game.TimeControlNone, bob, carol)
+			h := newRelayHarness(t, game.TimeControlNone, prototest.Bob, prototest.Carol)
 			h.controls(t, 0, tt.steps)
 			finished := h.finished(t)
 			if finished.Reason != tt.reason {
@@ -500,9 +499,9 @@ func TestImposedEndingKeepsEliminatedPlayersLoss(t *testing.T) {
 }
 
 func TestResignWithdrawsOwnDrawOffer(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControlNone, bob, carol)
-	h.controls(t, 0, []controlStep{{bob, protocol.ControlOfferDraw}, {bob, protocol.ControlResign}})
-	for _, user := range []game.UserID{alice, carol} {
+	h := newRelayHarness(t, game.TimeControlNone, prototest.Bob, prototest.Carol)
+	h.controls(t, 0, []controlStep{{prototest.Bob, protocol.ControlOfferDraw}, {prototest.Bob, protocol.ControlResign}})
+	for _, user := range []game.UserID{prototest.Alice, prototest.Carol} {
 		u := h.snapshot(t, user)
 		if len(u.DrawAgreed) != 0 || slices.Contains(u.Controls, protocol.ControlDeclineDraw) {
 			t.Errorf("%s: draw_agreed %v, controls %v; want no pending offer", user, u.DrawAgreed, u.Controls)
@@ -511,23 +510,23 @@ func TestResignWithdrawsOwnDrawOffer(t *testing.T) {
 }
 
 func TestEliminationEndingGameKeepsItsResultOverOpenOffers(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControlNone, bob)
-	h.controls(t, 0, []controlStep{{alice, protocol.ControlOfferDraw}, {bob, protocol.ControlResign}})
+	h := newRelayHarness(t, game.TimeControlNone, prototest.Bob)
+	h.controls(t, 0, []controlStep{{prototest.Alice, protocol.ControlOfferDraw}, {prototest.Bob, protocol.ControlResign}})
 	finished := h.finished(t)
-	want := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeWin, Score: 1}, bob: {Outcome: store.OutcomeLoss, Score: -1}}
+	want := map[game.UserID]store.Standing{prototest.Alice: {Outcome: store.OutcomeWin, Score: 1}, prototest.Bob: {Outcome: store.OutcomeLoss, Score: -1}}
 	if finished.Reason != game.ReasonResign || !maps.Equal(finished.Standings, want) {
 		t.Fatalf("finish %+v, want alice winning by resign", finished)
 	}
 }
 
 func TestClockStartsWhenEliminationMeetsBarrier(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
-	seq := h.relay(t, bob, h.relay(t, alice, 0, relayPass), relayPass)
+	h := newRelayHarness(t, game.TimeControl10Plus5, prototest.Bob, prototest.Carol)
+	seq := h.relay(t, prototest.Bob, h.relay(t, prototest.Alice, 0, relayPass), relayPass)
 	h.clock.Advance(time.Minute)
-	h.control(t, carol, seq, protocol.ControlResign)
+	h.control(t, prototest.Carol, seq, protocol.ControlResign)
 	h.clock.Advance(time.Minute)
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 540_000, bob: 600_000, carol: 600_000}, Running: new(alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
-	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{prototest.Alice: 540_000, prototest.Bob: 600_000, prototest.Carol: 600_000}, Running: new(prototest.Alice), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
+	if diff := cmp.Diff(want, h.snapshot(t, prototest.Alice).Clock); diff != "" {
 		t.Fatalf("clock a minute after the resign that met the barrier (-want +got):\n%s", diff)
 	}
 }
@@ -536,29 +535,29 @@ func TestClockStartsWhenEliminationMeetsBarrier(t *testing.T) {
 // his own turn, after alice has earned an increment.
 func timedOutOnOwnTurn(t *testing.T) *harness {
 	t.Helper()
-	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
-	seq := h.relay(t, carol, h.relay(t, bob, h.relay(t, alice, 0, relayPass), relayPass), relayPass)
+	h := newRelayHarness(t, game.TimeControl10Plus5, prototest.Bob, prototest.Carol)
+	seq := h.relay(t, prototest.Carol, h.relay(t, prototest.Bob, h.relay(t, prototest.Alice, 0, relayPass), relayPass), relayPass)
 	h.clock.Advance(10 * time.Second)
-	h.relay(t, alice, seq, relayPass)
+	h.relay(t, prototest.Alice, seq, relayPass)
 	h.clock.Advance(10 * time.Minute)
 	return h
 }
 
 func TestTimeoutOnOwnTurnPassesClockToNextPlayer(t *testing.T) {
 	h := timedOutOnOwnTurn(t)
-	if controls := h.snapshot(t, bob).Controls; len(controls) != 0 {
+	if controls := h.snapshot(t, prototest.Bob).Controls; len(controls) != 0 {
 		t.Fatalf("timed-out player keeps controls %v", controls)
 	}
 	h.clock.Advance(time.Minute)
-	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{alice: 595_000, bob: 0, carol: 540_000}, Running: new(carol), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
-	if diff := cmp.Diff(want, h.snapshot(t, alice).Clock); diff != "" {
+	want := &protocol.WireClock{RemainingMS: map[game.UserID]int64{prototest.Alice: 595_000, prototest.Bob: 0, prototest.Carol: 540_000}, Running: new(prototest.Carol), AsOfMS: protocol.UnixMSOf(h.clock.Now())}
+	if diff := cmp.Diff(want, h.snapshot(t, prototest.Alice).Clock); diff != "" {
 		t.Fatalf("clock a minute after bob flagged (-want +got):\n%s", diff)
 	}
 }
 
 func TestRestoreAfterTimeoutRearmsTimer(t *testing.T) {
 	h := timedOutOnOwnTurn(t)
-	want := h.fullSnapshot(t, bob)
+	want := h.fullSnapshot(t, prototest.Bob)
 	h.cancel()
 
 	steps, _ := h.persist.recorded()
@@ -566,7 +565,7 @@ func TestRestoreAfterTimeoutRearmsTimer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := restored.Snapshot(t.Context(), bob)
+	got, err := restored.Snapshot(t.Context(), prototest.Bob)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -576,17 +575,17 @@ func TestRestoreAfterTimeoutRearmsTimer(t *testing.T) {
 	h.clock.Advance(10 * time.Minute)
 	waitDone(t, restored)
 	_, finished := h.persist.recorded()
-	wantStandings := map[game.UserID]store.Standing{alice: {Outcome: store.OutcomeWin, Score: 1}, bob: {Outcome: store.OutcomeLoss, Score: -1}, carol: {Outcome: store.OutcomeLoss, Score: -1}}
+	wantStandings := map[game.UserID]store.Standing{prototest.Alice: {Outcome: store.OutcomeWin, Score: 1}, prototest.Bob: {Outcome: store.OutcomeLoss, Score: -1}, prototest.Carol: {Outcome: store.OutcomeLoss, Score: -1}}
 	if finished == nil || finished.Reason != game.ReasonTimeout || !maps.Equal(finished.Standings, wantStandings) {
 		t.Fatalf("finish %+v, want carol flagging after restore to leave alice the winner", finished)
 	}
 }
 
 func TestRestoreKeepsEliminatedPlayer(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControl10Plus5, bob, carol)
-	seq := h.control(t, bob, h.relay(t, alice, 0, relayPass), protocol.ControlResign)
-	seq = h.relay(t, carol, seq, relayPass)
-	users := []game.UserID{alice, bob, carol}
+	h := newRelayHarness(t, game.TimeControl10Plus5, prototest.Bob, prototest.Carol)
+	seq := h.control(t, prototest.Bob, h.relay(t, prototest.Alice, 0, relayPass), protocol.ControlResign)
+	seq = h.relay(t, prototest.Carol, seq, relayPass)
+	users := []game.UserID{prototest.Alice, prototest.Bob, prototest.Carol}
 	want := make(map[game.UserID]Snapshot, len(users))
 	for _, user := range users {
 		want[user] = h.fullSnapshot(t, user)
@@ -607,18 +606,17 @@ func TestRestoreKeepsEliminatedPlayer(t *testing.T) {
 			t.Errorf("%s snapshot after restore (-want +got):\n%s", user, diff)
 		}
 	}
-	if _, err := restored.Control(t.Context(), bob, seq, protocol.ControlResign); !isCode(err, protocol.CodeIllegalAction) {
-		t.Fatalf("resigned player's resign after restore: want illegal_action, got %v", err)
-	}
+	_, err = restored.Control(t.Context(), prototest.Bob, seq, protocol.ControlResign)
+	prototest.WantCode(t, err, protocol.CodeIllegalAction)
 }
 
 func TestImposedResultLeavesNoMovesInTheFinalView(t *testing.T) {
 	tests := map[string]func(h *harness){
 		"draw agreed": func(h *harness) {
-			seq := h.control(t, alice, 0, protocol.ControlOfferDraw)
-			h.control(t, bob, seq, protocol.ControlOfferDraw)
+			seq := h.control(t, prototest.Alice, 0, protocol.ControlOfferDraw)
+			h.control(t, prototest.Bob, seq, protocol.ControlOfferDraw)
 		},
-		"abort": func(h *harness) { h.control(t, alice, 0, protocol.ControlAbort) },
+		"abort": func(h *harness) { h.control(t, prototest.Alice, 0, protocol.ControlAbort) },
 	}
 	for name, impose := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -630,7 +628,7 @@ func TestImposedResultLeavesNoMovesInTheFinalView(t *testing.T) {
 				t.Fatal("no finish record")
 			}
 			var view chess.View
-			if err := json.Unmarshal(finished.Views[alice], &view); err != nil {
+			if err := json.Unmarshal(finished.Views[prototest.Alice], &view); err != nil {
 				t.Fatal(err)
 			}
 			if len(view.LegalMoves) != 0 || view.ClaimableDraw {

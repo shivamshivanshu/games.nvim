@@ -11,6 +11,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
@@ -142,39 +143,38 @@ func (h *harness) relay(t *testing.T, user game.UserID, seq game.Seq, m relayMov
 func TestRelayConforms(t *testing.T) {
 	gametest.Run(t, relayRules{}, []gametest.Script[struct{}, relayAction]{{
 		Name:       "three seats",
-		Challenger: alice,
-		Invitees:   []game.UserID{bob, carol},
+		Challenger: prototest.Alice,
+		Invitees:   []game.UserID{prototest.Bob, prototest.Carol},
 		Steps: []gametest.Step[relayAction]{
-			{Seat: game.Seat(alice), Action: relayAction{Move: relayKeep}},
-			{Seat: game.Seat(alice), Action: relayAction{Move: relayPass}},
-			{Seat: game.Seat(alice), Action: relayAction{Move: relayPass}, WantErr: true},
-			{Seat: game.Seat(bob), Action: relayAction{Move: relayPass}},
+			{Seat: game.Seat(prototest.Alice), Action: relayAction{Move: relayKeep}},
+			{Seat: game.Seat(prototest.Alice), Action: relayAction{Move: relayPass}},
+			{Seat: game.Seat(prototest.Alice), Action: relayAction{Move: relayPass}, WantErr: true},
+			{Seat: game.Seat(prototest.Bob), Action: relayAction{Move: relayPass}},
 		},
 	}})
 }
 
 func TestKnockedOutSeatLosesItsControlsAndAnImposedEnding(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControlNone, bob, carol)
-	seq := h.relay(t, alice, 0, relayOut)
-	if u := h.snapshot(t, alice); len(u.Controls) != 0 {
+	h := newRelayHarness(t, game.TimeControlNone, prototest.Bob, prototest.Carol)
+	seq := h.relay(t, prototest.Alice, 0, relayOut)
+	if u := h.snapshot(t, prototest.Alice); len(u.Controls) != 0 {
 		t.Fatalf("knocked-out seat's controls %v, want none", u.Controls)
 	}
 	for _, c := range []protocol.Control{protocol.ControlResign, protocol.ControlAbort} {
-		if _, err := h.room.Control(t.Context(), alice, seq, c); !isCode(err, protocol.CodeIllegalAction) {
-			t.Errorf("knocked-out seat's %s: want illegal_action, got %v", c, err)
-		}
+		_, err := h.room.Control(t.Context(), prototest.Alice, seq, c)
+		prototest.WantCode(t, err, protocol.CodeIllegalAction)
 	}
-	h.control(t, bob, seq, protocol.ControlAbort)
+	h.control(t, prototest.Bob, seq, protocol.ControlAbort)
 	loss, none := store.Standing{Outcome: store.OutcomeLoss, Score: -1}, store.Standing{Outcome: store.OutcomeNone}
-	want := map[game.UserID]store.Standing{alice: loss, bob: none, carol: none}
+	want := map[game.UserID]store.Standing{prototest.Alice: loss, prototest.Bob: none, prototest.Carol: none}
 	if diff := cmp.Diff(want, h.finished(t).Standings); diff != "" {
 		t.Fatalf("standings after an abort (-want +got):\n%s", diff)
 	}
 }
 
 func TestRestoreKeepsKnockedOutSeatWithoutControls(t *testing.T) {
-	h := newRelayHarness(t, game.TimeControlNone, bob, carol)
-	seq := h.relay(t, alice, 0, relayOut)
+	h := newRelayHarness(t, game.TimeControlNone, prototest.Bob, prototest.Carol)
+	seq := h.relay(t, prototest.Alice, 0, relayOut)
 	h.cancel()
 
 	steps, _ := h.persist.recorded()
@@ -182,7 +182,6 @@ func TestRestoreKeepsKnockedOutSeatWithoutControls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := restored.Control(t.Context(), alice, seq, protocol.ControlAbort); !isCode(err, protocol.CodeIllegalAction) {
-		t.Fatalf("knocked-out seat's abort after restore: want illegal_action, got %v", err)
-	}
+	_, err = restored.Control(t.Context(), prototest.Alice, seq, protocol.ControlAbort)
+	prototest.WantCode(t, err, protocol.CodeIllegalAction)
 }

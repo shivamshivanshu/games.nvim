@@ -31,9 +31,6 @@ import (
 )
 
 const (
-	alice         game.UserID   = "alice"
-	bob           game.UserID   = "bob"
-	carol         game.UserID   = "carol"
 	dave          game.UserID   = "dave"
 	testPassword                = "correct horse"
 	chessType     game.GameType = "chess"
@@ -57,7 +54,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &env{store: storetest.Open(t, hash, alice, bob, carol, dave), clock: clocktest.New(clocktest.Epoch)}
+	return &env{store: storetest.Open(t, hash, prototest.Alice, prototest.Bob, prototest.Carol, dave), clock: clocktest.New(clocktest.Epoch)}
 }
 
 type server struct {
@@ -121,7 +118,7 @@ func startGame(t *testing.T, challenger, opponent *prototest.Client, opts chessO
 	if err != nil {
 		t.Fatal(err)
 	}
-	return startGameOf(t, challenger, opponent, bob, chessType, rawOpts)
+	return startGameOf(t, challenger, opponent, prototest.Bob, chessType, rawOpts)
 }
 
 func startGameOf(t *testing.T, challenger, opponent *prototest.Client, to game.UserID, typ game.GameType, rawOpts json.RawMessage) game.GameID {
@@ -170,7 +167,7 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
 
 	id := startGame(t, a, b, chessOptions{TimeControl: game.TimeControlNone, Color: chess.ColorWhite})
 	if u := waitUpdate(t, b, 0); u.GameID != id {
@@ -189,7 +186,7 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 	var finishing protocol.GameUpdate
 	for _, c := range []*prototest.Client{a, b} {
 		finishing = waitUpdate(t, c, seq)
-		if finishing.Result == nil || finishing.Result.Reason != chess.ReasonCheckmate || !slices.Equal(finishing.Result.Winners, []game.UserID{bob}) {
+		if finishing.Result == nil || finishing.Result.Reason != chess.ReasonCheckmate || !slices.Equal(finishing.Result.Winners, []game.UserID{prototest.Bob}) {
 			t.Fatalf("final result = %+v, want checkmate won by bob", finishing.Result)
 		}
 		e.requireSealed(t, finishing)
@@ -203,22 +200,22 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 
 	stats := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.Empty{})
 	want := []protocol.StatsRecord{
-		{User: bob, Game: chessType, Tally: protocol.Tally{Wins: 1}},
-		{User: alice, Game: chessType, Tally: protocol.Tally{Losses: 1}},
+		{User: prototest.Bob, Game: chessType, Tally: protocol.Tally{Wins: 1}},
+		{User: prototest.Alice, Game: chessType, Tally: protocol.Tally{Losses: 1}},
 	}
 	if diff := cmp.Diff(want, stats.Records); diff != "" {
 		t.Fatalf("stats records (-want +got):\n%s", diff)
 	}
-	wantLeaderboard := []protocol.LeaderboardEntry{{User: bob, Tally: protocol.Tally{Wins: 1}}, {User: alice, Tally: protocol.Tally{Losses: 1}}}
+	wantLeaderboard := []protocol.LeaderboardEntry{{User: prototest.Bob, Tally: protocol.Tally{Wins: 1}}, {User: prototest.Alice, Tally: protocol.Tally{Losses: 1}}}
 	if diff := cmp.Diff(wantLeaderboard, stats.Leaderboard); diff != "" {
 		t.Fatalf("leaderboard (-want +got):\n%s", diff)
 	}
-	if own := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.StatsRequest{User: alice}); len(own.Records) != 1 || own.Records[0].User != alice {
+	if own := call[protocol.StatsResult](t, a, protocol.TypeStatsGet, protocol.StatsRequest{User: prototest.Alice}); len(own.Records) != 1 || own.Records[0].User != prototest.Alice {
 		t.Fatalf("alice's stats records %+v, want hers alone", own.Records)
 	}
 	wantHeadToHead := []protocol.HeadToHeadRecord{
-		{User: alice, Opponent: bob, Game: chessType, Tally: protocol.Tally{Losses: 1}},
-		{User: bob, Opponent: alice, Game: chessType, Tally: protocol.Tally{Wins: 1}},
+		{User: prototest.Alice, Opponent: prototest.Bob, Game: chessType, Tally: protocol.Tally{Losses: 1}},
+		{User: prototest.Bob, Opponent: prototest.Alice, Game: chessType, Tally: protocol.Tally{Wins: 1}},
 	}
 	if diff := cmp.Diff(wantHeadToHead, stats.HeadToHead); diff != "" {
 		t.Fatalf("head to head (-want +got):\n%s", diff)
@@ -239,13 +236,13 @@ func TestFoolsMateEndToEnd(t *testing.T) {
 func TestSameUserTwoConnections(t *testing.T) {
 	t.Parallel()
 	srv := newEnv(t).start(t)
-	first, second, b := srv.login(t, alice), srv.login(t, alice), srv.login(t, bob)
+	first, second, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
 
 	id := startGame(t, first, b, chessOptions{Color: chess.ColorWhite})
 	seq := move(t, first, id, 0, "e4")
 
 	u := waitUpdate(t, second, seq)
-	if u.GameID != id || !slices.Equal(u.ToAct, []game.UserID{bob}) {
+	if u.GameID != id || !slices.Equal(u.ToAct, []game.UserID{prototest.Bob}) {
 		t.Fatalf("second connection got %+v", u)
 	}
 }
@@ -254,7 +251,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
 	id := startGame(t, a, b, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
 	if !uuidV4.MatchString(string(id)) {
 		t.Fatalf("game id %q is not a UUIDv4", id)
@@ -275,7 +272,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	if len(before) != 1 || before[0].Clock == nil || before[0].Clock.Running == nil {
 		t.Fatalf("before restart = %+v, want one game with a running clock", before)
 	}
-	charged := map[game.UserID]int64{alice: 598_000, bob: 598_000}
+	charged := map[game.UserID]int64{prototest.Alice: 598_000, prototest.Bob: 598_000}
 	if diff := cmp.Diff(charged, before[0].Clock.RemainingMS); diff != "" {
 		t.Fatalf("clocks before restart (-want +got):\n%s", diff)
 	}
@@ -284,7 +281,7 @@ func TestRestartRestoresGame(t *testing.T) {
 	e.clock.Advance(time.Hour)
 
 	restarted := e.start(t)
-	a = restarted.login(t, alice)
+	a = restarted.login(t, prototest.Alice)
 	after := ongoing(t, a)
 	if diff := cmp.Diff(before, after, cmpopts.IgnoreFields(protocol.WireClock{}, "AsOfMS")); diff != "" {
 		t.Fatalf("game.list across restart (-before +after):\n%s", diff)
@@ -298,19 +295,19 @@ func TestTimeoutListsAsFinishedAfterRestart(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
 	id := startGame(t, a, b, chessOptions{TimeControl: game.TimeControl10Plus5, Color: chess.ColorWhite})
 	seq := move(t, b, id, move(t, a, id, 0, "e4"), "e5")
 
 	e.clock.Advance(10 * time.Minute)
 	final := waitUpdate(t, a, seq+1)
-	if final.Result == nil || final.Result.Reason != game.ReasonTimeout || !slices.Equal(final.Result.Winners, []game.UserID{bob}) {
+	if final.Result == nil || final.Result.Reason != game.ReasonTimeout || !slices.Equal(final.Result.Winners, []game.UserID{prototest.Bob}) {
 		t.Fatalf("final result = %+v, want timeout won by bob", final.Result)
 	}
 	srv.stop()
 	waitDisarmed(t, e.clock)
 
-	a = e.start(t).login(t, alice)
+	a = e.start(t).login(t, prototest.Alice)
 	if games := ongoing(t, a); len(games) != 0 {
 		t.Fatalf("ongoing after restart = %+v, want none", games)
 	}
@@ -337,7 +334,7 @@ func TestOngoingListsYourTurnFirstThenMostRecent(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	srv := e.start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
 	untimed := chessOptions{TimeControl: game.TimeControlNone}
 
 	untimed.Color = chess.ColorWhite
@@ -362,14 +359,14 @@ func gameIDs(games []protocol.GameUpdate) []game.GameID {
 
 func TestChallengeUnknownUser(t *testing.T) {
 	t.Parallel()
-	a := newEnv(t).start(t).login(t, alice)
+	a := newEnv(t).start(t).login(t, prototest.Alice)
 	_, err := a.Request(protocol.TypeChallengeCreate, protocol.ChallengeCreateRequest{To: []game.UserID{"mallory"}, Game: chessType})
 	prototest.WantCode(t, err, protocol.CodeBadRequest)
 }
 
 func TestUnknownGameIsNotFound(t *testing.T) {
 	t.Parallel()
-	a := newEnv(t).start(t).login(t, alice)
+	a := newEnv(t).start(t).login(t, prototest.Alice)
 	_, err := a.Request(protocol.TypeGameSnapshot, protocol.GameSnapshotRequest{GameID: "nope"})
 	prototest.WantCode(t, err, protocol.CodeNotFound)
 	_, err = a.Request(protocol.TypeGameAct, protocol.GameActRequest{GameID: "nope"})
@@ -385,14 +382,14 @@ func TestWrongPasswordAndLockout(t *testing.T) {
 	}
 
 	unknownUser := prototest.WantCode(t, attempt("mallory", testPassword), protocol.CodeAuthFailed)
-	wrongPassword := prototest.WantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
+	wrongPassword := prototest.WantCode(t, attempt(prototest.Alice, "wrong"), protocol.CodeAuthFailed)
 	if unknownUser != wrongPassword {
 		t.Fatalf("unknown user says %q, wrong password says %q", unknownUser, wrongPassword)
 	}
 	for range limits.Default().LockoutFailures - 2 {
-		prototest.WantCode(t, attempt(alice, "wrong"), protocol.CodeAuthFailed)
+		prototest.WantCode(t, attempt(prototest.Alice, "wrong"), protocol.CodeAuthFailed)
 	}
-	locked := prototest.WantCode(t, attempt(alice, testPassword), protocol.CodeAuthFailed)
+	locked := prototest.WantCode(t, attempt(prototest.Alice, testPassword), protocol.CodeAuthFailed)
 	if !strings.Contains(locked, lockedOutText) {
 		t.Fatalf("correct password while locked says %q, want %q", locked, lockedOutText)
 	}
@@ -401,7 +398,7 @@ func TestWrongPasswordAndLockout(t *testing.T) {
 func TestStaleSeq(t *testing.T) {
 	t.Parallel()
 	srv := newEnv(t).start(t)
-	a, b := srv.login(t, alice), srv.login(t, bob)
+	a, b := srv.login(t, prototest.Alice), srv.login(t, prototest.Bob)
 	id := startGame(t, a, b, chessOptions{Color: chess.ColorWhite})
 	move(t, a, id, 0, "e4")
 
@@ -415,7 +412,7 @@ func TestStaleSeq(t *testing.T) {
 
 func TestFreshUserListsEncodeEmptyArrays(t *testing.T) {
 	t.Parallel()
-	a := newEnv(t).start(t).login(t, alice)
+	a := newEnv(t).start(t).login(t, prototest.Alice)
 	for _, tc := range []struct {
 		typ  protocol.MessageType
 		body any
