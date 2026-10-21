@@ -1,16 +1,12 @@
 package uno
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
-
-func users(n int) []game.UserID {
-	return []game.UserID{"alice", "bob", "carol", "dave", "erin", "frank"}[:n]
-}
 
 func seat(n int) game.Seat { return game.NumberedSeat(n - 1) }
 
@@ -36,7 +32,7 @@ func hand(t testing.TB, text string) []Card {
 // the discard pile and in play by its own colour, and pile the draw pile, top first.
 func table(t testing.TB, top, pile string, hands ...string) state {
 	t.Helper()
-	order, _ := game.NumberSeats(users(len(hands)))
+	order, _ := game.NumberSeats(gametest.Users(len(hands)))
 	s := state{
 		order:   order,
 		hands:   make([][]Card, len(hands)),
@@ -60,38 +56,13 @@ func kind(k game.ActionKind) Action { return Action{Kind: k} }
 
 func apply(t testing.TB, s state, by game.Seat, a Action) (state, []game.Event) {
 	t.Helper()
-	next, events, err := s.Apply(by, a, nil)
-	if err != nil {
-		t.Fatalf("%s %+v: %v", by, a, err)
-	}
-	return next.(state), events
-}
-
-func encoded(t testing.TB, v any) string {
-	t.Helper()
-	raw, err := json.Marshal(v)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(raw)
-}
-
-func encodedEvents(t testing.TB, events []game.Event) []string {
-	t.Helper()
-	out := make([]string, len(events))
-	for i, e := range events {
-		raw, err := game.EncodeEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		out[i] = string(raw)
-	}
-	return out
+	return gametest.MustApply(t, s, by, a, nil)
 }
 
 func newGame(t testing.TB, n int, seed game.Seed) state {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{}, users(n)[0], users(n)[1:], game.StepRNG(seed, 0))
+	users := gametest.Users(n)
+	st, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(seed, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +101,7 @@ func choose(v View) Action {
 
 func mostHeld(h []Card) Color {
 	best, most := Red, -1
-	for _, color := range colors() {
+	for _, color := range colors {
 		n := 0
 		for _, c := range h {
 			if c.Color == color {

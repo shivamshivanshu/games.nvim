@@ -7,6 +7,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (
@@ -38,8 +39,7 @@ type state struct {
 	out      []bool
 	subseed  uint64
 	shuffles int
-	result   game.Result
-	finished bool
+	game.Ending
 }
 
 // opened is the state New hands over, with the events of the deal.
@@ -196,12 +196,6 @@ func (s state) draw(by game.Seat, i, n int) stepped {
 
 // Apply plays the move of the seat to act.
 func (s state) Apply(seat game.Seat, a Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if s.finished {
-		return nil, nil, game.IllegalActionError{Msg: "game is over"}
-	}
-	if !slices.Contains(s.ToAct(), seat) {
-		return nil, nil, game.ErrNotYourTurn
-	}
 	if !slices.Contains(s.phaseKinds(), a.Kind) {
 		return nil, nil, game.IllegalActionError{Msg: s.phaseHint(a.Kind)}
 	}
@@ -253,11 +247,11 @@ func (s state) applyPlay(seat game.Seat, text string) (stepped, error) {
 	at := slices.Index(hand, p.card)
 	switch {
 	case at < 0:
-		return stepped{}, game.IllegalActionError{Msg: fmt.Sprintf("you hold no %s", p.card)}
+		return stepped{}, game.Illegalf("you hold no %s", p.card)
 	case s.phase == PhaseDrawn && p.card != s.drawn:
-		return stepped{}, game.IllegalActionError{Msg: fmt.Sprintf("after drawing you may play only the card you drew, %s", s.drawn)}
+		return stepped{}, game.Illegalf("after drawing you may play only the card you drew, %s", s.drawn)
 	case !s.matches(p.card):
-		return stepped{}, game.IllegalActionError{Msg: fmt.Sprintf("%s does not match the %s colour or the %s on the pile", p.card, s.color, s.top())}
+		return stepped{}, game.Illegalf("%s does not match the %s colour or the %s on the pile", p.card, s.color, s.top())
 	}
 	s.hands = slices.Clone(s.hands)
 	s.hands[s.turn] = slices.Delete(slices.Clone(hand), at, at+1)
@@ -270,8 +264,7 @@ func (s state) applyPlay(seat game.Seat, text string) (stepped, error) {
 	s.phase = PhasePlay
 	played := stepped{s, []game.Event{PlayedEvent{By: seat, Card: p.card, Color: s.color}}}
 	if len(s.hands[s.turn]) == 0 {
-		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat}, Reason: ReasonWentOut}
-		s.finished = true
+		s.Ending = s.Concluded(game.WinFor(ReasonWentOut, seat))
 		return stepped{s, played.events}, nil
 	}
 	if p.card.Face == WildDrawFour {
@@ -351,7 +344,7 @@ func (s state) playable() []Card {
 			return []Card{s.drawn}
 		}
 	case PhasePlay:
-		matching := slices.DeleteFunc(append([]Card{}, s.hands[s.turn]...), func(c Card) bool { return !s.matches(c) })
+		matching := slices.DeleteFunc(xslices.Clone(s.hands[s.turn]), func(c Card) bool { return !s.matches(c) })
 		slices.SortFunc(matching, cardOrder)
 		return slices.Compact(matching)
 	}
@@ -360,20 +353,15 @@ func (s state) playable() []Card {
 
 // ToAct is the one seat to act, or none once the game is over.
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return []game.Seat{}
 	}
 	return []game.Seat{s.order[s.turn]}
 }
 
-// Outcome is the result once a seat has gone out.
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 // Conclude takes a result the core imposed, such as an abort, so that no seat is left to act.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if !s.finished {
-		s.result, s.finished = result, true
-	}
+	s.Ending = s.Concluded(result)
 	return s
 }
 
@@ -382,7 +370,7 @@ func (s state) Conclude(result game.Result) game.State[Action, View] {
 // seat was to act the turn passes on.
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	i := slices.Index(s.order, seat)
-	if s.finished || i < 0 || s.out[i] {
+	if s.Over() || i < 0 || s.out[i] {
 		return s, nil
 	}
 	s.out = slices.Clone(s.out)
@@ -392,8 +380,7 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 	events := []game.Event{LeftEvent{By: seat}}
 	if s.activeCount() == 1 {
 		winner := s.order[slices.Index(s.out, false)]
-		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{winner}, Reason: reason}
-		s.finished = true
+		s.Ending = s.Concluded(game.WinFor(reason, winner))
 		return s, events
 	}
 	if s.phase == PhaseChallenge && s.offender == i {
@@ -430,7 +417,7 @@ func (s state) View(seat game.Seat) View {
 	}
 	v.MyHand = append(v.MyHand, s.hands[i]...)
 	slices.SortFunc(v.MyHand, cardOrder)
-	if !s.finished && i == s.turn {
+	if !s.Over() && i == s.turn {
 		v.Legal, v.Playable = s.legal(), s.playable()
 	}
 	return v

@@ -1,7 +1,6 @@
 package uno
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
@@ -10,37 +9,32 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const maxGameSteps = 5000
 
-// playToFinish plays choose for every seat with the rng each step gets in the
-// server, and returns the steps and every state from the first to the final one.
+var playerRange = Rules{}.Info().Players
+
+// playToFinish plays choose for every seat of n from seed, and returns the
+// steps and every state from the first to the final one.
 func playToFinish(t *testing.T, n int, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
-	var st game.State[Action, View] = newGame(t, n, seed)
-	states := []state{st.(state)}
-	var steps []gametest.Step[Action]
-	for seq := game.Seq(1); len(st.ToAct()) > 0; seq++ {
-		if seq > maxGameSteps {
-			t.Fatalf("%d players: no finish within %d steps", n, maxGameSteps)
-		}
-		by := st.ToAct()[0]
-		action := choose(st.View(by))
-		var err error
-		if st, _, err = st.Apply(by, action, game.StepRNG(seed, seq)); err != nil {
-			t.Fatalf("seq %d %s %+v: %v", seq, by, action, err)
-		}
-		steps = append(steps, gametest.Step[Action]{Seat: by, Action: action})
-		states = append(states, st.(state))
+	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, gametest.Users(n), seed, func(v View, _ game.Seat) Action { return choose(v) }, maxGameSteps)
+	states := []state{newGame(t, n, seed)}
+	for i, step := range steps {
+		next, _ := gametest.MustApply(t, states[i], step.Seat, step.Action, game.StepRNG(seed, game.Seq(i+1)))
+		states = append(states, next)
 	}
 	return steps, states
 }
 
 func TestConformance(t *testing.T) {
 	var scripts []gametest.Script[Opts, Action]
-	for n := minPlayers; n <= maxPlayers; n++ {
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
+		users := gametest.Users(n)
 		for _, seed := range []game.Seed{3, 8} {
 			steps, states := playToFinish(t, n, seed)
 			first := states[0]
@@ -53,8 +47,8 @@ func TestConformance(t *testing.T) {
 			result, _ := states[len(states)-1].Outcome()
 			scripts = append(scripts, gametest.Script[Opts, Action]{
 				Name:       fmt.Sprintf("%d players seed %d", n, seed),
-				Challenger: users(n)[0],
-				Invitees:   users(n)[1:],
+				Challenger: users[0],
+				Invitees:   users[1:],
 				Seed:       seed,
 				Steps:      append(illegal, steps...),
 				WantResult: &game.Result{Kind: game.ResultDecisive, Winners: result.Winners, Reason: ReasonWentOut},
@@ -69,7 +63,7 @@ func TestConformance(t *testing.T) {
 // which the conformance and secrecy tests play, exercising those turns.
 func TestTheBotGamesReachTheTurnsThatHideOrRevealCards(t *testing.T) {
 	seen := map[string]bool{}
-	for n := minPlayers; n <= maxPlayers; n++ {
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
 		for _, seed := range []game.Seed{3, 8} {
 			_, states := playToFinish(t, n, seed)
 			for k := 1; k < len(states); k++ {
@@ -120,7 +114,7 @@ func offers(t *testing.T, v View, a Action) bool {
 // may make a move exactly when Legal lists its kind and, for a play, Playable
 // lists its card; every other seat is offered nothing.
 func TestViewLegalityIsWhatApplyAccepts(t *testing.T) {
-	for n := minPlayers; n <= maxPlayers; n++ {
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
 		_, states := playToFinish(t, n, 5)
 		for k, s := range states[:len(states)-1] {
 			toAct := s.ToAct()[0]
@@ -140,23 +134,116 @@ func TestViewLegalityIsWhatApplyAccepts(t *testing.T) {
 	}
 }
 
-// perturbed is s with one card of owner's hand swapped for the bottom card
-// of the draw pile, which no step draws while the pile holds more than a
-// step can take; false when the two cards are alike.
+// sameCards is whether a and b hold the same cards, in any order.
+func sameCards(a, b []Card) bool {
+	a, b = slices.Clone(a), slices.Clone(b)
+	slices.SortFunc(a, cardOrder)
+	slices.SortFunc(b, cardOrder)
+	return slices.Equal(a, b)
+}
+
+// perturbed is s with owner's whole hand swapped for as many cards from the
+// bottom of the draw pile, which no step draws while the pile holds more
+// than a step can take above them; false when they are the same cards.
 func perturbed(s state, owner int) (state, bool) {
-	if len(s.pile) <= failedChallenge || len(s.hands[owner]) == 0 {
-		return s, false
-	}
-	bottom := s.pile[len(s.pile)-1]
-	at := slices.IndexFunc(s.hands[owner], func(c Card) bool { return c != bottom })
-	if at < 0 {
+	hand := s.hands[owner]
+	below := len(s.pile) - len(hand)
+	if len(hand) == 0 || below < failedChallenge || sameCards(hand, s.pile[below:]) {
 		return s, false
 	}
 	s.hands = slices.Clone(s.hands)
-	s.hands[owner] = slices.Clone(s.hands[owner])
-	s.pile = slices.Clone(s.pile)
-	s.hands[owner][at], s.pile[len(s.pile)-1] = bottom, s.hands[owner][at]
+	s.hands[owner] = slices.Clone(s.pile[below:])
+	s.pile = append(slices.Clone(s.pile[:below]), hand...)
 	return s, true
+}
+
+// redealt is the game New would deal from o's deck with owner's dealt cards
+// traded for others, and the deal's events, with the seats dealt either. The
+// others are the deck's bottom cards, unless a Wild Draw Four turned up made
+// the deal reshuffle the rest of the deck, which must then stay as it was:
+// the next seat's dealt cards. False when the two hold the same cards.
+func redealt(o opened, owner int) (opened, []game.Seat, bool) {
+	s := o.state
+	n := len(s.order)
+	dealer := slices.Index(s.order, o.deal[0].(StartedEvent).Dealer)
+	dealtTo := func(i int) []int {
+		var at []int
+		for k := range handSize * n {
+			if (dealer+1+k)%n == i {
+				at = append(at, k)
+			}
+		}
+		return at
+	}
+	deck := cards.Shuffled(orderedDeck(), s.subseed, 0)
+	mine := dealtTo(owner)
+	others := make([]int, handSize)
+	for k := range others {
+		others[k] = len(deck) - handSize + k
+	}
+	seen := []game.Seat{s.order[owner]}
+	if s.shuffles > 0 {
+		next := (owner + 1) % n
+		others, seen = dealtTo(next), append(seen, s.order[next])
+	}
+	pick := func(at []int) []Card { return xslices.Map(at, func(k int) Card { return deck[k] }) }
+	if sameCards(pick(mine), pick(others)) {
+		return o, nil, false
+	}
+	for k := range mine {
+		deck[mine[k]], deck[others[k]] = deck[others[k]], deck[mine[k]]
+	}
+	changed, events := dealFrom(s.order, dealer, s.subseed, deck)
+	return opened{state: changed, deal: events}, seen, true
+}
+
+// otherHand changes owner's hidden hand, and returns the seats that may see it.
+func otherHand(st game.State[Action, View], owner game.Seat) (game.State[Action, View], []game.Seat) {
+	if o, fresh := st.(opened); fresh {
+		changed, seen, ok := redealt(o, slices.Index(o.order, owner))
+		if !ok {
+			return st, nil
+		}
+		return changed, seen
+	}
+	s := st.(state)
+	changed, ok := perturbed(s, slices.Index(s.order, owner))
+	if !ok {
+		return st, nil
+	}
+	return changed, []game.Seat{owner}
+}
+
+// challengeTellsEverySeat is a challenge of the Wild Draw Four an owner
+// played: its hand decides the verdict, which every seat is told, and who
+// draws the four or six cards.
+func challengeTellsEverySeat(st game.State[Action, View], step gametest.Step[Action], owners []game.Seat) []game.Seat {
+	s, ok := st.(state)
+	if !ok || step.Action.Kind != ActionChallenge || !slices.Contains(owners, s.order[s.offender]) {
+		return nil
+	}
+	return s.order
+}
+
+// TestAHandReachesNoOtherSeat changes one seat's hidden hand and requires
+// what every other seat is sent to stay byte for byte the same. The one
+// thing a hand may change is the verdict of a challenge against it. Three
+// players from seed 1 reach a challenge whose verdict a changed hand flips.
+func TestAHandReachesNoOtherSeat(t *testing.T) {
+	type table struct {
+		players int
+		seed    game.Seed
+	}
+	tables := []table{{3, 1}, {4, 134}}
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
+		tables = append(tables, table{n, game.Seed(20 + n)})
+	}
+	for _, tt := range tables {
+		steps, _ := playToFinish(t, tt.players, tt.seed)
+		users := gametest.Users(tt.players)
+		script := gametest.Script[Opts, Action]{Challenger: users[0], Invitees: users[1:], Seed: tt.seed, Steps: steps}
+		gametest.NonInterference(t, Rules{}, script, gametest.Hidden[Action, View]{Perturb: otherHand, Probes: probes, Reveals: challengeTellsEverySeat})
+	}
 }
 
 func viewsBut(t *testing.T, s state, except ...int) []string {
@@ -164,49 +251,10 @@ func viewsBut(t *testing.T, s state, except ...int) []string {
 	out := []string{}
 	for i, at := range s.order {
 		if !slices.Contains(except, i) {
-			out = append(out, encoded(t, s.View(at)))
+			out = append(out, gametest.ViewJSON(t, s.View(at)))
 		}
 	}
 	return out
-}
-
-// TestAHandReachesNoOtherSeat changes one seat's hidden hand and requires
-// what every other seat is sent to stay byte for byte the same: its view
-// now, the next step's events and errors, and its view after that step. The
-// one thing a hand may change is the verdict of a challenge against it.
-func TestAHandReachesNoOtherSeat(t *testing.T) {
-	checked := 0
-	for n := minPlayers; n <= maxPlayers; n++ {
-		steps, states := playToFinish(t, n, game.Seed(20+n))
-		for k, s := range states[:len(states)-1] {
-			step := steps[k]
-			actor := slices.Index(s.order, step.Seat)
-			for owner := range s.order {
-				changed, ok := perturbed(s, owner)
-				if !ok {
-					continue
-				}
-				if diff := cmp.Diff(viewsBut(t, s, owner), viewsBut(t, changed, owner)); diff != "" {
-					t.Fatalf("%d players step %d: views depend on %s's hand:\n%s", n, k, s.order[owner], diff)
-				}
-				checked++
-				if owner == actor || (step.Action.Kind == ActionChallenge && s.offender == owner) {
-					continue
-				}
-				for _, probe := range probes(s.View(step.Seat)) {
-					_, _, err := s.Apply(step.Seat, probe, nil)
-					_, _, changedErr := changed.Apply(step.Seat, probe, nil)
-					if fmt.Sprint(err) != fmt.Sprint(changedErr) {
-						t.Fatalf("%d players step %d %+v: the error depends on %s's hand: %v / %v", n, k, probe, s.order[owner], err, changedErr)
-					}
-				}
-				requireSameStep(t, s, changed, step, []int{owner}, fmt.Sprintf("%d players step %d: %s's hand", n, k, s.order[owner]))
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no hand was checked")
-	}
 }
 
 // TestADrawnCardReachesOnlyItsDrawer turns the draw pile upside down, so a
@@ -214,7 +262,7 @@ func TestAHandReachesNoOtherSeat(t *testing.T) {
 // nothing in it, to change.
 func TestADrawnCardReachesOnlyItsDrawer(t *testing.T) {
 	checked := 0
-	for n := minPlayers; n <= maxPlayers; n++ {
+	for n := playerRange.Min; n <= playerRange.Max; n++ {
 		steps, states := playToFinish(t, n, game.Seed(40+n))
 		for k, s := range states[:len(states)-1] {
 			changed := s
@@ -245,93 +293,10 @@ func requireSameStep(t *testing.T, s, changed state, step gametest.Step[Action],
 	t.Helper()
 	next, events, _ := s.Apply(step.Seat, step.Action, nil)
 	changedNext, changedEvents, _ := changed.Apply(step.Seat, step.Action, nil)
-	if diff := cmp.Diff(encodedEvents(t, events), encodedEvents(t, changedEvents)); diff != "" {
+	if diff := cmp.Diff(events, changedEvents); diff != "" {
 		t.Fatalf("%s: events depend on it:\n%s", what, diff)
 	}
 	if diff := cmp.Diff(viewsBut(t, next.(state), except...), viewsBut(t, changedNext.(state), except...)); diff != "" {
 		t.Fatalf("%s: views after the step depend on it:\n%s", what, diff)
 	}
-}
-
-type persistedStep struct {
-	seat   game.Seat
-	action json.RawMessage
-}
-
-func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
-	const (
-		seed      game.Seed = 11
-		restoreAt game.Seq  = 25
-		players             = 4
-	)
-	g := game.Adapt(Rules{})
-	opts, err := g.ResolveOptions(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	start := func() game.ErasedState {
-		st, _, err := g.New(opts, users(players)[0], users(players)[1:], game.StepRNG(seed, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return st
-	}
-	apply := func(st game.ErasedState, step persistedStep, seq game.Seq) (game.ErasedState, []json.RawMessage) {
-		next, events, err := st.Apply(step.seat, step.action, game.StepRNG(seed, seq))
-		if err != nil {
-			t.Fatalf("seq %d: %v", seq, err)
-		}
-		return next, events
-	}
-	next := func(st game.ErasedState) persistedStep {
-		by := st.ToAct()[0]
-		raw, err := st.View(by)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var view View
-		if err := json.Unmarshal(raw, &view); err != nil {
-			t.Fatal(err)
-		}
-		action, err := json.Marshal(choose(view))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return persistedStep{seat: by, action: action}
-	}
-
-	live := start()
-	var persisted []persistedStep
-	for seq := game.Seq(1); seq <= restoreAt; seq++ {
-		step := next(live)
-		live, _ = apply(live, step, seq)
-		persisted = append(persisted, step)
-	}
-	if _, finished := live.Outcome(); finished {
-		t.Fatalf("game finished before the restore point %d", restoreAt)
-	}
-	restored := start()
-	for i, step := range persisted {
-		restored, _ = apply(restored, step, game.Seq(i)+1)
-	}
-	for seq := restoreAt + 1; seq <= maxGameSteps; seq++ {
-		for i := range players {
-			liveView, _ := live.View(seat(i + 1))
-			restoredView, _ := restored.View(seat(i + 1))
-			if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
-				t.Fatalf("seq %d: %s's restored view differs (-live +restored):\n%s", seq, seat(i+1), diff)
-			}
-		}
-		if len(live.ToAct()) == 0 {
-			return
-		}
-		step := next(live)
-		var liveEvents, restoredEvents []json.RawMessage
-		live, liveEvents = apply(live, step, seq)
-		restored, restoredEvents = apply(restored, step, seq)
-		if diff := cmp.Diff(liveEvents, restoredEvents); diff != "" {
-			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
-		}
-	}
-	t.Fatalf("no finish within %d steps", maxGameSteps)
 }

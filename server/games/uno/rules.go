@@ -3,7 +3,6 @@
 package uno
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -11,17 +10,6 @@ import (
 
 // Rules implements game.Rules for Uno.
 type Rules struct{}
-
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event {
-	return []game.Event{
-		StartedEvent{}, PlayedEvent{}, DrewEvent{}, PassedEvent{}, SkippedEvent{},
-		ReversedEvent{}, ColorEvent{}, ChallengedEvent{}, ReshuffledEvent{}, LeftEvent{},
-	}
-}
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonWentOut} }
 
 // Info describes Uno: two to six players, no options and no clock.
 func (Rules) Info() game.Info {
@@ -50,17 +38,18 @@ func (Rules) Info() game.Info {
 				Input:       &game.ActionInput{Field: colorField, Description: "R, Y, G or B.", Values: colorNames()},
 			},
 		},
+		Events: []game.Event{
+			StartedEvent{}, PlayedEvent{}, DrewEvent{}, PassedEvent{}, SkippedEvent{},
+			ReversedEvent{}, ColorEvent{}, ChallengedEvent{}, ReshuffledEvent{}, LeftEvent{},
+		},
+		Reasons: []game.ResultReason{ReasonWentOut},
 	}
 }
 
 // New seats the challenger as p1 and the invitees clockwise after, draws the
 // dealer and the sub-seed the deck is shuffled from, and deals.
 func (Rules) New(_ Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	users := append([]game.UserID{challenger}, invitees...)
-	if len(users) < minPlayers || len(users) > maxPlayers {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("uno takes %d to %d players, got %d", minPlayers, maxPlayers, len(users))}
-	}
-	order, seats := game.NumberSeats(users)
+	order, seats := game.NumberSeats(game.Participants(challenger, invitees))
 	subseed := rng.Uint64()
 	s, events := deal(order, rng.IntN(len(order)), subseed)
 	return opened{state: s, deal: events}, seats, nil

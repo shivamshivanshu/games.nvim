@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 func TestTheDeckIsTheOfficial108Cards(t *testing.T) {
@@ -28,14 +29,22 @@ func TestTheDeckIsTheOfficial108Cards(t *testing.T) {
 	}
 }
 
-func TestNewDealsSevenEachAndTurnsUpACardThatIsNoWildDrawFour(t *testing.T) {
-	for n := 1; n <= maxPlayers+1; n++ {
-		all := append(users(min(n, maxPlayers)), "grace")[:n]
-		_, _, err := Rules{}.New(Opts{}, all[0], all[1:], game.StepRNG(1, 0))
-		if ok := n >= minPlayers && n <= maxPlayers; ok != (err == nil) {
-			t.Fatalf("%d players: err %v", n, err)
+func TestACardDecodesFromItsWireFormAlone(t *testing.T) {
+	for _, c := range orderedDeck() {
+		var got Card
+		if err := got.UnmarshalText([]byte(c.String())); err != nil || got != c {
+			t.Errorf("%s decodes as %+v, %v", c, got, err)
 		}
 	}
+	for _, text := range []string{"", "R", "r5", "RW", "RW+4", "W+2", "X5", "R10", "R5 "} {
+		var got Card
+		if err := got.UnmarshalText([]byte(text)); err == nil {
+			t.Errorf("%q decodes as %+v, want no card", text, got)
+		}
+	}
+}
+
+func TestNewDealsSevenEachAndTurnsUpACardThatIsNoWildDrawFour(t *testing.T) {
 	for seed := range game.Seed(40) {
 		s := newGame(t, 4, seed)
 		dealt := 4 * handSize
@@ -90,7 +99,7 @@ func TestTheCardTurnedUpActsAsIfTheDealerPlayedIt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hands := slices.Repeat([]string{seven}, tt.players)
-			order, _ := game.NumberSeats(users(tt.players))
+			order, _ := game.NumberSeats(gametest.Users(tt.players))
 			s, events := dealFrom(order, 0, 1, deckFor(t, tt.top, hands...))
 			if got := s.ToAct(); !slices.Equal(got, []game.Seat{tt.toAct}) || s.phase != tt.phase || s.direction() != tt.dir {
 				t.Errorf("to act %v phase %s %s, want %s %s %s", got, s.phase, s.direction(), tt.toAct, tt.phase, tt.dir)
@@ -112,7 +121,7 @@ func TestTheCardTurnedUpActsAsIfTheDealerPlayedIt(t *testing.T) {
 }
 
 func TestAWildDrawFourTurnedUpGoesBackForAnotherCard(t *testing.T) {
-	order, _ := game.NumberSeats(users(2))
+	order, _ := game.NumberSeats(gametest.Users(2))
 	deck := deckFor(t, "W+4", "R1 R2 R3 R4 R5 R6 R7", "G1 G2 G3 G4 G5 G6 G7")
 	s, _ := dealFrom(order, 0, 1, deck)
 	if s.top().Face == WildDrawFour || len(s.pile)+len(s.discard) != 4 || s.shuffles == 0 {
@@ -128,7 +137,6 @@ func TestPlayRejects(t *testing.T) {
 		a    Action
 		want string
 	}{
-		{"out of turn", seat(2), playing("y1"), game.ErrNotYourTurn.Error()},
 		{"a card not held", seat(1), playing("r9"), "you hold no R9"},
 		{"a card that matches neither colour nor face", seat(1), playing("b9"), "B9 does not match the R colour or the R5 on the pile"},
 		{"another colour's action card", seat(1), playing("g+2"), "G+2 does not match the R colour or the R5 on the pile"},
@@ -146,8 +154,7 @@ func TestPlayRejects(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("err %v, want %q", err, tt.want)
 			}
-			var illegal game.IllegalActionError
-			if tt.by == seat(1) && !errors.As(err, &illegal) {
+			if _, ok := errors.AsType[game.IllegalActionError](err); !ok {
 				t.Errorf("err %T, want an IllegalActionError", err)
 			}
 		})
@@ -376,7 +383,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 	s := table(t, "R5", "G1 G2 G3", "R7 R+2 W+4 RS", "Y1 Y2", "Y3")
 	before := map[game.Seat]string{}
 	for _, at := range s.order {
-		before[at] = encoded(t, s.View(at))
+		before[at] = gametest.ViewJSON(t, s.View(at))
 	}
 	for _, a := range []Action{playing("r7"), playing("r+2"), playing("w+4 b"), playing("rs"), kind(ActionDraw)} {
 		next, _ := apply(t, s, seat(1), a)
@@ -384,7 +391,7 @@ func TestApplyLeavesTheEarlierStateUnchanged(t *testing.T) {
 			next, _ = apply(t, next, seat(2), kind(ActionChallenge))
 		}
 		for _, at := range s.order {
-			if got := encoded(t, s.View(at)); got != before[at] {
+			if got := gametest.ViewJSON(t, s.View(at)); got != before[at] {
 				t.Errorf("%+v changed %s's earlier view:\n%s\n%s", a, at, before[at], got)
 			}
 		}
@@ -396,13 +403,13 @@ func TestWireShape(t *testing.T) {
 	want := `{"top":"R5","color":"R","direction":"clockwise","phase":"play","draw_pile":2,` +
 		`"seats":[{"seat":"p1","cards":3,"out":false},{"seat":"p2","cards":1,"out":false}],` +
 		`"my_hand":["R7","B1","W+4"],"legal":["play","draw"],"playable":["R7","W+4"]}`
-	if got := encoded(t, s.View(seat(1))); got != want {
+	if got := gametest.ViewJSON(t, s.View(seat(1))); got != want {
 		t.Errorf("view\n got %s\nwant %s", got, want)
 	}
 	waiting := `{"top":"R5","color":"R","direction":"clockwise","phase":"play","draw_pile":2,` +
 		`"seats":[{"seat":"p1","cards":3,"out":false},{"seat":"p2","cards":1,"out":false}],` +
 		`"my_hand":["Y1"],"legal":[],"playable":[]}`
-	if got := encoded(t, s.View(seat(2))); got != waiting {
+	if got := gametest.ViewJSON(t, s.View(seat(2))); got != waiting {
 		t.Errorf("waiting view\n got %s\nwant %s", got, waiting)
 	}
 }
