@@ -31,8 +31,11 @@ local WORD_LENGTH = 5
 local CELL_WIDTH = 3
 local EMPTY_KEY = "empty"
 local KEYBOARD_ROWS = { "qwertyuiop", "asdfghjkl", "zxcvbnm" }
----Display columns the side panel reserves: the widest keyboard row and its indent.
-local PANEL_WIDTH = CELL_WIDTH * #KEYBOARD_ROWS[1] + #KEYBOARD_ROWS - 1
+---Display columns the side panel reserves: its widest keyboard row, indent included; row i is
+---indented i - 1 columns.
+local PANEL_WIDTH = vim.iter(ipairs(KEYBOARD_ROWS)):fold(0, function(widest, i, letters)
+  return math.max(widest, i - 1 + CELL_WIDTH * #letters)
+end)
 
 ---@type table<games.WordleMark, string>
 local MARK_HL = { hit = "GamesHit", present = "GamesPresent", miss = "GamesMiss" }
