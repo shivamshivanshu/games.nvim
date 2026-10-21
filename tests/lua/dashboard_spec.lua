@@ -88,7 +88,7 @@ function T.renders_each_section_with_its_items_as_the_golden()
   assert_eq({ "GamesMuted" }, helpers.hls_on_row(without_recent, 11))
   assert_eq(hub.INCOMING, view.targets[2].item)
   assert_eq(hub.YOUR_MOVE, view.targets[6].item)
-  assert_eq("Sudoku", view.starts[2].item.name)
+  assert_eq("Sudoku", dashboard.start_target(view, 2).item.name)
 end
 
 ---@param client games.Client

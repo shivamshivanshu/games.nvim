@@ -3,12 +3,34 @@ local paint = require("games.ui.paint")
 local text = require("games.ui.text")
 
 local CLOSE_KEYS = { "q", "<Esc>" }
+---Columns and lines kept free around a float, so its border shows.
+local EDGE_MARGIN = 2
 local NAMESPACE = vim.api.nvim_create_namespace("games.float")
 
 local M = {}
 
 ---@type integer|nil
 local open_win
+
+---The editor-centred config of a window showing lines, at least min_width wide, cut to the editor
+---less EDGE_MARGIN all round.
+---@param lines string[]
+---@param min_width? integer
+---@return vim.api.keyset.win_config
+function M.centred(lines, min_width)
+  local width = math.min(
+    math.max(text.max_display_width(lines), min_width or 0),
+    vim.o.columns - 2 * EDGE_MARGIN
+  )
+  local height = math.max(1, math.min(#lines, vim.o.lines - 2 * EDGE_MARGIN))
+  return {
+    relative = "editor",
+    width = width,
+    height = height,
+    row = math.floor((vim.o.lines - height) / 2),
+    col = math.floor((vim.o.columns - width) / 2),
+  }
+end
 
 ---Shows node in a centred, read-only float that q or <Esc> closes, replacing any previous one.
 ---@param title string
@@ -23,19 +45,16 @@ function M.open(title, node)
   paint(buf, NAMESPACE, 0, -1, rendered)
   vim.bo[buf].bufhidden = "wipe"
 
-  local width = math.max(text.max_display_width(rendered.lines), text.width(title))
-  local height = #rendered.lines
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor",
-    width = width,
-    height = height,
-    row = math.floor((vim.o.lines - height) / 2),
-    col = math.floor((vim.o.columns - width) / 2),
-    style = "minimal",
-    border = "rounded",
-    title = title,
-    title_pos = "center",
-  })
+  local win = vim.api.nvim_open_win(
+    buf,
+    true,
+    vim.tbl_extend("force", M.centred(rendered.lines, text.width(title)), {
+      style = "minimal",
+      border = "rounded",
+      title = title,
+      title_pos = "center",
+    })
+  )
   open_win = win
   for _, key in ipairs(CLOSE_KEYS) do
     vim.keymap.set("n", key, function()

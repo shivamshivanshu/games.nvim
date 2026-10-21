@@ -2,6 +2,7 @@ local Client = require("games.core.client")
 local compose = require("games.ui.compose")
 local describe = require("games.core.describe")
 local finder = require("games.ui.finder")
+local float = require("games.ui.float")
 local key_hints = require("games.ui.widgets.key_hints")
 local kv = require("games.ui.widgets.kv")
 local notify = require("games.core.notify")
@@ -22,8 +23,6 @@ local RECENT_GAMES = 5
 local START_KEYS = 9
 local ITEM_INDENT = 2
 local MIN_WIDTH = 40
----Columns and lines kept free around the float, so its border shows.
-local EDGE_MARGIN = 2
 local CLOCK_TICK_MS = 1000
 local TITLE = " games "
 local SECTION_HL = "GamesDashSection"
@@ -40,7 +39,6 @@ local AUGROUP_NAME = "games.dashboard"
 ---@class games.DashboardView
 ---@field rendered games.Rendered
 ---@field targets table<integer, games.DashboardTarget> by 1-based line
----@field starts games.DashboardTarget[] the game type each start key starts, by digit
 
 ---@class games.DashboardViewOptions
 ---@field show_keys boolean list every key instead of the footer's few
@@ -146,7 +144,7 @@ local UNLISTED_KEYS = { { "1-9", "start the New game of that number" }, { "<Esc>
 ---@param options games.DashboardViewOptions
 ---@return games.DashboardView
 function M.view(snapshot, options)
-  local nodes, targets, starts = {}, {}, {}
+  local nodes, targets = {}, {}
   if options.connection == ConnectionState.DISCONNECTED then
     vim.list_extend(nodes, { compose.text(RECONNECTING, EMPTY_HL), compose.text("") })
   end
@@ -162,9 +160,6 @@ function M.view(snapshot, options)
       nodes[#nodes + 1] = compose.pad(ITEM_INDENT, section.row(item, item_index))
       local target = { source = section.source, item = item }
       targets[#nodes] = target
-      if section.source.name == SourceName.TYPES and item_index <= START_KEYS then
-        starts[item_index] = target
-      end
     end
   end
   nodes[#nodes + 1] = compose.text("")
@@ -181,7 +176,7 @@ function M.view(snapshot, options)
       return spec.hint
     end, KEYS))
   end
-  return { rendered = compose.render(compose.col(nodes)), targets = targets, starts = starts }
+  return { rendered = compose.render(compose.col(nodes)), targets = targets }
 end
 
 ---@param state games.DashboardState
@@ -211,9 +206,11 @@ end
 ---@param view games.DashboardView
 ---@return integer|nil
 local function first_target_line(view)
-  local lines = vim.tbl_keys(view.targets)
-  table.sort(lines)
-  return lines[1]
+  local first
+  for line in pairs(view.targets) do
+    first = math.min(first or line, line)
+  end
+  return first
 end
 
 ---@param snapshot games.SourceSnapshot
@@ -225,18 +222,7 @@ end
 ---@param lines string[]
 ---@return vim.api.keyset.win_config
 local function centred(lines)
-  local width = math.min(
-    math.max(text.max_display_width(lines), MIN_WIDTH, #TITLE),
-    vim.o.columns - 2 * EDGE_MARGIN
-  )
-  local height = math.max(1, math.min(#lines, vim.o.lines - 2 * EDGE_MARGIN))
-  return {
-    relative = "editor",
-    width = width,
-    height = height,
-    row = math.floor((vim.o.lines - height) / 2),
-    col = math.floor((vim.o.columns - width) / 2),
-  }
+  return float.centred(lines, math.max(MIN_WIDTH, text.width(TITLE)))
 end
 
 ---@param state games.DashboardState
@@ -332,10 +318,23 @@ KEYS = {
   },
 }
 
+---The game type start key digit starts: the digit-th of the New game section.
+---@param view games.DashboardView
+---@param digit integer 1 to START_KEYS
+---@return games.DashboardTarget|nil
+function M.start_target(view, digit)
+  local type_lines = vim.tbl_filter(function(line)
+    return view.targets[line].source.name == SourceName.TYPES
+  end, vim.tbl_keys(view.targets))
+  table.sort(type_lines)
+  local line = type_lines[digit]
+  return line and view.targets[line]
+end
+
 ---@param state games.DashboardState
 ---@param digit integer
 local function start(state, digit)
-  local target = state.view and state.view.starts[digit]
+  local target = state.view and M.start_target(state.view, digit)
   if target then
     finder.confirm(target.source, target.item)
   end
