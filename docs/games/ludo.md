@@ -56,7 +56,7 @@ These are buffer-local, Normal-mode keys in the board buffer. The game keys foll
 - Bases sit in the corners and home columns lead to the centre.
 - Each square shows one glyph: a seat's token shape (blue `●`/`B`, yellow `■`/`Y`, red `▲`/`R`, green `◆`/`G`), with a count digit when several of that seat's tokens share it.
 - Several colours on one safe square show `※`/`x` and their total count. `9` stands for 9 or more.
-- The latest move's square is highlighted.
+- The latest move's square is highlighted until the next roll.
 - The side panel shows the last roll, the sixes in a row, the phase, and each of your tokens: `base`, `track n` (n steps from base), `lane n` (up the home column) or `home`. The ones you may move are marked `←`/`<`, a glyph from the asset pack.
 
 **Wire:** `{"kind":"roll"}` and `{"kind":"move","token":"1".."4"}`.
@@ -68,6 +68,7 @@ These are buffer-local, Normal-mode keys in the board buffer. The game keys foll
   - `locations`: where each token stands, as `{kind: "base"}`, `{kind: "track", square: 0..51}`, `{kind: "home_column", step: 1..5}` or `{kind: "home"}`;
   - `last_roll`;
   - `sixes_in_row`;
+  - `last`: the move the latest action made, as `{seat, token, to}` with `to` a location; `null` after a roll or once its seat is out;
   - `phase` (`roll`, `move` or `finished`);
   - the viewer's own `movable` and `can_roll`.
 - The events are `rolled`, `passed`, `forfeited`, `moved` (`token`, plus `from` and `to` as locations) and `captured` (`victim`, `token`). Each carries `by`.

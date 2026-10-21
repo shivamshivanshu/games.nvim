@@ -67,6 +67,27 @@
       ],
       "description": "ForfeitedEvent means a third six in a row ended the turn."
     },
+    "LastMove": {
+      "properties": {
+        "seat": {
+          "type": "string"
+        },
+        "token": {
+          "type": "integer"
+        },
+        "to": {
+          "$ref": "#/$defs/Location"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "seat",
+        "token",
+        "to"
+      ],
+      "description": "LastMove is the token the latest action moved, and where it went."
+    },
     "Location": {
       "properties": {
         "kind": {
@@ -210,6 +231,16 @@
         "sixes_in_row": {
           "type": "integer"
         },
+        "last": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LastMove"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "phase": {
           "type": "string"
         },
@@ -232,11 +263,12 @@
         "locations",
         "last_roll",
         "sixes_in_row",
+        "last",
         "phase",
         "movable",
         "can_roll"
       ],
-      "description": "View is the board as one seat sees it. Starts maps each seat to its start\nsquare on the track, and Safe lists the squares where no capture happens;\nMovable and CanRoll are the viewer's own, empty and false unless it is the\nviewer's turn."
+      "description": "View is the board as one seat sees it. Starts maps each seat to its start\nsquare on the track, and Safe lists the squares where no capture happens;\nLast is the move the latest action made, null after a roll or once its seat\nis out. Movable and CanRoll are the viewer's own, empty and false unless it\nis the viewer's turn."
     }
   },
   "title": "Ludo",

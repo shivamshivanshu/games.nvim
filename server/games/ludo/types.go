@@ -74,10 +74,18 @@ type Tokens [TokensPerSeat]Progress
 // Locations is where one seat's tokens are drawn, indexed by Token-1.
 type Locations [TokensPerSeat]Location
 
+// LastMove is the token the latest action moved, and where it went.
+type LastMove struct {
+	Seat  game.Seat `json:"seat"`
+	Token Token     `json:"token"`
+	To    Location  `json:"to"`
+}
+
 // View is the board as one seat sees it. Starts maps each seat to its start
 // square on the track, and Safe lists the squares where no capture happens;
-// Movable and CanRoll are the viewer's own, empty and false unless it is the
-// viewer's turn.
+// Last is the move the latest action made, null after a roll or once its seat
+// is out. Movable and CanRoll are the viewer's own, empty and false unless it
+// is the viewer's turn.
 type View struct {
 	Starts     map[game.Seat]Square    `json:"starts"`
 	Safe       []Square                `json:"safe"`
@@ -85,6 +93,7 @@ type View struct {
 	Locations  map[game.Seat]Locations `json:"locations"`
 	LastRoll   Roll                    `json:"last_roll"`
 	SixesInRow int                     `json:"sixes_in_row"`
+	Last       *LastMove               `json:"last" jsonschema:"nullable"`
 	Phase      Phase                   `json:"phase"`
 	Movable    []Token                 `json:"movable"`
 	CanRoll    bool                    `json:"can_roll"`

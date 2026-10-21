@@ -423,6 +423,37 @@ func TestEliminate(t *testing.T) {
 	}
 }
 
+func TestLastIsTheLatestActionsMove(t *testing.T) {
+	board := map[game.Seat]Tokens{SeatBlue: {0, out, out, out}, SeatYellow: inBase(), SeatRed: inBase()}
+	moved, _ := mustApply(t, position(SeatBlue, 4, board), moveToken(1), nil)
+	rolled, _ := mustApply(t, moved, Action{Kind: ActionRoll}, rngRolling(t, 3))
+	moverOut, _ := moved.Eliminate(SeatBlue, game.ReasonResign)
+	otherOut, _ := moved.Eliminate(SeatRed, game.ReasonResign)
+	wantMove := `{"seat":"blue","token":1,"to":{"kind":"track","square":4}}`
+	tests := []struct {
+		name  string
+		state game.State[Action, View]
+		want  string
+	}{
+		{"none before a move", position(SeatBlue, 4, board), "null"},
+		{"a move", moved, wantMove},
+		{"cleared by a roll", rolled, "null"},
+		{"cleared when its seat is out", moverOut, "null"},
+		{"kept when another seat is out", otherOut, wantMove},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := json.Marshal(tc.state.View(SeatYellow).Last)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tc.want {
+				t.Errorf("last %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
 func snapshot(s state) state {
 	s.order = slices.Clone(s.order)
 	s.tokens = maps.Clone(s.tokens)

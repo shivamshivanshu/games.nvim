@@ -16,6 +16,11 @@ local theme = require("games.ui.theme")
 ---@field square? games.LudoSquare on the track
 ---@field step? integer 1-5 up the seat's home column
 
+---@class games.LudoLastMove
+---@field seat games.LudoSeat
+---@field token integer
+---@field to games.LudoLocation
+
 ---@class games.LudoView
 ---@field starts table<games.LudoSeat, games.LudoSquare> each seat in play's start square
 ---@field safe games.LudoSquare[] squares where no capture happens
@@ -23,6 +28,7 @@ local theme = require("games.ui.theme")
 ---@field locations table<games.LudoSeat, games.LudoLocation[]> where each seat in play's 4 tokens stand
 ---@field last_roll integer 0 before the first roll
 ---@field sixes_in_row integer
+---@field last? games.LudoLastMove the move the latest action made; nil after a roll
 ---@field phase games.LudoPhase
 ---@field movable integer[] the viewer's own tokens it may move now
 ---@field can_roll boolean whether the viewer may roll now
@@ -289,19 +295,15 @@ local function cells(update)
   end
 end
 
----@param update games.LudoUpdate
+---@param view games.LudoView
 ---@return games.GridMark[] the square the latest token move landed on
-local function marks_for(update)
-  for i = #update.events, 1, -1 do
-    local event = update.events[i]
-    local start = update.view.starts[event.by]
-    if event.kind == "moved" and start then
-      ---@cast event games.LudoMovedEvent
-      local cell = cell_of(arm_at(start), event.token, event.to)
-      return { grid.mark(cell[1], cell[2], LAST_MOVE_HL) }
-    end
+local function marks_for(view)
+  local last = view.last
+  if not last then
+    return {}
   end
-  return {}
+  local cell = cell_of(arm_at(view.starts[last.seat]), last.token, last.to)
+  return { grid.mark(cell[1], cell[2], LAST_MOVE_HL) }
 end
 
 ---@param location games.LudoLocation
@@ -370,7 +372,7 @@ function M.layout(update, ctx)
       cols = SIZE,
       cell_width = M.glyph_width,
       cell = cells(update),
-      marks = marks_for(update),
+      marks = marks_for(update.view),
     },
     panels = {
       {

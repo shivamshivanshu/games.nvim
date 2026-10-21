@@ -22,6 +22,7 @@ type state struct {
 	phase    Phase
 	lastRoll Roll
 	sixes    int
+	last     *LastMove
 	game.Ending
 }
 
@@ -52,6 +53,7 @@ func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event
 	roll := rollDie(rng)
 	next := s
 	next.lastRoll = roll
+	next.last = nil
 	next.sixes = 0
 	if roll == bonusRoll {
 		next.sixes = s.sixes + 1
@@ -90,7 +92,9 @@ func (s state) applyMove(text string) (game.State[Action, View], []game.Event, e
 	to, _ := advance(from, s.lastRoll)
 	next := s
 	next.tokens = maps.Clone(s.tokens)
-	events := []game.Event{MovedEvent{By: s.turn, Token: token, From: locationOf(s.turn, from), To: locationOf(s.turn, to)}}
+	moved := MovedEvent{By: s.turn, Token: token, From: locationOf(s.turn, from), To: locationOf(s.turn, to)}
+	next.last = &LastMove{Seat: moved.By, Token: moved.Token, To: moved.To}
+	events := []game.Event{moved}
 	if victim, victimToken, ok := s.captureAt(to); ok {
 		next.tokens[victim] = withProgress(next.tokens[victim], victimToken, ProgressBase)
 		events = append(events, CapturedEvent{By: s.turn, Victim: victim, Token: victimToken})
@@ -205,6 +209,7 @@ func (s state) View(viewer game.Seat) View {
 		Locations:  locations,
 		LastRoll:   s.lastRoll,
 		SixesInRow: s.sixes,
+		Last:       s.last,
 		Phase:      s.phase,
 		Movable:    movable,
 		CanRoll:    toAct && s.phase == PhaseRoll,
@@ -233,6 +238,9 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 	next.order = slices.DeleteFunc(slices.Clone(s.order), func(o game.Seat) bool { return o == seat })
 	next.tokens = maps.Clone(s.tokens)
 	delete(next.tokens, seat)
+	if s.last != nil && s.last.Seat == seat {
+		next.last = nil
+	}
 	if len(next.order) == 1 {
 		next = next.finish(game.ForfeitToRemaining(s.order, seat, reason))
 	}
