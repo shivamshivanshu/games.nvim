@@ -19,6 +19,14 @@ local text_util = require("games.ui.text")
 ---@field cols games.GridLabelList
 ---@field rows games.GridLabelList
 
+---Lines one column or one line thick along every side of every cell, with a dot at every corner.
+---Each callback gives the asset key of a one-column glyph, repeated along the edge, and its
+---highlight; a dot or edge without a highlight takes none.
+---@class games.GridEdges
+---@field across fun(row: integer, col: integer): games.GridCell the edge from dot (row, col) to the dot on its right; rows + 1 rows of cols
+---@field down fun(row: integer, col: integer): games.GridCell the edge from dot (row, col) to the dot below; rows rows of cols + 1
+---@field dot fun(row: integer, col: integer): games.GridCell rows + 1 rows of cols + 1
+
 ---@class games.GridProps
 ---@field rows integer
 ---@field cols integer
@@ -33,6 +41,7 @@ local text_util = require("games.ui.text")
 ---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
 ---@field blocks? integer positive: draw a thin separator after every this many rows and columns
 ---@field glyphs? games.Glyphs separator characters, default "unicode"
+---@field edges? games.GridEdges draws the cells' edges and corners in place of the gaps between cells; labels then name the dots, rows + 1 and cols + 1 of them; not with flip or blocks
 
 local LIGHT_SQUARE_HL = "GamesSquareLight"
 local DARK_SQUARE_HL = "GamesSquareDark"
@@ -213,46 +222,64 @@ local function column_label_row(props, col_labels, col_order, geometry)
   return compose.text(table.concat(parts))
 end
 
+---The node of each cell: its key drawn over its shade and mark, in its own highlight.
 ---@param props games.GridProps
----@return games.Node
-local function render(props)
-  validate_blocks(props.blocks)
-  local ambiwidth = props.ambiwidth or DEFAULT_AMBIWIDTH
-  local separators = separators_for(props.glyphs or "unicode", ambiwidth)
-  local cell_height = props.cell_height or 1
+---@param geometry games.GridGeometry
+---@param ambiwidth games.Ambiwidth
+---@return fun(r: integer, c: integer): games.Node
+local function cell_nodes(props, geometry, ambiwidth)
   local marks = marks_by_cell(props.marks or {})
-  local row_order = M.display_order(props.rows, props.flip)
-  local col_order = M.display_order(props.cols, props.flip)
-  local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)
-  local col_labels = props.labels and labels_in_order(props.labels.cols, col_order)
-  local label_width = row_labels and text_util.max_display_width(row_labels) or 0
-  ---@type games.GridGeometry
-  local geometry = {
-    cell = { w = props.cell_width or 1, h = cell_height },
-    gap = cell_height == 1 and #CELL_GAP or 0,
-    prefix = row_labels and label_width + #LABEL_GAP or 0,
-    label = label_width,
-  }
-
   local content = cell_contents(props, geometry.cell, ambiwidth)
-  local function cell_node(r, c)
+  return function(r, c)
     local key, own_hl = unpack(props.cell(r, c))
     local shade, mark = shade_hl(props.shade, r, c), marks[r] and marks[r][c]
     local hl = own_hl and compose.layers(shade, mark, own_hl)
       or highlights.with_ink(compose.layers(shade, mark))
     return compose.box({ w = geometry.cell.w, h = geometry.cell.h, hl = hl, child = content(key) })
   end
+end
+
+---@param label string
+---@param geometry games.GridGeometry
+---@param height integer
+---@return games.Node label left-aligned in the row label column, height lines tall
+local function label_node(label, geometry, height)
+  local padded = text_util.pad_to_width(label, geometry.label) .. LABEL_GAP
+  return compose.box({ w = geometry.prefix, h = height, child = compose.text(padded) })
+end
+
+---@param props games.GridProps
+---@param row_labels string[]|nil
+---@return games.GridGeometry
+local function geometry_of(props, row_labels)
+  local label_width = row_labels and text_util.max_display_width(row_labels) or 0
+  local cell_height = props.cell_height or 1
+  return {
+    cell = { w = props.cell_width or 1, h = cell_height },
+    gap = cell_height == 1 and #CELL_GAP or 0,
+    prefix = row_labels and label_width + #LABEL_GAP or 0,
+    label = label_width,
+  }
+end
+
+---@param props games.GridProps
+---@param ambiwidth games.Ambiwidth
+---@return games.Node
+local function render_cells(props, ambiwidth)
+  local separators = separators_for(props.glyphs or "unicode", ambiwidth)
+  local row_order = M.display_order(props.rows, props.flip)
+  local col_order = M.display_order(props.cols, props.flip)
+  local row_labels = props.labels and labels_in_order(props.labels.rows, row_order)
+  local col_labels = props.labels and labels_in_order(props.labels.cols, col_order)
+  local geometry = geometry_of(props, row_labels)
+  local cell_height = geometry.cell.h
+  local cell_node = cell_nodes(props, geometry, ambiwidth)
 
   local function gap_node(j)
     if crosses_block(props.blocks, col_order[j - 1], col_order[j]) then
       return repeated(separators.col, cell_height, SEPARATOR_HL)
     end
     return geometry.gap > 0 and repeated(CELL_GAP, cell_height) or nil
-  end
-
-  local function label_node(label)
-    local padded = text_util.pad_to_width(label, geometry.label) .. LABEL_GAP
-    return compose.box({ w = geometry.prefix, h = cell_height, child = compose.text(padded) })
   end
 
   local lines = {}
@@ -262,7 +289,7 @@ local function render(props)
     end
     local parts = {}
     if row_labels then
-      parts[#parts + 1] = label_node(row_labels[i])
+      parts[#parts + 1] = label_node(row_labels[i], geometry, cell_height)
     end
     for j, c in ipairs(col_order) do
       parts[#parts + 1] = j > 1 and gap_node(j) or nil
@@ -275,6 +302,75 @@ local function render(props)
     lines[#lines + 1] = column_label_row(props, col_labels, col_order, geometry)
   end
   return compose.col(lines)
+end
+
+---The cells with a dot at every corner and an edge along every side, labels naming the dots.
+---@param props games.GridProps
+---@param edges games.GridEdges
+---@param ambiwidth games.Ambiwidth
+---@return games.Node
+local function render_lattice(props, edges, ambiwidth)
+  if props.flip or props.blocks then
+    error("grid: edges draw neither flipped nor in blocks", 3)
+  end
+  local dot_rows, dot_cols = M.display_order(props.rows + 1), M.display_order(props.cols + 1)
+  local row_labels = props.labels and labels_in_order(props.labels.rows, dot_rows)
+  local col_labels = props.labels and labels_in_order(props.labels.cols, dot_cols)
+  local geometry = geometry_of(props, row_labels)
+  local cell_w, cell_h = geometry.cell.w, geometry.cell.h
+  local cell_node = cell_nodes(props, geometry, ambiwidth)
+
+  local function glyph(key)
+    return props.art and art.glyph(props.art, key, ambiwidth) or key
+  end
+  local function across(r, c)
+    local key, hl = unpack(edges.across(r, c))
+    return compose.text(glyph(key):rep(cell_w), hl)
+  end
+  local function down(r, c)
+    local key, hl = unpack(edges.down(r, c))
+    return repeated(glyph(key), cell_h, hl)
+  end
+  local function dot(r, c)
+    local key, hl = unpack(edges.dot(r, c))
+    return compose.text(glyph(key), hl)
+  end
+
+  local lines = {}
+  for r = 1, props.rows + 1 do
+    local corners = row_labels and { label_node(row_labels[r], geometry, 1) } or {}
+    corners[#corners + 1] = dot(r, 1)
+    for c = 1, props.cols do
+      vim.list_extend(corners, { across(r, c), dot(r, c + 1) })
+    end
+    lines[#lines + 1] = compose.row(corners)
+    if r <= props.rows then
+      local sides = row_labels and { label_node("", geometry, cell_h) } or {}
+      sides[#sides + 1] = down(r, 1)
+      for c = 1, props.cols do
+        vim.list_extend(sides, { cell_node(r, c), down(r, c + 1) })
+      end
+      lines[#lines + 1] = compose.row(sides)
+    end
+  end
+
+  if col_labels then
+    local between_dots =
+      { prefix = geometry.prefix, cell = { w = 1, h = 1 }, gap = cell_w, label = 0 }
+    lines[#lines + 1] = column_label_row(props, col_labels, dot_cols, between_dots)
+  end
+  return compose.col(lines)
+end
+
+---@param props games.GridProps
+---@return games.Node
+local function render(props)
+  validate_blocks(props.blocks)
+  local ambiwidth = props.ambiwidth or DEFAULT_AMBIWIDTH
+  if props.edges then
+    return render_lattice(props, props.edges, ambiwidth)
+  end
+  return render_cells(props, ambiwidth)
 end
 
 ---@type games.GridWidget

@@ -58,6 +58,44 @@ function T.moving_keys_share_one_label_and_follow_their_availability()
   })
 end
 
+function T.oriented_bounds_keep_the_cursor_on_an_edge_however_it_lies()
+  ---@type games.OrientedBounds
+  local edges = { across = { rows = 4, cols = 3 }, down = { rows = 3, cols = 4 } }
+  local by_key = {}
+  for _, action in ipairs(vim.list_extend(cursor.moves(edges), { cursor.rotate(nil, edges) })) do
+    by_key[action.key] = action.local_fn
+  end
+  local function after(keys)
+    local view = { glyphs = "ascii", flipped = false }
+    for key in keys:gmatch(".") do
+      view = by_key[key](view)
+    end
+    return cursor.of(view)
+  end
+  for _, case in ipairs({
+    { keys = "jjjjllll", want = { row = 4, col = 3, orientation = "across" } },
+    { keys = "rjjjjllll", want = { row = 3, col = 4, orientation = "down" } },
+    { keys = "jjjjr", want = { row = 3, col = 1, orientation = "down" } },
+    { keys = "rllllr", want = { row = 1, col = 3, orientation = "across" } },
+  }) do
+    assert_eq({ case.keys, case.want }, { case.keys, after(case.keys) })
+  end
+end
+
+function T.a_reach_read_off_the_update_bounds_the_cursor_by_the_boards_size()
+  local function reach(update)
+    return { rows = update.size, cols = update.size }
+  end
+  local right = cursor.moves(reach)[4]
+  local view = { glyphs = "ascii", flipped = false }
+  for _ = 1, 5 do
+    view = right.local_fn(view, { size = 3 })
+  end
+  assert_eq({ row = 1, col = 3, orientation = "across" }, cursor.of(view))
+  view = right.local_fn(view, { size = 5 })
+  assert_eq({ row = 1, col = 4, orientation = "across" }, cursor.of(view))
+end
+
 function T.a_footprint_runs_right_across_or_down_and_stops_at_the_edge()
   assert_eq(
     { { row = 2, col = 2 }, { row = 2, col = 3 }, { row = 2, col = 4 } },

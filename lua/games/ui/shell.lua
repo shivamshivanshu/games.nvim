@@ -50,7 +50,7 @@ local Control = types.Control
 ---@field input? games.GameInput prompts for text and sends the action it parses, in place of action
 ---@field act? fun(update: games.GameUpdate, view: games.ViewOptions): games.Action|nil builds the action from the board's view options, such as its cursor, in place of action; nil binds nothing
 ---@field available? fun(update: games.GameUpdate): boolean whether the entry applies now; default always
----@field local_fn? fun(view: games.ViewOptions): games.ViewOptions
+---@field local_fn? fun(view: games.ViewOptions, update: games.GameUpdate): games.ViewOptions changes only the board's view options, which may follow the board's latest update
 
 ---@class games.GameModule
 ---@field layout fun(update: games.GameUpdate, ctx: games.LayoutCtx): games.Node
@@ -438,7 +438,7 @@ local function bindings_for(update, module, view, catalogued)
         key = entry.key,
         label = label_of(entry, update),
         run = function(board)
-          board.view = local_fn(board.view)
+          board.view = local_fn(board.view, board.update)
           render_board(board)
         end,
       }

@@ -16,6 +16,15 @@ M.Orientation = { ACROSS = "across", DOWN = "down" }
 ---@field rows integer
 ---@field cols integer
 
+---Bounds that follow the way the cursor lies, such as over the edges between a board's cells:
+---one more row of them lies across than down, and one more column down than across.
+---@class games.OrientedBounds
+---@field across games.CursorBounds
+---@field down games.CursorBounds
+
+---Where the cursor may go: fixed, or read off the board's update for a board whose size is an option.
+---@alias games.CursorReach games.CursorBounds|games.OrientedBounds|fun(update: games.GameUpdate): games.CursorBounds|games.OrientedBounds
+
 ---@class (private) games.CursorMove
 ---@field key string
 ---@field d_row integer
@@ -52,40 +61,74 @@ local function with_cursor(view, cursor)
   return vim.tbl_extend("force", view, { cursor = cursor })
 end
 
----Keys h, j, k and l moving the cursor one cell, stopping at the edges of bounds.
----@param bounds games.CursorBounds
+---@param reach games.CursorReach
+---@param orientation games.Orientation
+---@param update games.GameUpdate
+---@return games.CursorBounds those of a cursor lying orientation
+local function bounds_lying(reach, orientation, update)
+  local bounds = type(reach) == "function" and reach(update) or reach
+  if bounds.rows then
+    ---@cast bounds games.CursorBounds
+    return bounds
+  end
+  ---@cast bounds games.OrientedBounds
+  return bounds[orientation]
+end
+
+---@param row integer
+---@param col integer
+---@param orientation games.Orientation
+---@param reach games.CursorReach
+---@param update games.GameUpdate
+---@return games.GridCursor at row and col, moved within the bounds of lying orientation
+local function clamped(row, col, orientation, reach, update)
+  local within = bounds_lying(reach, orientation, update)
+  return {
+    row = math.min(math.max(row, 1), within.rows),
+    col = math.min(math.max(col, 1), within.cols),
+    orientation = orientation,
+  }
+end
+
+---Keys h, j, k and l moving the cursor one cell, stopping at the edges of reach.
+---@param reach games.CursorReach
 ---@param available? fun(update: games.GameUpdate): boolean when the keys apply; default always
 ---@return games.GameAction[]
-function M.moves(bounds, available)
+function M.moves(reach, available)
   return vim.tbl_map(function(move)
     ---@type games.GameAction
     return {
       key = move.key,
       label = MOVE_LABEL,
       available = available,
-      local_fn = function(view)
+      local_fn = function(view, update)
         local at = M.of(view)
-        return with_cursor(view, {
-          row = math.min(math.max(at.row + move.d_row, 1), bounds.rows),
-          col = math.min(math.max(at.col + move.d_col, 1), bounds.cols),
-          orientation = at.orientation,
-        })
+        return with_cursor(
+          view,
+          clamped(at.row + move.d_row, at.col + move.d_col, at.orientation, reach, update)
+        )
       end,
     }
   end, MOVES)
 end
 
----Key r turning the cursor between across and down.
+---Key r turning the cursor between across and down; with a reach it then moves back within
+---the bounds of its new way.
 ---@param available? fun(update: games.GameUpdate): boolean when the key applies; default always
+---@param reach? games.CursorReach
 ---@return games.GameAction
-function M.rotate(available)
+function M.rotate(available, reach)
   return {
     key = ROTATE_KEY,
     label = ROTATE_LABEL,
     available = available,
-    local_fn = function(view)
+    local_fn = function(view, update)
       local at = M.of(view)
-      return with_cursor(view, { row = at.row, col = at.col, orientation = TURNED[at.orientation] })
+      local turned = TURNED[at.orientation]
+      if reach then
+        return with_cursor(view, clamped(at.row, at.col, turned, reach, update))
+      end
+      return with_cursor(view, { row = at.row, col = at.col, orientation = turned })
     end,
   }
 end

@@ -261,6 +261,90 @@ return {
     assert_eq({ "③ x x", "④ x x", "  ① ②" }, rendered.lines)
   end,
 
+  grid_edges_draw_a_dot_at_every_corner_and_a_line_along_every_side = function()
+    local rendered = compose.render(small_grid({
+      shade = "plain",
+      cell_width = 3,
+      labels = { cols = "abc", rows = "123" },
+      cell = function(r, c)
+        return { r == 1 and c == 1 and "A" or " " }
+      end,
+      edges = {
+        across = function(r, c)
+          return r == 2 and c == 2 and { " " }
+            or { "-", r == 1 and c == 1 and "GamesLastMove" or nil }
+        end,
+        down = function(r, c)
+          return c == 2 and r == 2 and { " " } or { "|" }
+        end,
+        dot = function()
+          return { "+" }
+        end,
+      },
+    }))
+    assert_eq({
+      "1 +---+---+",
+      "  | A |   |",
+      "2 +---+   +",
+      "  |       |",
+      "3 +---+---+",
+      "  a   b   c",
+    }, rendered.lines)
+    assert_eq("GamesLastMove", hl_at(rendered, 0, 3))
+    assert_eq(nil, hl_at(rendered, 0, 7))
+  end,
+
+  grid_edges_resolve_glyphs_and_run_the_height_of_tall_cells = function()
+    local function glyph(line)
+      return { { h = 1, w = 1, lines = { line } } }
+    end
+    local rendered = compose.render(small_grid({
+      shade = "plain",
+      cell_width = 4,
+      cell_height = 2,
+      labels = false,
+      art = { line = glyph("─"), upright = glyph("│"), corner = glyph("·"), x = glyph("x") },
+      edges = {
+        across = function()
+          return { "line" }
+        end,
+        down = function()
+          return { "upright" }
+        end,
+        dot = function()
+          return { "corner" }
+        end,
+      },
+    }))
+    assert_eq({
+      "·────·────·",
+      "│ x  │ x  │",
+      "│    │    │",
+      "·────·────·",
+      "│ x  │ x  │",
+      "│    │    │",
+      "·────·────·",
+    }, rendered.lines)
+  end,
+
+  grid_edges_refuse_flip_and_blocks = function()
+    local edges = {
+      across = function()
+        return { "-" }
+      end,
+      down = function()
+        return { "|" }
+      end,
+      dot = function()
+        return { "+" }
+      end,
+    }
+    for _, extra in ipairs({ { flip = true }, { blocks = 1 } }) do
+      local ok, err = pcall(small_grid, vim.tbl_extend("force", { edges = edges }, extra))
+      assert(not ok and err:find("edges draw neither flipped nor in blocks", 1, true), err)
+    end
+  end,
+
   key_hints_group_adjacent_hints_that_share_a_label = function()
     local function hints(spec)
       return vim.tbl_map(function(pair)

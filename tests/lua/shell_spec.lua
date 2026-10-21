@@ -901,6 +901,32 @@ function T.an_act_entry_sends_the_action_its_view_options_build_and_binds_nothin
   assert_eq({ { game_id = "act001", seq = 2, action = { kind = "go", cell = "3,4" } } }, acted)
 end
 
+function T.a_view_key_reads_the_boards_latest_update()
+  local seen
+  package.loaded["games.games.reach_test"] = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    actions = {
+      {
+        key = "l",
+        label = "look",
+        local_fn = function(view, update)
+          seen = update.seq
+          return view
+        end,
+      },
+    },
+  }
+  local client =
+    client_with("alice", { chess_update({ game_id = "reach01", game = "reach_test" }) })
+  local buf = assert(shell.open(client, "reach01"))
+  mapping(buf, "l").callback()
+  package.loaded["games.games.reach_test"] = nil
+  vim.api.nvim_buf_delete(buf, { force = true })
+  assert_eq(chess_update({}).seq, seen)
+end
+
 function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
   ---@type games.GameModule
   local module = {
