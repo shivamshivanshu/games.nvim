@@ -212,6 +212,26 @@ function T.the_cursor_keeps_to_the_edges_of_the_boards_size()
   end
 end
 
+function T.an_80_column_window_wraps_the_footer_while_abort_is_offered()
+  local opening = midgame({ controls = { "resign", "offer_draw", "abort" } })
+  local view = view_options("ascii", { cursor = { row = 2, col = 2, orientation = "down" } })
+  local rendered = render(opening, view, "bob", { text_area = { w = 80, h = 40 } })
+  assert_eq({
+    "",
+    "R resign  D offer draw  A abort  hjkl move  r turn  <CR> draw  ]g next game",
+    "q close",
+  }, vim.list_slice(rendered.lines, #rendered.lines - 2))
+end
+
+function T.a_wrapped_footer_keeps_the_board_inside_the_window()
+  local opening = midgame({ controls = { "resign", "offer_draw", "abort" } })
+  local view = view_options("unicode", { cursor = { row = 2, col = 2, orientation = "down" } })
+  for h = 16, 50 do
+    local rendered = render(opening, view, "bob", { text_area = { w = 80, h = h } })
+    assert(#rendered.lines <= h, ("%d lines in a window %d tall"):format(#rendered.lines, h))
+  end
+end
+
 function T.keys_follow_the_turn()
   local waiting = midgame({ to_act = { "bob" } })
   local over = midgame({
@@ -225,12 +245,12 @@ function T.keys_follow_the_turn()
     {
       midgame(),
       "bob",
-      "R resign  D offer draw  h,j-l move  r turn  <CR> draw  ]g next game  q close",
+      "R resign  D offer draw  hjkl move  r turn  <CR> draw  ]g next game  q close",
     },
     {
       opening,
       "bob",
-      "R resign  D offer draw  A abort  h,j-l move  r turn  <CR> draw  ]g next game  q close",
+      "R resign  D offer draw  A abort  hjkl move  r turn  <CR> draw  ]g next game  q close",
     },
     { waiting, "alice", "R resign  D offer draw  ]g next game  q close" },
     { over, "bob", "]g next game  q close" },

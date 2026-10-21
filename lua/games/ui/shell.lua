@@ -126,7 +126,7 @@ local LOW_CLOCK_HL = "GamesClockLow"
 local HEADER_COLUMN_GAP = 2
 ---The header always has a status line, blank without a banner, so a banner never moves the board.
 local STATUS_LINES = 1
-local BODY_CHROME_LINES = 3
+local BODY_BLANK_LINES = 2
 ---@type games.Ambiwidth
 local DEFAULT_AMBIWIDTH = "single"
 
@@ -478,13 +478,14 @@ end
 
 ---What the game layout may fill of a text area, after the header, blank lines and footer.
 ---@param seats integer player lines in the header
+---@param footer_lines integer
 ---@param text_area games.Size|nil
 ---@return games.Size|nil
-local function layout_space(seats, text_area)
+local function layout_space(seats, footer_lines, text_area)
   if not text_area then
     return nil
   end
-  local chrome = seats + STATUS_LINES + BODY_CHROME_LINES
+  local chrome = seats + STATUS_LINES + BODY_BLANK_LINES + footer_lines
   return { w = text_area.w, h = text_area.h - chrome }
 end
 
@@ -501,19 +502,21 @@ end
 ---@return games.ClockColumn|nil clocks where the header draws the clocks
 function M.render(update, module, view, me, elapsed_ms, display, catalogued)
   local measured = display or {}
+  local bindings = bindings_for(update, module, view, catalogued)
+  local footer = key_hints(bindings, measured.text_area and measured.text_area.w)
+  local seats = measured.seats or #update.players
   local ctx = vim.tbl_extend("force", view, {
     me = me,
-    space = layout_space(measured.seats or #update.players, measured.text_area),
+    space = layout_space(seats, compose.measure(footer).h, measured.text_area),
     ambiwidth = measured.ambiwidth or DEFAULT_AMBIWIDTH,
   }) --[[@as games.LayoutCtx]]
   local header, clocks =
     render_header(update, me, elapsed_ms or 0, extras_column(update, module, ctx))
-  local bindings = bindings_for(update, module, view, catalogued)
   local body = compose.render(compose.col({
     compose.text(""),
     module.layout(update, ctx),
     compose.text(""),
-    key_hints(bindings),
+    footer,
   }))
   return stack(header, body), #header.lines, bindings, clocks
 end

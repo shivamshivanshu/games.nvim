@@ -233,21 +233,31 @@ function T.a_finished_board_shows_the_opponents_ships_and_offers_nothing()
   assert_eq("]g next game  q close", rendered.lines[#rendered.lines])
 end
 
+function T.an_80_column_window_fits_the_setup_footer_on_one_line()
+  local display = { text_area = { w = 80, h = 40 } }
+  local rendered =
+    shell.render(placing(), battleship, view_options("ascii"), "alice", 0, display, CATALOGUED)
+  assert_eq({
+    "",
+    "R resign  A abort  hjkl move  r turn  <CR> place  f fill  ]g next game  q close",
+  }, vim.list_slice(rendered.lines, #rendered.lines - 1))
+end
+
 function T.keys_follow_the_phase_and_the_catalogue()
   local waiting = update({ phase = "battle" }, { to_act = { "bob" }, controls = BATTLE_CONTROLS })
   local cases = {
     {
       placing(),
       CATALOGUED,
-      "R resign  A abort  h,j-l move  r turn  <CR> place  f fill  ]g next game  q close",
+      "R resign  A abort  hjkl move  r turn  <CR> place  f fill  ]g next game  q close",
     },
     {
       firing(),
       CATALOGUED,
-      "R resign  m fire at, e.g. c5  h,j-l move  <CR> fire  ]g next game  q close",
+      "R resign  m fire at, e.g. c5  hjkl move  <CR> fire  ]g next game  q close",
     },
     { waiting, CATALOGUED, "R resign  ]g next game  q close" },
-    { placing(), nil, "R resign  A abort  h,j-l move  r turn  ]g next game  q close" },
+    { placing(), nil, "R resign  A abort  hjkl move  r turn  ]g next game  q close" },
   }
   for _, case in ipairs(cases) do
     local rendered = render(case[1], view_options("ascii"), case[2])

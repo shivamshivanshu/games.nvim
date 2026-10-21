@@ -32,10 +32,17 @@ end
 ---@param b string
 ---@return boolean
 local function follows(a, b)
-  return #a == 1 and #b == 1 and b:byte() == a:byte() + 1
+  return a:match("^%d$") ~= nil and b:match("^%d$") ~= nil and b:byte() == a:byte() + 1
 end
 
----Keys as written in one hint: runs of consecutive one-character keys become `first-last`.
+---@param part string
+---@return boolean
+local function is_letter(part)
+  return part:match("^%a$") ~= nil
+end
+
+---Keys as written in one hint: runs of consecutive digits become `first-last` and adjacent
+---letters run together, e.g. `1-3,5`, `hjkl`, `h,<Left>`.
 ---@param keys string[]
 ---@return string
 local function key_text(keys)
@@ -46,22 +53,62 @@ local function key_text(keys)
       first = i + 1
     end
   end
-  return table.concat(parts, ",")
+  local text = parts[1] or ""
+  for i = 2, #parts do
+    local joint = (is_letter(parts[i - 1]) and is_letter(parts[i])) and "" or ","
+    text = text .. joint .. parts[i]
+  end
+  return text
 end
 
----One row of `key label` pairs, e.g. `m move  R resign  q close`. Adjacent hints with one
----label share it, e.g. `1-7 drop`.
----@param hints games.KeyHint[]
+---@class (private) games.KeyHintEntry
+---@field keys string
+---@field label string
+---@field width integer display columns of `keys label`
+
+---Entries packed in order into rows no wider than width; an entry wider than width gets a row
+---of its own.
+---@param entries games.KeyHintEntry[]
+---@param width integer|nil nil packs them all into one row
+---@return games.KeyHintEntry[][]
+local function wrapped(entries, width)
+  local rows, row, row_width = {}, {}, 0
+  for _, entry in ipairs(entries) do
+    local needed = #row > 0 and row_width + #GAP + entry.width or entry.width
+    if #row > 0 and width and needed > width then
+      rows[#rows + 1], row, needed = row, {}, entry.width
+    end
+    row[#row + 1], row_width = entry, needed
+  end
+  rows[#rows + 1] = row
+  return rows
+end
+
+---@param row games.KeyHintEntry[]
 ---@return games.Node
-return function(hints)
+local function row_node(row)
   local parts = {}
-  for i, group in ipairs(grouped(hints)) do
+  for i, entry in ipairs(row) do
     if i > 1 then
       parts[#parts + 1] = compose.text(GAP)
     end
-    parts[#parts + 1] = compose.text(key_text(group.keys), KEY_HL)
+    parts[#parts + 1] = compose.text(entry.keys, KEY_HL)
     parts[#parts + 1] = compose.text(" ")
-    parts[#parts + 1] = compose.text(group.label, LABEL_HL)
+    parts[#parts + 1] = compose.text(entry.label, LABEL_HL)
   end
   return compose.row(parts)
+end
+
+---Rows of `key label` pairs, e.g. `m move  R resign  q close`, wrapped to width. Adjacent hints
+---with one label share it, e.g. `1-7 drop`.
+---@param hints games.KeyHint[]
+---@param width? integer display columns; nil keeps one row however wide
+---@return games.Node
+return function(hints, width)
+  local entries = vim.tbl_map(function(group)
+    local keys = key_text(group.keys)
+    local entry_width = vim.fn.strdisplaywidth(keys .. " " .. group.label)
+    return { keys = keys, label = group.label, width = entry_width }
+  end, grouped(hints))
+  return compose.col(vim.tbl_map(row_node, wrapped(entries, width)))
 end

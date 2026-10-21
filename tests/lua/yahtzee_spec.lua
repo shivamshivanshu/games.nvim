@@ -114,7 +114,7 @@ function T.only_the_offered_boxes_show_their_key_and_what_they_would_score()
   assert_eq("Sixes                 -     18", scorecard_line(lines, "Sixes"))
   assert_eq("Chance               17      -", scorecard_line(lines, "Chance"))
   assert_eq("Total                17     18", scorecard_line(lines, "Total"))
-  assert_eq("R resign  r roll  1-5 hold  a,c,g score  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  r roll  1-5 hold  acg score  ]g next game  q close", lines[#lines])
 end
 
 function T.the_waiting_seat_sees_the_cards_but_no_keys()

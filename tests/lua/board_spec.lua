@@ -2,13 +2,14 @@ local board = require("games.ui.widgets.board")
 local chess = require("games.games.chess")
 local compose = require("games.ui.compose")
 local helpers = require("helpers")
+local key_hints = require("games.ui.widgets.key_hints")
 local shell = require("games.ui.shell")
 local cases = require("fixtures.chess_h1")
 
 local assert_eq = helpers.assert_eq
 
 local HEADER_LINES = 3
-local BODY_CHROME_LINES = 3
+local BODY_BLANK_LINES = 2
 local LABEL_LINES = 1
 
 ---@param history string[]
@@ -29,8 +30,10 @@ local function cell_height(update, text_area, max_cell_height)
   local view =
     helpers.view_options("chess", chess, "unicode", { max_cell_height = max_cell_height })
   local display = { text_area = text_area, ambiwidth = vim.o.ambiwidth }
-  local rendered = shell.render(update, chess, view, "alice", 0, display)
-  local board_lines = #rendered.lines - HEADER_LINES - BODY_CHROME_LINES - LABEL_LINES
+  local rendered, _, bindings = shell.render(update, chess, view, "alice", 0, display)
+  local footer_lines = compose.measure(key_hints(bindings, text_area.w)).h
+  local chrome = HEADER_LINES + BODY_BLANK_LINES + footer_lines + LABEL_LINES
+  local board_lines = #rendered.lines - chrome
   return board_lines / 8, rendered.lines
 end
 

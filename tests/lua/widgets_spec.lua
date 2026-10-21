@@ -368,6 +368,16 @@ function T.key_hints_group_adjacent_hints_that_share_a_label()
       want = "1,3-5 drop",
     },
     {
+      name = "letters run together and never form a range",
+      hints = hints({ { "h", "move" }, { "j", "move" }, { "k", "move" }, { "l", "move" } }),
+      want = "hjkl move",
+    },
+    {
+      name = "a letter beside a longer key keeps the comma",
+      hints = hints({ { "h", "left" }, { "<Left>", "left" } }),
+      want = "h,<Left> left",
+    },
+    {
       name = "multi-character keys never form a range",
       hints = hints({ { "]g", "next" }, { "]h", "next" } }),
       want = "]g,]h next",
@@ -383,6 +393,25 @@ function T.key_hints_group_adjacent_hints_that_share_a_label()
       { case.name, compose.render(key_hints(case.hints)).lines[1] }
     )
   end
+end
+
+function T.key_hints_wrap_whole_pairs_to_the_width()
+  local hints = {
+    { key = "R", label = "resign" },
+    { key = "D", label = "offer draw" },
+    { key = "q", label = "close" },
+  }
+  for _, case in ipairs({
+    { width = nil, want = { "R resign  D offer draw  q close" } },
+    { width = 31, want = { "R resign  D offer draw  q close" } },
+    { width = 30, want = { "R resign  D offer draw", "q close" } },
+    { width = 5, want = { "R resign", "D offer draw", "q close" } },
+  }) do
+    local rendered = compose.render(key_hints(hints, case.width))
+    assert_eq({ case.width, case.want }, { case.width, rendered.lines })
+  end
+  local wrapped = compose.render(key_hints(hints, 30))
+  assert_eq({ "GamesKey", "GamesLabel" }, helpers.hls_on_row(wrapped, 1))
 end
 
 function T.movelist_offset_numbers_from_the_first_place_and_marks_the_skipped_ones()
