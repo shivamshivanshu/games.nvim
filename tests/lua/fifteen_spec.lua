@@ -88,19 +88,6 @@ function T.direction_keys_are_bound_only_where_a_tile_can_move_that_way()
   )
 end
 
-function T.keys_send_the_slide_by_number_and_the_move_by_direction()
-  local sent = {}
-  for _, entry in ipairs(fifteen.actions) do
-    sent[entry.key] = entry.action
-  end
-  assert_eq({
-    h = { kind = "move", direction = "left" },
-    j = { kind = "move", direction = "down" },
-    k = { kind = "move", direction = "up" },
-    l = { kind = "move", direction = "right" },
-  }, sent)
-end
-
 function T.events_name_the_tile_and_its_way()
   local slid = { kind = "slid", by = "solver", tile = 8, direction = "left" }
   assert_eq("alice slid 8 left", describe.events(update({ events = { slid } })))

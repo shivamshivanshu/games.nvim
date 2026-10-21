@@ -99,9 +99,9 @@ function T.tiles_of_the_goal_and_above_are_tinted()
   assert(not vim.tbl_contains(cell_hl(rendered, 4, 1), "GamesWin"), "the 1024 is below the goal")
 end
 
-function T.direction_keys_and_arrows_are_bound_only_for_the_movable_directions()
+function T.direction_keys_are_bound_only_for_the_movable_directions()
   assert_eq(
-    "R give up  h,<Left> left  j,<Down> down  l,<Right> right  ]g next game  q close",
+    "R give up  h left  j down  l right  ]g next game  q close",
     footer(render(update_with()))
   )
   assert_eq("]g next game  q close", footer(render(lost())))
@@ -111,19 +111,18 @@ function T.direction_keys_and_arrows_are_bound_only_for_the_movable_directions()
   )
 end
 
-function T.footer_pairs_each_letter_with_its_arrow_when_every_direction_moves()
+function T.every_direction_is_bound_when_every_direction_moves()
   local open = update_with()
   open.view = vim.tbl_extend("force", open.view, { movable = { "up", "down", "left", "right" } })
-  assert_eq(
-    "R give up  h,<Left> left  j,<Down> down  k,<Up> up  l,<Right> right  ]g next game  q close",
-    footer(render(open))
-  )
+  assert_eq("R give up  h left  j down  k up  l right  ]g next game  q close", footer(render(open)))
 end
 
-function T.each_key_sends_its_direction_as_text()
+function T.each_key_and_arrow_sends_its_direction()
   local sent = {}
   for _, entry in ipairs(g2048.actions) do
-    sent[entry.key] = entry.action
+    for _, key in ipairs({ entry.key, unpack(entry.aliases or {}) }) do
+      sent[key] = entry.action
+    end
   end
   local function move(direction)
     return { kind = "move", direction = direction }

@@ -1,3 +1,4 @@
+local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
 local dice = require("games.ui.dice")
@@ -58,6 +59,10 @@ local text_util = require("games.ui.text")
 ---@alias games.YahtzeeRow games.YahtzeeBoxRow|games.YahtzeeTotalRow
 
 local DICE_COUNT = 5
+---@type integer[] each die by its place, as the hold action numbers it
+local DICE = vim.fn.range(1, DICE_COUNT)
+---@type integer[]
+local NO_DICE = {}
 local DICE_ROW, HOLD_ROW = 1, 2
 local NO_DIE_KEY, HELD_KEY, FREE_KEY = "none", "held", "free"
 local HELD_HL = "GamesMovable"
@@ -257,16 +262,14 @@ M.actions = vim.list_extend(
     },
   },
   vim.list_extend(
-    vim.tbl_map(function(die)
-      return {
-        key = tostring(die),
-        label = "hold",
-        action = { kind = "hold", die = tostring(die) },
-        available = function(update)
-          return update.view.can_hold
-        end,
-      }
-    end, vim.fn.range(1, DICE_COUNT)),
+    actions.per_value({
+      kind = "hold",
+      field = "die",
+      values = DICE,
+      legal = function(view)
+        return view.can_hold and DICE or NO_DICE
+      end,
+    }),
     vim.tbl_map(function(row)
       return {
         key = row.key,

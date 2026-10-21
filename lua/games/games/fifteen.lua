@@ -1,3 +1,4 @@
+local actions = require("games.ui.actions")
 local art = require("games.ui.art")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
@@ -6,12 +7,9 @@ local tables = require("games.core.tables")
 
 ---@alias games.FifteenSeat "solver"
 
----The way a tile moves into the blank: up moves the tile below it.
----@alias games.FifteenDirection "up"|"down"|"left"|"right"
-
 ---@class games.FifteenMovable
 ---@field tile integer
----@field direction games.FifteenDirection
+---@field direction games.Direction the way the tile moves into the blank: up moves the tile below it
 
 ---@class games.FifteenView
 ---@field tiles integer[][] rows from the top; 0 is the blank
@@ -25,7 +23,7 @@ local tables = require("games.core.tables")
 ---@field kind "slid"
 ---@field by games.FifteenSeat
 ---@field tile integer
----@field direction games.FifteenDirection
+---@field direction games.Direction
 
 local CELL_WIDTH = 4
 local MAX_TILE = 15
@@ -39,18 +37,6 @@ local SOLVED_REASON = "solved"
 local MOVES_LABEL = "moves"
 ---Display columns the status panel reserves: the label, a space, and up to 5 digits.
 local PANEL_WIDTH = #MOVES_LABEL + 1 + 5
-
----@class (private) games.FifteenDirectionKey
----@field key string
----@field direction games.FifteenDirection
-
----@type games.FifteenDirectionKey[]
-local DIRECTION_KEYS = {
-  { key = "h", direction = "left" },
-  { key = "j", direction = "down" },
-  { key = "k", direction = "up" },
-  { key = "l", direction = "right" },
-}
 
 ---@param tile integer
 ---@param movable boolean
@@ -78,21 +64,6 @@ local function marks_for(update)
     end
     return movable[tile] and MOVABLE_HL or nil
   end)
-end
-
----@param entry games.FifteenDirectionKey
----@return games.GameAction
-local function move_action(entry)
-  return {
-    key = entry.key,
-    label = entry.direction,
-    action = { kind = MOVE_KIND, direction = entry.direction },
-    available = function(update)
-      return vim.iter(update.view.movable):any(function(movable)
-        return movable.direction == entry.direction
-      end)
-    end,
-  }
 end
 
 local M = {}
@@ -146,7 +117,14 @@ M.input = {
 }
 
 ---@type games.GameAction[]
-M.actions = vim.tbl_map(move_action, DIRECTION_KEYS)
+M.actions = actions.directions({
+  kind = MOVE_KIND,
+  movable = function(view, direction)
+    return vim.iter(view.movable):any(function(movable)
+      return movable.direction == direction
+    end)
+  end,
+})
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {

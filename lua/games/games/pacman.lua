@@ -1,9 +1,8 @@
+local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
 local kv = require("games.ui.widgets.kv")
 
 ---@alias games.PacmanSeat "player"
-
----@alias games.PacmanDirection "up"|"down"|"left"|"right"
 
 ---@alias games.PacmanGhostName "blinky"|"pinky"|"inky"|"clyde"
 
@@ -12,10 +11,10 @@ local kv = require("games.ui.widgets.kv")
 ---@class games.PacmanActor
 ---@field row integer 1 at the top
 ---@field col integer 1 at the left
----@field facing games.PacmanDirection
+---@field facing games.Direction
 
 ---@class games.PacmanPacman: games.PacmanActor
----@field next_turn? games.PacmanDirection the turn it takes at the first cell where it can
+---@field next_turn? games.Direction the turn it takes at the first cell where it can
 
 ---@class games.PacmanGhost: games.PacmanActor
 ---@field name games.PacmanGhostName
@@ -77,23 +76,10 @@ local GHOST_HLS = {
   inky = "GamesGhostInky",
   clyde = "GamesGhostClyde",
 }
----@type games.PacmanDirection[]
+---@type games.Direction[]
 local DIRECTIONS = { "up", "down", "left", "right" }
 
----@class (private) games.PacmanDirectionKey
----@field key string
----@field arrow string bound too, but left out of the footer
----@field direction games.PacmanDirection
-
----@type games.PacmanDirectionKey[]
-local DIRECTION_KEYS = {
-  { key = "h", arrow = "<Left>", direction = "left" },
-  { key = "j", arrow = "<Down>", direction = "down" },
-  { key = "k", arrow = "<Up>", direction = "up" },
-  { key = "l", arrow = "<Right>", direction = "right" },
-}
-
----@param direction games.PacmanDirection
+---@param direction games.Direction
 ---@return string
 local function pacman_key(direction)
   return "pacman_" .. direction
@@ -141,20 +127,6 @@ local function state_text(view)
     return OVER_TEXT
   end
   return view.paused and PAUSED_TEXT or RUNNING_TEXT
-end
-
----@param entry games.PacmanDirectionKey
----@return games.GameAction
-local function turn_action(entry)
-  return {
-    key = entry.key,
-    aliases = { entry.arrow },
-    label = entry.direction,
-    action = { kind = TURN_KIND, direction = entry.direction },
-    available = function(update)
-      return update.view.can_turn
-    end,
-  }
 end
 
 local M = {}
@@ -216,16 +188,25 @@ function M.layout(update, ctx)
 end
 
 ---@type games.GameAction[]
-M.actions = vim.list_extend(vim.tbl_map(turn_action, DIRECTION_KEYS), {
-  {
-    key = "p",
-    label = "pause",
-    action = { kind = PAUSE_KIND },
-    available = function(update)
-      return update.view.can_pause
+M.actions = vim.list_extend(
+  actions.directions({
+    kind = TURN_KIND,
+    arrows = true,
+    movable = function(view)
+      return view.can_turn
     end,
-  },
-})
+  }),
+  {
+    {
+      key = "p",
+      label = "pause",
+      action = { kind = PAUSE_KIND },
+      available = function(update)
+        return update.view.can_pause
+      end,
+    },
+  }
+)
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {

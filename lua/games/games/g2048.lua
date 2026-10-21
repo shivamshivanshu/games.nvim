@@ -1,16 +1,15 @@
+local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
 local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 
 ---@alias games.G2048Seat "solver"
 
----@alias games.G2048Direction "up"|"down"|"left"|"right"
-
 ---@class games.G2048View
 ---@field cells integer[][] rows from the top; 0 for an empty cell
 ---@field score integer the sum of every merge so far
 ---@field reached boolean whether a 2048 tile has been made; play goes on after it
----@field movable games.G2048Direction[] the directions that would change the board; empty once over
+---@field movable games.Direction[] the directions that would change the board; empty once over
 
 ---@class games.G2048Update: games.GameUpdate
 ---@field view games.G2048View
@@ -23,7 +22,7 @@ local kv = require("games.ui.widgets.kv")
 ---@class games.G2048MovedEvent: games.Event
 ---@field kind "moved"
 ---@field by games.G2048Seat
----@field direction games.G2048Direction
+---@field direction games.Direction
 ---@field gained integer
 ---@field spawned games.G2048Tile the tile that appeared after the move
 
@@ -45,42 +44,12 @@ local REACHED, NOT_YET = "reached", "not yet"
 ---Display columns the status panel reserves: the longer label, a space, and the widest value.
 local PANEL_WIDTH = #SCORE_LABEL + 1 + #NOT_YET
 
----@class (private) games.G2048DirectionKey
----@field key string
----@field direction games.G2048Direction
-
----Each direction's letter, then its arrow, so the footer pairs them: `h,<Left> left`.
----@type games.G2048DirectionKey[]
-local DIRECTION_KEYS = {
-  { key = "h", direction = "left" },
-  { key = "<Left>", direction = "left" },
-  { key = "j", direction = "down" },
-  { key = "<Down>", direction = "down" },
-  { key = "k", direction = "up" },
-  { key = "<Up>", direction = "up" },
-  { key = "l", direction = "right" },
-  { key = "<Right>", direction = "right" },
-}
-
 ---@param view games.G2048View
 ---@return games.GridMark[] every tile of the goal or above
 local function marks_for(view)
   return grid.marks_where(view.cells, function(value)
     return value >= GOAL and GOAL_HL or nil
   end)
-end
-
----@param entry games.G2048DirectionKey
----@return games.GameAction
-local function move_action(entry)
-  return {
-    key = entry.key,
-    label = entry.direction,
-    action = { kind = MOVE_KIND, direction = entry.direction },
-    available = function(update)
-      return vim.tbl_contains(update.view.movable, entry.direction)
-    end,
-  }
 end
 
 local M = {}
@@ -129,7 +98,13 @@ function M.layout(update, ctx)
 end
 
 ---@type games.GameAction[]
-M.actions = vim.tbl_map(move_action, DIRECTION_KEYS)
+M.actions = actions.directions({
+  kind = MOVE_KIND,
+  arrows = true,
+  movable = function(view, direction)
+    return vim.tbl_contains(view.movable, direction)
+  end,
+})
 
 ---@type table<games.EventKind, games.Describer>
 M.describers = {
