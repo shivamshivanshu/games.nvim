@@ -407,6 +407,19 @@ An action object always carries `kind`.
 - Actions: `roll`, `hold` (`die`: `"1"` to `"5"`, toggles), `score` (`box`: one of the 13 box names). The catalogue gives the values.
 - Scores: each seat's card total, unless the result was imposed.
 
+### Liar's Dice
+
+- Seats `p1`-`p6` in invite order; `p1` opens round 1, the loser of a die opens the next.
+- Reasons: `last_with_dice`.
+- Events: `bid {by: seat, quantity, face}`; `challenged {by: seat, bid, counted, loser, cups: [{seat, dice}]}`, every cup as shown; `out {seat}`, a seat lost its last die. A `challenged` and any `out` share the update that rerolls the cups.
+- View `{round, seats, bid, total_dice, my_dice, min_bids, can_dudo, last_reveal}`:
+  - `seats` is every seat's `{seat, dice, out}`, `dice` the count it holds;
+  - `bid` is the standing `{by, quantity, face}`, or `null` before the round's first bid;
+  - `my_dice` holds the viewer's own dice only, sorted; no other seat's dice reach a view or event before a `challenged`;
+  - `min_bids` is the viewer's own `[{face, quantity}]`, the least legal quantity per face, `[]` unless it is to act; `can_dudo` likewise;
+  - `last_reveal` is the last challenge `{round, bid, challenger, counted, loser, cups}`, or `null`.
+- Actions: `bid` (`bid`: `"QxF"`, e.g. `"3x5"`; the catalogue gives the pattern) and `dudo`. Ones are wild; the raise rules are in `docs/games/liars_dice.md`.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

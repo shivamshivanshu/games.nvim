@@ -395,6 +395,8 @@ the current state are mapped; the footer lists them.
     a-l n   score that scorecard box (yahtzee): a-f Ones to Sixes, g-l
             3 of a kind to Yahtzee, n Chance; the card shows the letters
             of the boxes you may score now
+    m       liars_dice: bid, `3x5` is at least three fives under all cups
+    d       call dudo on the standing bid (liars_dice), on your turn
     ]g      next game waiting on your move
     q       close
 

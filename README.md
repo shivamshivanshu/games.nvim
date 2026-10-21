@@ -26,6 +26,7 @@ See the Games table below for what you can play. The server owns all state and r
 | 2048 | 1 (solo) | [docs/games/g2048.md](docs/games/g2048.md) |
 | Mancala | 2 | [docs/games/mancala.md](docs/games/mancala.md) |
 | Yahtzee | 1–4 | [docs/games/yahtzee.md](docs/games/yahtzee.md) |
+| Liar's Dice | 2–6 | [docs/games/liars_dice.md](docs/games/liars_dice.md) |
 
 ## Requirements
 
