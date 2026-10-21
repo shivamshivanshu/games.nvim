@@ -116,7 +116,8 @@ function T.each_ghost_has_its_colour_and_fright_and_eyes_their_own()
 end
 
 function T.a_board_redrawing_from_its_kept_rows_draws_each_update_as_afresh()
-  local view = view_options("unicode", { grid_rows = {} })
+  local grid_rows = {}
+  local display = { text_area = { w = 200, h = 60 }, ambiwidth = "single", seats = 1 }
   for _, overrides in ipairs({
     {},
     { pacman = { row = 4, col = 2, facing = "left" } },
@@ -130,10 +131,20 @@ function T.a_board_redrawing_from_its_kept_rows_draws_each_update_as_afresh()
     { maze = { "#######", "#     #", "#######" }, pacman = { row = 2, col = 2, facing = "up" } },
   }) do
     local update = update_with(overrides)
-    local kept = shell.render(update, pacman, view, "alice", 0, nil, CATALOGUED)
-    local afresh = render(update, "unicode")
-    assert_eq(afresh.lines, kept.lines)
-    assert_eq(helpers.extmarks(afresh), helpers.extmarks(kept))
+    for _, glyphs in ipairs({ "unicode", "ascii" }) do
+      local line_counts = {}
+      for _, max_cell_height in ipairs({ 1, 2 }) do
+        local function draw(rows)
+          local view = view_options(glyphs, { grid_rows = rows, max_cell_height = max_cell_height })
+          return shell.render(update, pacman, view, "alice", 0, display, CATALOGUED)
+        end
+        local kept, afresh = draw(grid_rows), draw(nil)
+        assert_eq(afresh.lines, kept.lines)
+        assert_eq(helpers.extmarks(afresh), helpers.extmarks(kept))
+        line_counts[max_cell_height] = #kept.lines
+      end
+      assert(line_counts[2] > line_counts[1], "cell height 2 was not drawn")
+    end
   end
 end
 
