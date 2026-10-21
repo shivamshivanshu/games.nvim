@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"testing"
@@ -119,6 +120,8 @@ func TestApplyRejects(t *testing.T) {
 	spent.rollsLeft = 0
 	jokered := rolledTo(fresh, hand{3, 3, 3, 3, 3})
 	jokered.cards = []card{cardWith(map[Box]int{BoxYahtzee: 50}), {}}
+	allHeld := rolled
+	allHeld.held = [DiceCount]bool{true, true, true, true, true}
 	filled := rolled
 	filled.cards = []card{cardWith(map[Box]int{BoxChance: 20}), {}}
 	cases := []struct {
@@ -137,6 +140,9 @@ func TestApplyRejects(t *testing.T) {
 		{"die 0", rolled, seat(1), hold(0), `die must be 1 to 5, got "0"`},
 		{"die 6", rolled, seat(1), hold(6), `die must be 1 to 5, got "6"`},
 		{"a die that is no number", rolled, seat(1), Action{Kind: ActionHold, Die: "x"}, `die must be 1 to 5, got "x"`},
+		{"a die with a leading zero", rolled, seat(1), Action{Kind: ActionHold, Die: "01"}, `die must be 1 to 5, got "01"`},
+		{"a die with a sign", rolled, seat(1), Action{Kind: ActionHold, Die: "+1"}, `die must be 1 to 5, got "+1"`},
+		{"a roll with every die held", allHeld, seat(1), roll(), "every die is held: release one or score a box"},
 		{"no such box", rolled, seat(1), Action{Kind: ActionScore, Box: "pairs"}, `no box "pairs"`},
 		{"a filled box", filled, seat(1), scoreIn(BoxChance), "chance is already scored"},
 		{"a box the joker rule forbids", jokered, seat(1), scoreIn(BoxChance), "the joker rule allows only [threes]"},
@@ -212,6 +218,14 @@ func TestOnlyTheSeatToActIsOfferedAnything(t *testing.T) {
 	}
 }
 
+func TestRollIsNotOfferedWithEveryDieHeld(t *testing.T) {
+	s := rolledTo(newGame(t, 1), hand{1, 2, 3, 4, 6})
+	s.held = [DiceCount]bool{true, true, true, true, true}
+	if v := s.View(seat(1)); v.CanRoll || !v.CanHold {
+		t.Errorf("every die held: can_roll %t, can_hold %t; want no roll, holds still open", v.CanRoll, v.CanHold)
+	}
+}
+
 func TestViewLegalityIsWhatApplyAccepts(t *testing.T) {
 	for n := 1; n <= maxPlayers; n++ {
 		_, states := playToFinish(t, n, game.Seed(n))
@@ -253,6 +267,10 @@ func TestFullCardsEndTheGame(t *testing.T) {
 		points[BoxChance] = chance
 		return cardWith(points)
 	}
+	left := func(c card) card {
+		c.out = true
+		return c
+	}
 	lastTurn := func(cards []card, last game.Seat) state {
 		s := newGame(t, len(cards))
 		s.cards = slices.Clone(cards)
@@ -270,6 +288,7 @@ func TestFullCardsEndTheGame(t *testing.T) {
 		{"the highest total wins", lastTurn([]card{full(20), full(7)}, seat(2)), game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat(1)}, Reason: ReasonScorecardsFull}},
 		{"equal totals draw", lastTurn([]card{full(7), full(7)}, seat(2)), game.Result{Kind: game.ResultDraw, Reason: ReasonScorecardsFull}},
 		{"two of three tied at the top both win", lastTurn([]card{full(7), full(5), full(7)}, seat(3)), game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat(1), seat(3)}, Reason: ReasonScorecardsFull}},
+		{"a tie among those left after a leaver is a win for each", lastTurn([]card{full(7), left(full(9)), full(7)}, seat(3)), game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat(1), seat(3)}, Reason: ReasonScorecardsFull}},
 	}
 	for _, tc := range cases {
 		end, _ := apply(t, tc.state, tc.state.ToAct()[0], scoreIn(BoxChance), 1)
@@ -283,7 +302,7 @@ func TestFullCardsEndTheGame(t *testing.T) {
 	}
 }
 
-func TestAFullGameIsThirteenRoundsAndScoresTheTotals(t *testing.T) {
+func TestAFullGameIsThirteenRoundsAndTheBestCardWins(t *testing.T) {
 	for n := 1; n <= maxPlayers; n++ {
 		steps, states := playToFinish(t, n, 7)
 		final := states[len(states)-1]
@@ -291,22 +310,27 @@ func TestAFullGameIsThirteenRoundsAndScoresTheTotals(t *testing.T) {
 		if len(scored) != Rounds*n {
 			t.Errorf("%d players: %d boxes scored, want %d", n, len(scored), Rounds*n)
 		}
-		result, _ := final.Outcome()
+		totals := map[game.Seat]int{}
 		for i, c := range final.cards {
-			if got := final.Scores()[final.order[i]]; got != int64(c.total()) || !c.full() {
-				t.Errorf("%d players: %s scores %d, card total %d", n, final.order[i], got, c.total())
+			if !c.full() {
+				t.Errorf("%d players: %s's card is not full", n, final.order[i])
 			}
+			totals[final.order[i]] = c.total()
 		}
-		best := slices.Max(slices.Collect(func(yield func(int64) bool) {
-			for _, score := range final.Scores() {
-				yield(score)
-			}
-		}))
+		best := slices.Max(slices.Collect(maps.Values(totals)))
+		result, _ := final.Outcome()
 		for _, winner := range result.Winners {
-			if final.Scores()[winner] != best {
-				t.Errorf("%d players: winner %s scored %d, best %d", n, winner, final.Scores()[winner], best)
+			if totals[winner] != best {
+				t.Errorf("%d players: winner %s totals %d, best %d", n, winner, totals[winner], best)
 			}
 		}
+	}
+}
+
+// D9: the core scores the result, +1 a win and -1 a loss; card totals stay in the view.
+func TestTheCoreScoresTheResult(t *testing.T) {
+	if _, scored := any(newGame(t, 2)).(game.Scorer); scored {
+		t.Fatal("yahtzee is a game.Scorer; D9 wants the core's result scoring")
 	}
 }
 

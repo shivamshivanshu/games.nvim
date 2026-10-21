@@ -4,7 +4,7 @@ The dice game for 1 to 4 players: 13 rounds, five dice, three rolls a turn, one 
 
 ## Rules as implemented
 - **Seats** are `p1` to `p4`: the challenger is `p1`, then the invitees in invite order. `p1` starts and turns go in seat order. Played alone (`:Games solo yahtzee`), the only seat is `p1`.
-- **A turn.** Up to 3 rolls of the dice not held. The first roll is a move of its own: a turn starts with no dice. Between rolls, `hold` toggles one die (1 to 5, left to right); held dice keep their face. After any roll the seat may score; after the third it must. Scoring a box ends the turn and clears the holds.
+- **A turn.** Up to 3 rolls of the dice not held. The first roll is a move of its own: a turn starts with no dice. Between rolls, `hold` toggles one die (`"1"` to `"5"` exactly, left to right); held dice keep their face, and with all five held there is nothing to roll, so `roll` is refused. After any roll the seat may score; after the third it must. Scoring a box ends the turn and clears the holds.
 - **The scorecard.** Every box is filled exactly once, with a score or with 0.
 
   | Box | Scores |
@@ -24,7 +24,7 @@ The dice game for 1 to 4 players: 13 rounds, five dice, three rolls a turn, one 
   - it must go in the upper box of its face if that box is open;
   - otherwise in any open lower box, where Full house, Small straight and Large straight pay their full 25, 30 and 40, and the others score as usual;
   - otherwise in any open upper box, for 0.
-- **End.** The game ends when every card still in play is full, after 13 rounds. The highest total wins, reason `scorecards_full`. Seats tied for the top all win. When every seat still in play ties, the game is a draw. A solo game that reaches the end is a win.
+- **End.** The game ends when every card still in play is full, after 13 rounds. The highest total wins, reason `scorecards_full`. Seats tied for the top all win. When every seat ties, the game is a draw; once a player has left, a tie among the rest makes each of them a winner, so the leaver alone loses. A solo game that reaches the end is a win.
 - **Dice** come from the game's per-step random stream (seed and step number), so a restored game rolls the same dice.
 
 ## Rulings
@@ -43,7 +43,7 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
 
 | Key | Action |
 |---|---|
-| `r` | roll the dice not held, while you have rolls left |
+| `r` | roll the dice not held, while you have rolls left and hold fewer than five |
 | `1`–`5` | hold or release that die, after a roll with a roll left |
 | `a`–`f` | score Ones to Sixes |
 | `g`–`l` | score 3 of a kind, 4 of a kind, Full house, Small straight, Large straight, Yahtzee |
@@ -70,7 +70,7 @@ A box's letter shows on the scorecard, and is mapped, only while that box is one
 
 ## Result and scoring
 - Reasons: `scorecards_full`, plus the core's `resign`, `timeout` and `aborted`.
-- Each seat scores its card total, whatever the result, so a give-up keeps the points it made. An abort scores nothing.
+- Scoring is the core's (D9): +1 a win, −1 a loss, 0 a draw; an abort scores nothing. Card totals stay in the view and the final result payload.
 - The leaderboard counts only games with more than one player, so solo games never rank.
 
 ## Errors
@@ -78,6 +78,7 @@ A box's letter shows on the scorecard, and is mapped, only while that box is one
 |---|---|
 | hold or score before rolling | `roll first` |
 | roll or hold with no rolls left | `no rolls left: score a box` |
+| roll with every die held | `every die is held: release one or score a box` |
 | die out of range | `die must be 1 to 5, got "<text>"` |
 | unknown box | `no box "<text>"` |
 | box already filled | `<box> is already scored` |

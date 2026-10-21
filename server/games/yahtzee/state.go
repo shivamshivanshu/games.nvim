@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
-	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/dice"
@@ -43,9 +42,14 @@ func (s state) Apply(seat game.Seat, action Action, rng *rand.Rand) (game.State[
 	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
 }
 
+func (s state) allHeld() bool { return !slices.Contains(s.held[:], false) }
+
 func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
-	if s.rollsLeft == 0 {
+	switch {
+	case s.rollsLeft == 0:
 		return nil, nil, game.IllegalActionError{Msg: "no rolls left: score a box"}
+	case s.allHeld():
+		return nil, nil, game.IllegalActionError{Msg: "every die is held: release one or score a box"}
 	}
 	next := s
 	var free []int
@@ -62,11 +66,11 @@ func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event
 }
 
 func parseDie(text string) (int, error) {
-	n, err := strconv.Atoi(text)
-	if err != nil || n < 1 || n > DiceCount {
+	i := slices.Index(dieNumbers(), text)
+	if i < 0 {
 		return 0, game.IllegalActionError{Msg: fmt.Sprintf("die must be 1 to %d, got %q", DiceCount, text)}
 	}
-	return n - 1, nil
+	return i, nil
 }
 
 func (s state) applyHold(text string) (game.State[Action, View], []game.Event, error) {
@@ -145,8 +149,9 @@ func (s state) playing() []int {
 	return seats
 }
 
-// finalResult ranks the full cards: the highest total wins, and a tie between
-// every seat still playing is a draw.
+// finalResult ranks the full cards of the seats still playing: the highest
+// total wins. A tie between every seat is a draw, but once one has left, the
+// seats tied at the top all win, so the leaver alone loses.
 func (s state) finalResult() game.Result {
 	playing := s.playing()
 	best := slices.Max(xslices.Map(playing, func(i int) int { return s.cards[i].total() }))
@@ -156,7 +161,7 @@ func (s state) finalResult() game.Result {
 			winners = append(winners, s.order[i])
 		}
 	}
-	if len(playing) > 1 && len(winners) == len(playing) {
+	if len(winners) > 1 && len(winners) == len(s.order) {
 		return game.Result{Kind: game.ResultDraw, Reason: ReasonScorecardsFull}
 	}
 	return game.Result{Kind: game.ResultDecisive, Winners: winners, Reason: ReasonScorecardsFull}
@@ -183,7 +188,7 @@ func (s state) View(viewer game.Seat) View {
 		Held:      slices.Clone(s.held[:]),
 		RollsLeft: s.rollsLeft,
 		Cards:     s.cardViews(),
-		CanRoll:   toAct && s.rollsLeft > 0,
+		CanRoll:   toAct && s.rollsLeft > 0 && !s.allHeld(),
 		CanHold:   toAct && s.rolled() && s.rollsLeft > 0,
 		Options:   options,
 	}
@@ -215,15 +220,6 @@ func (s state) ToAct() []game.Seat {
 }
 
 func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
-// Scores are each seat's card total, so the totals rank the seats behind the winners.
-func (s state) Scores() map[game.Seat]int64 {
-	scores := make(map[game.Seat]int64, len(s.order))
-	for i, seat := range s.order {
-		scores[seat] = int64(s.cards[i].total())
-	}
-	return scores
-}
 
 // Conclude takes a result the core imposed, such as an abort.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
