@@ -18,171 +18,60 @@ local PROTOCOL_CLASS = {
   PlayersWire = "games.PlayerRange",
 }
 
----Per game, the Lua class of each definition its module annotates.
-local GAME_CLASS = {
-  checkers = {
-    MovedEvent = "games.CheckersMovedEvent",
-    View = "games.CheckersView",
-  },
-  chess = {
-    MoveSquares = "games.ChessSquares",
-    MovedEvent = "games.ChessMovedEvent",
-    View = "games.ChessView",
-  },
-  tictactoe = {
-    PlacedEvent = "games.TicTacToePlacedEvent",
-    View = "games.TicTacToeView",
-  },
-  connect4 = {
-    Cell = "games.Connect4Cell",
-    DroppedEvent = "games.Connect4DroppedEvent",
-    View = "games.Connect4View",
-  },
-  ludo = {
-    CapturedEvent = "games.LudoCapturedEvent",
-    ForfeitedEvent = "games.LudoForfeitedEvent",
-    MovedEvent = "games.LudoMovedEvent",
-    PassedEvent = "games.LudoPassedEvent",
-    RolledEvent = "games.LudoRolledEvent",
-    View = "games.LudoView",
-  },
-  wordle = {
-    Guess = "games.WordleGuess",
-    GuessedEvent = "games.WordleGuessedEvent",
-    View = "games.WordleView",
-  },
-  sudoku = {
-    CellSetEvent = "games.SudokuCellSetEvent",
-    View = "games.SudokuView",
-  },
-  poker = {
-    Award = "games.PokerAward",
-    HandSummary = "games.PokerHandSummary",
-    PotView = "games.PokerPot",
-    SeatView = "games.PokerSeatView",
-    ShownHand = "games.PokerShownHand",
-    View = "games.PokerView",
-  },
-  gomoku = {
-    Cell = "games.DiscCell",
-    PlacedEvent = "games.GomokuPlacedEvent",
-    View = "games.GomokuView",
-  },
-  reversi = {
-    Cell = "games.DiscCell",
-    DiscCount = "games.ReversiDiscCount",
-    PassedEvent = "games.ReversiPassedEvent",
-    PlacedEvent = "games.ReversiPlacedEvent",
-    View = "games.ReversiView",
-  },
-  chess_puzzle = {
-    MissedEvent = "games.ChessPuzzleMissedEvent",
-    MoveSquares = "games.ChessSquares",
-    MovedEvent = "games.ChessPuzzleMovedEvent",
-    RepliedEvent = "games.ChessPuzzleRepliedEvent",
-    RevealedEvent = "games.ChessPuzzleRevealedEvent",
-    View = "games.ChessPuzzleView",
-  },
-  mastermind = {
-    Guess = "games.MastermindGuess",
-    GuessedEvent = "games.MastermindGuessedEvent",
-    View = "games.MastermindView",
-  },
-  hangman = {
-    GuessedEvent = "games.HangmanGuessedEvent",
-    LetterGuess = "games.HangmanLetterGuess",
-    View = "games.HangmanView",
-  },
-  minesweeper = {
-    ChordedEvent = "games.MinesweeperChordedEvent",
-    FlaggedEvent = "games.MinesweeperFlaggedEvent",
-    RevealedEvent = "games.MinesweeperRevealedEvent",
-    Square = "games.MinesweeperSquare",
-    View = "games.MinesweeperView",
-  },
-  fifteen = {
-    Movable = "games.FifteenMovable",
-    SlidEvent = "games.FifteenSlidEvent",
-    View = "games.FifteenView",
-  },
-  g2048 = {
-    MovedEvent = "games.G2048MovedEvent",
-    ReachedEvent = "games.G2048ReachedEvent",
-    Tile = "games.G2048Tile",
-    View = "games.G2048View",
-  },
-  mancala = {
-    CollectedEvent = "games.MancalaCollectedEvent",
-    Side = "games.MancalaSide",
-    SowedEvent = "games.MancalaSowedEvent",
-    View = "games.MancalaView",
-  },
-  yahtzee = {
-    Card = "games.YahtzeeCard",
-    Option = "games.YahtzeeOption",
-    RolledEvent = "games.YahtzeeRolledEvent",
-    ScoredEvent = "games.YahtzeeScoredEvent",
-    View = "games.YahtzeeView",
-  },
-  liars_dice = {
-    Bid = "games.LiarsDiceBid",
-    BidEvent = "games.LiarsDiceBidEvent",
-    BidMinimum = "games.LiarsDiceBidMinimum",
-    ChallengedEvent = "games.LiarsDiceChallengedEvent",
-    OutEvent = "games.LiarsDiceOutEvent",
-    Reveal = "games.LiarsDiceReveal",
-    SeatDice = "games.LiarsDiceSeatDice",
-    SeatView = "games.LiarsDiceSeatView",
-    View = "games.LiarsDiceView",
-  },
-  uno = {
-    ChallengedEvent = "games.UnoChallengedEvent",
-    ColorEvent = "games.UnoColorEvent",
-    DrewEvent = "games.UnoDrewEvent",
-    PlayedEvent = "games.UnoPlayedEvent",
-    ReshuffledEvent = "games.UnoReshuffledEvent",
-    ReversedEvent = "games.UnoReversedEvent",
-    SeatView = "games.UnoSeatView",
-    SkippedEvent = "games.UnoSkippedEvent",
-    StartedEvent = "games.UnoStartedEvent",
-    View = "games.UnoView",
-  },
-  hearts = {
-    HandScore = "games.HeartsHandScore",
-    HandScoredEvent = "games.HeartsHandScoredEvent",
-    HandStartedEvent = "games.HeartsHandStartedEvent",
-    PassChosenEvent = "games.HeartsPassChosenEvent",
-    PassedEvent = "games.HeartsPassedEvent",
-    Play = "games.HeartsPlay",
-    PlayedEvent = "games.HeartsPlayedEvent",
-    SeatPoints = "games.HeartsSeatPoints",
-    SeatView = "games.HeartsSeatView",
-    TrickResult = "games.HeartsTrickResult",
-    TrickWonEvent = "games.HeartsTrickWonEvent",
-    View = "games.HeartsView",
-  },
+---The class name prefix of each game whose id does not PascalCase to it.
+local CLASS_PREFIX = { tictactoe = "TicTacToe" }
+
+---Per game, each definition whose Lua class is not games.<Prefix><Definition>.
+local CLASS_EXCEPTIONS = {
   battleship = {
-    Anchors = "games.BattleshipAnchors",
-    ReadyEvent = "games.BattleshipReadyEvent",
-    ShipSpec = "games.BattleshipShipSpec",
-    ShipStatus = "games.BattleshipShipStatus",
     ShotEvent = "games.BattleshipShot",
     ShotEvent_shot = "games.BattleshipShotEvent",
-    Square = "games.BattleshipSquare",
-    View = "games.BattleshipView",
   },
-  chess960 = {
-    MoveSquares = "games.ChessSquares",
-    MovedEvent = "games.ChessMovedEvent",
-    View = "games.Chess960View",
-  },
-  dots_and_boxes = {
-    Box = "games.DotsAndBoxesBox",
-    DrawnEvent = "games.DotsAndBoxesDrawnEvent",
-    Line = "games.DotsAndBoxesLine",
-    View = "games.DotsAndBoxesView",
-  },
+  chess = { MoveSquares = "games.ChessSquares" },
+  chess960 = { MoveSquares = "games.ChessSquares", MovedEvent = "games.ChessMovedEvent" },
+  chess_puzzle = { MoveSquares = "games.ChessSquares" },
+  gomoku = { Cell = "games.DiscCell" },
+  reversi = { Cell = "games.DiscCell" },
+  pacman = { GhostView = "games.PacmanGhost", PacmanView = "games.PacmanPacman" },
+  poker = { PotView = "games.PokerPot" },
 }
+
+---Definitions no Lua class annotates in any game: Action, which the client builds from the
+---catalogue.
+local UNANNOTATED_IN_EVERY_GAME = { Action = true }
+
+---Per game, the definitions no Lua class annotates: events the client only describes.
+local UNANNOTATED = {
+  hearts = { LeftEvent = true },
+  poker = {
+    ActedEvent = true,
+    Blinds = true,
+    BoardEvent = true,
+    BustedEvent = true,
+    HandStartedEvent = true,
+    LeftEvent = true,
+    PostedEvent = true,
+    ReturnedEvent = true,
+    ShownEvent = true,
+    WonEvent = true,
+  },
+  uno = { LeftEvent = true, PassedEvent = true },
+}
+
+---@param game string
+---@param def_name string
+---@return string|nil class nil for a definition no class annotates
+local function game_class(game, def_name)
+  if UNANNOTATED_IN_EVERY_GAME[def_name] or (UNANNOTATED[game] or {})[def_name] then
+    return nil
+  end
+  local pascal = game:gsub("^%l", string.upper):gsub("_(%w)", string.upper)
+  return (CLASS_EXCEPTIONS[game] or {})[def_name]
+    or ("games." .. (CLASS_PREFIX[game] or pascal) .. def_name)
+end
+
+---Wire enums the client keeps no Lua enum for.
+local NO_LUA_ENUM = { Capability = true }
 
 ---Enums the server sends that the client adds no value to.
 local CLIENT_ONLY = { ErrorCode = { types.ErrorCode.DISCONNECTED } }
@@ -386,19 +275,13 @@ local T = {}
 
 function T.every_wire_enum_matches_its_lua_enum()
   local defs = read_schema("protocol.json")["$defs"]
-  for _, name in ipairs({
-    "MessageType",
-    "ErrorCode",
-    "ChallengeState",
-    "GameStatus",
-    "Control",
-    "OptionType",
-    "OptionRole",
-    "ResultKind",
-  }) do
-    local wire = vim.deepcopy(defs[name].enum)
-    table.sort(wire)
-    assert_eq({ name, wire }, { name, sorted_values(types[name], CLIENT_ONLY[name]) })
+  for name, def in pairs(defs) do
+    if def.enum and not NO_LUA_ENUM[name] then
+      assert(types[name], name .. ": no Lua enum")
+      local wire = vim.deepcopy(def.enum)
+      table.sort(wire)
+      assert_eq({ name, wire }, { name, sorted_values(types[name], CLIENT_ONLY[name]) })
+    end
   end
   local core_reasons = vim.deepcopy(defs.ResultReason.examples)
   table.sort(core_reasons)
@@ -423,14 +306,15 @@ function T.every_wire_field_is_annotated_as_the_wire_sends_it()
       return PROTOCOL_CLASS[def_name] or "games." .. def_name
     end, annotations, resolver(protocol))
   )
-  for game, class_of in pairs(GAME_CLASS) do
+  for _, path in ipairs(vim.fn.glob(SCHEMA_DIR .. "/games/*.json", false, true)) do
+    local game = vim.fn.fnamemodify(path, ":t:r")
     local schema = read_schema("games/" .. game .. ".json")
-    assert_eq(
-      {},
+    assert_eq({ game, {} }, {
+      game,
       mismatches(schema["$defs"], function(def_name)
-        return class_of[def_name]
-      end, annotations, resolver(schema))
-    )
+        return game_class(game, def_name)
+      end, annotations, resolver(schema)),
+    })
   end
 end
 
