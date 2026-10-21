@@ -1,0 +1,1122 @@
+{
+  "games": [
+    {
+      "id": "chess",
+      "name": "Chess",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "random",
+            "white",
+            "black"
+          ],
+          "default": "random"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "move",
+          "description": "Play a move.",
+          "input": {
+            "field": "move",
+            "description": "A move in SAN or UCI, any case, e.g. e4, Nf3, O-O, exd8=Q, e2e4.",
+            "pattern": "^\\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "claim_draw",
+          "description": "Claim a draw by threefold repetition or the fifty-move rule, on your move.",
+          "input": null
+        }
+      ]
+    },
+    {
+      "id": "tictactoe",
+      "name": "Tic-Tac-Toe",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {
+        "first": {
+          "type": "enum",
+          "values": [
+            "random",
+            "me",
+            "opponent"
+          ],
+          "default": "random"
+        }
+      },
+      "actions": [
+        {
+          "kind": "place",
+          "description": "Place your mark on an empty cell.",
+          "input": {
+            "field": "cell",
+            "description": "The cell, numbered 1-9 in phone layout: 1 top-left, 9 bottom-right.",
+            "values": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "connect4",
+      "name": "Connect4",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "first": {
+          "type": "enum",
+          "values": [
+            "random",
+            "me",
+            "opponent"
+          ],
+          "default": "random"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "drop",
+          "description": "Drop a disc into a column; it falls to the lowest empty cell.",
+          "input": {
+            "field": "column",
+            "description": "The column, 1 to 7 from the left.",
+            "values": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "checkers",
+      "name": "Checkers",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "random",
+            "black",
+            "white"
+          ],
+          "default": "random"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "move",
+          "description": "Play one complete move; a capture lists every landing square.",
+          "input": {
+            "field": "text",
+            "description": "Squares 1-32, e.g. 11-15, 15x24 or 15x24x31.",
+            "pattern": "^\\s*(([1-9]|[12][0-9]|3[0-2])-([1-9]|[12][0-9]|3[0-2])|([1-9]|[12][0-9]|3[0-2])(x([1-9]|[12][0-9]|3[0-2]))+)\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ludo",
+      "name": "Ludo",
+      "players": {
+        "min": 2,
+        "max": 4
+      },
+      "capabilities": [
+        "resign",
+        "abort",
+        "clock"
+      ],
+      "options": {
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "roll",
+          "description": "Roll the die, on your turn.",
+          "input": null
+        },
+        {
+          "kind": "move",
+          "description": "Move one of your tokens by the roll you just made.",
+          "input": {
+            "field": "token",
+            "description": "The token to move, 1 to 4.",
+            "values": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "wordle",
+      "name": "Wordle",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "guess",
+          "description": "Guess the hidden word.",
+          "input": {
+            "field": "text",
+            "description": "A 5-letter word from the word list, in any case.",
+            "pattern": "^\\s*[A-Za-z]{5}\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "sudoku",
+      "name": "Sudoku",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {
+        "difficulty": {
+          "type": "enum",
+          "values": [
+            "easy",
+            "medium",
+            "hard"
+          ],
+          "default": "medium"
+        }
+      },
+      "actions": [
+        {
+          "kind": "set",
+          "description": "Write a digit into a cell that is not a given, or clear it with 0.",
+          "input": {
+            "field": "text",
+            "description": "Row, column, then the digit: \"53 7\" writes 7 at row 5, column 3; \"53 0\" clears it.",
+            "pattern": "^\\s*([1-9])([1-9])\\s+([0-9])\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "poker",
+      "name": "Poker",
+      "players": {
+        "min": 2,
+        "max": 6
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "act",
+          "description": "Make your betting move, on your turn.",
+          "input": {
+            "field": "text",
+            "description": "fold, check, call, bet N, raise N or allin, any case; N is your total for the street, e.g. raise 400.",
+            "pattern": "(?i)^\\s*(fold|check|call|allin|(bet|raise)\\s+[0-9]+)\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "gomoku",
+      "name": "Gomoku",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "first": {
+          "type": "enum",
+          "values": [
+            "random",
+            "me",
+            "opponent"
+          ],
+          "default": "random"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "place",
+          "description": "Place a stone on an empty cell.",
+          "input": {
+            "field": "cell",
+            "description": "The cell, a1 to o15: the column's letter from a at the left, then the row's number from 1 at the top.",
+            "pattern": "^\\s*([a-oA-O])(1[0-5]|[1-9])\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "reversi",
+      "name": "Reversi",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "first": {
+          "type": "enum",
+          "values": [
+            "random",
+            "me",
+            "opponent"
+          ],
+          "default": "random"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "place",
+          "description": "Place a disc that flips at least one of the opponent's.",
+          "input": {
+            "field": "cell",
+            "description": "The cell, a1 to h8: the column's letter from a at the left, then the row's number from 1 at the top.",
+            "pattern": "^\\s*([a-hA-H])([1-8])\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "chess_puzzle",
+      "name": "Chess puzzle",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {
+        "fen": {
+          "type": "text",
+          "values": [],
+          "default": "",
+          "max_len": 100
+        },
+        "mode": {
+          "type": "enum",
+          "values": [
+            "puzzle",
+            "study"
+          ],
+          "default": "puzzle"
+        },
+        "moves": {
+          "type": "text",
+          "values": [],
+          "default": "",
+          "max_len": 4799
+        },
+        "player": {
+          "type": "enum",
+          "values": [
+            "white",
+            "black"
+          ],
+          "default": "white"
+        }
+      },
+      "actions": [
+        {
+          "kind": "move",
+          "description": "Play your move; in puzzle mode a wrong one ends the game.",
+          "input": {
+            "field": "text",
+            "description": "A move in SAN or UCI, any case, e.g. e4, Nf3, O-O, exd8=Q, e2e4.",
+            "pattern": "^\\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "reveal",
+          "description": "Play the line's move for you, counted as a miss; study mode only.",
+          "input": null
+        }
+      ]
+    },
+    {
+      "id": "mastermind",
+      "name": "Mastermind",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "guess",
+          "description": "Guess the hidden code.",
+          "input": {
+            "field": "code",
+            "description": "4 peg colours from rgbyop (red, green, blue, yellow, orange, purple), in any case.",
+            "pattern": "^\\s*([rgbyopRGBYOP]{4})\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "hangman",
+      "name": "Hangman",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "guess",
+          "description": "Guess a letter, or the whole word.",
+          "input": {
+            "field": "text",
+            "description": "One letter, or a 5-letter word from the word list, in any case.",
+            "pattern": "^\\s*([A-Za-z]|[A-Za-z]{5})\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "minesweeper",
+      "name": "Minesweeper",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {
+        "difficulty": {
+          "type": "enum",
+          "values": [
+            "easy",
+            "medium",
+            "hard"
+          ],
+          "default": "easy"
+        }
+      },
+      "actions": [
+        {
+          "kind": "reveal",
+          "description": "Reveal a hidden cell that has no flag. The first reveal always opens an area.",
+          "input": {
+            "field": "cell",
+            "description": "Row letter, then column number: \"c12\" is row c, column 12.",
+            "pattern": "^\\s*([a-pA-P])([1-9]|[12][0-9]|30)\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "flag",
+          "description": "Flag a hidden cell, or take its flag off.",
+          "input": {
+            "field": "cell",
+            "description": "Row letter, then column number: \"c12\" is row c, column 12.",
+            "pattern": "^\\s*([a-pA-P])([1-9]|[12][0-9]|30)\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "chord",
+          "description": "Reveal every unflagged neighbour of a revealed number that has as many flags around it.",
+          "input": {
+            "field": "cell",
+            "description": "Row letter, then column number: \"c12\" is row c, column 12.",
+            "pattern": "^\\s*([a-pA-P])([1-9]|[12][0-9]|30)\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "fifteen",
+      "name": "15-puzzle",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {
+        "size": {
+          "type": "enum",
+          "values": [
+            "3x3",
+            "4x4"
+          ],
+          "default": "4x4"
+        }
+      },
+      "actions": [
+        {
+          "kind": "slide",
+          "description": "Slide a tile next to the blank into it.",
+          "input": {
+            "field": "tile",
+            "description": "The tile's number, e.g. \"7\".",
+            "pattern": "^\\s*([1-9]|1[0-5])\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "move",
+          "description": "Slide the tile that moves this way into the blank: up moves the tile below it.",
+          "input": {
+            "field": "direction",
+            "description": "The way the tile moves.",
+            "values": [
+              "up",
+              "down",
+              "left",
+              "right"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "g2048",
+      "name": "2048",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "move",
+          "description": "Slide every tile one way; two equal tiles that meet merge into their sum.",
+          "input": {
+            "field": "direction",
+            "description": "The way the tiles slide.",
+            "values": [
+              "up",
+              "down",
+              "left",
+              "right"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mancala",
+      "name": "Mancala",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "first": {
+          "type": "enum",
+          "values": [
+            "random",
+            "me",
+            "opponent"
+          ],
+          "default": "random"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "sow",
+          "description": "Sow every seed of one of your pits, one per pit counter-clockwise, into your store but not your opponent's.",
+          "input": {
+            "field": "pit",
+            "description": "Your pit, 1 to 6 from your left toward your store.",
+            "values": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "yahtzee",
+      "name": "Yahtzee",
+      "players": {
+        "min": 1,
+        "max": 4
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "roll",
+          "description": "Roll the dice you do not hold, up to three times a turn.",
+          "input": null
+        },
+        {
+          "kind": "hold",
+          "description": "Hold a die between rolls, or release it.",
+          "input": {
+            "field": "die",
+            "description": "The die, 1 to 5.",
+            "values": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
+          }
+        },
+        {
+          "kind": "score",
+          "description": "Score the dice in an open box, ending your turn.",
+          "input": {
+            "field": "box",
+            "description": "The box to fill.",
+            "values": [
+              "ones",
+              "twos",
+              "threes",
+              "fours",
+              "fives",
+              "sixes",
+              "three_of_a_kind",
+              "four_of_a_kind",
+              "full_house",
+              "small_straight",
+              "large_straight",
+              "yahtzee",
+              "chance"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "liars_dice",
+      "name": "Liar's Dice",
+      "players": {
+        "min": 2,
+        "max": 6
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "bid",
+          "description": "Raise the bid, on your turn.",
+          "input": {
+            "field": "bid",
+            "description": "Quantity x face, e.g. 3x5 for three fives; ones are wild.",
+            "pattern": "^\\s*([0-9]{1,2})\\s*[xX]\\s*([1-6])\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "dudo",
+          "description": "Challenge the standing bid: every cup is revealed.",
+          "input": null
+        }
+      ]
+    },
+    {
+      "id": "uno",
+      "name": "Uno",
+      "players": {
+        "min": 2,
+        "max": 6
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "play",
+          "description": "Play a card from your hand that matches the colour or the face on the pile, or a wild, on your turn.",
+          "input": {
+            "field": "card",
+            "description": "A colour letter r, y, g or b and a face 0-9, s (skip), r (reverse) or +2, e.g. r5 or g+2; or w or w+4 then the colour it names, e.g. w b. Any case.",
+            "pattern": "(?i)^\\s*(?:([RYGB])([0-9]|S|R|\\+2)|(W(?:\\+4)?)\\s*([RYGB]))\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "draw",
+          "description": "Draw a card instead of playing; you may play it at once if it matches.",
+          "input": null
+        },
+        {
+          "kind": "pass",
+          "description": "Keep the card you just drew and end your turn.",
+          "input": null
+        },
+        {
+          "kind": "challenge",
+          "description": "Challenge the Wild Draw Four played on you: if its player held a card of the colour before it, they draw four; if not, you draw six.",
+          "input": null
+        },
+        {
+          "kind": "accept",
+          "description": "Draw the four cards of the Wild Draw Four played on you, and lose your turn.",
+          "input": null
+        },
+        {
+          "kind": "color",
+          "description": "Name the colour in play for a Wild turned up to start, as its first player.",
+          "input": {
+            "field": "color",
+            "description": "R, Y, G or B.",
+            "values": [
+              "R",
+              "Y",
+              "G",
+              "B"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "hearts",
+      "name": "Hearts",
+      "players": {
+        "min": 4,
+        "max": 4
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "pass",
+          "description": "Choose the three cards you pass at the start of the hand; every seat chooses at once.",
+          "input": {
+            "field": "cards",
+            "description": "Three cards you hold, apart, e.g. 2c qs ah: a rank 2-9, t, j, q, k or a, then a suit c, d, h or s, any case.",
+            "pattern": "(?i)^\\s*([2-9TJQKA][CDHS])\\s+([2-9TJQKA][CDHS])\\s+([2-9TJQKA][CDHS])\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "play",
+          "description": "Play a card to the trick, on your turn.",
+          "input": {
+            "field": "card",
+            "description": "A card you hold, e.g. qs: a rank 2-9, t, j, q, k or a, then a suit c, d, h or s, any case.",
+            "pattern": "(?i)^\\s*([2-9TJQKA][CDHS])\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "battleship",
+      "name": "Battleship",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {
+        "first": {
+          "type": "enum",
+          "values": [
+            "random",
+            "me",
+            "opponent"
+          ],
+          "default": "random"
+        }
+      },
+      "actions": [
+        {
+          "kind": "place_across",
+          "description": "Place your next ship lying across, to the right of the cell.",
+          "input": {
+            "field": "cell",
+            "description": "Its left end, a1 to j10: the column's letter from a at the left, then the row's number from 1 at the top.",
+            "pattern": "^\\s*([a-jA-J])(10|[1-9])\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "place_down",
+          "description": "Place your next ship lying down, below the cell.",
+          "input": {
+            "field": "cell",
+            "description": "Its top end, a1 to j10: the column's letter from a at the left, then the row's number from 1 at the top.",
+            "pattern": "^\\s*([a-jA-J])(10|[1-9])\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "random",
+          "description": "Place the rest of your fleet at random.",
+          "input": null
+        },
+        {
+          "kind": "fire",
+          "description": "Fire at a cell of the opponent's waters you have not fired at.",
+          "input": {
+            "field": "cell",
+            "description": "The cell, a1 to j10: the column's letter from a at the left, then the row's number from 1 at the top.",
+            "pattern": "^\\s*([a-jA-J])(10|[1-9])\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "chess960",
+      "name": "Chess960",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "color": {
+          "type": "enum",
+          "values": [
+            "random",
+            "white",
+            "black"
+          ],
+          "default": "random"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "move",
+          "description": "Play a move.",
+          "input": {
+            "field": "move",
+            "description": "A move in SAN or UCI, any case, e.g. e4, Nf3, exd8=Q, e2e4; castle as O-O, O-O-O or the king onto its own rook, e.g. f1h1.",
+            "pattern": "^\\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\\s*$",
+            "values": []
+          }
+        },
+        {
+          "kind": "claim_draw",
+          "description": "Claim a draw by threefold repetition or the fifty-move rule, on your move.",
+          "input": null
+        }
+      ]
+    },
+    {
+      "id": "dots_and_boxes",
+      "name": "Dots and Boxes",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "capabilities": [
+        "resign",
+        "draw",
+        "clock",
+        "abort"
+      ],
+      "options": {
+        "first": {
+          "type": "enum",
+          "values": [
+            "random",
+            "me",
+            "opponent"
+          ],
+          "default": "random"
+        },
+        "size": {
+          "type": "enum",
+          "values": [
+            "3",
+            "5",
+            "7"
+          ],
+          "default": "5"
+        },
+        "time_control": {
+          "type": "enum",
+          "values": [
+            "none",
+            "3+2",
+            "5+0",
+            "10+5",
+            "15+10"
+          ],
+          "default": "10+5",
+          "role": "clock"
+        }
+      },
+      "actions": [
+        {
+          "kind": "draw",
+          "description": "Draw an undrawn edge between two adjacent dots; complete a box to claim it and move again.",
+          "input": {
+            "field": "edge",
+            "description": "The edge: the dot at its left or top end, its column's letter from a at the left and its row's number from 1 at the top, then h lying across or v lying down, e.g. b2h.",
+            "pattern": "^\\s*(?:([a-gA-G])([1-8])[hH]|([a-hA-H])([1-7])[vV])\\s*$",
+            "values": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "pacman",
+      "name": "Pac-Man",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "capabilities": [
+        "resign",
+        "abort"
+      ],
+      "options": {},
+      "actions": [
+        {
+          "kind": "turn",
+          "description": "Turn Pac-Man at the first cell where that way is open; resumes a paused game.",
+          "input": {
+            "field": "direction",
+            "description": "The way to turn.",
+            "values": [
+              "up",
+              "down",
+              "left",
+              "right"
+            ]
+          }
+        },
+        {
+          "kind": "pause",
+          "description": "Stop the game until the next turn.",
+          "input": null
+        }
+      ]
+    }
+  ]
+}
