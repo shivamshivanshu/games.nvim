@@ -63,6 +63,23 @@ function T.seat_groups_have_distinct_colours_and_repeat_after_four()
   end)
 end
 
+function T.given_is_the_muted_colour_in_bold_under_every_palette_and_display()
+  for _, termguicolors in ipairs({ true, false }) do
+    for _, palette in ipairs({ THEME, VIVID }) do
+      with_display(termguicolors, "dark", function()
+        theme.setup(palette)
+        local given, muted = resolved("GamesGiven"), resolved("GamesMuted")
+        assert_eq({ fg = muted.fg, ctermfg = muted.ctermfg, bold = true, cterm_bold = true }, {
+          fg = given.fg,
+          ctermfg = given.ctermfg,
+          bold = given.bold,
+          cterm_bold = given.cterm and given.cterm.bold,
+        })
+      end)
+    end
+  end
+end
+
 function T.layer_groups_set_only_their_role_attribute_under_every_palette()
   for _, options in ipairs({ THEME, VIVID }) do
     for _, background in ipairs({ "dark", "light" }) do

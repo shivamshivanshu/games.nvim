@@ -150,11 +150,11 @@ function T.input_sends_the_typed_text_for_the_server_to_parse()
   assert_eq({ kind = "set", text = "53 7" }, sudoku.input.parse("53 7"))
 end
 
-function T.givens_are_muted_entries_take_the_seat_colour_and_conflicts_are_tinted()
+function T.givens_are_bold_and_muted_entries_take_the_seat_colour_and_conflicts_are_tinted()
   local rendered =
     shell.render(update(), sudoku, view_options("unicode"), "alice", 0, nil, CATALOGUED)
   assert_eq(
-    { { "GamesCheck", "GamesMuted" }, "GamesMuted", { "GamesCheck", "GamesSeat1" } },
+    { { "GamesCheck", "GamesGiven" }, "GamesGiven", { "GamesCheck", "GamesSeat1" } },
     vim.list_slice(row_hls(rendered, FIRST_BOARD_ROW), 1, 3)
   )
 end
@@ -167,7 +167,7 @@ function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_confl
     vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + 2)
   )
   assert_eq(
-    { "GamesMuted", "GamesMuted", { "GamesMiss", "GamesMuted" } },
+    { "GamesGiven", "GamesGiven", { "GamesMiss", "GamesMuted" } },
     vim.list_slice(row_hls(rendered, FIRST_BOARD_ROW), 1, 3)
   )
 end

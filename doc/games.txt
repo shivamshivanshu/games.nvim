@@ -119,6 +119,7 @@ colour. Each group sets only the attribute of its role:
                     `GamesKey` `GamesLabel` `GamesMuted` `GamesWon` `GamesLost`
                     `GamesDrawn` `GamesClockLow` `GamesCheckSign`
                     `GamesDashSection`
+                    `GamesGiven` (sudoku givens: the muted colour in bold)
     ink (fg)        `<background group>Ink`, e.g. `GamesLastMoveInk`
     badge (both)    `GamesYourTurn`
 

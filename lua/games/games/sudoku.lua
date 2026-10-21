@@ -30,7 +30,8 @@ local Marker = { CONFLICT = "conflict", REVEALED = "revealed" }
 local SET_KIND = "set"
 local SOLVER_SEAT_INDEX = 1
 
-local GIVEN_HL = "GamesMuted"
+local GIVEN_HL = "GamesGiven"
+local REVEALED_FG_HL = "GamesMuted"
 local EMPTY_HL = "GamesMuted"
 local CONFLICT_HL = "GamesCheck"
 local REVEALED_HL = "GamesMiss"
@@ -65,7 +66,7 @@ end
 local function cell_for(view, i)
   local correction = revealed(view, i)
   if correction then
-    return { key_for(correction, Marker.REVEALED), GIVEN_HL }
+    return { key_for(correction, Marker.REVEALED), REVEALED_FG_HL }
   end
   local digit = view.grid[i]
   if digit == 0 then

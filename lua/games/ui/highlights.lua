@@ -228,6 +228,13 @@ local GROUPS = {
     theme = { from("PmenuSel"), from("Visual") },
     vivid = { bg = "#829769" },
   },
+  {
+    name = "GamesGiven",
+    role = Role.FOREGROUND,
+    theme = { from("Comment") },
+    theme_style = { bold = true },
+    vivid = { fg = "#808080", bold = true },
+  },
 }
 
 ---@type games.HlGroupSpec[] background groups, each with an ink group for the text over it

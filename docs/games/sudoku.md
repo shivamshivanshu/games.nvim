@@ -46,7 +46,7 @@ Buffer-local, normal mode, in the board buffer.
 | `]g` | next game waiting on your move |
 | `q` | close |
 
-Rows and columns are labelled 1-9, and thin lines mark the 3x3 boxes. Givens are muted, your digits take your seat colour, and empty cells show `·` (`.` in ascii). A conflicting digit is framed `[5]` and tinted. After the game, digits from the solution fill the empty and wrong cells as `(5)`, tinted. In a roomy window the digits are drawn as block art, with bars either side of a conflict and corner ticks under a revealed digit.
+Rows and columns are labelled 1-9, and thin lines mark the 3x3 boxes. Givens are muted and bold (`GamesGiven`), your digits take your seat colour, and empty cells show `·` (`.` in ascii). A conflicting digit is framed `[5]` and tinted. After the game, digits from the solution fill the empty and wrong cells as `(5)`, tinted. In a roomy window the digits are drawn as block art, with bars either side of a conflict and corner ticks under a revealed digit.
 
 ## Errors
 | Case | Message |
@@ -63,5 +63,5 @@ Solved +1, gave up -1, abort 0. Solo games count in the sudoku records but not i
 
 ## Known limits
 - No pencil marks, hints, undo or cursor input.
-- Givens and your own digits differ by colour only (muted against your seat colour); conflicts and revealed digits are also framed, `[5]` and `(5)`.
+- No state rests on colour alone: givens are bold, conflicts framed `[5]` and revealed digits `(5)`. Bold depends on the terminal's font.
 - The conformance transcript gives up rather than solving, because the hub picks a random seed; solving is covered by the Go rules tests and the smoke test.
