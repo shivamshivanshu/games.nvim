@@ -382,6 +382,19 @@ An action object always carries `kind`.
   - `movable` lists the directions that would change the board, in the order `up`, `down`, `left`, `right`; `[]` once the game is over.
 - Actions: `move` (`direction`: `"up"`, `"down"`, `"left"` or `"right"`). A move that changes nothing is an `illegal_action`. The spawned tile comes from the step's seeded rng, so a restore replays it.
 
+### Mancala
+
+- Kalah(6,4). Reasons: `more_seeds` (decisive), `equal_seeds` (draw); both mean one side's pits were empty.
+- Events:
+  - `sowed {by: seat, pit, captured, again}`: `pit` is 1-6 in the mover's numbering; `captured` counts the seeds a capture took into its store, 0 for none; `again` is true when the mover moves again;
+  - `collected {by: seat, seeds}`: at the end, the seeds left in that seat's pits went to its store. It follows the `sowed` that ended the game, once per seat with seeds left.
+- Seats: `south`, which moves first, and `north`; option `first` as in Connect4.
+- View `{south: {pits, store}, north: {pits, store}, legal_pits}`:
+  - each side's `pits` is 6 counts in that seat's own numbering: `pits[0]` is its pit 1, on its left, and `pits[5]` its pit 6, next to its store;
+  - sowing runs counter-clockwise: south's pits 1-6, south's store, north's pits 1-6, north's store, skipping the opponent's store;
+  - `legal_pits` holds the viewer's own: its pits with seeds, empty unless the viewer is to move.
+- Actions: `sow` (`pit`: `"1"` to `"6"`, the mover's own pit). An empty pit is an `illegal_action`.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

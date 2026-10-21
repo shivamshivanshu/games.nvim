@@ -24,6 +24,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Minesweeper | 1 (solo) | [docs/games/minesweeper.md](docs/games/minesweeper.md) |
 | 15-puzzle | 1 (solo) | [docs/games/fifteen.md](docs/games/fifteen.md) |
 | 2048 | 1 (solo) | [docs/games/g2048.md](docs/games/g2048.md) |
+| Mancala | 2 | [docs/games/mancala.md](docs/games/mancala.md) |
 
 ## Requirements
 
@@ -319,6 +320,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `m`, `f`, `c` (minesweeper) | reveal, flag or unflag, and chord a cell: `c12` is row c, column 12; `c` only when a number can be chorded |
 | `m`, `h` `j` `k` `l` (fifteen) | slide a tile by number, e.g. `7`, or the tile that moves left, down, up or right |
 | `h` `j` `k` `l` or the arrows (2048) | move every tile left, down, up or right, when that changes the board |
+| `1`-`6` (mancala) | sow that pit of yours, counted from your left, on your move |
 | `]g` | next game waiting on your move |
 | `q` | close |
 
