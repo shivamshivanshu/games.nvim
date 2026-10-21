@@ -1,5 +1,6 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
+local grid = require("games.ui.widgets.grid")
 local kv = require("games.ui.widgets.kv")
 
 ---@alias games.PacmanSeat "player"
@@ -105,19 +106,26 @@ end
 
 ---Who stands on each cell: Pac-Man over any ghost, an earlier ghost over a later one.
 ---@param view games.PacmanView
----@return table<integer, table<integer, games.GridCell>> row -> col -> cell
+---@return table<integer, table<integer, games.PacmanActor>> row -> col -> actor
 local function occupants(view)
-  local by_cell = {}
-  local function put(actor, cell)
-    by_cell[actor.row] = by_cell[actor.row] or {}
-    by_cell[actor.row][actor.col] = cell
+  local actors = vim.iter(view.ghosts):rev():totable()
+  actors[#actors + 1] = view.pacman
+  return grid.cell_index(actors, function(actor)
+    return actor.row
+  end, function(actor)
+    return actor.col
+  end)
+end
+
+---@param view games.PacmanView
+---@param actor games.PacmanActor
+---@return games.GridCell
+local function actor_cell(view, actor)
+  if actor == view.pacman then
+    return { pacman_key(view.pacman.facing), PACMAN_HL }
   end
-  for i = #view.ghosts, 1, -1 do
-    local ghost = view.ghosts[i]
-    put(ghost, { ghost_key(ghost), ghost_hl(ghost) })
-  end
-  put(view.pacman, { pacman_key(view.pacman.facing), PACMAN_HL })
-  return by_cell
+  ---@cast actor games.PacmanGhost
+  return { ghost_key(actor), ghost_hl(actor) }
 end
 
 ---@param update games.PacmanUpdate
@@ -162,9 +170,9 @@ function M.layout(update, ctx)
       cell_width = CELL_WIDTH,
       gap = 0,
       cell = function(r, c)
-        local occupant = on_cell[r] and on_cell[r][c]
-        if occupant then
-          return occupant
+        local actor = on_cell[r] and on_cell[r][c]
+        if actor then
+          return actor_cell(view, actor)
         end
         local key = TILE_KEYS[view.maze[r]:sub(c, c)]
         return { key, TILE_HLS[key] }
