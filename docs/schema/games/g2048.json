@@ -2,28 +2,33 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "direction": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "move"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down",
+                "left",
+                "right"
+              ],
+              "description": "The way the tiles slide."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "direction"
+          ],
+          "description": "Slide every tile one way; two equal tiles that meet merge into their sum."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "direction"
       ],
       "description": "Action is a move; Direction is one of the Directions as text."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "move"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Direction": {
       "type": "string",

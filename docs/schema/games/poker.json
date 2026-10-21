@@ -27,28 +27,28 @@
       "description": "ActedEvent is a betting move. Amount is By's total for the street after it, 0 for fold and check."
     },
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "text": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "act"
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^\\s*([fF][oO][lL][dD]|[cC][hH][eE][cC][kK]|[cC][aA][lL][lL]|[aA][lL][lL][iI][nN]|([bB][eE][tT]|[rR][aA][iI][sS][eE])\\s+[0-9]+)\\s*$",
+              "description": "fold, check, call, bet N, raise N or allin, any case; N is your total for the street, e.g. raise 400."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "text"
+          ],
+          "description": "Make your betting move, on your turn."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "text"
       ],
       "description": "Action is a betting move as typed: fold, check, call, bet N, raise N or allin.\nAmounts are the seat's total for the street (\"raise to\")."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "act"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Award": {
       "properties": {

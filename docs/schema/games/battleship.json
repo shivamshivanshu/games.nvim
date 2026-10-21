@@ -2,30 +2,79 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "place_across"
+            },
+            "cell": {
+              "type": "string",
+              "pattern": "^\\s*([a-jA-J])(10|[1-9])\\s*$",
+              "description": "Its left end, a1 to j10: the column's letter from a at the left, then the row's number from 1 at the top."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Place your next ship lying across, to the right of the cell."
         },
-        "cell": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "place_down"
+            },
+            "cell": {
+              "type": "string",
+              "pattern": "^\\s*([a-jA-J])(10|[1-9])\\s*$",
+              "description": "Its top end, a1 to j10: the column's letter from a at the left, then the row's number from 1 at the top."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Place your next ship lying down, below the cell."
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "random"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Place the rest of your fleet at random."
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "fire"
+            },
+            "cell": {
+              "type": "string",
+              "pattern": "^\\s*([a-jA-J])(10|[1-9])\\s*$",
+              "description": "The cell, a1 to j10: the column's letter from a at the left, then the row's number from 1 at the top."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Fire at a cell of the opponent's waters you have not fired at."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action names its cell as text, such as \"c5\": empty for random."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "place_across",
-        "place_down",
-        "random",
-        "fire"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Anchors": {
       "properties": {

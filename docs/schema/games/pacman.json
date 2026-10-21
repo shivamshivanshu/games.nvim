@@ -2,28 +2,46 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "turn"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down",
+                "left",
+                "right"
+              ],
+              "description": "The way to turn."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "direction"
+          ],
+          "description": "Turn Pac-Man at the first cell where that way is open; resumes a paused game."
         },
-        "direction": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "pause"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Stop the game until the next turn."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is a turn, with Direction one of grid.DirectionNames, or a pause, without one."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "turn",
-        "pause"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "CaughtEvent": {
       "properties": {

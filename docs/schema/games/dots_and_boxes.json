@@ -2,28 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "edge": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "draw"
+            },
+            "edge": {
+              "type": "string",
+              "pattern": "^\\s*(?:([a-gA-G])([1-8])[hH]|([a-hA-H])([1-7])[vV])\\s*$",
+              "description": "The edge: the dot at its left or top end, its column's letter from a at the left and its row's number from 1 at the top, then h lying across or v lying down, e.g. b2h."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "edge"
+          ],
+          "description": "Draw an undrawn edge between two adjacent dots; complete a box to claim it and move again."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "edge"
       ],
       "description": "Action names its edge as text, such as \"b2h\": the dot at its left or top end, then h lying\nacross or v lying down."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "draw"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Box": {
       "properties": {

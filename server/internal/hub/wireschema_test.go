@@ -32,6 +32,7 @@ type schemaRef struct {
 }
 
 type gameSchemaRefs struct {
+	Action schemaRef            `json:"x-action"`
 	View   schemaRef            `json:"x-view"`
 	Events map[string]schemaRef `json:"x-events"`
 }
@@ -176,4 +177,13 @@ func (w *wireSchema) checkGame(update any) error {
 		}
 	}
 	return nil
+}
+
+// checkAction validates action, sent in a game.act of game.
+func (w *wireSchema) checkAction(game string, action any) error {
+	refs, ok := w.games[game]
+	if !ok {
+		return fmt.Errorf("game %s has no schema", game)
+	}
+	return w.validate(filepath.Join("games", game+".json"), refs.Action.Ref, action)
 }

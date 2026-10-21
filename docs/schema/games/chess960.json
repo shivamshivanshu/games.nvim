@@ -2,27 +2,40 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "move"
+            },
+            "move": {
+              "type": "string",
+              "pattern": "^\\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\\s*$",
+              "description": "A move in SAN or UCI, any case, e.g. e4, Nf3, exd8=Q, e2e4; castle as O-O, O-O-O or the king onto its own rook, e.g. f1h1."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "move"
+          ],
+          "description": "Play a move."
         },
-        "move": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "claim_draw"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Claim a draw by threefold repetition or the fifty-move rule, on your move."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ]
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "move",
-        "claim_draw"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Material": {
       "properties": {

@@ -2,28 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "text": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "set"
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^\\s*([1-9])([1-9])\\s+([0-9])\\s*$",
+              "description": "Row, column, then the digit: \"53 7\" writes 7 at row 5, column 3; \"53 0\" clears it."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "text"
+          ],
+          "description": "Write a digit into a cell that is not a given, or clear it with 0."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "text"
       ],
       "description": "Action is typed input; for ActionSet, Text is \"RC D\", e.g. \"53 7\" for row 5, column 3, digit 7."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "set"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "CellSetEvent": {
       "properties": {

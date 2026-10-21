@@ -2,31 +2,47 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "pass"
+            },
+            "cards": {
+              "type": "string",
+              "pattern": "^\\s*([2-9TtJjQqKkAa][CcDdHhSs])\\s+([2-9TtJjQqKkAa][CcDdHhSs])\\s+([2-9TtJjQqKkAa][CcDdHhSs])\\s*$",
+              "description": "Three cards you hold, apart, e.g. 2c qs ah: a rank 2-9, t, j, q, k or a, then a suit c, d, h or s, any case."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cards"
+          ],
+          "description": "Choose the three cards you pass at the start of the hand; every seat chooses at once."
         },
-        "cards": {
-          "type": "string"
-        },
-        "card": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "play"
+            },
+            "card": {
+              "type": "string",
+              "pattern": "^\\s*([2-9TtJjQqKkAa][CcDdHhSs])\\s*$",
+              "description": "A card you hold, e.g. qs: a rank 2-9, t, j, q, k or a, then a suit c, d, h or s, any case."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "card"
+          ],
+          "description": "Play a card to the trick, on your turn."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is a move. Pass takes Cards, the three cards to pass, e.g.\n\"2c Qs Ah\"; play takes Card, the card to play, e.g. \"Qs\". Ranks are\n2-9, T, J, Q, K, A and suits c, d, h, s, in any case."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "pass",
-        "play"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "HandScore": {
       "properties": {

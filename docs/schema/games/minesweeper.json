@@ -2,30 +2,66 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "reveal"
+            },
+            "cell": {
+              "type": "string",
+              "pattern": "^\\s*([a-pA-P])([1-9]|[12][0-9]|30)\\s*$",
+              "description": "Row letter, then column number: \"c12\" is row c, column 12."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Reveal a hidden cell that has no flag. The first reveal always opens an area."
         },
-        "cell": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "flag"
+            },
+            "cell": {
+              "type": "string",
+              "pattern": "^\\s*([a-pA-P])([1-9]|[12][0-9]|30)\\s*$",
+              "description": "Row letter, then column number: \"c12\" is row c, column 12."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Flag a hidden cell, or take its flag off."
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "chord"
+            },
+            "cell": {
+              "type": "string",
+              "pattern": "^\\s*([a-pA-P])([1-9]|[12][0-9]|30)\\s*$",
+              "description": "Row letter, then column number: \"c12\" is row c, column 12."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Reveal every unflagged neighbour of a revealed number that has as many flags around it."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "cell"
       ],
       "description": "Action names its cell as a row letter then a column number: \"c12\" is row 3, column 12."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "reveal",
-        "flag",
-        "chord"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Cell": {
       "type": "string",

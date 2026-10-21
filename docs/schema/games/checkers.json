@@ -2,27 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "text": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "move"
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^\\s*(([1-9]|[12][0-9]|3[0-2])-([1-9]|[12][0-9]|3[0-2])|([1-9]|[12][0-9]|3[0-2])(x([1-9]|[12][0-9]|3[0-2]))+)\\s*$",
+              "description": "Squares 1-32, e.g. 11-15, 15x24 or 15x24x31."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "text"
+          ],
+          "description": "Play one complete move; a capture lists every landing square."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is one complete move, such as 11-15 or 15x24x31."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "move"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Board": {
       "items": {

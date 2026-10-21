@@ -2,32 +2,80 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "roll"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Roll the dice you do not hold, up to three times a turn."
         },
-        "die": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "hold"
+            },
+            "die": {
+              "type": "string",
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5"
+              ],
+              "description": "The die, 1 to 5."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "die"
+          ],
+          "description": "Hold a die between rolls, or release it."
         },
-        "box": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "score"
+            },
+            "box": {
+              "type": "string",
+              "enum": [
+                "ones",
+                "twos",
+                "threes",
+                "fours",
+                "fives",
+                "sixes",
+                "three_of_a_kind",
+                "four_of_a_kind",
+                "full_house",
+                "small_straight",
+                "large_straight",
+                "yahtzee",
+                "chance"
+              ],
+              "description": "The box to fill."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "box"
+          ],
+          "description": "Score the dice in an open box, ending your turn."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is a roll of the dice not held, a hold toggled on die Die (1 to\nDiceCount), or the dice scored in Box."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "roll",
-        "hold",
-        "score"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Box": {
       "type": "string",

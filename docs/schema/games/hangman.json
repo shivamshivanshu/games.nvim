@@ -2,27 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "text": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "guess"
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^\\s*([A-Za-z]|[A-Za-z]{5})\\s*$",
+              "description": "One letter, or a 5-letter word from the word list, in any case."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "text"
+          ],
+          "description": "Guess a letter, or the whole word."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is typed input, sent raw and parsed by the server."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "guess"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "GuessedEvent": {
       "properties": {

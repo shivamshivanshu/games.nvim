@@ -2,31 +2,52 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "slide"
+            },
+            "tile": {
+              "type": "string",
+              "pattern": "^\\s*([1-9]|1[0-5])\\s*$",
+              "description": "The tile's number, e.g. \"7\"."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "tile"
+          ],
+          "description": "Slide a tile next to the blank into it."
         },
-        "tile": {
-          "type": "string"
-        },
-        "direction": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "move"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down",
+                "left",
+                "right"
+              ],
+              "description": "The way the tile moves."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "direction"
+          ],
+          "description": "Slide the tile that moves this way into the blank: up moves the tile below it."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is typed input: Tile is the tile's number as text, Direction one of the Directions."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "slide",
-        "move"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Direction": {
       "type": "string",

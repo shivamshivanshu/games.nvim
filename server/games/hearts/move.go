@@ -9,13 +9,13 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
 )
 
-const cardSyntax = `[2-9TJQKA][CDHS]`
+const cardSyntax = `[2-9TtJjQqKkAa][CcDdHhSs]`
 
 // playSyntax and passSyntax are what parsePlay and parsePass accept, and the
 // catalogue's patterns.
 var (
-	playSyntax = regexp.MustCompile(`(?i)^\s*(` + cardSyntax + `)\s*$`)
-	passSyntax = regexp.MustCompile(`(?i)^\s*(` + cardSyntax + `)\s+(` + cardSyntax + `)\s+(` + cardSyntax + `)\s*$`)
+	playSyntax = regexp.MustCompile(`^\s*(` + cardSyntax + `)\s*$`)
+	passSyntax = regexp.MustCompile(`^\s*(` + cardSyntax + `)\s+(` + cardSyntax + `)\s+(` + cardSyntax + `)\s*$`)
 )
 
 // cardOf reads one card as the patterns match it: a rank, then a suit, any case.

@@ -2,28 +2,41 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "bid"
+            },
+            "bid": {
+              "type": "string",
+              "pattern": "^\\s*([0-9]{1,2})\\s*[xX]\\s*([1-6])\\s*$",
+              "description": "Quantity x face, e.g. 3x5 for three fives; ones are wild."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "bid"
+          ],
+          "description": "Raise the bid, on your turn."
         },
-        "bid": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "dudo"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Challenge the standing bid: every cup is revealed."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is a bid typed as quantity x face, e.g. \"3x5\", or dudo, the\nchallenge of the standing bid."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "bid",
-        "dudo"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Bid": {
       "properties": {

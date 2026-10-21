@@ -2,28 +2,41 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "move"
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^\\s*([Oo0]-[Oo0](-[Oo0])?|[KQRBNkqrbn]?[a-hA-H]?[1-8]?[xX]?[a-hA-H][1-8](=?[QRBNqrbn])?)[+#!?]*\\s*$",
+              "description": "A move in SAN or UCI, any case, e.g. e4, Nf3, O-O, exd8=Q, e2e4."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "text"
+          ],
+          "description": "Play your move; in puzzle mode a wrong one ends the game."
         },
-        "text": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "reveal"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Play the line's move for you, counted as a miss; study mode only."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is typed input, sent raw and parsed by the server."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "move",
-        "reveal"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "MissedEvent": {
       "properties": {

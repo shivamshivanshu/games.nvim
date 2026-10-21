@@ -2,28 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "cell": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "place"
+            },
+            "cell": {
+              "type": "string",
+              "pattern": "^\\s*([a-hA-H])([1-8])\\s*$",
+              "description": "The cell, a1 to h8: the column's letter from a at the left, then the row's number from 1 at the top."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Place a disc that flips at least one of the opponent's."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "cell"
       ],
       "description": "Action is a place on Cell, the cell's name as text, such as \"h8\"."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "place"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Cell": {
       "properties": {

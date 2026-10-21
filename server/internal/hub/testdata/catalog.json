@@ -330,7 +330,7 @@
           "input": {
             "field": "text",
             "description": "fold, check, call, bet N, raise N or allin, any case; N is your total for the street, e.g. raise 400.",
-            "pattern": "(?i)^\\s*(fold|check|call|allin|(bet|raise)\\s+[0-9]+)\\s*$",
+            "pattern": "^\\s*([fF][oO][lL][dD]|[cC][hH][eE][cC][kK]|[cC][aA][lL][lL]|[aA][lL][lL][iI][nN]|([bB][eE][tT]|[rR][aA][iI][sS][eE])\\s+[0-9]+)\\s*$",
             "values": []
           }
         }
@@ -837,7 +837,7 @@
           "input": {
             "field": "card",
             "description": "A colour letter r, y, g or b and a face 0-9, s (skip), r (reverse) or +2, e.g. r5 or g+2; or w or w+4 then the colour it names, e.g. w b. Any case.",
-            "pattern": "(?i)^\\s*(?:([RYGB])([0-9]|S|R|\\+2)|(W(?:\\+4)?)\\s*([RYGB]))\\s*$",
+            "pattern": "^\\s*(?:([RYGBrygb])([0-9]|[SsRr]|\\+2)|([Ww](?:\\+4)?)\\s*([RYGBrygb]))\\s*$",
             "values": []
           }
         },
@@ -896,7 +896,7 @@
           "input": {
             "field": "cards",
             "description": "Three cards you hold, apart, e.g. 2c qs ah: a rank 2-9, t, j, q, k or a, then a suit c, d, h or s, any case.",
-            "pattern": "(?i)^\\s*([2-9TJQKA][CDHS])\\s+([2-9TJQKA][CDHS])\\s+([2-9TJQKA][CDHS])\\s*$",
+            "pattern": "^\\s*([2-9TtJjQqKkAa][CcDdHhSs])\\s+([2-9TtJjQqKkAa][CcDdHhSs])\\s+([2-9TtJjQqKkAa][CcDdHhSs])\\s*$",
             "values": []
           }
         },
@@ -906,7 +906,7 @@
           "input": {
             "field": "card",
             "description": "A card you hold, e.g. qs: a rank 2-9, t, j, q, k or a, then a suit c, d, h or s, any case.",
-            "pattern": "(?i)^\\s*([2-9TJQKA][CDHS])\\s*$",
+            "pattern": "^\\s*([2-9TtJjQqKkAa][CcDdHhSs])\\s*$",
             "values": []
           }
         }

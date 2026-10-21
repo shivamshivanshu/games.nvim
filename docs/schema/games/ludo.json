@@ -2,28 +2,46 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "roll"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Roll the die, on your turn."
         },
-        "token": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "move"
+            },
+            "token": {
+              "type": "string",
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4"
+              ],
+              "description": "The token to move, 1 to 4."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "token"
+          ],
+          "description": "Move one of your tokens by the roll you just made."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is a roll, or a move of the token numbered Token by the last roll."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "roll",
-        "move"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "CapturedEvent": {
       "properties": {

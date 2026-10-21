@@ -1,19 +1,25 @@
 package main
 
 import (
-	"errors"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/invopop/jsonschema"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-const defsPrefix = "#/$defs/"
+const (
+	defsPrefix      = "#/$defs/"
+	actionKindField = "kind"
+)
 
 func gameFile(t game.GameType) string { return path.Join("games", string(t)+".json") }
 
@@ -32,10 +38,6 @@ func gameSchema(g game.Game, comments map[string]string, coreEnums []reflect.Typ
 	if err != nil {
 		return nil, err
 	}
-	actionDef := doc.defs[strings.TrimPrefix(action.Ref, defsPrefix)]
-	if err := errors.Join(checkActionInputs(info, actionDef), checkRequiredFields(info, actionDef)); err != nil {
-		return nil, err
-	}
 	view, err := doc.ref(viewType)
 	if err != nil {
 		return nil, err
@@ -46,7 +48,14 @@ func gameSchema(g game.Game, comments map[string]string, coreEnums []reflect.Typ
 			return nil, err
 		}
 	}
-	if err := errors.Join(doc.defineEnum(actionKinds), doc.defineEnums()); err != nil {
+	if err := doc.defineEnums(); err != nil {
+		return nil, err
+	}
+	actionName := strings.TrimPrefix(action.Ref, defsPrefix)
+	if doc.defs[actionName], err = actionOneOf(info, doc.defs[actionName]); err != nil {
+		return nil, err
+	}
+	if err := defineReferredEnum(doc, actionKinds); err != nil {
 		return nil, err
 	}
 	if err := defineReasons(doc, info); err != nil {
@@ -61,39 +70,65 @@ func gameSchema(g game.Game, comments map[string]string, coreEnums []reflect.Typ
 	}, nil
 }
 
-// checkActionInputs fails on a catalogued input whose field is not a string
-// property of the action.
-func checkActionInputs(info game.Info, action *jsonschema.Schema) error {
+// actionOneOf is one alternative of action per catalogued kind: the kind,
+// and the input the kind takes, as its pattern or values restrict it. It
+// fails on an input that is not a string field of action, and on a field of
+// action no kind takes.
+func actionOneOf(info game.Info, action *jsonschema.Schema) (*jsonschema.Schema, error) {
+	taken := map[string]bool{actionKindField: true}
+	alternatives := make([]*jsonschema.Schema, 0, len(info.Actions))
 	for _, spec := range info.Actions {
-		if spec.Input == nil {
-			continue
+		alternative, err := actionAlternative(spec, action)
+		if err != nil {
+			return nil, err
 		}
-		var property *jsonschema.Schema
-		if action != nil && action.Properties != nil {
-			property, _ = action.Properties.Get(spec.Input.Field)
+		if spec.Input != nil {
+			taken[spec.Input.Field] = true
 		}
-		if property == nil || property.Type != "string" {
-			return fmt.Errorf("action %q takes input %q, which is not a string field of its action", spec.Kind, spec.Input.Field)
+		alternatives = append(alternatives, alternative)
+	}
+	for p := action.Properties.Oldest(); p != nil; p = p.Next() {
+		if !taken[p.Key] {
+			return nil, fmt.Errorf("no action takes the action field %q", p.Key)
 		}
 	}
-	return nil
+	return &jsonschema.Schema{Description: action.Description, OneOf: alternatives}, nil
 }
 
-// checkRequiredFields fails on an action kind the schema would refuse as the
-// catalogue describes it: one that must carry a field other than its kind and
-// its own input.
-func checkRequiredFields(info game.Info, action *jsonschema.Schema) error {
-	if action == nil {
-		return nil
-	}
-	for _, spec := range info.Actions {
-		for _, field := range action.Required {
-			if field != "kind" && (spec.Input == nil || spec.Input.Field != field) {
-				return fmt.Errorf("action %q does not take %q, which its action requires", spec.Kind, field)
-			}
+func actionAlternative(spec game.ActionSpec, action *jsonschema.Schema) (*jsonschema.Schema, error) {
+	properties := orderedmap.New[string, *jsonschema.Schema]()
+	properties.Set(actionKindField, &jsonschema.Schema{Const: string(spec.Kind)})
+	required := []string{actionKindField}
+	if in := spec.Input; in != nil {
+		field, _ := action.Properties.Get(in.Field)
+		if field == nil || field.Type != "string" {
+			return nil, fmt.Errorf("action %q takes input %q, which is not a string field of its action", spec.Kind, in.Field)
 		}
+		properties.Set(in.Field, &jsonschema.Schema{
+			Type:        "string",
+			Description: in.Description,
+			Pattern:     in.Pattern,
+			Enum:        xslices.Map(in.Values, func(v string) any { return v }),
+		})
+		required = append(required, in.Field)
 	}
-	return nil
+	return &jsonschema.Schema{
+		Type:                 "object",
+		Description:          spec.Description,
+		Properties:           properties,
+		Required:             required,
+		AdditionalProperties: jsonschema.FalseSchema,
+	}, nil
+}
+
+// defineReferredEnum adds e's def if a def refers to it, as a view listing
+// action kinds does; the actions' alternatives hold their kinds as consts.
+func defineReferredEnum(doc *document, e enum) error {
+	encoded, err := json.Marshal(doc.defs)
+	if err != nil || !bytes.Contains(encoded, []byte(strconv.Quote(defsPrefix+e.typ.Name()))) {
+		return err
+	}
+	return doc.defineEnum(e)
 }
 
 // defineReasons adds the ResultReason enum of a game that declares reasons.

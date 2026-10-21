@@ -2,21 +2,102 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "play"
+            },
+            "card": {
+              "type": "string",
+              "pattern": "^\\s*(?:([RYGBrygb])([0-9]|[SsRr]|\\+2)|([Ww](?:\\+4)?)\\s*([RYGBrygb]))\\s*$",
+              "description": "A colour letter r, y, g or b and a face 0-9, s (skip), r (reverse) or +2, e.g. r5 or g+2; or w or w+4 then the colour it names, e.g. w b. Any case."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "card"
+          ],
+          "description": "Play a card from your hand that matches the colour or the face on the pile, or a wild, on your turn."
         },
-        "card": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "draw"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Draw a card instead of playing; you may play it at once if it matches."
         },
-        "color": {
-          "type": "string"
+        {
+          "properties": {
+            "kind": {
+              "const": "pass"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Keep the card you just drew and end your turn."
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "challenge"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Challenge the Wild Draw Four played on you: if its player held a card of the colour before it, they draw four; if not, you draw six."
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "accept"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "description": "Draw the four cards of the Wild Draw Four played on you, and lose your turn."
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "color"
+            },
+            "color": {
+              "type": "string",
+              "enum": [
+                "R",
+                "Y",
+                "G",
+                "B"
+              ],
+              "description": "R, Y, G or B."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "color"
+          ],
+          "description": "Name the colour in play for a Wild turned up to start, as its first player."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind"
       ],
       "description": "Action is a move. Play takes Card, a card from the hand as typed, e.g.\n\"r5\", or a wild and the colour it names, \"w g\" or \"w+4 b\". Color takes\nColor, the colour named for a Wild turned up to start. The others take\nnothing."
     },

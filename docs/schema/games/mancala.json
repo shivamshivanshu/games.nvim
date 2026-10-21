@@ -2,28 +2,35 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "pit": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "sow"
+            },
+            "pit": {
+              "type": "string",
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6"
+              ],
+              "description": "Your pit, 1 to 6 from your left toward your store."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "pit"
+          ],
+          "description": "Sow every seed of one of your pits, one per pit counter-clockwise, into your store but not your opponent's."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "pit"
       ],
       "description": "Action sows Pit, the mover's own pit as text: \"1\" to \"6\", counted from the mover's left\ntoward its store."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "sow"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "CollectedEvent": {
       "properties": {

@@ -2,28 +2,38 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "cell": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "place"
+            },
+            "cell": {
+              "type": "string",
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ],
+              "description": "The cell, numbered 1-9 in phone layout: 1 top-left, 9 bottom-right."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "cell"
+          ],
+          "description": "Place your mark on an empty cell."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "cell"
       ],
       "description": "Action is a player's move. Cell is the cell's number as text, \"1\" to \"9\"."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "place"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Cell": {
       "properties": {

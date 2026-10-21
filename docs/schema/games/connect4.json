@@ -2,28 +2,36 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
     "Action": {
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/ActionKind"
-        },
-        "column": {
-          "type": "string"
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "drop"
+            },
+            "column": {
+              "type": "string",
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7"
+              ],
+              "description": "The column, 1 to 7 from the left."
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "column"
+          ],
+          "description": "Drop a disc into a column; it falls to the lowest empty cell."
         }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "column"
       ],
       "description": "Action is a drop into Column, the column's number as text: \"1\" to \"7\" from the left."
-    },
-    "ActionKind": {
-      "type": "string",
-      "enum": [
-        "drop"
-      ],
-      "description": "ActionKind is the \"kind\" field every action object carries."
     },
     "Cell": {
       "properties": {

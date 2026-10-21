@@ -11,7 +11,7 @@ import (
 
 // playSyntax is what parsePlay accepts, and the catalogue's pattern: a
 // coloured card, or a wild then the colour it names.
-var playSyntax = regexp.MustCompile(`(?i)^\s*(?:([RYGB])([0-9]|S|R|\+2)|(W(?:\+4)?)\s*([RYGB]))\s*$`)
+var playSyntax = regexp.MustCompile(`^\s*(?:([RYGBrygb])([0-9]|[SsRr]|\+2)|([Ww](?:\+4)?)\s*([RYGBrygb]))\s*$`)
 
 // play is a card to play from the hand, and for a wild the colour it names.
 type play struct {

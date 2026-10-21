@@ -37,7 +37,7 @@ const ActionAct game.ActionKind = "act"
 const actionTextField = "text"
 
 // movePattern is what parseMove accepts, for clients to check input before sending it.
-const movePattern = `(?i)^\s*(fold|check|call|allin|(bet|raise)\s+[0-9]+)\s*$`
+const movePattern = `^\s*([fF][oO][lL][dD]|[cC][hH][eE][cC][kK]|[cC][aA][lL][lL]|[aA][lL][lL][iI][nN]|([bB][eE][tT]|[rR][aA][iI][sS][eE])\s+[0-9]+)\s*$`
 
 // Action is a betting move as typed: fold, check, call, bet N, raise N or allin.
 // Amounts are the seat's total for the street ("raise to").
