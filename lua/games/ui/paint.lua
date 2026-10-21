@@ -1,3 +1,5 @@
+local compose = require("games.ui.compose")
+
 ---@class games.Paint
 ---@field with_modifiable fun(buf: integer, fn: fun())
 ---@field update fun(buf: integer, ns: integer, old: games.Painted|nil, new: games.Rendered): games.Painted
@@ -53,24 +55,6 @@ local function paint(buf, ns, first, last, rendered)
   end
 end
 
----@param a games.Hl
----@param b games.Hl
----@return boolean
-local function same_hl(a, b)
-  if type(a) ~= "table" or type(b) ~= "table" then
-    return a == b
-  end
-  if #a ~= #b then
-    return false
-  end
-  for i = 1, #a do
-    if a[i] ~= b[i] then
-      return false
-    end
-  end
-  return true
-end
-
 ---Whether the marks a_marks lists at indices a span and colour as those b_marks lists at b do.
 ---@param a_marks games.Marks
 ---@param a integer[]
@@ -86,7 +70,7 @@ local function same_marks(a_marks, a, b_marks, b)
     if
       a_marks.col[i] ~= b_marks.col[j]
       or a_marks.end_col[i] ~= b_marks.end_col[j]
-      or not same_hl(a_marks.hl[i], b_marks.hl[j])
+      or not compose.same_hl(a_marks.hl[i], b_marks.hl[j])
     then
       return false
     end

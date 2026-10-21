@@ -114,6 +114,28 @@ function T.each_ghost_has_its_colour_and_fright_and_eyes_their_own()
   assert(vim.tbl_contains(cell_hl(rendered, 1, 1), "GamesPacmanWall"), "a wall")
 end
 
+function T.a_board_redrawing_from_its_kept_rows_draws_each_update_as_afresh()
+  local view = view_options("unicode", { grid_rows = {} })
+  for _, overrides in ipairs({
+    {},
+    { pacman = { row = 4, col = 2, facing = "left" } },
+    { pacman = { row = 4, col = 2, facing = "up" } },
+    {
+      ghosts = {
+        { name = "blinky", row = 2, col = 5, facing = "left", mode = "frightened" },
+        { name = "pinky", row = 4, col = 6, facing = "up", mode = "frightened" },
+      },
+    },
+    { maze = { "#######", "#     #", "#######" }, pacman = { row = 2, col = 2, facing = "up" } },
+  }) do
+    local update = update_with(overrides)
+    local kept = shell.render(update, pacman, view, "alice", 0, nil, CATALOGUED)
+    local afresh = render(update, "unicode")
+    assert_eq(afresh.lines, kept.lines)
+    assert_eq(helpers.extmarks(afresh), helpers.extmarks(kept))
+  end
+end
+
 function T.the_status_says_paused_or_over()
   assert_eq(
     "##############   game  paused: turn to go",

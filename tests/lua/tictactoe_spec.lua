@@ -108,10 +108,9 @@ function T.marks_take_their_seats_colour_in_player_order_with_last_move_and_win_
     "GamesMuted",
     { "GamesLastMove", "GamesSeat1" },
     "GamesMuted",
-    "GamesMuted",
   }, helpers.hls_on_row(rendered, BOARD_ROWS[1]))
   assert_eq(
-    { "GamesSeat2", "GamesMuted", { "GamesWin", "GamesMuted" }, "GamesMuted", "GamesMuted" },
+    { "GamesSeat2", "GamesMuted", { "GamesWin", "GamesMuted" }, "GamesMuted" },
     helpers.hls_on_row(rendered, BOARD_ROWS[1] + 2)
   )
 

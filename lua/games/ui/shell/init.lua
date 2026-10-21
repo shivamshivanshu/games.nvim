@@ -353,6 +353,7 @@ local function view_for(game, module, opts)
     flipped = false,
     max_cell_height = opts.max_cell_height,
     art = assets.module_art(game, module, opts),
+    grid_rows = {},
   }
 end
 

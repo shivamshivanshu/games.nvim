@@ -399,6 +399,12 @@ local INK_OF = vim.iter(ACCENTS):fold({}, function(inks, spec)
   return inks
 end)
 
+---@type table<string, string[]> background group -> it under its ink
+local INKED = vim.iter(INK_OF):fold({}, function(inked, group, ink)
+  inked[group] = { group, ink }
+  return inked
+end)
+
 local M = {}
 
 M.Role = Role
@@ -473,12 +479,14 @@ function M.with_ink(hl)
   if not hl then
     return nil
   end
-  local layers = type(hl) == "table" and hl or { hl }
-  local ink = INK_OF[layers[#layers]]
+  if type(hl) == "string" then
+    return INKED[hl] or hl
+  end
+  local ink = INK_OF[hl[#hl]]
   if not ink then
     return hl
   end
-  return vim.list_extend(vim.list_extend({}, layers), { ink })
+  return vim.list_extend(vim.list_extend({}, hl), { ink })
 end
 
 ---The ink that contrasts more with a background: dark on a light one, light on a dark one.

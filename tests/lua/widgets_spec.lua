@@ -95,6 +95,26 @@ function T.grid_checker_and_labels()
   assert_eq({ "GamesSquareDark", "GamesSquareDarkInk" }, helpers.hl_at(rendered, 0, 4))
 end
 
+function T.grid_redraws_a_kept_row_only_when_its_key_changes()
+  local glyphs, keys = { { "p", "q" }, { "r", "s" } }, { "1", "2" }
+  local kept = {}
+  local function draw()
+    return compose.render(small_grid({
+      kept = kept,
+      cell = function(r, c)
+        return { glyphs[r][c] }
+      end,
+      row_key = function(r)
+        return keys[r]
+      end,
+    })).lines
+  end
+  assert_eq({ "2 p q", "1 r s", "  a b" }, draw())
+  glyphs[1][1], glyphs[2][2] = "x", "y"
+  keys[2] = "2'"
+  assert_eq({ "2 p q", "1 r y", "  a b" }, draw())
+end
+
 function T.grid_gap_sets_the_columns_between_one_line_cells()
   local touching = compose.render(small_grid({
     gap = 0,

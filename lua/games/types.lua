@@ -202,6 +202,7 @@
 ---@field max_cell_height? integer
 ---@field art? games.ArtSet the game's asset pack in this glyph mode
 ---@field cursor? games.GridCursor where the game's cursor keys left the cursor; nil until moved
+---@field grid_rows? games.GridRows the buffer's drawn grid rows, which its next draw reuses where they are unchanged
 
 ---@class games.LayoutCtx: games.ViewOptions
 ---@field me games.UserID

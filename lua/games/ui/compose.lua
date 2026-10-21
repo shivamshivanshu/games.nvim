@@ -17,7 +17,7 @@ local text_util = require("games.ui.text")
 ---@field kind "text"
 ---@field str string
 ---@field hl? games.Hl
----@field w? integer display columns of str; measured once, by the first layout that needs it, when not given
+---@field w? integer display columns of str, memoised by the first layout that measures it
 
 ---@class games.RowNode
 ---@field kind "row"
@@ -39,7 +39,15 @@ local text_util = require("games.ui.text")
 ---@field hl? games.Hl over every whole line of the box, under the child's own highlights
 ---@field child games.Node centred; odd padding goes right and bottom
 
----@alias games.Node games.TextNode|games.RowNode|games.ColNode|games.PadNode|games.BoxNode
+---Lines drawn already, each w display columns wide, placed as they are.
+---@class games.BlockNode
+---@field kind "block"
+---@field w integer display columns of every line
+---@field h integer lines
+---@field lines string[]
+---@field marks games.Marks rows count from the block's first line, byte columns from its left edge
+
+---@alias games.Node games.TextNode|games.RowNode|games.ColNode|games.PadNode|games.BoxNode|games.BlockNode
 
 ---@class games.Size
 ---@field w integer display columns
@@ -72,6 +80,25 @@ function M.add_mark(marks, row, col, end_col, hl)
   return i
 end
 
+---Whether a and b layer the same groups.
+---@param a games.Hl|nil
+---@param b games.Hl|nil
+---@return boolean
+function M.same_hl(a, b)
+  if type(a) ~= "table" or type(b) ~= "table" then
+    return a == b
+  end
+  if #a ~= #b then
+    return false
+  end
+  for i = 1, #a do
+    if a[i] ~= b[i] then
+      return false
+    end
+  end
+  return true
+end
+
 ---@param str string
 ---@param hl? games.Hl
 ---@return games.TextNode
@@ -79,19 +106,28 @@ function M.text(str, hl)
   return { kind = "text", str = str, hl = hl }
 end
 
----A text node of str, which takes w display columns, as a drawable asset pack entry declares.
----@param str string
----@param w integer
----@param hl? games.Hl
----@return games.TextNode
-function M.sized_text(str, w, hl)
-  return { kind = "text", str = str, hl = hl, w = w }
+---@param w integer display columns of every line
+---@param lines string[]
+---@param marks games.Marks rows count from the first line, byte columns from the left edge
+---@return games.BlockNode
+function M.block(w, lines, marks)
+  return { kind = "block", w = w, h = #lines, lines = lines, marks = marks }
 end
 
 ---Layers that are set, in order, flattened into one highlight; nil when none is set.
 ---@param ... games.Hl|nil
 ---@return games.Hl|nil
 function M.layers(...)
+  local set, only = 0, nil
+  for i = 1, select("#", ...) do
+    local hl = select(i, ...)
+    if hl then
+      set, only = set + 1, hl
+    end
+  end
+  if set == 0 or (set == 1 and type(only) == "string") then
+    return only
+  end
   local groups = {}
   for i = 1, select("#", ...) do
     local hl = select(i, ...)
@@ -221,6 +257,37 @@ local function place_box(canvas, node, row, col)
 end
 
 ---@param canvas games.Canvas
+---@param node games.BlockNode
+---@param row integer
+---@param col integer
+---@return integer width
+---@return integer height
+local function place_block(canvas, node, row, col)
+  local starts = {}
+  for i, line in ipairs(node.lines) do
+    local at = row + i - 1
+    advance(canvas, at, col)
+    local fragments = canvas.fragments[at]
+    fragments[#fragments + 1] = line
+    starts[i] = canvas.bytes[at]
+    canvas.bytes[at] = starts[i] + #line
+    canvas.cols[at] = col + node.w
+  end
+  local marks = node.marks
+  for i = 1, #marks.row do
+    local start = starts[marks.row[i] + 1]
+    M.add_mark(
+      canvas.marks,
+      row + marks.row[i],
+      start + marks.col[i],
+      start + marks.end_col[i],
+      marks.hl[i]
+    )
+  end
+  return node.w, node.h
+end
+
+---@param canvas games.Canvas
 ---@param node games.RowNode
 ---@param row integer
 ---@param col integer
@@ -271,6 +338,9 @@ place = function(canvas, node, row, col)
   if node.kind == "box" then
     return place_box(canvas, node, row, col)
   end
+  if node.kind == "block" then
+    return place_block(canvas, node, row, col)
+  end
   if node.kind == "col" then
     return place_col(canvas, node, row, col)
   end
@@ -300,7 +370,7 @@ function M.measure(node)
     local child = M.measure(node.child)
     return { w = child.w + node.n, h = child.h }
   end
-  if node.kind == "box" then
+  if node.kind == "box" or node.kind == "block" then
     return { w = node.w, h = node.h }
   end
   local w, h = 0, 0

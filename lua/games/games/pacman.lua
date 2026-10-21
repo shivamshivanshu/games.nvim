@@ -74,6 +74,11 @@ local TILE_KEYS =
   { ["#"] = "wall", ["-"] = "door", ["."] = "dot", ["o"] = "pellet", [" "] = "empty" }
 ---@type table<string, games.Hl|nil>
 local TILE_HLS = { wall = WALL_HL, door = DOOR_HL }
+---@type table<string, games.GridCell> cell of each tile letter of View.maze
+local TILE_CELLS = vim.iter(TILE_KEYS):fold({}, function(cells, letter, key)
+  cells[letter] = { key, TILE_HLS[key] }
+  return cells
+end)
 ---@type games.PacmanGhostName[]
 local GHOST_NAMES = { "blinky", "pinky", "inky", "clyde" }
 ---@type table<games.PacmanGhostName, games.Hl>
@@ -119,13 +124,13 @@ local function ghost_cell(name, mode)
   return { ghost_key(name, mode), ghost_hl(name, mode) }
 end
 
----Who stands on each cell: Pac-Man over any ghost, an earlier ghost over a later one.
+---Pac-Man and the ghosts, in the order they are drawn over each other: the last on a cell shows.
 ---@param view games.PacmanView
----@return table<integer, table<integer, games.PacmanActor>> row -> col -> actor
-local function occupants(view)
+---@return games.PacmanActor[]
+local function actors_of(view)
   local actors = vim.iter(view.ghosts):rev():totable()
   actors[#actors + 1] = view.pacman
-  return grid.cell_index(actors)
+  return actors
 end
 
 ---@param view games.PacmanView
@@ -173,7 +178,8 @@ M.glyph_width = CELL_WIDTH
 ---@return games.Node
 function M.layout(update, ctx)
   local view = update.view
-  local on_cell = occupants(view)
+  local actors = actors_of(view)
+  local on_cell = grid.cell_index(actors)
   return board({
     grid = {
       rows = #view.maze,
@@ -185,8 +191,17 @@ function M.layout(update, ctx)
         if actor then
           return actor_cell(view, actor)
         end
-        local key = TILE_KEYS[view.maze[r]:sub(c, c)]
-        return { key, TILE_HLS[key] }
+        return TILE_CELLS[view.maze[r]:sub(c, c)]
+      end,
+      row_key = function(r)
+        local key = view.maze[r]
+        for _, actor in ipairs(actors) do
+          if actor.row == r then
+            local cell = actor_cell(view, actor)
+            key = ("%s|%d %s %s"):format(key, actor.col, cell[1], cell[2])
+          end
+        end
+        return key
       end,
     },
     panels = {

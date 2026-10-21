@@ -18,7 +18,7 @@ local TITLE_HL = Group.LABEL
 ---max(grid.cell_width, 2h) wide, so a game whose h = 1 cell_width is 4 or more keeps it until 2h
 ---passes it and the board never narrows as h grows.
 ---@class games.BoardProps
----@field grid games.GridProps the board sets cell_height, art, ambiwidth, and cell_width above h = 1
+---@field grid games.GridProps the board sets cell_height, art, ambiwidth, kept, and cell_width above h = 1
 ---@field art? games.ArtSet default ctx.art
 ---@field beside? games.GridProps[] more grids right of grid, left to right, with as many rows and drawn at its cell height
 ---@field titles? string[] a line centred above each grid, grid's first; a game that titles its grids titles them in every state
@@ -27,10 +27,11 @@ local TITLE_HL = Group.LABEL
 ---@param grid_props games.GridProps
 ---@param set games.ArtSet|nil
 ---@param cell_height integer
----@param ambiwidth games.Ambiwidth
+---@param ctx games.LayoutCtx
 ---@return games.Node
-local function grid_at(grid_props, set, cell_height, ambiwidth)
-  local scaled = { cell_height = cell_height, art = set, ambiwidth = ambiwidth }
+local function grid_at(grid_props, set, cell_height, ctx)
+  local scaled =
+    { cell_height = cell_height, art = set, ambiwidth = ctx.ambiwidth, kept = ctx.grid_rows }
   if cell_height > 1 then
     scaled.cell_width = math.max(grid_props.cell_width or 1, art.CELL_ASPECT * cell_height)
   end
@@ -52,13 +53,13 @@ end
 ---@param props games.BoardProps
 ---@param set games.ArtSet|nil
 ---@param cell_height integer
----@param ambiwidth games.Ambiwidth
+---@param ctx games.LayoutCtx
 ---@return games.Node
-local function grids_at(props, set, cell_height, ambiwidth)
+local function grids_at(props, set, cell_height, ctx)
   local titles = props.titles or {}
   local parts = {}
   for i, grid_props in ipairs(vim.list_extend({ props.grid }, props.beside or {})) do
-    local node = titled(grid_at(grid_props, set, cell_height, ambiwidth), titles[i])
+    local node = titled(grid_at(grid_props, set, cell_height, ctx), titles[i])
     parts[i] = i > 1 and compose.pad(GRID_GAP, node) or node
   end
   return #parts == 1 and parts[1] or compose.row(parts)
@@ -98,7 +99,7 @@ return function(props, ctx)
   local candidates = {}
   for cell_height = tallest_cell(props, space, ctx.max_cell_height), 1, -1 do
     candidates[#candidates + 1] = function()
-      return grids_at(props, set, cell_height, ctx.ambiwidth)
+      return grids_at(props, set, cell_height, ctx)
     end
   end
   local board, size

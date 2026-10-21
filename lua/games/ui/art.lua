@@ -121,6 +121,15 @@ function M.picture(set, key, ambiwidth)
   return picture.lines
 end
 
+---The entry of key's one-line glyph, whose w is the display width of its line.
+---@param set games.ArtSet
+---@param key string
+---@param ambiwidth games.Ambiwidth
+---@return games.ArtEntry
+function M.glyph_entry(set, key, ambiwidth)
+  return glyph_entry(entries_of(set, key), key, ambiwidth)
+end
+
 ---The one-line glyph of key.
 ---@param set games.ArtSet
 ---@param key string

@@ -49,6 +49,15 @@ local Group = highlights.Group
 ---@field blocks? integer positive: draw a thin separator after every this many rows and columns
 ---@field glyphs? games.Glyphs separator characters, default "unicode"
 ---@field edges? games.GridEdges draws the cells' edges and corners in place of the gaps between cells; labels then name the dots, rows + 1 and cols + 1 of them; not with flip or blocks
+---@field row_key? fun(row: integer): string names everything cell gives on the row, so that with kept a row whose key is unchanged is not drawn again; not with edges
+---@field kept? games.GridRows where the rows that row_key names are kept between draws
+
+---Drawn rows by the grid geometry they were drawn at, then by display row.
+---@alias games.GridRows table<string, table<integer, games.GridRow>>
+
+---@class (private) games.GridRow
+---@field key string the row_key it was drawn for, with its label
+---@field block games.BlockNode
 
 local LIGHT_SQUARE_HL = Group.SQUARE_LIGHT
 local DARK_SQUARE_HL = Group.SQUARE_DARK
@@ -66,9 +75,10 @@ local BLOCK_SEPARATORS = {
   ascii = { col = "|", row = "-", crossing = "+" },
 }
 local SEPARATOR_HL = Group.MUTED
+local SEPARATOR_WIDTH = 1
 ---@type games.ArtEntry[]
 local UNICODE_SEPARATOR_GLYPHS = vim.tbl_map(function(separator)
-  return { h = 1, w = 1, lines = { separator } }
+  return { h = 1, w = SEPARATOR_WIDTH, lines = { separator } }
 end, vim.tbl_values(BLOCK_SEPARATORS.unicode))
 
 ---The separators of glyph mode, or ascii ones where unicode box drawing would widen.
@@ -159,14 +169,81 @@ end
 
 ---@param str string
 ---@param height integer
----@param hl? games.Hl
----@return games.Node str on each of height lines
-local function repeated(str, height, hl)
+---@return string[] str on each of height lines
+local function repeated(str, height)
   local lines = {}
   for i = 1, height do
-    lines[i] = compose.text(str, hl)
+    lines[i] = str
   end
-  return compose.col(lines)
+  return lines
+end
+
+---One display row of a grid being drawn, a segment at a time, every segment as tall as it.
+---@class (private) games.GridLine
+---@field parts string[][] by line
+---@field bytes integer[] by line, bytes appended so far
+---@field last table<integer, integer> by line, the index of its last mark in marks
+---@field marks games.Marks
+---@field w integer display columns appended so far
+
+---@param height integer
+---@return games.GridLine
+local function new_line(height)
+  local line = { parts = {}, bytes = {}, last = {}, marks = compose.no_marks(), w = 0 }
+  for i = 1, height do
+    line.parts[i], line.bytes[i] = {}, 0
+  end
+  return line
+end
+
+---Appends a segment w display columns wide, drawing lines[i] on line i, all of it in hl; a mark
+---that would start where the line's last one ends, in the same highlight, extends that one.
+---@param line games.GridLine
+---@param lines string[]
+---@param w integer
+---@param hl? games.Hl
+local function append(line, lines, w, hl)
+  local marks = line.marks
+  for i, parts in ipairs(line.parts) do
+    local str = lines[i]
+    parts[#parts + 1] = str
+    local start = line.bytes[i]
+    local stop = start + #str
+    line.bytes[i] = stop
+    if hl and stop > start then
+      local last = line.last[i]
+      if last and marks.end_col[last] == start and compose.same_hl(marks.hl[last], hl) then
+        marks.end_col[last] = stop
+      else
+        line.last[i] = compose.add_mark(marks, i - 1, start, stop, hl)
+      end
+    end
+  end
+  line.w = line.w + w
+end
+
+---@param line games.GridLine
+---@return games.BlockNode
+local function finish(line)
+  return compose.block(line.w, vim.tbl_map(table.concat, line.parts), line.marks)
+end
+
+---content, w display columns wide, centred in a box of size box, odd padding going right and
+---down: box.h lines, each box.w columns wide unless content is wider.
+---@param content string[]
+---@param w integer
+---@param box games.Size
+---@return string[]
+local function centred(content, w, box)
+  local top = math.max(0, math.floor((box.h - #content) / 2))
+  local left = math.max(0, math.floor((box.w - w) / 2))
+  local blank = text_util.spaces(box.w)
+  local lines = {}
+  for i = 1, box.h do
+    local str = content[i - top]
+    lines[i] = str and text_util.spaces(left) .. str .. text_util.spaces(box.w - left - w) or blank
+  end
+  return lines
 end
 
 ---@param cell games.Cell
@@ -241,6 +318,9 @@ end
 ---@param own_hl games.Hl|nil
 ---@return games.Hl|nil
 local function cell_hl(shade, mark_hl, own_hl)
+  if not (shade or mark_hl) then
+    return own_hl
+  end
   return own_hl and compose.layers(shade, mark_hl, own_hl)
     or highlights.with_ink(compose.layers(shade, mark_hl))
 end
@@ -256,25 +336,22 @@ function M.sample(ctx, cell, mark_hl)
   return compose.text(glyph, cell_hl(nil, mark_hl, own_hl))
 end
 
----The node drawing key in a cell of size box; every cell of one grid shares box and ambiwidth.
+---The lines drawing key in a cell of size box; every cell of one grid shares box and ambiwidth.
 ---@param props games.GridProps
 ---@param box games.Size
 ---@param ambiwidth games.Ambiwidth
----@return fun(key: string): games.Node built once per key
-local function cell_contents(props, box, ambiwidth)
+---@return fun(key: string): string[] built once per key
+local function cell_lines(props, box, ambiwidth)
   local by_key = {}
   return function(key)
-    local content = by_key[key]
-    if not content then
+    local lines = by_key[key]
+    if not lines then
       local entry = props.art and art.pick(props.art, key, box, ambiwidth)
-      content = entry
-          and compose.col(vim.tbl_map(function(line)
-            return compose.sized_text(line, entry.w)
-          end, entry.lines))
-        or compose.text(key)
-      by_key[key] = content
+      lines = entry and centred(entry.lines, entry.w, box)
+        or centred({ key }, text_util.width(key), box)
+      by_key[key] = lines
     end
-    return content
+    return lines
   end
 end
 
@@ -311,30 +388,29 @@ local function column_label_row(props, col_labels, col_order, geometry)
   return compose.text(table.concat(parts))
 end
 
----The node of each cell: its key drawn over its shade and mark, in its own highlight.
+---Appends each cell: its key drawn over its shade and mark, in its own highlight.
 ---@param props games.GridProps
 ---@param geometry games.GridGeometry
 ---@param ambiwidth games.Ambiwidth
----@return fun(r: integer, c: integer): games.Node
-local function cell_nodes(props, geometry, ambiwidth)
-  ---@type table<integer, table<integer, games.GridMark>>
-  local marks = M.cell_index(props.marks or {})
-  local content = cell_contents(props, geometry.cell, ambiwidth)
-  return function(r, c)
-    local key, own_hl = unpack(props.cell(r, c))
+---@param marks table<integer, table<integer, games.GridMark>> props.marks by cell
+---@return fun(line: games.GridLine, r: integer, c: integer)
+local function cell_appender(props, geometry, ambiwidth, marks)
+  local lines_of = cell_lines(props, geometry.cell, ambiwidth)
+  return function(line, r, c)
+    local cell = props.cell(r, c)
     local mark = marks[r] and marks[r][c]
-    local hl = cell_hl(shade_hl(props.shade, r, c), mark and mark.hl, own_hl)
-    return compose.box({ w = geometry.cell.w, h = geometry.cell.h, hl = hl, child = content(key) })
+    local hl = cell_hl(shade_hl(props.shade, r, c), mark and mark.hl, cell[2])
+    append(line, lines_of(cell[1]), geometry.cell.w, hl)
   end
 end
 
 ---@param label string
 ---@param geometry games.GridGeometry
 ---@param height integer
----@return games.Node label left-aligned in the row label column, height lines tall
-local function label_node(label, geometry, height)
+---@return string[] label left-aligned in the row label column, height lines tall
+local function label_lines(label, geometry, height)
   local padded = text_util.pad_to_width(label, geometry.label) .. LABEL_GAP
-  return compose.box({ w = geometry.prefix, h = height, child = compose.text(padded) })
+  return centred({ padded }, geometry.prefix, { w = geometry.prefix, h = height })
 end
 
 ---@param props games.GridProps
@@ -351,6 +427,31 @@ local function geometry_of(props, row_labels)
   }
 end
 
+---The rows props.kept holds for a grid of this geometry, or nil when it keeps none.
+---@param props games.GridProps
+---@param geometry games.GridGeometry
+---@param ambiwidth games.Ambiwidth
+---@return table<integer, games.GridRow>|nil
+local function kept_rows(props, geometry, ambiwidth)
+  if not (props.kept and props.row_key) then
+    return nil
+  end
+  local drawn_at = table.concat({
+    geometry.cell.w,
+    geometry.cell.h,
+    geometry.gap,
+    geometry.prefix,
+    ambiwidth,
+    props.shade or "",
+    props.blocks or "",
+    props.glyphs or "",
+    tostring(props.flip),
+    tostring(props.art),
+  }, " ")
+  props.kept[drawn_at] = props.kept[drawn_at] or {}
+  return props.kept[drawn_at]
+end
+
 ---@param props games.GridProps
 ---@param ambiwidth games.Ambiwidth
 ---@return games.Node
@@ -362,13 +463,47 @@ local function render_cells(props, ambiwidth)
   local col_labels = props.labels and labels_in_order(props.labels.cols, col_order)
   local geometry = geometry_of(props, row_labels)
   local cell_height = geometry.cell.h
-  local cell_node = cell_nodes(props, geometry, ambiwidth)
+  ---@type table<integer, table<integer, games.GridMark>>
+  local marks = M.cell_index(props.marks or {})
+  local append_cell = cell_appender(props, geometry, ambiwidth, marks)
+  local separator_lines = repeated(separators.col, cell_height)
+  local gap_lines = repeated(text_util.spaces(geometry.gap), cell_height)
 
-  local function gap_node(j)
-    if crosses_block(props.blocks, col_order[j - 1], col_order[j]) then
-      return repeated(separators.col, cell_height, SEPARATOR_HL)
+  ---@param i integer display row
+  ---@param r integer logical row
+  ---@return games.BlockNode
+  local function draw_row(i, r)
+    local line = new_line(cell_height)
+    if row_labels then
+      append(line, label_lines(row_labels[i], geometry, cell_height), geometry.prefix)
     end
-    return geometry.gap > 0 and repeated(text_util.spaces(geometry.gap), cell_height) or nil
+    for j, c in ipairs(col_order) do
+      if j > 1 and crosses_block(props.blocks, col_order[j - 1], c) then
+        append(line, separator_lines, SEPARATOR_WIDTH, SEPARATOR_HL)
+      elseif j > 1 and geometry.gap > 0 then
+        append(line, gap_lines, geometry.gap)
+      end
+      append_cell(line, r, c)
+    end
+    return finish(line)
+  end
+
+  local kept = kept_rows(props, geometry, ambiwidth)
+  ---Display row i, logical row r, as kept when its key is unchanged.
+  ---@param i integer
+  ---@param r integer
+  ---@return games.BlockNode
+  local function row_block(i, r)
+    if not kept or marks[r] then
+      return draw_row(i, r)
+    end
+    local key = (row_labels and row_labels[i] or "") .. props.row_key(r)
+    local row = kept[i]
+    if not (row and row.key == key) then
+      row = { key = key, block = draw_row(i, r) }
+      kept[i] = row
+    end
+    return row.block
   end
 
   local lines = {}
@@ -376,15 +511,7 @@ local function render_cells(props, ambiwidth)
     if i > 1 and crosses_block(props.blocks, row_order[i - 1], r) then
       lines[#lines + 1] = block_separator_row(props, col_order, geometry, separators)
     end
-    local parts = {}
-    if row_labels then
-      parts[#parts + 1] = label_node(row_labels[i], geometry, cell_height)
-    end
-    for j, c in ipairs(col_order) do
-      parts[#parts + 1] = j > 1 and gap_node(j) or nil
-      parts[#parts + 1] = cell_node(r, c)
-    end
-    lines[#lines + 1] = compose.row(parts)
+    lines[#lines + 1] = row_block(i, r)
   end
 
   if col_labels then
@@ -392,6 +519,13 @@ local function render_cells(props, ambiwidth)
   end
   return compose.col(lines)
 end
+
+---An edge or dot glyph, as lines for each segment it draws.
+---@class (private) games.GridEdgeGlyph
+---@field w integer display columns of one glyph
+---@field dot string[] the glyph alone
+---@field across string[] the glyph along a cell's width
+---@field down string[] the glyph down a cell's height
 
 ---The cells with a dot at every corner and an edge along every side, labels naming the dots.
 ---@param props games.GridProps
@@ -407,39 +541,57 @@ local function render_lattice(props, edges, ambiwidth)
   local col_labels = props.labels and labels_in_order(props.labels.cols, dot_cols)
   local geometry = geometry_of(props, row_labels)
   local cell_w, cell_h = geometry.cell.w, geometry.cell.h
-  local cell_node = cell_nodes(props, geometry, ambiwidth)
+  local append_cell = cell_appender(props, geometry, ambiwidth, M.cell_index(props.marks or {}))
 
+  ---@type table<string, games.GridEdgeGlyph>
+  local glyphs = {}
+  ---@param key string
+  ---@return games.GridEdgeGlyph
   local function glyph(key)
-    return props.art and art.glyph(props.art, key, ambiwidth) or key
+    if not glyphs[key] then
+      local entry = props.art and art.glyph_entry(props.art, key, ambiwidth)
+      local str = entry and entry.lines[1] or key
+      glyphs[key] = {
+        w = entry and entry.w or text_util.width(key),
+        dot = { str },
+        across = { str:rep(cell_w) },
+        down = repeated(str, cell_h),
+      }
+    end
+    return glyphs[key]
   end
-  local function across(r, c)
-    local key, hl = unpack(edges.across(r, c))
-    return compose.text(glyph(key):rep(cell_w), hl)
-  end
-  local function down(r, c)
-    local key, hl = unpack(edges.down(r, c))
-    return repeated(glyph(key), cell_h, hl)
-  end
-  local function dot(r, c)
-    local key, hl = unpack(edges.dot(r, c))
-    return compose.text(glyph(key), hl)
+  ---@param line games.GridLine
+  ---@param cell games.GridCell
+  ---@param segment "dot"|"across"|"down"
+  ---@param repeats integer glyphs across the segment
+  local function append_edge(line, cell, segment, repeats)
+    local edge = glyph(cell[1])
+    append(line, edge[segment], edge.w * repeats, cell[2])
   end
 
   local lines = {}
   for r = 1, props.rows + 1 do
-    local corners = row_labels and { label_node(row_labels[r], geometry, 1) } or {}
-    corners[#corners + 1] = dot(r, 1)
-    for c = 1, props.cols do
-      vim.list_extend(corners, { across(r, c), dot(r, c + 1) })
+    local corners = new_line(1)
+    if row_labels then
+      append(corners, label_lines(row_labels[r], geometry, 1), geometry.prefix)
     end
-    lines[#lines + 1] = compose.row(corners)
+    append_edge(corners, edges.dot(r, 1), "dot", 1)
+    for c = 1, props.cols do
+      append_edge(corners, edges.across(r, c), "across", cell_w)
+      append_edge(corners, edges.dot(r, c + 1), "dot", 1)
+    end
+    lines[#lines + 1] = finish(corners)
     if r <= props.rows then
-      local sides = row_labels and { label_node("", geometry, cell_h) } or {}
-      sides[#sides + 1] = down(r, 1)
-      for c = 1, props.cols do
-        vim.list_extend(sides, { cell_node(r, c), down(r, c + 1) })
+      local sides = new_line(cell_h)
+      if row_labels then
+        append(sides, label_lines("", geometry, cell_h), geometry.prefix)
       end
-      lines[#lines + 1] = compose.row(sides)
+      append_edge(sides, edges.down(r, 1), "down", 1)
+      for c = 1, props.cols do
+        append_cell(sides, r, c)
+        append_edge(sides, edges.down(r, c + 1), "down", 1)
+      end
+      lines[#lines + 1] = finish(sides)
     end
   end
 
