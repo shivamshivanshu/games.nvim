@@ -112,3 +112,15 @@ func lastLine(text string) string {
 	lines := strings.Split(strings.TrimSpace(text), "\n")
 	return lines[len(lines)-1]
 }
+
+func TestChess960PGNTagsTheVariantEvenFromTheStandardArray(t *testing.T) {
+	start, err := Chess960Position(backRankOf(t, "RNBQKBNR"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := buildPGN(start, []string{"e4"}, exportContext(game.Result{Kind: game.ResultAborted}))
+	want := `[Result "*"]` + "\n" + `[Variant "Chess960"]` + "\n" + `[SetUp "1"]` + "\n" + `[FEN "` + StartFEN + `"]` + "\n\n"
+	if !strings.Contains(text, want) {
+		t.Errorf("no variant and FEN tags in\n%s", text)
+	}
+}

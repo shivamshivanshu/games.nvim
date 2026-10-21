@@ -5,6 +5,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/battleship"
 	"github.com/shivamshivanshu/games.nvim/server/games/checkers"
 	"github.com/shivamshivanshu/games.nvim/server/games/chess"
+	"github.com/shivamshivanshu/games.nvim/server/games/chess960"
 	"github.com/shivamshivanshu/games.nvim/server/games/chesspuzzle"
 	"github.com/shivamshivanshu/games.nvim/server/games/connect4"
 	"github.com/shivamshivanshu/games.nvim/server/games/fifteen"
@@ -50,5 +51,6 @@ func All() []game.Game {
 		game.Adapt(uno.Rules{}),
 		game.Adapt(hearts.Rules{}),
 		game.Adapt(battleship.Rules{}),
+		game.Adapt(chess960.Rules{}),
 	}
 }

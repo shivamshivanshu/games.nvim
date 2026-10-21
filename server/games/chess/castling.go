@@ -108,6 +108,8 @@ func (p Position) castlings() []castling {
 	return p.layout.castlings[:]
 }
 
+func (p Position) isChess960() bool { return p.layout != nil && p.layout.variant == chess960 }
+
 // BackRank is a side's first rank, from the a-file to the h-file.
 type BackRank [fileCount]PieceKind
 

@@ -17,6 +17,7 @@ const (
 	pgnRound     = "-"
 	pgnDate      = "2006.01.02"
 	pgnLineWidth = 79
+	pgnChess960  = "Chess960"
 )
 
 type pgnResult string
@@ -33,8 +34,9 @@ func (s state) Exports(ctx game.ExportContext) map[string][]byte {
 }
 
 // buildPGN is the game in PGN export format: the Seven Tag Roster, with the
-// date the game started on in UTC, the FEN tags when it did not start from the
-// standard position, then the movetext.
+// date the game started on in UTC, the variant tag for Chess960, the FEN tags
+// when it did not start from the standard position or is Chess960, then the
+// movetext.
 func buildPGN(start Position, sans []string, ctx game.ExportContext) string {
 	result := pgnResultOf(ctx.Result)
 	lines := []string{
@@ -46,7 +48,11 @@ func buildPGN(start Position, sans []string, ctx game.ExportContext) string {
 		pgnTag("Black", userAt(ctx.Players, SeatBlack)),
 		pgnTag("Result", string(result)),
 	}
-	if fen := start.FEN(); fen != StartFEN {
+	isChess960 := start.isChess960()
+	if isChess960 {
+		lines = append(lines, pgnTag("Variant", pgnChess960))
+	}
+	if fen := start.FEN(); fen != StartFEN || isChess960 {
 		lines = append(lines, pgnTag("SetUp", "1"), pgnTag("FEN", fen))
 	}
 	lines = append(lines, "")

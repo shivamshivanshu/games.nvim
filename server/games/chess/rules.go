@@ -57,12 +57,17 @@ func (Rules) Info() game.Info {
 }
 
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	if len(invitees) != 1 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("chess needs exactly one opponent, got %d", len(invitees))}
-	}
 	start, err := ParseFEN(StartFEN)
 	if err != nil {
 		return nil, nil, err
+	}
+	return NewGame(start, opts, challenger, invitees, rng)
+}
+
+// NewGame is a game of chess from start, the challenger's colour picked by opts.
+func NewGame(start Position, opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
+	if len(invitees) != 1 {
+		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("chess needs exactly one opponent, got %d", len(invitees))}
 	}
 	challengerSeat, opponentSeat := SeatWhite, SeatBlack
 	if !game.PickFirst(opts.Color.firstMover(), rng) {
