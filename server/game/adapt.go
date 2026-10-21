@@ -85,6 +85,10 @@ func decodeGivenOptions(raw json.RawMessage) (Options, error) {
 }
 
 func (g adapted[Opts, Action, View]) New(opts Options, challenger UserID, invitees []UserID, rng *rand.Rand) (ErasedState, map[UserID]Seat, error) {
+	info := g.rules.Info()
+	if n := 1 + len(invitees); !info.Players.Allows(n) {
+		return nil, nil, BadRequestf("%s takes %d to %d players, got %d", info.Type, info.Players.Min, info.Players.Max, n)
+	}
 	encoded, err := json.Marshal(opts)
 	if err != nil {
 		return nil, nil, err
@@ -125,6 +129,9 @@ func (e erased[Action, View]) Apply(seat Seat, raw json.RawMessage, rng *rand.Ra
 	var action Action
 	if err := json.Unmarshal(raw, &action); err != nil {
 		return nil, nil, BadRequestf("malformed action: %v", err)
+	}
+	if err := CheckTurn(e.state, seat); err != nil {
+		return nil, nil, err
 	}
 	next, events, err := e.state.Apply(seat, action, rng)
 	if err != nil {

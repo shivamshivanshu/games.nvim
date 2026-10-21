@@ -111,6 +111,9 @@ type PlayerRange struct{ Min, Max int }
 // without a challenge, whether or not it also takes opponents.
 func (r PlayerRange) AllowsSolo() bool { return r.Min == 1 }
 
+// Allows reports whether the game seats n players.
+func (r PlayerRange) Allows(n int) bool { return n >= r.Min && n <= r.Max }
+
 type Info struct {
 	Type         GameType
 	Name         string

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
+	"math/rand/v2"
 	"reflect"
 	"slices"
 	"strings"
@@ -153,17 +154,69 @@ func TestAdaptEncodesEventsWithKind(t *testing.T) {
 	}
 }
 
-func TestAdaptRejectsMalformedAction(t *testing.T) {
-	g := game.Adapt(gametest.CounterRules{})
-	st, _, err := g.New(game.Options{optStep: "1"}, "u", nil, game.StepRNG(1, 1))
+// unguardedRules play any action from any seat, leaving the turn to the adapter.
+type unguardedRules struct{}
+
+type unguardedState struct{ game.Ending }
+
+func (unguardedRules) Info() game.Info {
+	return game.Info{Type: "unguarded", Players: game.PlayerRange{Min: 1, Max: 2}}
+}
+
+func (unguardedRules) New(_ struct{}, challenger game.UserID, _ []game.UserID, _ *rand.Rand) (game.State[gametest.CounterAction, struct{}], map[game.UserID]game.Seat, error) {
+	return unguardedState{}, map[game.UserID]game.Seat{challenger: "a"}, nil
+}
+
+func (s unguardedState) Apply(game.Seat, gametest.CounterAction, *rand.Rand) (game.State[gametest.CounterAction, struct{}], []game.Event, error) {
+	return s, nil, nil
+}
+
+func (unguardedState) View(game.Seat) struct{} { return struct{}{} }
+func (unguardedState) ToAct() []game.Seat      { return []game.Seat{"a"} }
+func (s unguardedState) Eliminate(game.Seat, game.ResultReason) (game.State[gametest.CounterAction, struct{}], []game.Event) {
+	return s, nil
+}
+
+func TestAdaptDecodesAnActionBeforeCheckingTheTurn(t *testing.T) {
+	st, _, err := game.Adapt(unguardedRules{}).New(game.Options{}, "u", nil, game.StepRNG(1, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = st.Apply("a", json.RawMessage(`"not json"`), game.StepRNG(1, 1))
-	if !errors.As(err, &game.BadRequestError{}) {
-		t.Fatalf("want game.BadRequestError, got %v", err)
+	for name, tc := range map[string]struct {
+		seat    game.Seat
+		action  string
+		wantErr func(error) bool
+	}{
+		"the seat to act, malformed":    {"a", `"not json"`, isBadRequest},
+		"another seat, malformed":       {"b", `"not json"`, isBadRequest},
+		"another seat, well formed":     {"b", `{"Add":1}`, func(err error) bool { return errors.Is(err, game.ErrNotYourTurn) }},
+		"a seat not in the game at all": {"z", `{"Add":1}`, func(err error) bool { return errors.Is(err, game.ErrNotYourTurn) }},
+	} {
+		if _, _, err := st.Apply(tc.seat, json.RawMessage(tc.action), game.StepRNG(1, 1)); !tc.wantErr(err) {
+			t.Errorf("%s: got %v", name, err)
+		}
 	}
 }
+
+func TestAdaptSeatsOnlyThePlayersTheGameTakes(t *testing.T) {
+	for name, tc := range map[string]struct {
+		rules    game.Game
+		invitees []game.UserID
+		wantErr  bool
+	}{
+		"counter alone":        {game.Adapt(gametest.CounterRules{}), nil, false},
+		"counter for two":      {game.Adapt(gametest.CounterRules{}), []game.UserID{"v"}, false},
+		"counter for three":    {game.Adapt(gametest.CounterRules{}), []game.UserID{"v", "w"}, true},
+		"solo counter for two": {game.Adapt(gametest.SoloCounterRules{}), []game.UserID{"v"}, true},
+	} {
+		_, _, err := tc.rules.New(game.Options{optStep: "1", "note": ""}, "u", tc.invitees, game.StepRNG(1, 1))
+		if tc.wantErr != isBadRequest(err) || !tc.wantErr && err != nil {
+			t.Errorf("%s: got %v, want a bad request %t", name, err, tc.wantErr)
+		}
+	}
+}
+
+func isBadRequest(err error) bool { return errors.As(err, &game.BadRequestError{}) }
 
 func TestStepRNGDeterministic(t *testing.T) {
 	if game.StepRNG(7, 3).Uint64() != game.StepRNG(7, 3).Uint64() {
