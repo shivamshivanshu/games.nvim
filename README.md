@@ -32,6 +32,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Battleship | 2 | [docs/games/battleship.md](docs/games/battleship.md) |
 | Chess960 | 2 | [docs/games/chess960.md](docs/games/chess960.md) |
 | Dots and Boxes | 2 | [docs/games/dots_and_boxes.md](docs/games/dots_and_boxes.md) |
+| Pac-Man | 1 (solo) | [docs/games/pacman.md](docs/games/pacman.md) |
 
 ## Requirements
 
@@ -181,7 +182,7 @@ Board cells stack highlight groups, so a background layer and a foreground layer
 | Role | Groups |
 |---|---|
 | background | `GamesSquareLight`, `GamesSquareDark`, `GamesLastMove`, `GamesLastMoveDark` (layered over `GamesLastMove` on dark squares), `GamesCheck`, `GamesWin`, `GamesHit`, `GamesPresent`, `GamesMiss`, `GamesMovable` |
-| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection`, `GamesGiven` (sudoku givens: the muted colour in bold), `GamesCardRed` (hearts and diamonds), `GamesPegRed`, `GamesPegGreen`, `GamesPegBlue`, `GamesPegYellow`, `GamesPegOrange`, `GamesPegPurple` (mastermind pegs), `GamesCardYellow`, `GamesCardGreen`, `GamesCardBlue` (uno colours; red is `GamesCardRed`) |
+| foreground | `GamesPieceWhite`, `GamesPieceBlack`, `GamesSeat1`-`GamesSeat4`, `GamesKey`, `GamesLabel`, `GamesMuted`, `GamesWon`, `GamesLost`, `GamesDrawn`, `GamesClockLow`, `GamesCheckSign`, `GamesDashSection`, `GamesGiven` (sudoku givens: the muted colour in bold), `GamesCardRed` (hearts and diamonds), `GamesPegRed`, `GamesPegGreen`, `GamesPegBlue`, `GamesPegYellow`, `GamesPegOrange`, `GamesPegPurple` (mastermind pegs), `GamesCardYellow`, `GamesCardGreen`, `GamesCardBlue` (uno colours; red is `GamesCardRed`), `GamesPacman`, `GamesPacmanWall`, `GamesGhostBlinky`, `GamesGhostPinky`, `GamesGhostInky`, `GamesGhostClyde`, `GamesGhostFrightened` (pacman) |
 | ink (foreground) | `<background group>Ink` for each background group above, e.g. `GamesLastMoveInk`: dark or light text, whichever contrasts more with that background; stacked over it where text has no colour of its own (empty squares, the latest move in the move list) |
 | badge (both) | `GamesYourTurn` |
 
@@ -328,6 +329,8 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `m`, `h` `j` `k` `l` (fifteen) | slide a tile by number, e.g. `7`, or the tile that moves left, down, up or right |
 | `h` `j` `k` `l` or the arrows (2048) | move every tile left, down, up or right, when that changes the board |
 | `1`-`6` (mancala) | sow that pit of yours, counted from your left, on your move |
+| `h` `j` `k` `l` (pacman) | turn Pac-Man left, down, up or right at the first cell where it can; starts a paused game |
+| `p` (pacman) | pause, while the game runs |
 | `]g` | next game waiting on your move |
 | `q` | close |
 

@@ -127,6 +127,9 @@ colour. Each group sets only the attribute of its role:
                     (mastermind pegs)
                     `GamesCardYellow` `GamesCardGreen` `GamesCardBlue`
                     (uno colours; red is `GamesCardRed`)
+                    `GamesPacman` `GamesPacmanWall` `GamesGhostBlinky`
+                    `GamesGhostPinky` `GamesGhostInky` `GamesGhostClyde`
+                    `GamesGhostFrightened` (pacman)
     ink (fg)        `<background group>Ink`, e.g. `GamesLastMoveInk`
     badge (both)    `GamesYourTurn`
 
@@ -419,6 +422,9 @@ the current state are mapped; the footer lists them.
     h j k l dots_and_boxes: move the cursor from dot to dot, on your move
     r       dots_and_boxes: turn the cursor's edge across or down
     <CR>    dots_and_boxes: draw the edge under the cursor
+    h j k l pacman: turn left, down, up or right at the first cell where
+            it can, and start a paused game
+    p       pacman: pause, while the game runs
     ]g      next game waiting on your move
     q       close
 

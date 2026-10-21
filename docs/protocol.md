@@ -496,6 +496,21 @@ An action object always carries `kind`.
   - `legal_edges` is the viewer's own: every undrawn edge, `[]` unless it is to move.
 - Actions: `draw` (`edge`).
 
+### Pac-Man
+
+- Solo: one seat, `player`; start it with `game.start`. No options. The game ticks (see Ticks) and starts paused.
+- Reasons: `game_over`, every life lost, a loss (`winners: []`); `cleared`, the last level cleared, a win (`winners: ["player"]`).
+- Events:
+  - `ghost_eaten {by, ghost, points}`: Pac-Man ate a frightened ghost for 200, 400, 800 or 1600;
+  - `caught {by, ghost, lives_left}`: a ghost caught Pac-Man; at `lives_left: 0` the game is over;
+  - `level_cleared {by, level}`: the level's last dot or pellet was eaten; the next level starts paused, and after the last the game is won.
+- View `{maze, pacman, ghosts, score, lives, level, levels, food_left, fright_ticks, paused, can_turn, can_pause}`:
+  - `maze` is 31 strings of 28 tile letters, row 1 at the top: `#` wall, `-` the ghost-house door, `.` a dot, `o` a power pellet, space open; eaten food is a space;
+  - `pacman` is `{row, col, facing, next_turn}`, 1-based from the top left, `next_turn` the held turn or `null`; `ghosts` lists `blinky`, `pinky`, `inky`, `clyde` as `{name, row, col, facing, mode}`, `mode` one of `house`, `scatter`, `chase`, `frightened`, `eyes`;
+  - `lives` counts the life in play; `fright_ticks` is how many ticks the ghosts stay frightened, 0 when they are not;
+  - `can_turn` is false once the game is over; `can_pause` is true only while it runs.
+- Actions: `turn` (`direction`: `"up"`, `"down"`, `"left"` or `"right"`), held until Pac-Man reaches a cell where that way is open, and resuming a paused game; `pause`, an `illegal_action` while paused. Frightened ghosts draw from the tick's seeded rng, so a restore replays them.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
