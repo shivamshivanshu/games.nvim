@@ -8,10 +8,10 @@ import (
 // placeMines scatters the level's mines from rng over every cell but first and its
 // neighbours, so the first reveal always opens a 0.
 func placeMines(lvl level, first int, rng *rand.Rand) []bool {
-	clear := append(lvl.neighbours(first), first)
+	spared := append(lvl.neighbours(first), first)
 	var candidates []int
 	for cell := range lvl.cells() {
-		if !slices.Contains(clear, cell) {
+		if !slices.Contains(spared, cell) {
 			candidates = append(candidates, cell)
 		}
 	}

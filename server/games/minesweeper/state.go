@@ -76,20 +76,12 @@ func (s state) toggleFlag(cell int, _ *rand.Rand) (state, game.Event, error) {
 }
 
 func (s state) chord(cell int, _ *rand.Rand) (state, game.Event, error) {
-	count := s.minesAround(cell)
-	if !s.open[cell] || count == 0 {
-		return state{}, nil, s.illegal(cell, "is not a revealed number")
-	}
-	if flags := s.flagsAround(cell); flags != count {
-		return state{}, nil, s.illegal(cell, fmt.Sprintf("shows %d but has %d flags around it", count, flags))
-	}
-	targets := s.coveredAround(cell)
-	if len(targets) == 0 {
-		return state{}, nil, s.illegal(cell, "has no hidden unflagged neighbour")
+	if why := s.unchordable(cell); why != "" {
+		return state{}, nil, s.illegal(cell, why)
 	}
 	next := s.cloned()
 	opened := 0
-	for _, n := range targets {
+	for _, n := range s.coveredAround(cell) {
 		opened += next.uncover(n)
 	}
 	at := square(s.lvl.point(cell))
@@ -125,7 +117,7 @@ func (s state) View(game.Seat) View {
 	for cell := range s.lvl.cells() {
 		p := s.lvl.point(cell)
 		view.Cells[p.Row][p.Col] = s.cellView(cell)
-		if !s.finished && s.chordable(cell) {
+		if !s.finished && s.unchordable(cell) == "" {
 			view.Chordable = append(view.Chordable, square(p))
 		}
 	}
@@ -138,6 +130,8 @@ func (s state) cellView(cell int) Cell {
 	switch {
 	case s.finished && cell == s.exploded:
 		return CellExploded
+	case s.finished && s.isMine(cell) && s.flags[cell]:
+		return CellFlaggedMine
 	case s.finished && s.isMine(cell):
 		return CellMine
 	case s.finished && s.mines != nil && s.flags[cell]:
@@ -150,9 +144,18 @@ func (s state) cellView(cell int) Cell {
 	return CellHidden
 }
 
-func (s state) chordable(cell int) bool {
+// unchordable says why a chord on cell is refused, or "" when it may chord.
+func (s state) unchordable(cell int) string {
 	count := s.minesAround(cell)
-	return s.open[cell] && count > 0 && s.flagsAround(cell) == count && len(s.coveredAround(cell)) > 0
+	switch flags := s.flagsAround(cell); {
+	case !s.open[cell] || count == 0:
+		return "is not a revealed number"
+	case flags != count:
+		return fmt.Sprintf("shows %d but has %d flags around it", count, flags)
+	case len(s.coveredAround(cell)) == 0:
+		return "has no hidden unflagged neighbour"
+	}
+	return ""
 }
 
 func (s state) ToAct() []game.Seat {

@@ -56,9 +56,9 @@ func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 }
 
 // drawn is the view's cells one row to a string: "#" hidden, "F" flag, a digit for a revealed
-// count, and once over "*" a mine, "X" the exploded one and "!" a wrong flag.
+// count, and once over "*" a mine, "M" a flagged mine, "X" the exploded one and "!" a wrong flag.
 func drawn(v View) []string {
-	glyph := map[Cell]string{CellHidden: "#", CellFlag: "F", CellMine: "*", CellExploded: "X", CellWrongFlag: "!"}
+	glyph := map[Cell]string{CellHidden: "#", CellFlag: "F", CellMine: "*", CellFlaggedMine: "M", CellExploded: "X", CellWrongFlag: "!"}
 	rows := make([]string, len(v.Cells))
 	for r, row := range v.Cells {
 		var b strings.Builder
@@ -244,7 +244,7 @@ func TestOpeningEverySafeCellWins(t *testing.T) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
 	}
 	view := s.View(SeatSolver)
-	if diff := cmp.Diff([]string{"00000", "00111", "001*1", "00111"}, drawn(view)); diff != "" {
+	if diff := cmp.Diff([]string{"00000", "00111", "001M1", "00111"}, drawn(view)); diff != "" {
 		t.Errorf("final cells (-want +got):\n%s", diff)
 	}
 	if len(view.Chordable) != 0 || len(s.ToAct()) != 0 {
@@ -252,7 +252,7 @@ func TestOpeningEverySafeCellWins(t *testing.T) {
 	}
 }
 
-func TestRevealingAMineLosesAndShowsEveryMineAndWrongFlag(t *testing.T) {
+func TestRevealingAMineLosesAndShowsEveryMineFlaggedOrNotAndWrongFlags(t *testing.T) {
 	s := fixture(
 		"*....",
 		".....",
@@ -268,7 +268,25 @@ func TestRevealingAMineLosesAndShowsEveryMineAndWrongFlag(t *testing.T) {
 	if diff := cmp.Diff([]game.Event{RevealedEvent{By: SeatSolver, Row: 3, Col: 4}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]string{"*####", "111#!", "001X#", "001##"}, drawn(s.View(SeatSolver))); diff != "" {
+	if diff := cmp.Diff([]string{"M####", "111#!", "001X#", "001##"}, drawn(s.View(SeatSolver))); diff != "" {
+		t.Errorf("final cells (-want +got):\n%s", diff)
+	}
+}
+
+func TestAChordOnTwoWrongFlagsExplodesTheFirstMineItReaches(t *testing.T) {
+	s := fixture(
+		"*.*",
+		"...",
+		"...",
+	)
+	s, _ = mustApply(t, s, reveal("b2"), flag("b1"), flag("b3"), chord("b2"))
+	if got, finished := s.Outcome(); !finished || got.Reason != ReasonMine {
+		t.Fatalf("outcome = %+v, %t; want a loss to a mine", got, finished)
+	}
+	if want := mustParse(t, s.lvl, "a1"); s.exploded != want {
+		t.Errorf("exploded cell %s, want a1, the first mine in the chord's row-major order", address(s.lvl.point(s.exploded)))
+	}
+	if diff := cmp.Diff([]string{"X2*", "!2!", "000"}, drawn(s.View(SeatSolver))); diff != "" {
 		t.Errorf("final cells (-want +got):\n%s", diff)
 	}
 }
@@ -372,7 +390,7 @@ func TestGivingUpShowsTheMinesAndOffersNoMoreChords(t *testing.T) {
 	resigned := game.ForfeitToRemaining([]game.Seat{SeatSolver}, SeatSolver, game.ReasonResign)
 	over := s.Conclude(resigned)
 	view := over.View(SeatSolver)
-	if diff := cmp.Diff([]string{"00000", "00111", "001*#", "001#!"}, drawn(view)); diff != "" {
+	if diff := cmp.Diff([]string{"00000", "00111", "001M#", "001#!"}, drawn(view)); diff != "" {
 		t.Errorf("cells (-want +got):\n%s", diff)
 	}
 	if got, finished := over.Outcome(); !finished || !cmp.Equal(got, resigned) || len(view.Chordable) != 0 || len(over.ToAct()) != 0 {

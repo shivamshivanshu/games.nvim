@@ -46,17 +46,19 @@ type Action struct {
 }
 
 // Cell is how one cell looks to the player: hidden, flagged, or revealed as the count
-// "0" to "8" of the mines around it. Once the game is over every mine shows as CellMine,
-// the one revealed as CellExploded, and a flag on a safe cell as CellWrongFlag.
+// "0" to "8" of the mines around it. Once the game is over every mine shows: CellExploded for
+// the one revealed, CellFlaggedMine where a flag was right, CellMine where none was; a flag on
+// a safe cell shows as CellWrongFlag.
 type Cell string
 
 // The cells that are not a revealed count.
 const (
-	CellHidden    Cell = "hidden"
-	CellFlag      Cell = "flag"
-	CellMine      Cell = "mine"
-	CellExploded  Cell = "exploded"
-	CellWrongFlag Cell = "wrong_flag"
+	CellHidden      Cell = "hidden"
+	CellFlag        Cell = "flag"
+	CellMine        Cell = "mine"
+	CellFlaggedMine Cell = "flagged_mine"
+	CellExploded    Cell = "exploded"
+	CellWrongFlag   Cell = "wrong_flag"
 )
 
 // Square is a 1-based board position; row 1 is the top.
