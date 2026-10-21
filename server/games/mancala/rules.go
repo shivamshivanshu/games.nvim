@@ -13,14 +13,6 @@ const pitField = "pit"
 // Rules implements game.Rules for mancala.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{SowedEvent{}, CollectedEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonMoreSeeds, ReasonEqualSeeds}
-}
-
 // Info describes mancala to the catalogue.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -38,6 +30,8 @@ func (Rules) Info() game.Info {
 				Values:      pitNames(),
 			},
 		}},
+		Events:  []game.Event{SowedEvent{}, CollectedEvent{}},
+		Reasons: []game.ResultReason{ReasonMoreSeeds, ReasonEqualSeeds},
 	}
 }
 

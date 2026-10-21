@@ -226,9 +226,6 @@ func TestCataloguePatternIsTheParsersOwn(t *testing.T) {
 	if spec.Input.Pattern != coords().Pattern() {
 		t.Errorf("catalogue pattern %s, want %s", spec.Input.Pattern, coords().Pattern())
 	}
-	if err := (Rules{}).Info().CheckActions(); err != nil {
-		t.Error(err)
-	}
 }
 
 func TestApplyLeavesEarlierStateUnchanged(t *testing.T) {

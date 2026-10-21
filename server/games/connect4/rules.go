@@ -13,14 +13,6 @@ const TypeConnect4 game.GameType = "connect4"
 // Rules is the connect4 game: 7 columns by 6 rows, four in a row wins.
 type Rules struct{}
 
-// EventTypes lists the events connect4 emits.
-func (Rules) EventTypes() []game.Event { return []game.Event{DroppedEvent{}} }
-
-// Reasons lists the result reasons connect4 adds to the core's.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonFourInARow, ReasonBoardFull}
-}
-
 // Info describes connect4 to the catalogue.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -40,6 +32,8 @@ func (Rules) Info() game.Info {
 				},
 			},
 		},
+		Events:  []game.Event{DroppedEvent{}},
+		Reasons: []game.ResultReason{ReasonFourInARow, ReasonBoardFull},
 	}
 }
 

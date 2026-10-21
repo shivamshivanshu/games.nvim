@@ -12,15 +12,6 @@ const moveField = "move"
 
 type Rules struct{}
 
-func (Rules) EventTypes() []game.Event { return []game.Event{MovedEvent{}} }
-
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{
-		ReasonCheckmate, ReasonStalemate, ReasonInsufficientMaterial, ReasonFivefold,
-		ReasonSeventyFive, ReasonThreefold, ReasonFifty,
-	}
-}
-
 func (Rules) Info() game.Info {
 	return game.Info{
 		Type:         TypeChess,
@@ -45,6 +36,11 @@ func (Rules) Info() game.Info {
 				Kind:        ActionClaimDraw,
 				Description: "Claim a draw by threefold repetition or the fifty-move rule, on your move.",
 			},
+		},
+		Events: []game.Event{MovedEvent{}},
+		Reasons: []game.ResultReason{
+			ReasonCheckmate, ReasonStalemate, ReasonInsufficientMaterial, ReasonFivefold,
+			ReasonSeventyFive, ReasonThreefold, ReasonFifty,
 		},
 	}
 }

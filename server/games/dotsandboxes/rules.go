@@ -14,14 +14,6 @@ const edgeField = "edge"
 // Rules is Dots and Boxes on a square board of 3, 5 or 7 boxes a side; the most boxes wins.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{DrawnEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonMoreBoxes, ReasonEqualBoxes}
-}
-
 // Info implements game.Rules.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -43,6 +35,8 @@ func (Rules) Info() game.Info {
 				Pattern:     catalogueEdges().Pattern(),
 			},
 		}},
+		Events:  []game.Event{DrawnEvent{}},
+		Reasons: []game.ResultReason{ReasonMoreBoxes, ReasonEqualBoxes},
 	}
 }
 

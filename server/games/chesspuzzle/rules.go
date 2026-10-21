@@ -19,16 +19,6 @@ func modes() []Mode { return []Mode{ModePuzzle, ModeStudy} }
 
 func sides() []Side { return []Side{SideWhite, SideBlack} }
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event {
-	return []game.Event{MovedEvent{}, RepliedEvent{}, MissedEvent{}, RevealedEvent{}}
-}
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonSolved, ReasonWrongMove, ReasonCompleted}
-}
-
 // Info describes chess puzzles: solo, with the line given in the options.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -57,6 +47,8 @@ func (Rules) Info() game.Info {
 				Description: "Play the line's move for you, counted as a miss; study mode only.",
 			},
 		},
+		Events:  []game.Event{MovedEvent{}, RepliedEvent{}, MissedEvent{}, RevealedEvent{}},
+		Reasons: []game.ResultReason{ReasonSolved, ReasonWrongMove, ReasonCompleted},
 	}
 }
 

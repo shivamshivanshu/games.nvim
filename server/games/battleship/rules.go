@@ -14,12 +14,6 @@ const cellField = "cell"
 // until one fleet is sunk.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{ReadyEvent{}, ShotEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason { return []game.ResultReason{ReasonFleetSunk} }
-
 // Info implements game.Rules.
 func (Rules) Info() game.Info {
 	cellInput := func(description string) *game.ActionInput {
@@ -42,6 +36,8 @@ func (Rules) Info() game.Info {
 			{Kind: ActionRandom, Description: "Place the rest of your fleet at random."},
 			{Kind: ActionFire, Description: "Fire at a cell of the opponent's waters you have not fired at.", Input: cellInput("The cell")},
 		},
+		Events:  []game.Event{ReadyEvent{}, ShotEvent{}},
+		Reasons: []game.ResultReason{ReasonFleetSunk},
 	}
 }
 

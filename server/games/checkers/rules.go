@@ -14,14 +14,6 @@ const textField = "text"
 // Rules is American/English checkers on an 8x8 board.
 type Rules struct{}
 
-// EventTypes lists the events checkers emits, for the wire schema.
-func (Rules) EventTypes() []game.Event { return []game.Event{MovedEvent{}} }
-
-// Reasons lists the result reasons checkers adds to the core's.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonNoPieces, ReasonNoMoves, ReasonFortyMove}
-}
-
 // Info describes checkers: two players, colour and time-control options.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -42,6 +34,8 @@ func (Rules) Info() game.Info {
 				Pattern:     movePattern,
 			},
 		}},
+		Events:  []game.Event{MovedEvent{}},
+		Reasons: []game.ResultReason{ReasonNoPieces, ReasonNoMoves, ReasonFortyMove},
 	}
 }
 

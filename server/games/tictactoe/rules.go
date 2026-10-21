@@ -11,14 +11,6 @@ const cellField = "cell"
 // Rules is Tic-Tac-Toe: two players, three in a row on a 3x3 board.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{PlacedEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonThreeInARow, ReasonBoardFull}
-}
-
 // Info implements game.Rules.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -36,6 +28,8 @@ func (Rules) Info() game.Info {
 				Values:      cellInputs(),
 			},
 		}},
+		Events:  []game.Event{PlacedEvent{}},
+		Reasons: []game.ResultReason{ReasonThreeInARow, ReasonBoardFull},
 	}
 }
 

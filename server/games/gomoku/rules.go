@@ -15,14 +15,6 @@ const (
 // Rules is freestyle Gomoku: two players on 15x15, five or more in a row wins.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{PlacedEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonFiveInARow, ReasonBoardFull}
-}
-
 // Info implements game.Rules.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -34,6 +26,8 @@ func (Rules) Info() game.Info {
 		Actions: []game.ActionSpec{
 			discs.PlaceSpec(discs.NewBoard(boardSize).Coords(), "Place a stone on an empty cell."),
 		},
+		Events:  []game.Event{PlacedEvent{}},
+		Reasons: []game.ResultReason{ReasonFiveInARow, ReasonBoardFull},
 	}
 }
 

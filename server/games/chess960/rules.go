@@ -13,12 +13,6 @@ const moveDescription = "A move in SAN or UCI, any case, e.g. e4, Nf3, exd8=Q, e
 // Rules implements game.Rules for Chess960: chess's, from a drawn start.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog with chess's events.
-func (Rules) EventTypes() []game.Event { return chess.Rules{}.EventTypes() }
-
-// Reasons implements game.ReasonCatalog with chess's reasons.
-func (Rules) Reasons() []game.ResultReason { return chess.Rules{}.Reasons() }
-
 // Info is chess's, under its own type, so its games keep their own stats.
 func (Rules) Info() game.Info {
 	info := chess.Rules{}.Info()

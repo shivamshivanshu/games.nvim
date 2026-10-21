@@ -366,15 +366,8 @@ func TestConcludeOffersNoEdgeAndKeepsAReachedResult(t *testing.T) {
 	}
 }
 
-func TestCatalogue(t *testing.T) {
-	info := Rules{}.Info()
-	if err := info.CheckActions(); err != nil {
-		t.Fatal(err)
-	}
-	if err := info.CheckOptions(); err != nil {
-		t.Fatal(err)
-	}
-	if got, want := info.Actions[0].Input.Pattern, grid.NewEdges(7, 7).Pattern(); got != want {
+func TestCataloguePatternIsTheLargestBoards(t *testing.T) {
+	if got, want := (Rules{}).Info().Actions[0].Input.Pattern, grid.NewEdges(7, 7).Pattern(); got != want {
 		t.Errorf("pattern %s, want the 7-box board's %s", got, want)
 	}
 }

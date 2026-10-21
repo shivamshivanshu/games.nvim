@@ -13,14 +13,6 @@ const boardSize = 8
 // and the game ends when neither seat can move.
 type Rules struct{}
 
-// EventTypes implements game.EventCatalog.
-func (Rules) EventTypes() []game.Event { return []game.Event{PlacedEvent{}, PassedEvent{}} }
-
-// Reasons implements game.ReasonCatalog.
-func (Rules) Reasons() []game.ResultReason {
-	return []game.ResultReason{ReasonMoreDiscs, ReasonEqualDiscs}
-}
-
 // Info implements game.Rules.
 func (Rules) Info() game.Info {
 	return game.Info{
@@ -32,6 +24,8 @@ func (Rules) Info() game.Info {
 		Actions: []game.ActionSpec{
 			discs.PlaceSpec(discs.NewBoard(boardSize).Coords(), "Place a disc that flips at least one of the opponent's."),
 		},
+		Events:  []game.Event{PlacedEvent{}, PassedEvent{}},
+		Reasons: []game.ResultReason{ReasonMoreDiscs, ReasonEqualDiscs},
 	}
 }
 
