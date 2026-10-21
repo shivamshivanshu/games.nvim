@@ -153,6 +153,7 @@ func TestStartPlaysTheOtherSideUpToTheSolversFirstMove(t *testing.T) {
 				FEN:        "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
 				HistorySAN: []string{"Nf6"},
 				LastMove:   &chess.MoveSquares{From: "g8", To: "f6"},
+				FirstPly:   5,
 				Mode:       ModePuzzle,
 				Remaining:  1,
 			},

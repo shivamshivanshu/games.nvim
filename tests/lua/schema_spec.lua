@@ -28,7 +28,12 @@ local CLASS_EXCEPTIONS = {
     ShotEvent_shot = "games.BattleshipShotEvent",
   },
   chess = { MoveSquares = "games.ChessSquares" },
-  chess960 = { MoveSquares = "games.ChessSquares", MovedEvent = "games.ChessMovedEvent" },
+  chess960 = {
+    Material = "games.ChessMaterial",
+    MoveSquares = "games.ChessSquares",
+    MovedEvent = "games.ChessMovedEvent",
+    SideMaterial = "games.ChessSideMaterial",
+  },
   chess_puzzle = { MoveSquares = "games.ChessSquares" },
   connect4 = { Cell = "games.Cell" },
   gomoku = { Cell = "games.Cell" },

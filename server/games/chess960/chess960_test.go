@@ -131,8 +131,8 @@ func TestTheStartPositionComesFromTheSeed(t *testing.T) {
 	st, _ := newGame(t, seedRQNBNKBR, chess.ColorWhite)
 	v := viewAs(t, st, chess.SeatWhite)
 	const want = "rqnbnkbr/pppppppp/8/8/8/8/PPPPPPPP/RQNBNKBR w KQkq - 0 1"
-	if v.StartPosition != 413 || v.StartFEN != want || v.FEN != want {
-		t.Errorf("start %d %q, fen %q; want 413 %q", v.StartPosition, v.StartFEN, v.FEN, want)
+	if v.StartPosition != 413 || v.FEN != want {
+		t.Errorf("start %d, fen %q; want 413 %q", v.StartPosition, v.FEN, want)
 	}
 	if len(v.LegalMoves) != 20 {
 		t.Errorf("%d legal moves at the start, want 20", len(v.LegalMoves))
@@ -155,9 +155,6 @@ func TestCastlingInAGame(t *testing.T) {
 	const want = "rqnbnrk1/pppppbpp/8/5p2/5P2/8/PPPPPBPP/RQNBNRK1 w - - 4 4"
 	if v.FEN != want || !slices.Equal(v.HistorySAN[4:], []string{"O-O", "O-O"}) {
 		t.Errorf("fen %s, history %v; want %s after O-O O-O", v.FEN, v.HistorySAN, want)
-	}
-	if v.StartFEN != "rqnbnkbr/pppppppp/8/8/8/8/PPPPPPPP/RQNBNKBR w KQkq - 0 1" {
-		t.Errorf("start fen moved on: %s", v.StartFEN)
 	}
 }
 

@@ -171,6 +171,9 @@
             }
           ]
         },
+        "first_ply": {
+          "type": "integer"
+        },
         "mode": {
           "type": "string"
         },
@@ -195,12 +198,13 @@
         "last_move",
         "legal_moves",
         "check_square",
+        "first_ply",
         "mode",
         "misses",
         "remaining",
         "solution"
       ],
-      "description": "View is the chess position as chess shows it, plus the puzzle's progress.\nLegalMoves (UCI) is empty once the game is over; Remaining counts the\nsolver's moves left in the line; Solution is the whole line in SAN, empty\nuntil the game is over."
+      "description": "View is the chess position as chess shows it, plus the puzzle's progress.\nLegalMoves (UCI) is empty once the game is over; Remaining counts the\nsolver's moves left in the line; Solution is the whole line in SAN, empty\nuntil the game is over. FirstPly is how many plies the line's start\nposition has behind it, which the move lists number on from."
     }
   },
   "title": "Chess puzzle",

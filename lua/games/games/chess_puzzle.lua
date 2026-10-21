@@ -89,7 +89,7 @@ local function status_panel(update, max_height)
       items = solution,
       columns = 2,
       numbered = true,
-      offset = chess.first_ply(update.options.fen),
+      offset = update.view.first_ply,
       max_lines = math.max(1, max_height - #rows - SOLUTION_HEADING_LINES),
     }),
   })
@@ -104,7 +104,6 @@ M.asset_keys = chess.asset_keys
 ---@return games.Node
 function M.layout(update, ctx)
   return chess.board(update.view, ctx, ctx.flip, {
-    first_ply = chess.first_ply(update.options.fen),
     panels = {
       {
         width = STATUS_WIDTH,

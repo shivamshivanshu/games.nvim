@@ -61,6 +61,10 @@ local material = update({
     history_san = {},
     legal_moves = {},
     claimable_draw = false,
+    material = {
+      white = { pieces = { "r" }, score = 0 },
+      black = { pieces = { "B", "N" }, score = 1 },
+    },
   },
 })
 

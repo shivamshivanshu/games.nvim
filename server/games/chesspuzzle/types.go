@@ -62,13 +62,15 @@ type Action struct {
 // View is the chess position as chess shows it, plus the puzzle's progress.
 // LegalMoves (UCI) is empty once the game is over; Remaining counts the
 // solver's moves left in the line; Solution is the whole line in SAN, empty
-// until the game is over.
+// until the game is over. FirstPly is how many plies the line's start
+// position has behind it, which the move lists number on from.
 type View struct {
 	FEN         string             `json:"fen"`
 	HistorySAN  []string           `json:"history_san"`
 	LastMove    *chess.MoveSquares `json:"last_move" jsonschema:"nullable"`
 	LegalMoves  []string           `json:"legal_moves"`
 	CheckSquare *string            `json:"check_square" jsonschema:"nullable"`
+	FirstPly    int                `json:"first_ply"`
 	Mode        Mode               `json:"mode"`
 	Misses      int                `json:"misses"`
 	Remaining   int                `json:"remaining"`

@@ -225,17 +225,18 @@ An action object always carries `kind`.
 - Reasons: `checkmate`, `stalemate`, `insufficient_material`, `fivefold_repetition`, `seventy_five_move`, `threefold_repetition`, `fifty_move`.
 - Events: `moved {by: seat, san}`.
 - Seats: `white`, `black`.
-- View `{fen, history_san, last_move: {from, to} | null, legal_moves, claimable_draw, check_square}`:
+- View `{fen, history_san, last_move: {from, to} | null, legal_moves, claimable_draw, check_square, material, first_ply}`:
   - `legal_moves` is in UCI (`e2e4`, `e7e8q`). It holds the viewer's own moves: it is empty unless the viewer is to move.
   - `claimable_draw` is true when the viewer, being to move, may claim a threefold or fifty-move draw with `claim_draw`.
   - `check_square` is the square of the king of the side to move while it is in check; otherwise `null`.
+  - `material` is `{white, black}`, each `{pieces, score}`: per kind, the surplus of the side with more of it, counting P=1, N=3, B=3, R=5, Q=9 and not the king. `pieces` are the opponent's pieces that side is up, most valuable first, as FEN letters; `score` is the points it is ahead, 0 unless it is ahead. The server computes it from the board; it is display only.
+  - `first_ply` is how many plies the start position has behind it (0 for the standard start), which the move list numbers on from.
 - Actions: `move` (`move`: SAN or UCI, any case) and `claim_draw`.
 - Export `game.pgn`:
   - the Seven Tag Roster; `Date` is the day the game **started, in UTC**;
   - `SetUp`/`FEN` tags when the game started from a position other than the standard one;
   - move numbers follow the start position (`12...` when Black moves first);
   - lines wrap at 79 columns.
-- Material display (a client convention): count P=1, N=3, B=3, R=5, Q=9, and show only the imbalance, the surplus of the side ahead, never both totals.
 
 ### Tic-Tac-Toe
 
@@ -321,8 +322,8 @@ An action object always carries `kind`.
 - The server plays every move of the other side, at the start and after each of the solver's, so a Lichess row's first move (the opponent's) needs no special case.
 - Reasons: `solved` (puzzle: the line played out, or any mate), `wrong_move` (puzzle, a loss), `completed` (study, a win).
 - Events, all `by` the solver's seat: `moved {by, san}` (the solver's accepted move), `replied {by, san}` (the server's move for the other side), `missed {by, san}` (a legal move that is not the line's), `revealed {by, san}` (the line's move, played on `reveal`).
-- View `{fen, history_san, last_move, legal_moves, check_square, mode, misses, remaining, solution}`:
-  - `fen`, `history_san`, `last_move` and `check_square` are as in chess; `history_san` starts at the given FEN;
+- View `{fen, history_san, last_move, legal_moves, check_square, first_ply, mode, misses, remaining, solution}`:
+  - `fen`, `history_san`, `last_move`, `check_square` and `first_ply` are as in chess; `history_san` starts at the given FEN, and `first_ply` counts the plies behind it;
   - `legal_moves` is in UCI while the game runs, `[]` once it is over, however it ends;
   - `misses` counts missed and revealed moves; `remaining` counts the solver's moves left in the line;
   - `solution` is `[]` until the game is over, then the whole line in SAN.
@@ -479,7 +480,7 @@ An action object always carries `kind`.
 
 - Chess with a drawn start position; everything not listed here is as in chess: options, seats, reasons, the `moved` event, actions and `game.pgn`.
 - The start position is drawn from the game's seed at the start: one of 960 back ranks (bishops on opposite colours, the king between the rooks), mirrored for black.
-- View: chess's, plus `start_position` (its number, 0 to 959, in Scharnagl's numbering; 518 is the standard array) and `start_fen` (the start position's FEN, which the move list numbers from).
+- View: chess's, plus `start_position` (its number, 0 to 959, in Scharnagl's numbering; 518 is the standard array). Every start is at move 1 with white to move, so `first_ply` is 0.
 - Castling ends as in chess, the king on the g- or c-file and the rook on the f- or d-file. It is written as the king's move onto its own rook: UCI `f1h1`, also in `legal_moves` and `last_move`. `move` also takes `O-O` and `O-O-O`; a king's move to the g- or c-file is a plain king move, never a castle.
 - The FEN castling field is X-FEN: `K`, `Q`, `k` or `q` while the castling rook is the outermost rook of its colour on that side of the king, otherwise that rook's file (`G` for a white rook on g1 with another on h1, lower case for black). The server reads only standard FENs.
 - `game.pgn` adds `[Variant "Chess960"]`, `[SetUp "1"]` and the start `[FEN]`, even from position 518.

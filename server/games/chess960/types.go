@@ -19,5 +19,4 @@ type StartPosition int
 type View struct {
 	chess.View
 	StartPosition StartPosition `json:"start_position"`
-	StartFEN      string        `json:"start_fen"`
 }

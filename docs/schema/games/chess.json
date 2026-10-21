@@ -24,6 +24,23 @@
       ],
       "description": "ActionKind is the \"kind\" field every action object carries."
     },
+    "Material": {
+      "properties": {
+        "white": {
+          "$ref": "#/$defs/SideMaterial"
+        },
+        "black": {
+          "$ref": "#/$defs/SideMaterial"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "white",
+        "black"
+      ],
+      "description": "Material is each side's lead on the board."
+    },
     "MoveSquares": {
       "properties": {
         "from": {
@@ -73,6 +90,26 @@
       ],
       "description": "The result reasons Chess adds to the core's."
     },
+    "SideMaterial": {
+      "properties": {
+        "pieces": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "score": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "pieces",
+        "score"
+      ],
+      "description": "SideMaterial is one side's material lead: Pieces are the opponent's pieces\nit is up, most valuable first, and Score the points it is ahead, 0 unless\nit is ahead."
+    },
     "View": {
       "properties": {
         "fen": {
@@ -112,6 +149,12 @@
               "type": "null"
             }
           ]
+        },
+        "material": {
+          "$ref": "#/$defs/Material"
+        },
+        "first_ply": {
+          "type": "integer"
         }
       },
       "additionalProperties": false,
@@ -122,9 +165,11 @@
         "last_move",
         "legal_moves",
         "claimable_draw",
-        "check_square"
+        "check_square",
+        "material",
+        "first_ply"
       ],
-      "description": "View.LegalMoves and View.ClaimableDraw are the viewer's own: empty and\nfalse for a seat that is not to move. CheckSquare holds the king of the\nside to move while it is in check."
+      "description": "View.LegalMoves and View.ClaimableDraw are the viewer's own: empty and\nfalse for a seat that is not to move. CheckSquare holds the king of the\nside to move while it is in check. FirstPly is how many plies the start\nposition has behind it, which the move list numbers on from."
     }
   },
   "title": "Chess",

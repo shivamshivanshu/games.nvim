@@ -24,6 +24,23 @@
       ],
       "description": "ActionKind is the \"kind\" field every action object carries."
     },
+    "Material": {
+      "properties": {
+        "white": {
+          "$ref": "#/$defs/SideMaterial"
+        },
+        "black": {
+          "$ref": "#/$defs/SideMaterial"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "white",
+        "black"
+      ],
+      "description": "Material is each side's lead on the board."
+    },
     "MoveSquares": {
       "properties": {
         "from": {
@@ -73,6 +90,26 @@
       ],
       "description": "The result reasons Chess960 adds to the core's."
     },
+    "SideMaterial": {
+      "properties": {
+        "pieces": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "score": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "pieces",
+        "score"
+      ],
+      "description": "SideMaterial is one side's material lead: Pieces are the opponent's pieces\nit is up, most valuable first, and Score the points it is ahead, 0 unless\nit is ahead."
+    },
     "View": {
       "properties": {
         "fen": {
@@ -113,11 +150,14 @@
             }
           ]
         },
-        "start_position": {
+        "material": {
+          "$ref": "#/$defs/Material"
+        },
+        "first_ply": {
           "type": "integer"
         },
-        "start_fen": {
-          "type": "string"
+        "start_position": {
+          "type": "integer"
         }
       },
       "additionalProperties": false,
@@ -129,8 +169,9 @@
         "legal_moves",
         "claimable_draw",
         "check_square",
-        "start_position",
-        "start_fen"
+        "material",
+        "first_ply",
+        "start_position"
       ],
       "description": "View is chess's view, with the start position the game was drawn."
     }

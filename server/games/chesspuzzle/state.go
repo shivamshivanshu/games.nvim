@@ -122,6 +122,7 @@ func (s state) View(game.Seat) View {
 		LastMove:    s.last,
 		LegalMoves:  []string{},
 		CheckSquare: s.position.CheckSquare(),
+		FirstPly:    s.line.start.Ply(),
 		Mode:        s.mode,
 		Misses:      s.misses,
 		Remaining:   s.line.movesBy(s.solver, s.ply),

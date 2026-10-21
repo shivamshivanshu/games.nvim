@@ -38,5 +38,5 @@ func (Rules) New(opts chess.Opts, challenger game.UserID, invitees []game.UserID
 	if err != nil {
 		return nil, nil, err
 	}
-	return state{chess: played, number: number, startFEN: start.FEN()}, seats, nil
+	return state{chess: played, number: number}, seats, nil
 }

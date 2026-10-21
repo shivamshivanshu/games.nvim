@@ -11,7 +11,7 @@ A separate game type from `chess`, so its games keep their own stats and leaderb
 ## Start position
 - Drawn at the start of the game from the game's seeded random source, so a restored game replays from the same position.
 - One of the 960 positions: white's back rank has the bishops on opposite-coloured squares and the king somewhere between the two rooks; pawns on the second rank; black mirrors white.
-- Numbered 0 to 959 in Scharnagl's numbering, as python-chess numbers them; 518 is the standard array `RNBQKBNR`. The number and the start FEN are in the view, and the board shows `position N`.
+- Numbered 0 to 959 in Scharnagl's numbering, as python-chess numbers them; 518 is the standard array `RNBQKBNR`. The number is in the view, with chess's `material` and `first_ply`, and the board shows `position N`.
 - White moves first.
 - No option picks the position; every game draws one.
 

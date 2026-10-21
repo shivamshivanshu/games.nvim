@@ -365,7 +365,14 @@ function M.chess_update(overrides)
     players = { { user = "alice", seat = "white" }, { user = "bob", seat = "black" } },
     to_act = { "alice" },
     controls = { "resign", "offer_draw", "abort" },
-    view = { fen = CHESS_START_FEN, history_san = {}, legal_moves = {}, claimable_draw = false },
+    view = {
+      fen = CHESS_START_FEN,
+      history_san = {},
+      legal_moves = {},
+      claimable_draw = false,
+      material = { white = { pieces = {}, score = 0 }, black = { pieces = {}, score = 0 } },
+      first_ply = 0,
+    },
   }, overrides)
 end
 

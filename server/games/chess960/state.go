@@ -7,11 +7,10 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/games/chess"
 )
 
-// state is a chess game that remembers the start position it was drawn.
+// state is a chess game that remembers the number of the start position it was drawn.
 type state struct {
-	chess    game.State[chess.Action, chess.View]
-	number   StartPosition
-	startFEN string
+	chess  game.State[chess.Action, chess.View]
+	number StartPosition
 }
 
 func (s state) with(played game.State[chess.Action, chess.View]) state {
@@ -28,7 +27,7 @@ func (s state) Apply(seat game.Seat, action chess.Action, rng *rand.Rand) (game.
 }
 
 func (s state) View(seat game.Seat) View {
-	return View{View: s.chess.View(seat), StartPosition: s.number, StartFEN: s.startFEN}
+	return View{View: s.chess.View(seat), StartPosition: s.number}
 }
 
 func (s state) ToAct() []game.Seat { return s.chess.ToAct() }

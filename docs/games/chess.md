@@ -56,7 +56,7 @@ Buffer-local, normal mode, in the board buffer; only keys valid in the current s
 | `]g` | next game waiting on your move |
 | `q` | close |
 
-The board is drawn from the viewer's side (black at the bottom if you are black); `F` toggles it. The last move and a checked king are highlighted. The move list is two columns, numbered.
+The board is drawn from the viewer's side (black at the bottom if you are black); `F` toggles it. The last move and a checked king are highlighted. The move list is two columns, numbered on from the view's `first_ply`, the plies the start position has behind it (0 for the standard start).
 
 ## Move input
 - SAN or UCI, any case, e.g. `e4`, `Nf3`, `exd8=Q`, `O-O`, `e2e4`, `e7e8q`.
@@ -68,7 +68,7 @@ The board is drawn from the viewer's side (black at the bottom if you are black)
 ## Display: material
 - Each player's header entry (after the clock) shows the pieces that side is up, then `+N` if ahead.
 - Values: P=1, N=3, B=3, R=5, Q=9; kings are not counted. Per kind, equal counts cancel; only the surplus of the side ahead is shown, never both totals.
-- Computed client-side from the FEN piece placement; promotions therefore count as the promoted piece.
+- The server computes it from the piece placement and sends it as the view's `material`: per side, `pieces` (the opponent's pieces it is up, most valuable first, as FEN letters) and `score`. Promotions therefore count as the promoted piece.
 
 ## Result and scoring
 - Result reasons: `checkmate`, `stalemate`, `insufficient_material`, `fivefold_repetition`, `seventy_five_move`, `threefold_repetition`, `fifty_move`, plus core `resign`, `timeout`, `draw_agreed`, `aborted`.
@@ -83,4 +83,4 @@ The board is drawn from the viewer's side (black at the bottom if you are black)
 - A flag loses even if the opponent cannot mate.
 - Only the starting position is playable, so the PGN `SetUp`/`FEN` tags never appear in practice.
 - Clock display assumes client and server wall clocks agree.
-- Material display is a client convention, not part of the result.
+- Material is display only, not part of the result.

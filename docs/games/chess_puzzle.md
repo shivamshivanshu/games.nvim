@@ -74,7 +74,7 @@ Buffer-local, normal mode, in the board buffer.
 | `]g` | next game waiting on your move |
 | `q` | close |
 
-The board is chess's: the same asset pack, legend and move list, facing your side. The move list numbers on from the FEN's move number, so a line from a black-to-move FEN reads `12. ... Bxg3`, `13. Rxe7 …`. Beside it a status panel shows the mode, your side, your moves left in the line and your misses. Once the game is over the panel lists the solution, numbered the same way.
+The board is chess's: the same asset pack, legend and move list, facing your side. The move list numbers on from the FEN's move number, which the view carries as `first_ply` (the plies before the start position), so a line from a black-to-move FEN reads `12. ... Bxg3`, `13. Rxe7 …`. Beside it a status panel shows the mode, your side, your moves left in the line and your misses. Once the game is over the panel lists the solution, numbered the same way.
 
 ## Errors
 | Case | Message |

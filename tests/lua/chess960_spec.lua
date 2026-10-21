@@ -5,7 +5,6 @@ local shell = require("games.ui.shell")
 local assert_eq = helpers.assert_eq
 
 local CATALOGUED = helpers.CHESS_ACTIONS
-local START_FEN = "rqnbnkbr/pppppppp/8/8/8/8/PPPPPPPP/RQNBNKBR w KQkq - 0 1"
 local CASTLED_FEN = "rqnbnrk1/pppppbpp/8/5p2/5P2/8/PPPPPBPP/RQNBNRK1 w - - 4 4"
 local FIRST_BOARD_ROW = 4
 local BOARD_LINES = 9
@@ -31,7 +30,6 @@ local function castled(overrides)
       legal_moves = { "a2a3" },
       claimable_draw = false,
       start_position = 413,
-      start_fen = START_FEN,
     },
   }, overrides or {}))
 end

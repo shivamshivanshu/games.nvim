@@ -38,6 +38,7 @@ local function update(mode, player, overrides)
       history_san = { "Nf6" },
       last_move = { from = "g8", to = "f6" },
       legal_moves = { "h5f7" },
+      first_ply = 5,
       mode = mode,
       misses = 0,
       remaining = 1,
