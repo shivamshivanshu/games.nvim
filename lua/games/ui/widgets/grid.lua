@@ -11,9 +11,12 @@ local types = require("games.types")
 
 ---@alias games.GridLabelList string|string[] a string labels one character per index
 
----@class games.GridMark
----@field row integer logical row
----@field col integer logical column
+---A board cell on the wire, 1-based: row 1 at the top, col 1 at the left.
+---@class games.Cell
+---@field row integer
+---@field col integer
+
+---@class games.GridMark: games.Cell
 ---@field hl games.Hl layered over the cell
 
 ---@class games.GridLabels
@@ -80,8 +83,9 @@ end
 ---@class games.GridWidget
 ---@field is_dark fun(row: integer, col: integer): boolean
 ---@field display_order fun(n: integer, flip: boolean|nil): integer[]
----@field cell_index fun(items: any[], row_of: (fun(item: any): integer), col_of: (fun(item: any): integer)): table<integer, table<integer, any>>
+---@field cell_index fun(items: any[], row_of?: (fun(item: any): integer), col_of?: (fun(item: any): integer)): table<integer, table<integer, any>>
 ---@field mark fun(row: integer, col: integer, hl: games.Hl): games.GridMark
+---@field cell_marks fun(cells: games.Cell[], hl: games.Hl): games.GridMark[]
 ---@field marks_where fun(rows: any[][], hl_of: fun(value: any, row: integer, col: integer): games.Hl|nil): games.GridMark[]
 ---@overload fun(props: games.GridProps): games.Node
 
@@ -162,13 +166,26 @@ local function repeated(str, height, hl)
   return compose.col(lines)
 end
 
+---@param cell games.Cell
+---@return integer
+local function cell_row(cell)
+  return cell.row
+end
+
+---@param cell games.Cell
+---@return integer
+local function cell_col(cell)
+  return cell.col
+end
+
 ---items by the cell each lies on; of two on one cell the later wins.
 ---@generic T
 ---@param items T[]
----@param row_of fun(item: T): integer
----@param col_of fun(item: T): integer
+---@param row_of? fun(item: T): integer default: the games.Cell's row
+---@param col_of? fun(item: T): integer default: the games.Cell's col
 ---@return table<integer, table<integer, T>> row -> col -> item
 function M.cell_index(items, row_of, col_of)
+  row_of, col_of = row_of or cell_row, col_of or cell_col
   local by_cell = {}
   for _, item in ipairs(items) do
     local row = row_of(item)
@@ -184,6 +201,16 @@ end
 ---@return games.GridMark
 function M.mark(row, col, hl)
   return { row = row, col = col, hl = hl }
+end
+
+---A mark of hl on each of cells, in order.
+---@param cells games.Cell[]
+---@param hl games.Hl
+---@return games.GridMark[]
+function M.cell_marks(cells, hl)
+  return vim.tbl_map(function(cell)
+    return M.mark(cell.row, cell.col, hl)
+  end, cells)
 end
 
 ---A mark on each cell of rows that hl_of gives a highlight, in row then column order.
@@ -202,18 +229,6 @@ function M.marks_where(rows, hl_of)
     end
   end
   return marks
-end
-
----@param mark games.GridMark
----@return integer
-local function row_of(mark)
-  return mark.row
-end
-
----@param mark games.GridMark
----@return integer
-local function col_of(mark)
-  return mark.col
 end
 
 ---The node drawing key in a cell of size box; every cell of one grid shares box and ambiwidth.
@@ -275,7 +290,7 @@ end
 ---@return fun(r: integer, c: integer): games.Node
 local function cell_nodes(props, geometry, ambiwidth)
   ---@type table<integer, table<integer, games.GridMark>>
-  local marks = M.cell_index(props.marks or {}, row_of, col_of)
+  local marks = M.cell_index(props.marks or {})
   local content = cell_contents(props, geometry.cell, ambiwidth)
   return function(r, c)
     local key, own_hl = unpack(props.cell(r, c))

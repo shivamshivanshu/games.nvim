@@ -2,9 +2,9 @@ local discs = require("games.ui.discs")
 
 ---@class games.GomokuView: games.DiscView
 ---@field cells (games.DiscSeat|"")[][] 15 rows of 15 from the top; "" for an empty cell
----@field last? games.DiscCell where the latest stone went
----@field winning_lines games.DiscCell[][] every run of five or more through the last stone, whole
----@field legal_cells games.DiscCell[] the viewer's own: the empty cells, none unless it is to move
+---@field last? games.Cell where the latest stone went
+---@field winning_lines games.Cell[][] every run of five or more through the last stone, whole
+---@field legal_cells games.Cell[] the viewer's own: the empty cells, none unless it is to move
 
 ---@class games.GomokuUpdate: games.GameUpdate
 ---@field view games.GomokuView
@@ -12,7 +12,7 @@ local discs = require("games.ui.discs")
 ---@class games.GomokuPlacedEvent: games.Event
 ---@field kind "placed"
 ---@field by games.DiscSeat
----@field cell games.DiscCell
+---@field cell games.Cell
 
 local M = {}
 

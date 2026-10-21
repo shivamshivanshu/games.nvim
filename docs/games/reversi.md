@@ -58,7 +58,7 @@ The core runs it as for chess. When the opponent passes, the mover keeps the tur
 
 ## Wire
 - **Action:** `{"kind": "place", "cell": "d3"}`.
-- **View:** `{cells, last, legal_cells, discs: {black, white}}`; cells are `{row, column}`, 1-based. See `docs/protocol.md` and `docs/schema/games/reversi.json`.
+- **View:** `{cells, last, legal_cells, discs: {black, white}}`; cells are `{row, col}`, 1-based. See `docs/protocol.md` and `docs/schema/games/reversi.json`.
 - **Events:** `placed {by, cell, flipped}`, then `passed {by}` in the same update when the opponent is blocked.
 - **Rejections:**
   - `cell must be a1 to h8, a letter then a number, got "<text>"`;

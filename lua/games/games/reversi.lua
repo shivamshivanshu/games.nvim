@@ -7,8 +7,8 @@ local discs = require("games.ui.discs")
 
 ---@class games.ReversiView: games.DiscView
 ---@field cells (games.DiscSeat|"")[][] 8 rows of 8 from the top; "" for an empty cell
----@field last? games.DiscCell where the latest disc went
----@field legal_cells games.DiscCell[] the viewer's own: the cells it may play, none unless it is to move
+---@field last? games.Cell where the latest disc went
+---@field legal_cells games.Cell[] the viewer's own: the cells it may play, none unless it is to move
 ---@field discs games.ReversiDiscCount each seat's discs on the board
 
 ---@class games.ReversiUpdate: games.GameUpdate
@@ -17,8 +17,8 @@ local discs = require("games.ui.discs")
 ---@class games.ReversiPlacedEvent: games.Event
 ---@field kind "placed"
 ---@field by games.DiscSeat
----@field cell games.DiscCell
----@field flipped games.DiscCell[] the discs the move turned over
+---@field cell games.Cell
+---@field flipped games.Cell[] the discs the move turned over
 
 ---@class games.ReversiPassedEvent: games.Event
 ---@field kind "passed"

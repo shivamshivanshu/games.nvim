@@ -11,6 +11,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
@@ -54,82 +55,84 @@ func playColumns(t *testing.T, columns string) game.State[Action, View] {
 	return st
 }
 
-func line(cells ...Cell) []Cell { return cells }
+func line(cells ...grid.Cell) []grid.Cell { return cells }
+
+func cell(row, col int) grid.Cell { return grid.Cell{Row: row, Col: col} }
 
 func TestDropOutcomes(t *testing.T) {
 	cases := []struct {
 		name      string
 		columns   string
-		wantLast  Cell
-		wantLines [][]Cell
+		wantLast  grid.Cell
+		wantLines [][]grid.Cell
 		want      *game.Result
 	}{
 		{
 			name:     "first disc lands on the bottom row",
 			columns:  "4",
-			wantLast: Cell{Row: 6, Column: 4},
+			wantLast: grid.Cell{Row: 6, Col: 4},
 		},
 		{
 			name:     "second disc stacks on the first",
 			columns:  "44",
-			wantLast: Cell{Row: 5, Column: 4},
+			wantLast: grid.Cell{Row: 5, Col: 4},
 		},
 		{
 			name:      "horizontal four",
 			columns:   "1122334",
-			wantLast:  Cell{Row: 6, Column: 4},
-			wantLines: [][]Cell{line(Cell{6, 1}, Cell{6, 2}, Cell{6, 3}, Cell{6, 4})},
+			wantLast:  grid.Cell{Row: 6, Col: 4},
+			wantLines: [][]grid.Cell{line(cell(6, 1), cell(6, 2), cell(6, 3), cell(6, 4))},
 			want:      &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow},
 		},
 		{
 			name:      "vertical four",
 			columns:   "1212121",
-			wantLast:  Cell{Row: 3, Column: 1},
-			wantLines: [][]Cell{line(Cell{3, 1}, Cell{4, 1}, Cell{5, 1}, Cell{6, 1})},
+			wantLast:  grid.Cell{Row: 3, Col: 1},
+			wantLines: [][]grid.Cell{line(cell(3, 1), cell(4, 1), cell(5, 1), cell(6, 1))},
 			want:      &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow},
 		},
 		{
 			name:      "rising diagonal",
 			columns:   "12237334444",
-			wantLast:  Cell{Row: 3, Column: 4},
-			wantLines: [][]Cell{line(Cell{3, 4}, Cell{4, 3}, Cell{5, 2}, Cell{6, 1})},
+			wantLast:  grid.Cell{Row: 3, Col: 4},
+			wantLines: [][]grid.Cell{line(cell(3, 4), cell(4, 3), cell(5, 2), cell(6, 1))},
 			want:      &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow},
 		},
 		{
 			name:      "falling diagonal",
 			columns:   "76651554444",
-			wantLast:  Cell{Row: 3, Column: 4},
-			wantLines: [][]Cell{line(Cell{3, 4}, Cell{4, 5}, Cell{5, 6}, Cell{6, 7})},
+			wantLast:  grid.Cell{Row: 3, Col: 4},
+			wantLines: [][]grid.Cell{line(cell(3, 4), cell(4, 5), cell(5, 6), cell(6, 7))},
 			want:      &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow},
 		},
 		{
 			name:      "a run of five is reported whole",
 			columns:   "112244553",
-			wantLast:  Cell{Row: 6, Column: 3},
-			wantLines: [][]Cell{line(Cell{6, 1}, Cell{6, 2}, Cell{6, 3}, Cell{6, 4}, Cell{6, 5})},
+			wantLast:  grid.Cell{Row: 6, Col: 3},
+			wantLines: [][]grid.Cell{line(cell(6, 1), cell(6, 2), cell(6, 3), cell(6, 4), cell(6, 5))},
 			want:      &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow},
 		},
 		{
 			name:     "two lines through the last disc",
 			columns:  "152636576717714",
-			wantLast: Cell{Row: 6, Column: 4},
-			wantLines: [][]Cell{
-				line(Cell{6, 1}, Cell{6, 2}, Cell{6, 3}, Cell{6, 4}),
-				line(Cell{3, 7}, Cell{4, 6}, Cell{5, 5}, Cell{6, 4}),
+			wantLast: grid.Cell{Row: 6, Col: 4},
+			wantLines: [][]grid.Cell{
+				line(cell(6, 1), cell(6, 2), cell(6, 3), cell(6, 4)),
+				line(cell(3, 7), cell(4, 6), cell(5, 5), cell(6, 4)),
 			},
 			want: &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow},
 		},
 		{
 			name:     "full board without four is a draw",
 			columns:  fullBoardDraw,
-			wantLast: Cell{Row: 1, Column: 1},
+			wantLast: grid.Cell{Row: 1, Col: 1},
 			want:     &game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull},
 		},
 		{
 			name:      "a win on the last empty cell beats the draw",
 			columns:   winOnLastDisc,
-			wantLast:  Cell{Row: 1, Column: 6},
-			wantLines: [][]Cell{line(Cell{1, 6}, Cell{2, 5}, Cell{3, 4}, Cell{4, 3})},
+			wantLast:  grid.Cell{Row: 1, Col: 6},
+			wantLines: [][]grid.Cell{line(cell(1, 6), cell(2, 5), cell(3, 4), cell(4, 3))},
 			want:      &game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatYellow}, Reason: ReasonFourInARow},
 		},
 	}
@@ -190,7 +193,7 @@ func TestColumnTextIsTrimmed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := next.View(SeatRed).Last; got == nil || *got != (Cell{Row: 6, Column: 3}) {
+	if got := next.View(SeatRed).Last; got == nil || *got != (grid.Cell{Row: 6, Col: 3}) {
 		t.Errorf("last %+v, want row 6 column 3", got)
 	}
 }
@@ -288,12 +291,12 @@ func TestWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertJSON(t, "dropped event", `{"kind":"dropped","by":"red","row":6,"column":3}`, events[0])
+	assertJSON(t, "dropped event", `{"kind":"dropped","by":"red","cell":{"row":6,"col":3}}`, events[0])
 	var view View
 	if err := json.Unmarshal(viewJSON(t, st, SeatYellow), &view); err != nil {
 		t.Fatal(err)
 	}
-	if view.Cells[5][2] != SeatRed || *view.Last != (Cell{Row: 6, Column: 3}) {
+	if view.Cells[5][2] != SeatRed || *view.Last != (grid.Cell{Row: 6, Col: 3}) {
 		t.Errorf("after drop: cells row 6 %v, last %+v", view.Cells[5], view.Last)
 	}
 }

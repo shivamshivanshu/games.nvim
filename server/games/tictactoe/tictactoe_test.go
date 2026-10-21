@@ -12,6 +12,8 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (
@@ -28,7 +30,7 @@ func newGame(t *testing.T) game.State[Action, View] {
 	return st
 }
 
-func play(t *testing.T, cells ...Cell) game.State[Action, View] {
+func play(t *testing.T, cells ...CellNumber) game.State[Action, View] {
 	t.Helper()
 	st := newGame(t)
 	for _, c := range cells {
@@ -37,7 +39,11 @@ func play(t *testing.T, cells ...Cell) game.State[Action, View] {
 	return st
 }
 
-func place(c Cell) Action { return Action{Kind: ActionPlace, Cell: strconv.Itoa(int(c))} }
+func line(cells ...CellNumber) []grid.Cell {
+	return xslices.Map(cells, func(c CellNumber) grid.Cell { return c.point().Cell() })
+}
+
+func place(c CellNumber) Action { return Action{Kind: ActionPlace, Cell: strconv.Itoa(int(c))} }
 
 func TestNewSeatsFirstMoverAsX(t *testing.T) {
 	tests := []struct {
@@ -68,7 +74,7 @@ func TestNewSeatsFirstMoverAsX(t *testing.T) {
 func TestApplyRejects(t *testing.T) {
 	tests := []struct {
 		name    string
-		played  []Cell
+		played  []CellNumber
 		seat    game.Seat
 		action  Action
 		wantErr error
@@ -77,7 +83,7 @@ func TestApplyRejects(t *testing.T) {
 		{"cell 10", nil, SeatX, place(10), game.IllegalActionError{Msg: `cell must be 1-9, got "10"`}},
 		{"no cell", nil, SeatX, Action{Kind: ActionPlace}, game.IllegalActionError{Msg: `cell must be 1-9, got ""`}},
 		{"signed cell", nil, SeatX, Action{Kind: ActionPlace, Cell: "+5"}, game.IllegalActionError{Msg: `cell must be 1-9, got "+5"`}},
-		{"taken cell", []Cell{5}, SeatO, place(5), game.IllegalActionError{Msg: "cell 5 is taken"}},
+		{"taken cell", []CellNumber{5}, SeatO, place(5), game.IllegalActionError{Msg: "cell 5 is taken"}},
 		{"unknown kind", nil, SeatX, Action{Kind: "move", Cell: "1"}, game.IllegalActionError{Msg: "unknown action: move"}},
 	}
 	for _, tc := range tests {
@@ -94,20 +100,20 @@ func TestOutcome(t *testing.T) {
 	xWins := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatX}, Reason: ReasonThreeInARow}
 	tests := []struct {
 		name      string
-		played    []Cell
+		played    []CellNumber
 		want      game.Result
 		finished  bool
-		wantLines [][]Cell
+		wantLines [][]grid.Cell
 	}{
-		{"ongoing", []Cell{1, 4, 2, 5}, game.Result{}, false, [][]Cell{}},
-		{"row", []Cell{1, 4, 2, 5, 3}, xWins, true, [][]Cell{{1, 2, 3}}},
-		{"column", []Cell{1, 2, 4, 3, 7}, xWins, true, [][]Cell{{1, 4, 7}}},
-		{"diagonal", []Cell{1, 2, 5, 3, 9}, xWins, true, [][]Cell{{1, 5, 9}}},
-		{"O on the anti-diagonal", []Cell{1, 5, 2, 3, 9, 7},
-			game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatO}, Reason: ReasonThreeInARow}, true, [][]Cell{{3, 5, 7}}},
-		{"win on a full board beats the draw", []Cell{1, 4, 2, 5, 6, 8, 7, 9, 3}, xWins, true, [][]Cell{{1, 2, 3}}},
-		{"two lines at once", []Cell{2, 5, 3, 6, 4, 8, 7, 9, 1}, xWins, true, [][]Cell{{1, 2, 3}, {1, 4, 7}}},
-		{"draw", []Cell{1, 2, 3, 5, 4, 6, 8, 7, 9}, game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull}, true, [][]Cell{}},
+		{"ongoing", []CellNumber{1, 4, 2, 5}, game.Result{}, false, [][]grid.Cell{}},
+		{"row", []CellNumber{1, 4, 2, 5, 3}, xWins, true, [][]grid.Cell{line(1, 2, 3)}},
+		{"column", []CellNumber{1, 2, 4, 3, 7}, xWins, true, [][]grid.Cell{line(1, 4, 7)}},
+		{"diagonal", []CellNumber{1, 2, 5, 3, 9}, xWins, true, [][]grid.Cell{line(1, 5, 9)}},
+		{"O on the anti-diagonal", []CellNumber{1, 5, 2, 3, 9, 7},
+			game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatO}, Reason: ReasonThreeInARow}, true, [][]grid.Cell{line(3, 5, 7)}},
+		{"win on a full board beats the draw", []CellNumber{1, 4, 2, 5, 6, 8, 7, 9, 3}, xWins, true, [][]grid.Cell{line(1, 2, 3)}},
+		{"two lines at once", []CellNumber{2, 5, 3, 6, 4, 8, 7, 9, 1}, xWins, true, [][]grid.Cell{line(1, 2, 3), line(1, 4, 7)}},
+		{"draw", []CellNumber{1, 2, 3, 5, 4, 6, 8, 7, 9}, game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull}, true, [][]grid.Cell{}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -145,12 +151,12 @@ func TestLegalCellsAreTheMoversOwn(t *testing.T) {
 	tests := []struct {
 		name         string
 		state        game.State[Action, View]
-		wantX, wantO []Cell
+		wantX, wantO []CellNumber
 	}{
-		{"start", play(t), []Cell{1, 2, 3, 4, 5, 6, 7, 8, 9}, []Cell{}},
-		{"after X plays 5", play(t, 5), []Cell{}, []Cell{1, 2, 3, 4, 6, 7, 8, 9}},
-		{"after a win", play(t, 1, 4, 2, 5, 3), []Cell{}, []Cell{}},
-		{"after an imposed result", play(t, 5).Conclude(imposed), []Cell{}, []Cell{}},
+		{"start", play(t), []CellNumber{1, 2, 3, 4, 5, 6, 7, 8, 9}, []CellNumber{}},
+		{"after X plays 5", play(t, 5), []CellNumber{}, []CellNumber{1, 2, 3, 4, 6, 7, 8, 9}},
+		{"after a win", play(t, 1, 4, 2, 5, 3), []CellNumber{}, []CellNumber{}},
+		{"after an imposed result", play(t, 5).Conclude(imposed), []CellNumber{}, []CellNumber{}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -168,11 +174,11 @@ func TestConcludeKeepsAReachedResult(t *testing.T) {
 	imposed := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
 	tests := []struct {
 		name   string
-		played []Cell
+		played []CellNumber
 		want   game.Result
 	}{
-		{"ongoing takes the imposed result", []Cell{1}, imposed},
-		{"finished keeps its own", []Cell{1, 4, 2, 5, 3}, game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatX}, Reason: ReasonThreeInARow}},
+		{"ongoing takes the imposed result", []CellNumber{1}, imposed},
+		{"finished keeps its own", []CellNumber{1, 4, 2, 5, 3}, game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatX}, Reason: ReasonThreeInARow}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -206,7 +212,7 @@ func TestWireShape(t *testing.T) {
 	if len(events) != 1 || string(events[0]) != `{"kind":"placed","by":"x","cell":3}` {
 		t.Errorf("events %s", events)
 	}
-	wantView(t, st, `{"cells":["","","x","","","","","",""],"last":3,"winning_lines":[],"legal_cells":[1,2,4,5,6,7,8,9]}`)
+	wantView(t, st, `{"cells":["","","x","","","","","",""],"last":{"row":1,"col":3},"winning_lines":[],"legal_cells":[1,2,4,5,6,7,8,9]}`)
 }
 
 func wantView(t *testing.T, st game.ErasedState, want string) {
@@ -220,7 +226,7 @@ func wantView(t *testing.T, st game.ErasedState, want string) {
 	}
 }
 
-func places(cells ...Cell) []gametest.Step[Action] {
+func places(cells ...CellNumber) []gametest.Step[Action] {
 	steps := make([]gametest.Step[Action], len(cells))
 	seat := SeatX
 	for i, c := range cells {

@@ -242,20 +242,20 @@ An action object always carries `kind`.
 - Reasons: `three_in_a_row`, `board_full`.
 - Events: `placed {by: seat, cell}`, `cell` an integer 1-9.
 - Seats: `x`, `o`; `x` moves first. Option `first` picks who plays `x`.
-- View `{cells, last, winning_lines, legal_cells}`:
+- View `{cells, last: {row, col} | null, winning_lines, legal_cells}`:
   - cells are numbered 1-9 in phone layout: 1 top-left, 3 top-right, 9 bottom-right;
   - `cells` is always 9 strings, each `x`, `o`, or `""` when empty, in cell order;
-  - `last` is the cell placed last, or `null` before the first move;
-  - `winning_lines` lists each completed line as its cells, `[]` unless won; one move can complete two;
+  - `last` is the cell placed last as `{row, col}`, 1-based from the top left, or `null` before the first move;
+  - `winning_lines` lists each completed line as its `{row, col}` cells, `[]` unless won; one move can complete two;
   - `legal_cells` is the viewer's own: the empty cells when the viewer is to move, else `[]`.
 - Actions: `place` (`cell`: the cell's number as text, `"1"` to `"9"`).
 
 ### Connect4
 
 - Reasons: `four_in_a_row`, `board_full`.
-- Events: `dropped {by: seat, row, column}`, the cell the disc came to rest in.
+- Events: `dropped {by: seat, cell: {row, col}}`, the cell the disc came to rest in.
 - Seats: `red`, which moves first, and `yellow`.
-- View `{cells, last: {row, column} | null, winning_lines, legal_columns}`:
+- View `{cells, last: {row, col} | null, winning_lines, legal_columns}`:
   - `cells` is 6 rows of 7, row 1 at the top; each is the seat whose disc fills it, or `""`.
   - `winning_lines` is `[]` until a win, then every run of 4 or more through the last disc, whole.
   - `legal_columns` holds the viewer's own: the open columns, empty unless the viewer is to move.
@@ -289,22 +289,22 @@ An action object always carries `kind`.
 ### Gomoku
 
 - Reasons: `five_in_a_row`, `board_full`.
-- Events: `placed {by: seat, cell: {row, column}}`.
+- Events: `placed {by: seat, cell: {row, col}}`.
 - Seats: `black`, which moves first, and `white`. Option `first` gives black to the challenger (`me`), the opponent, or either at random.
-- View `{cells, last: {row, column} | null, winning_lines, legal_cells}`:
+- View `{cells, last: {row, col} | null, winning_lines, legal_cells}`:
   - `cells` is 15 rows of 15, row 1 at the top; each is the seat whose stone fills it, or `""`.
   - `winning_lines` is `[]` until a win, then every run of 5 or more through the last stone, whole.
-  - `legal_cells` holds the viewer's own: the empty cells as `{row, column}`, empty unless the viewer is to move.
+  - `legal_cells` holds the viewer's own: the empty cells as `{row, col}`, empty unless the viewer is to move.
 - Actions: `place` (`cell`: a column letter `a`-`o` then a row number `1`-`15`, e.g. `"h8"`; either case, surrounding spaces ignored). The catalogue gives the pattern.
 
 ### Reversi
 
 - Reasons: `more_discs` (decisive), `equal_discs` (draw); both mean neither seat could move.
 - Events:
-  - `placed {by: seat, cell: {row, column}, flipped: [{row, column}]}`, every disc the move turned over;
+  - `placed {by: seat, cell: {row, col}, flipped: [{row, col}]}`, every disc the move turned over;
   - `passed {by: seat}`: the seat had no legal move, so its opponent moves again. The server passes for it; there is no pass action. It follows the `placed` that blocked the seat, in the same update.
 - Seats: `black`, which moves first, and `white`; option `first` as in Gomoku.
-- View `{cells, last: {row, column} | null, legal_cells, discs: {black, white}}`:
+- View `{cells, last: {row, col} | null, legal_cells, discs: {black, white}}`:
   - `cells` is 8 rows of 8, row 1 at the top; it starts with white on d4 and e5, black on e4 and d5.
   - `legal_cells` holds the viewer's own: the cells where its disc would flip at least one, empty unless the viewer is to move.
   - `discs` counts each seat's discs on the board.

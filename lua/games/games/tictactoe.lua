@@ -8,8 +8,8 @@ local theme = require("games.ui.theme")
 
 ---@class games.TicTacToeView
 ---@field cells (games.TicTacToeSeat|"")[] each cell's owner in phone order, 1 at the top-left; "" when empty
----@field last? integer the cell placed last
----@field winning_lines integer[][] the cells of each completed line
+---@field last? games.Cell the cell placed last
+---@field winning_lines games.Cell[][] the cells of each completed line
 ---@field legal_cells integer[] the viewer's own: empty unless it is to move
 
 ---@class games.TicTacToeUpdate: games.GameUpdate
@@ -37,13 +37,6 @@ local function cell_at(row, col)
   return (row - 1) * SIDE + col
 end
 
----@param cell integer
----@param hl string
----@return games.GridMark
-local function mark(cell, hl)
-  return grid.mark(math.floor((cell - 1) / SIDE) + 1, (cell - 1) % SIDE + 1, hl)
-end
-
 ---An empty cell draws its own number, the key that takes it.
 ---@param update games.TicTacToeUpdate
 ---@param cell integer
@@ -61,12 +54,10 @@ end
 local function marks_for(view)
   local marks = {}
   if view.last then
-    marks[1] = mark(view.last, LAST_MOVE_HL)
+    marks[1] = grid.mark(view.last.row, view.last.col, LAST_MOVE_HL)
   end
   for _, line in ipairs(view.winning_lines) do
-    for _, cell in ipairs(line) do
-      marks[#marks + 1] = mark(cell, WIN_HL)
-    end
+    vim.list_extend(marks, grid.cell_marks(line, WIN_HL))
   end
   return marks
 end

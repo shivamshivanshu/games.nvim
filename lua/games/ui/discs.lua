@@ -6,20 +6,15 @@ local text = require("games.ui.text")
 
 ---@alias games.DiscSeat "black"|"white"
 
----A cell on the wire, 1-based; named on screen as its column's letter then its row's number, e.g. h8.
----@class games.DiscCell
----@field row integer 1 at the top
----@field column integer 1 at the left
-
 ---@class games.DiscLast
----@field last? games.DiscCell where the latest disc went
+---@field last? games.Cell where the latest disc went
 
 ---@class games.DiscView: games.DiscLast
 ---@field cells (games.DiscSeat|"")[][] rows from the top; "" for an empty cell
 
 ---@class games.DiscMarks what a board marks besides the last disc
----@field legal? games.DiscCell[] empty cells drawn as the viewer's moves; nil draws none
----@field winning_lines? games.DiscCell[][]
+---@field legal? games.Cell[] empty cells drawn as the viewer's moves; nil draws none
+---@field winning_lines? games.Cell[][]
 
 ---@class games.DiscBoardProps: games.DiscMarks
 ---@field size integer cells on a side
@@ -51,10 +46,11 @@ function M.asset_keys()
   return { "black", "white", EMPTY_KEY }
 end
 
----@param cell games.DiscCell
+---A cell named as its column's letter then its row's number, e.g. h8.
+---@param cell games.Cell
 ---@return string
 function M.cell_name(cell)
-  return text.ALPHABET:sub(cell.column, cell.column) .. cell.row
+  return text.ALPHABET:sub(cell.col, cell.col) .. cell.row
 end
 
 ---The prompt that sends the typed cell to the server, which parses it.
@@ -64,38 +60,18 @@ function M.input(example)
   return { kind = PLACE_KIND, prompt = ("Place, e.g. %s: "):format(example) }
 end
 
----@param cell games.DiscCell
----@return integer
-local function row_of(cell)
-  return cell.row
-end
-
----@param cell games.DiscCell
----@return integer
-local function column_of(cell)
-  return cell.column
-end
-
 ---Legal cells, then the last disc, then the winning lines over it; a later mark replaces an
 ---earlier one.
 ---@param view games.DiscLast
 ---@param marked games.DiscMarks
 ---@return games.GridMark[]
 function M.marks(view, marked)
-  local marks = {}
-  local function mark(cell, hl)
-    marks[#marks + 1] = grid.mark(cell.row, cell.column, hl)
-  end
-  for _, cell in ipairs(marked.legal or {}) do
-    mark(cell, LEGAL_HL)
-  end
+  local marks = grid.cell_marks(marked.legal or {}, LEGAL_HL)
   if view.last then
-    mark(view.last, LAST_MOVE_HL)
+    marks[#marks + 1] = grid.mark(view.last.row, view.last.col, LAST_MOVE_HL)
   end
   for _, line in ipairs(marked.winning_lines or {}) do
-    for _, cell in ipairs(line) do
-      mark(cell, WIN_HL)
-    end
+    vim.list_extend(marks, grid.cell_marks(line, WIN_HL))
   end
   return marks
 end
@@ -132,7 +108,7 @@ end
 function M.layout(update, ctx, props)
   ---@type games.DiscView
   local view = update.view
-  local legal = grid.cell_index(props.legal or {}, row_of, column_of)
+  local legal = grid.cell_index(props.legal or {})
   return board({
     grid = {
       rows = props.size,

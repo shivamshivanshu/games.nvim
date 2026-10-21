@@ -5,20 +5,21 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
-const noCell Cell = 0
+const noCell CellNumber = 0
 
 type state struct {
 	game.Ending
 	board        board
 	toMove       game.Seat
-	last         Cell
-	winningLines [][]Cell
+	last         CellNumber
+	winningLines [][]grid.Cell
 }
 
 func newState() state {
-	return state{toMove: SeatX, winningLines: [][]Cell{}}
+	return state{toMove: SeatX, winningLines: [][]grid.Cell{}}
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -35,7 +36,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	return s.place(seat, cell), []game.Event{PlacedEvent{By: seat, Cell: cell}}, nil
 }
 
-func (s state) place(seat game.Seat, cell Cell) state {
+func (s state) place(seat game.Seat, cell CellNumber) state {
 	next := state{board: s.board.with(cell, seat), toMove: sides.Other(seat), last: cell}
 	next.winningLines = next.board.winningLinesThrough(cell)
 	switch {
@@ -48,9 +49,9 @@ func (s state) place(seat game.Seat, cell Cell) state {
 }
 
 func (s state) View(seat game.Seat) View {
-	view := View{Cells: s.board, WinningLines: s.winningLines, LegalCells: []Cell{}}
+	view := View{Cells: s.board, WinningLines: s.winningLines, LegalCells: []CellNumber{}}
 	if s.last != noCell {
-		last := s.last
+		last := s.last.point().Cell()
 		view.Last = &last
 	}
 	if slices.Contains(s.ToAct(), seat) {

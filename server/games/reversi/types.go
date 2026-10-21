@@ -2,7 +2,7 @@ package reversi
 
 import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
-	"github.com/shivamshivanshu/games.nvim/server/games/discs"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 // TypeReversi is the game's catalogue id.
@@ -13,8 +13,8 @@ const TypeReversi game.GameType = "reversi"
 // is to move.
 type View struct {
 	Cells      [][]game.Seat `json:"cells"`
-	Last       *discs.Cell   `json:"last" jsonschema:"nullable"`
-	LegalCells []discs.Cell  `json:"legal_cells"`
+	Last       *grid.Cell    `json:"last" jsonschema:"nullable"`
+	LegalCells []grid.Cell   `json:"legal_cells"`
 	Discs      DiscCount     `json:"discs"`
 }
 
@@ -26,9 +26,9 @@ type DiscCount struct {
 
 // PlacedEvent reports a disc placed on Cell and the opponent's discs it turned over.
 type PlacedEvent struct {
-	By      game.Seat    `json:"by"`
-	Cell    discs.Cell   `json:"cell"`
-	Flipped []discs.Cell `json:"flipped"`
+	By      game.Seat   `json:"by"`
+	Cell    grid.Cell   `json:"cell"`
+	Flipped []grid.Cell `json:"flipped"`
 }
 
 // PassedEvent reports that By had no legal move, so the turn went back to its opponent.

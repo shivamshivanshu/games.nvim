@@ -60,17 +60,17 @@ func TestTurn(t *testing.T) {
 		turn       Turn
 		wantToAct  []game.Seat
 		wantResult game.Result
-		wantLegal  map[game.Seat][]Cell
+		wantLegal  map[game.Seat][]grid.Cell
 	}{
 		{"black first", FirstTurn(), []game.Seat{SeatBlack}, game.Result{},
-			map[game.Seat][]Cell{SeatBlack: {{Row: 1, Column: 1}}, SeatWhite: {}}},
+			map[game.Seat][]grid.Cell{SeatBlack: {{Row: 1, Col: 1}}, SeatWhite: {}}},
 		{"passed to white", FirstTurn().To(SeatWhite), []game.Seat{SeatWhite}, game.Result{},
-			map[game.Seat][]Cell{SeatBlack: {}, SeatWhite: {{Row: 1, Column: 1}}}},
-		{"concluded", FirstTurn().Conclude(imposed), nil, imposed, map[game.Seat][]Cell{SeatBlack: {}, SeatWhite: {}}},
+			map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {{Row: 1, Col: 1}}}},
+		{"concluded", FirstTurn().Conclude(imposed), nil, imposed, map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {}}},
 		{"a reached result outlives a conclusion", FirstTurn().Conclude(won).Conclude(imposed), nil, won,
-			map[game.Seat][]Cell{SeatBlack: {}, SeatWhite: {}}},
+			map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {}}},
 		{"a finished turn passes to no one", FirstTurn().Conclude(won).To(SeatWhite), nil, won,
-			map[game.Seat][]Cell{SeatBlack: {}, SeatWhite: {}}},
+			map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {}}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

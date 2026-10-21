@@ -1,6 +1,9 @@
 package connect4
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+)
 
 // Opts are the options a connect4 game is created with.
 type Opts struct {
@@ -19,26 +22,19 @@ type Action struct {
 	Column string          `json:"column"`
 }
 
-// Cell is a 1-based board position; row 1 is the top.
-type Cell struct {
-	Row    int `json:"row"`
-	Column int `json:"column"`
-}
-
 // View holds Cells[row][column], each the seat whose disc fills it or "" when empty.
 // LegalColumns is the viewer's own: the columns it may drop into, empty unless it is to move.
 type View struct {
 	Cells        [][]game.Seat `json:"cells"`
-	Last         *Cell         `json:"last" jsonschema:"nullable"`
-	WinningLines [][]Cell      `json:"winning_lines"`
+	Last         *grid.Cell    `json:"last" jsonschema:"nullable"`
+	WinningLines [][]grid.Cell `json:"winning_lines"`
 	LegalColumns []int         `json:"legal_columns"`
 }
 
 // DroppedEvent says which cell a seat's disc came to rest in.
 type DroppedEvent struct {
-	By     game.Seat `json:"by"`
-	Row    int       `json:"row"`
-	Column int       `json:"column"`
+	By   game.Seat `json:"by"`
+	Cell grid.Cell `json:"cell"`
 }
 
 // EventDropped is the kind of DroppedEvent.

@@ -26,7 +26,7 @@ local function update(overrides)
     controls = { "resign", "abort" },
     view = {
       cells = { "x", "x", "", "o", "", "", "", "", "" },
-      last = 2,
+      last = { row = 1, col = 2 },
       winning_lines = {},
       legal_cells = { 3, 5, 6, 7, 8, 9 },
     },
@@ -101,7 +101,7 @@ function T.marks_take_their_seats_colour_in_player_order_with_last_move_and_win_
     to_act = {},
     result = { kind = "decisive", winners = { "alice" }, reason = "three_in_a_row" },
   })
-  won.view.winning_lines = { { 1, 5, 9 } }
+  won.view.winning_lines = { { { row = 1, col = 1 }, { row = 2, col = 2 }, { row = 3, col = 3 } } }
   local rendered = shell.render(won, tictactoe, view_options("unicode"), "bob", 0, nil, CATALOGUED)
   assert_eq({
     { "GamesWin", "GamesSeat1" },

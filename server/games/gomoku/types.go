@@ -2,7 +2,7 @@ package gomoku
 
 import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
-	"github.com/shivamshivanshu/games.nvim/server/games/discs"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 // TypeGomoku is the game's catalogue id.
@@ -11,16 +11,16 @@ const TypeGomoku game.GameType = "gomoku"
 // View holds Cells[row][column], each the seat whose stone fills it or "" when
 // empty. LegalCells is the viewer's own: the empty cells, none unless it is to move.
 type View struct {
-	Cells        [][]game.Seat  `json:"cells"`
-	Last         *discs.Cell    `json:"last" jsonschema:"nullable"`
-	WinningLines [][]discs.Cell `json:"winning_lines"`
-	LegalCells   []discs.Cell   `json:"legal_cells"`
+	Cells        [][]game.Seat `json:"cells"`
+	Last         *grid.Cell    `json:"last" jsonschema:"nullable"`
+	WinningLines [][]grid.Cell `json:"winning_lines"`
+	LegalCells   []grid.Cell   `json:"legal_cells"`
 }
 
 // PlacedEvent reports a stone placed on Cell.
 type PlacedEvent struct {
-	By   game.Seat  `json:"by"`
-	Cell discs.Cell `json:"cell"`
+	By   game.Seat `json:"by"`
+	Cell grid.Cell `json:"cell"`
 }
 
 // EventPlaced is PlacedEvent's kind.

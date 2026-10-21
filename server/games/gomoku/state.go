@@ -6,18 +6,17 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 	"github.com/shivamshivanshu/games.nvim/server/games/discs"
-	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 type state struct {
 	discs.Turn
 	board        discs.Board
-	last         *discs.Cell
-	winningLines [][]discs.Cell
+	last         *grid.Cell
+	winningLines [][]grid.Cell
 }
 
 func newState() state {
-	return state{Turn: discs.FirstTurn(), board: discs.NewBoard(boardSize), winningLines: [][]discs.Cell{}}
+	return state{Turn: discs.FirstTurn(), board: discs.NewBoard(boardSize), winningLines: [][]grid.Cell{}}
 }
 
 func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.State[discs.Action, View], []game.Event, error) {
@@ -33,9 +32,9 @@ func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.St
 }
 
 func (s state) place(seat game.Seat, at grid.Point) state {
-	last := discs.CellAt(at)
+	last := at.Cell()
 	next := state{board: s.board.With(seat, at), last: &last}
-	next.winningLines = xslices.Map(grid.WinningLines(next.board.Rows(), at, winLength, discs.NoDisc), discs.CellsAt)
+	next.winningLines = grid.CellLines(grid.WinningLines(next.board.Rows(), at, winLength, discs.NoDisc))
 	switch {
 	case len(next.winningLines) > 0:
 		next.Turn = s.Turn.Conclude(game.WinFor(ReasonFiveInARow, seat))

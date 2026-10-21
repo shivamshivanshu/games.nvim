@@ -25,6 +25,23 @@
       ],
       "description": "ActionKind is the \"kind\" field every action object carries."
     },
+    "Cell": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col"
+      ],
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, col 1 the left."
+    },
     "PlacedEvent": {
       "properties": {
         "kind": {
@@ -67,7 +84,7 @@
         "last": {
           "oneOf": [
             {
-              "type": "integer"
+              "$ref": "#/$defs/Cell"
             },
             {
               "type": "null"
@@ -77,7 +94,7 @@
         "winning_lines": {
           "items": {
             "items": {
-              "type": "integer"
+              "$ref": "#/$defs/Cell"
             },
             "type": "array"
           },

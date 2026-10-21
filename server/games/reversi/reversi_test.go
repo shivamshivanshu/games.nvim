@@ -93,14 +93,14 @@ func position(seat game.Seat, rows ...string) state {
 	return state{Turn: discs.FirstTurn().To(seat), board: b}
 }
 
-func cells(names ...string) []discs.Cell {
-	out := []discs.Cell{}
+func cells(names ...string) []grid.Cell {
+	out := []grid.Cell{}
 	for _, name := range names {
 		p, ok := coords().Parse(name)
 		if !ok {
 			panic("bad cell " + name)
 		}
-		out = append(out, discs.CellAt(p))
+		out = append(out, p.Cell())
 	}
 	return out
 }
@@ -376,7 +376,7 @@ func TestWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 1 || string(events[0]) != `{"kind":"placed","by":"black","cell":{"row":3,"column":4},"flipped":[{"row":4,"column":4}]}` {
+	if len(events) != 1 || string(events[0]) != `{"kind":"placed","by":"black","cell":{"row":3,"col":4},"flipped":[{"row":4,"col":4}]}` {
 		t.Errorf("events %s", events)
 	}
 	view, err := st.View(discs.SeatWhite)
@@ -385,8 +385,8 @@ func TestWireShape(t *testing.T) {
 	}
 	empty := `["","","","","","","",""]`
 	want := `{"cells":[` + empty + `,` + empty + `,["","","","black","","","",""],["","","","black","black","","",""],["","","","black","white","","",""],` +
-		empty + `,` + empty + `,` + empty + `],"last":{"row":3,"column":4},` +
-		`"legal_cells":[{"row":3,"column":3},{"row":3,"column":5},{"row":5,"column":3}],"discs":{"black":4,"white":1}}`
+		empty + `,` + empty + `,` + empty + `],"last":{"row":3,"col":4},` +
+		`"legal_cells":[{"row":3,"col":3},{"row":3,"col":5},{"row":5,"col":3}],"discs":{"black":4,"white":1}}`
 	if string(view) != want {
 		t.Errorf("view\n%s\nwant\n%s", view, want)
 	}

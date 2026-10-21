@@ -5,12 +5,10 @@ local theme = require("games.ui.theme")
 
 ---@alias games.Connect4Seat "red"|"yellow"
 
----@class games.Connect4Cell: games.DiscCell
-
 ---@class games.Connect4View: games.DiscLast
 ---@field cells (games.Connect4Seat|"")[][] rows from the top; "" for an empty cell
----@field last? games.Connect4Cell where the latest disc came to rest
----@field winning_lines games.Connect4Cell[][] every winning run through the last disc, whole
+---@field last? games.Cell where the latest disc came to rest
+---@field winning_lines games.Cell[][] every winning run through the last disc, whole
 ---@field legal_columns integer[] the viewer's own: open columns, empty unless it is to move
 
 ---@class games.Connect4Update: games.GameUpdate
@@ -19,8 +17,7 @@ local theme = require("games.ui.theme")
 ---@class games.Connect4DroppedEvent: games.Event
 ---@field kind "dropped"
 ---@field by games.Connect4Seat
----@field row integer
----@field column integer
+---@field cell games.Cell where the disc came to rest
 
 local ROWS = 6
 local COLUMNS = 7
@@ -80,7 +77,7 @@ M.actions = actions.per_value({
 M.describers = {
   dropped = function(event, talk)
     ---@cast event games.Connect4DroppedEvent
-    return ("%s dropped in column %d"):format(talk.name(event.by), event.column)
+    return ("%s dropped in column %d"):format(talk.name(event.by), event.cell.col)
   end,
 }
 

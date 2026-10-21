@@ -30,7 +30,7 @@
         "row": {
           "type": "integer"
         },
-        "column": {
+        "col": {
           "type": "integer"
         }
       },
@@ -38,9 +38,9 @@
       "type": "object",
       "required": [
         "row",
-        "column"
+        "col"
       ],
-      "description": "Cell is a 1-based board position; row 1 is the top."
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, col 1 the left."
     },
     "DroppedEvent": {
       "properties": {
@@ -50,11 +50,8 @@
         "by": {
           "type": "string"
         },
-        "row": {
-          "type": "integer"
-        },
-        "column": {
-          "type": "integer"
+        "cell": {
+          "$ref": "#/$defs/Cell"
         }
       },
       "additionalProperties": false,
@@ -62,8 +59,7 @@
       "required": [
         "kind",
         "by",
-        "row",
-        "column"
+        "cell"
       ],
       "description": "DroppedEvent says which cell a seat's disc came to rest in."
     },

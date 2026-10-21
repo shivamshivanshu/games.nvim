@@ -14,8 +14,8 @@ type state struct {
 	game.Ending
 	board        board
 	toMove       game.Seat
-	last         *Cell
-	winningLines [][]Cell
+	last         *grid.Cell
+	winningLines [][]grid.Cell
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -36,35 +36,19 @@ func (s state) drop(seat game.Seat, input string) (game.State[Action, View], []g
 		return nil, nil, game.Illegalf("column %d is full", column)
 	}
 	at := grid.Point{Row: row, Col: column - 1}
-	landed := cellAt(at)
+	landed := at.Cell()
 	next := s
 	next.board[at.Row][at.Col] = seat
 	next.last = &landed
 	next.toMove = sides.Other(seat)
-	next.winningLines = winningLines(next.board, at)
+	next.winningLines = grid.CellLines(grid.WinningLines(next.board.cells(), at, winLength, noDisc))
 	switch {
 	case len(next.winningLines) > 0:
 		next.Ending = next.Concluded(game.WinFor(ReasonFourInARow, seat))
 	case next.board.full():
 		next.Ending = next.Concluded(game.DrawBy(ReasonBoardFull))
 	}
-	return next, []game.Event{DroppedEvent{By: seat, Row: landed.Row, Column: landed.Column}}, nil
-}
-
-func winningLines(b board, last grid.Point) [][]Cell {
-	lines := grid.WinningLines(b.cells(), last, winLength, noDisc)
-	out := make([][]Cell, len(lines))
-	for i, line := range lines {
-		out[i] = make([]Cell, len(line))
-		for j, p := range line {
-			out[i][j] = cellAt(p)
-		}
-	}
-	return out
-}
-
-func cellAt(p grid.Point) Cell {
-	return Cell{Row: p.Row + 1, Column: p.Col + 1}
+	return next, []game.Event{DroppedEvent{By: seat, Cell: landed}}, nil
 }
 
 func (s state) View(viewer game.Seat) View {

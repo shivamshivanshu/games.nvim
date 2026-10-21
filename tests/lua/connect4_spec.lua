@@ -35,7 +35,7 @@ local function update_with(overrides)
     controls = { "resign", "offer_draw" },
     view = {
       cells = cells,
-      last = { row = 5, column = 3 },
+      last = { row = 5, col = 3 },
       winning_lines = {},
       legal_columns = ALL_COLUMNS,
     },
@@ -93,14 +93,14 @@ end
 
 function T.discs_take_their_players_header_colour_and_marks_tint_last_and_winning_cells()
   local winning = {
-    { row = 6, column = 1 },
-    { row = 6, column = 2 },
-    { row = 6, column = 3 },
-    { row = 6, column = 4 },
+    { row = 6, col = 1 },
+    { row = 6, col = 2 },
+    { row = 6, col = 3 },
+    { row = 6, col = 4 },
   }
   local view = vim.deepcopy(update_with().view)
   view.cells[6][4] = "red"
-  view.last, view.winning_lines, view.legal_columns = { row = 6, column = 4 }, { winning }, {}
+  view.last, view.winning_lines, view.legal_columns = { row = 6, col = 4 }, { winning }, {}
   local won = update_with({
     view = view,
     to_act = {},
@@ -130,7 +130,7 @@ function T.a_drop_key_sends_its_column_as_text()
 end
 
 function T.events_name_the_player_and_column()
-  local event = { kind = "dropped", by = "yellow", row = 5, column = 3 }
+  local event = { kind = "dropped", by = "yellow", cell = { row = 5, col = 3 } }
   assert_eq("bob dropped in column 3", helpers.described(update_with(), event))
 end
 

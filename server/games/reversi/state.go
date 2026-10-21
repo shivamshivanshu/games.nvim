@@ -11,7 +11,7 @@ import (
 type state struct {
 	discs.Turn
 	board discs.Board
-	last  *discs.Cell
+	last  *grid.Cell
 }
 
 func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.State[discs.Action, View], []game.Event, error) {
@@ -35,9 +35,9 @@ func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.St
 // to the opponent if it can move, else back to seat with the opponent's pass,
 // else the game ends on the disc count.
 func (s state) place(seat game.Seat, at grid.Point, turned []grid.Point) (state, []game.Event) {
-	last := discs.CellAt(at)
+	last := at.Cell()
 	next := state{Turn: s.Turn, board: s.board.With(seat, at).With(seat, turned...), last: &last}
-	events := []game.Event{PlacedEvent{By: seat, Cell: last, Flipped: discs.CellsAt(turned)}}
+	events := []game.Event{PlacedEvent{By: seat, Cell: last, Flipped: grid.Cells(turned)}}
 	opponent := discs.Sides.Other(seat)
 	switch {
 	case len(legalPoints(next.board, opponent)) > 0:

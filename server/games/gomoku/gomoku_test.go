@@ -103,14 +103,14 @@ func fullBoardFiveOnLastStone() []string {
 	return alternate(black, white)
 }
 
-func cells(names ...string) []discs.Cell {
-	out := make([]discs.Cell, len(names))
+func cells(names ...string) []grid.Cell {
+	out := make([]grid.Cell, len(names))
 	for i, name := range names {
 		p, ok := coords().Parse(name)
 		if !ok {
 			panic("bad cell " + name)
 		}
-		out[i] = discs.CellAt(p)
+		out[i] = p.Cell()
 	}
 	return out
 }
@@ -171,26 +171,26 @@ func TestOutcome(t *testing.T) {
 		name      string
 		played    []string
 		want      *game.Result
-		wantLines [][]discs.Cell
+		wantLines [][]grid.Cell
 	}{
 		{"four is not enough", blackFiveOnRowEight()[:7], nil, nil},
-		{"row", blackFiveOnRowEight(), blackWins, [][]discs.Cell{cells("h8", "i8", "j8", "k8", "l8")}},
+		{"row", blackFiveOnRowEight(), blackWins, [][]grid.Cell{cells("h8", "i8", "j8", "k8", "l8")}},
 		{"column", []string{"a1", "b1", "a2", "b2", "a3", "b3", "a4", "b4", "a5"}, blackWins,
-			[][]discs.Cell{cells("a1", "a2", "a3", "a4", "a5")}},
+			[][]grid.Cell{cells("a1", "a2", "a3", "a4", "a5")}},
 		{"diagonal", []string{"a1", "o1", "b2", "o2", "c3", "o3", "d4", "o4", "e5"}, blackWins,
-			[][]discs.Cell{cells("a1", "b2", "c3", "d4", "e5")}},
+			[][]grid.Cell{cells("a1", "b2", "c3", "d4", "e5")}},
 		{"anti-diagonal on the far edge", []string{"o1", "a1", "n2", "a2", "m3", "a3", "l4", "a4", "k5"}, blackWins,
-			[][]discs.Cell{cells("o1", "n2", "m3", "l4", "k5")}},
+			[][]grid.Cell{cells("o1", "n2", "m3", "l4", "k5")}},
 		{"white wins", []string{"h8", "a1", "h9", "a2", "h10", "a3", "h11", "a4", "o15", "a5"},
 			&game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{discs.SeatWhite}, Reason: ReasonFiveInARow},
-			[][]discs.Cell{cells("a1", "a2", "a3", "a4", "a5")}},
+			[][]grid.Cell{cells("a1", "a2", "a3", "a4", "a5")}},
 		{"an overline of six wins, reported whole", []string{"a8", "a1", "b8", "a2", "c8", "a3", "e8", "a4", "f8", "o15", "d8"}, blackWins,
-			[][]discs.Cell{cells("a8", "b8", "c8", "d8", "e8", "f8")}},
+			[][]grid.Cell{cells("a8", "b8", "c8", "d8", "e8", "f8")}},
 		{"two lines at once", []string{"d8", "a1", "e8", "a2", "f8", "a3", "g8", "a4", "h4", "o1", "h5", "o2", "h6", "o3", "h7", "o4", "h8"}, blackWins,
-			[][]discs.Cell{cells("d8", "e8", "f8", "g8", "h8"), cells("h4", "h5", "h6", "h7", "h8")}},
+			[][]grid.Cell{cells("d8", "e8", "f8", "g8", "h8"), cells("h4", "h5", "h6", "h7", "h8")}},
 		{"a full board without five is a draw", fullBoardDraw(), &game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull}, nil},
 		{"five with the 225th stone wins, not a full-board draw", fullBoardFiveOnLastStone(), blackWins,
-			[][]discs.Cell{cells("a8", "b8", "c8", "d8", "e8")}},
+			[][]grid.Cell{cells("a8", "b8", "c8", "d8", "e8")}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -213,7 +213,7 @@ func TestOutcome(t *testing.T) {
 
 func TestCellTextIsTrimmedAndCaseless(t *testing.T) {
 	st := play(t, " H8\t")
-	if got := st.View(discs.SeatBlack).Last; got == nil || *got != (discs.Cell{Row: 8, Column: 8}) {
+	if got := st.View(discs.SeatBlack).Last; got == nil || *got != (grid.Cell{Row: 8, Col: 8}) {
 		t.Errorf("last %+v, want row 8 column 8", got)
 	}
 }
@@ -256,7 +256,7 @@ func TestLegalCellsAreTheMoversOwn(t *testing.T) {
 			}
 		})
 	}
-	if slices.Contains(play(t, "h8").View(discs.SeatWhite).LegalCells, (discs.Cell{Row: 8, Column: 8})) {
+	if slices.Contains(play(t, "h8").View(discs.SeatWhite).LegalCells, (grid.Cell{Row: 8, Col: 8})) {
 		t.Error("a taken cell is legal")
 	}
 }
@@ -295,7 +295,7 @@ func TestWireShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 1 || string(events[0]) != `{"kind":"placed","by":"black","cell":{"row":2,"column":3}}` {
+	if len(events) != 1 || string(events[0]) != `{"kind":"placed","by":"black","cell":{"row":2,"col":3}}` {
 		t.Errorf("events %s", events)
 	}
 	raw, err := st.View(discs.SeatWhite)
@@ -310,13 +310,13 @@ func TestWireShape(t *testing.T) {
 	if got := string(view["cells"]); !strings.Contains(got, `[[`+strings.Repeat(`"",`, 14)+`""],`+row) {
 		t.Errorf("cells %s", got)
 	}
-	if got := string(view["last"]); got != `{"row":2,"column":3}` {
+	if got := string(view["last"]); got != `{"row":2,"col":3}` {
 		t.Errorf("last %s", got)
 	}
 	if got := string(view["winning_lines"]); got != `[]` {
 		t.Errorf("winning_lines %s", got)
 	}
-	if got := string(view["legal_cells"]); !strings.HasPrefix(got, `[{"row":1,"column":1},`) {
+	if got := string(view["legal_cells"]); !strings.HasPrefix(got, `[{"row":1,"col":1},`) {
 		t.Errorf("legal_cells %.40s", got)
 	}
 }

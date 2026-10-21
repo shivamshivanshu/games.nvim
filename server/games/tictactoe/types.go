@@ -1,6 +1,9 @@
 package tictactoe
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+)
 
 // TypeTicTacToe is the game's catalogue id.
 const TypeTicTacToe game.GameType = "tictactoe"
@@ -22,8 +25,8 @@ type Opts struct {
 // ActionPlace puts the mover's mark on an empty cell.
 const ActionPlace game.ActionKind = "place"
 
-// Cell numbers the board in phone layout: 1 at the top-left, 9 at the bottom-right.
-type Cell int
+// CellNumber numbers the board in phone layout: 1 at the top-left, 9 at the bottom-right.
+type CellNumber int
 
 // Action is a player's move. Cell is the cell's number as text, "1" to "9".
 type Action struct {
@@ -35,15 +38,15 @@ type Action struct {
 // when empty. LegalCells is the viewer's own: empty unless it is to move.
 type View struct {
 	Cells        [cellCount]game.Seat `json:"cells"`
-	Last         *Cell                `json:"last" jsonschema:"nullable"`
-	WinningLines [][]Cell             `json:"winning_lines"`
-	LegalCells   []Cell               `json:"legal_cells"`
+	Last         *grid.Cell           `json:"last" jsonschema:"nullable"`
+	WinningLines [][]grid.Cell        `json:"winning_lines"`
+	LegalCells   []CellNumber         `json:"legal_cells"`
 }
 
 // PlacedEvent reports a mark placed on Cell.
 type PlacedEvent struct {
-	By   game.Seat `json:"by"`
-	Cell Cell      `json:"cell"`
+	By   game.Seat  `json:"by"`
+	Cell CellNumber `json:"cell"`
 }
 
 // EventPlaced is PlacedEvent's kind.

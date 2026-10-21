@@ -15,33 +15,31 @@ const (
 
 type board [cellCount]game.Seat
 
-func parseCell(text string) (Cell, error) {
+func parseCell(text string) (CellNumber, error) {
 	n, ok := game.ParseNumbered(text, cellCount)
 	if !ok {
 		return 0, game.Illegalf("cell must be 1-%d, got %q", cellCount, text)
 	}
-	return Cell(n), nil
+	return CellNumber(n), nil
 }
 
-func (c Cell) point() grid.Point {
+func (c CellNumber) point() grid.Point {
 	i := int(c) - 1
 	return grid.Point{Row: i / side, Col: i % side}
 }
 
-func cellAt(p grid.Point) Cell { return Cell(p.Row*side + p.Col + 1) }
+func (b board) owner(c CellNumber) game.Seat { return b[c-1] }
 
-func (b board) owner(c Cell) game.Seat { return b[c-1] }
-
-func (b board) with(c Cell, seat game.Seat) board {
+func (b board) with(c CellNumber, seat game.Seat) board {
 	b[c-1] = seat
 	return b
 }
 
-func (b board) emptyCells() []Cell {
-	cells := []Cell{}
+func (b board) emptyCells() []CellNumber {
+	cells := []CellNumber{}
 	for i, owner := range b {
 		if owner == noSeat {
-			cells = append(cells, Cell(i+1))
+			cells = append(cells, CellNumber(i+1))
 		}
 	}
 	return cells
@@ -57,14 +55,6 @@ func (b board) rows() [][]game.Seat {
 	return rows
 }
 
-func (b board) winningLinesThrough(c Cell) [][]Cell {
-	lines := [][]Cell{}
-	for _, points := range grid.WinningLines(b.rows(), c.point(), winLength, noSeat) {
-		line := make([]Cell, len(points))
-		for i, p := range points {
-			line[i] = cellAt(p)
-		}
-		lines = append(lines, line)
-	}
-	return lines
+func (b board) winningLinesThrough(c CellNumber) [][]grid.Cell {
+	return grid.CellLines(grid.WinningLines(b.rows(), c.point(), winLength, noSeat))
 }

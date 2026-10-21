@@ -4,6 +4,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 // TypeConnect4 is the game type of connect4.
@@ -39,5 +40,5 @@ func (Rules) Info() game.Info {
 // New seats the first mover as red.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	seats := sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng))
-	return state{toMove: SeatRed, winningLines: [][]Cell{}}, seats, nil
+	return state{toMove: SeatRed, winningLines: [][]grid.Cell{}}, seats, nil
 }

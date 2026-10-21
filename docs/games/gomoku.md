@@ -59,7 +59,7 @@ The server checks the cell; a taken or off-board cell comes back as an error not
 
 ## Wire
 - **Action:** `{"kind": "place", "cell": "h8"}`.
-- **View:** `{cells, last, winning_lines, legal_cells}`; cells are `{row, column}`, 1-based. See `docs/protocol.md` and `docs/schema/games/gomoku.json`.
+- **View:** `{cells, last, winning_lines, legal_cells}`; cells are `{row, col}`, 1-based. See `docs/protocol.md` and `docs/schema/games/gomoku.json`.
 - **Event:** `placed {by, cell}`.
 - **Rejections:**
   - `cell must be a1 to o15, a letter then a number, got "<text>"`;

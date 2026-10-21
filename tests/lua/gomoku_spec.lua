@@ -19,9 +19,9 @@ local function view_options(glyphs, extra)
 end
 
 ---@param name string e.g. "h8"
----@return games.DiscCell
+---@return games.Cell
 local function cell(name)
-  return { row = tonumber(name:sub(2)), column = name:byte(1) - ("a"):byte() + 1 }
+  return { row = tonumber(name:sub(2)), col = name:byte(1) - ("a"):byte() + 1 }
 end
 
 ---alice (black) has h8 to k8, bob (white) a1 to d1; bob is to move.
@@ -77,7 +77,7 @@ end
 ---@return string[]
 local function cell_hl(rendered, name)
   local at = cell(name)
-  return helpers.hl_stack_at(rendered, BOARD_TOP + at.row - 1, BOARD_LEFT + (at.column - 1) * 2)
+  return helpers.hl_stack_at(rendered, BOARD_TOP + at.row - 1, BOARD_LEFT + (at.col - 1) * 2)
 end
 
 ---The note beside board line r, such as "last h8"; nil when there is none.

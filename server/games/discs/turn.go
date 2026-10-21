@@ -38,9 +38,9 @@ func (t Turn) ToAct() []game.Seat {
 }
 
 // LegalFor is the viewer's own legal cells: legal's, when the viewer is to move, else none.
-func (t Turn) LegalFor(viewer game.Seat, legal func() []grid.Point) []Cell {
+func (t Turn) LegalFor(viewer game.Seat, legal func() []grid.Point) []grid.Cell {
 	if !slices.Contains(t.ToAct(), viewer) {
-		return []Cell{}
+		return []grid.Cell{}
 	}
-	return CellsAt(legal())
+	return grid.Cells(legal())
 }

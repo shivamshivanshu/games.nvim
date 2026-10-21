@@ -58,7 +58,7 @@ Keys are buffer-local, in Normal mode, in the board buffer. Only keys that are v
 
 ## Wire
 - **Action:** `{"kind": "drop", "column": "4"}`.
-- **View:** `{cells, last, winning_lines, legal_columns}`. See `docs/protocol.md` and `docs/schema/games/connect4.json`.
+- **View:** `{cells, last, winning_lines, legal_columns}`; cells are `{row, col}`, 1-based. See `docs/protocol.md` and `docs/schema/games/connect4.json`.
 - **Rejections:**
   - `column must be 1 to 7, got "<text>"`;
   - `column <n> is full`;

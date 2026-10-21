@@ -30,8 +30,10 @@ local CLASS_EXCEPTIONS = {
   chess = { MoveSquares = "games.ChessSquares" },
   chess960 = { MoveSquares = "games.ChessSquares", MovedEvent = "games.ChessMovedEvent" },
   chess_puzzle = { MoveSquares = "games.ChessSquares" },
-  gomoku = { Cell = "games.DiscCell" },
-  reversi = { Cell = "games.DiscCell" },
+  connect4 = { Cell = "games.Cell" },
+  gomoku = { Cell = "games.Cell" },
+  reversi = { Cell = "games.Cell" },
+  tictactoe = { Cell = "games.Cell" },
   pacman = { GhostView = "games.PacmanGhost", PacmanView = "games.PacmanPacman" },
   poker = { PotView = "games.PokerPot" },
 }

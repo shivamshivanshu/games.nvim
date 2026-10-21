@@ -30,7 +30,7 @@
         "row": {
           "type": "integer"
         },
-        "column": {
+        "col": {
           "type": "integer"
         }
       },
@@ -38,9 +38,9 @@
       "type": "object",
       "required": [
         "row",
-        "column"
+        "col"
       ],
-      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, column 1 the left."
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, col 1 the left."
     },
     "DiscCount": {
       "properties": {
