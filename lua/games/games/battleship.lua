@@ -302,7 +302,7 @@ end
 ---@type games.GameInput
 M.input = {
   kind = FIRE_KIND,
-  prompt = "Fire at, e.g. c5: ",
+  prompt = "Fire, e.g. c5: ",
   available = firing,
 }
 

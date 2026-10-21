@@ -243,14 +243,21 @@ function T.a_finished_board_shows_the_opponents_ships_and_offers_nothing()
   assert_eq("]g next game  ? help  q close", rendered.lines[#rendered.lines])
 end
 
-function T.an_80_column_window_wraps_the_setup_footer_before_close()
+function T.an_80_column_window_fits_the_firing_footer_and_wraps_the_setup_footer_before_close()
   local display = { text_area = { w = 80, h = 40 } }
-  local rendered =
-    shell.render(placing(), battleship, view_options("ascii"), "alice", 0, display, CATALOGUED)
+  local function footer(state)
+    local rendered =
+      shell.render(state, battleship, view_options("ascii"), "alice", 0, display, CATALOGUED)
+    return vim.list_slice(rendered.lines, #rendered.lines - 1)
+  end
+  assert_eq({
+    "",
+    "R resign  m fire, e.g. c5  hjkl move  <CR> fire  ]g next game  ? help  q close",
+  }, footer(firing()))
   assert_eq({
     "R resign  A abort  hjkl move  r turn  <CR> place  f fill  ]g next game  ? help",
     "q close",
-  }, vim.list_slice(rendered.lines, #rendered.lines - 1))
+  }, footer(placing()))
 end
 
 function T.keys_follow_the_phase_and_the_catalogue()
@@ -264,7 +271,7 @@ function T.keys_follow_the_phase_and_the_catalogue()
     {
       firing(),
       CATALOGUED,
-      "R resign  m fire at, e.g. c5  hjkl move  <CR> fire  ]g next game  ? help  q close",
+      "R resign  m fire, e.g. c5  hjkl move  <CR> fire  ]g next game  ? help  q close",
     },
     { waiting, CATALOGUED, "R resign  ]g next game  ? help  q close" },
     { placing(), nil, "R resign  A abort  hjkl move  r turn  ]g next game  ? help  q close" },
@@ -273,6 +280,8 @@ function T.keys_follow_the_phase_and_the_catalogue()
     local rendered = render(case[1], view_options("ascii"), case[2])
     local footer = rendered.lines[#rendered.lines]
     assert_eq(case[3], footer)
+    local setting_up = case[1].view.next ~= nil
+    assert(setting_up or vim.fn.strdisplaywidth(footer) <= 80, footer)
   end
 end
 
