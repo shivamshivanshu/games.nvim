@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local mancala = require("games.games.mancala")
 local shell = require("games.ui.shell")
@@ -54,6 +55,13 @@ end
 ---@return string
 local function footer(rendered)
   return rendered.lines[#rendered.lines]
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 local T = {}
@@ -115,17 +123,13 @@ function T.describe_event_tells_captures_extra_turns_and_the_final_collection()
       fields
     )
   end
-  assert_eq("bob sowed pit 2", mancala.describe_event(sowed({}), update))
-  assert_eq("bob sowed pit 2, capturing 8", mancala.describe_event(sowed({ captured = 8 }), update))
-  assert_eq(
-    "bob sowed pit 2, and moves again",
-    mancala.describe_event(sowed({ again = true }), update)
-  )
+  assert_eq("bob sowed pit 2", described(update, sowed({})))
+  assert_eq("bob sowed pit 2, capturing 8", described(update, sowed({ captured = 8 })))
+  assert_eq("bob sowed pit 2, and moves again", described(update, sowed({ again = true })))
   assert_eq(
     "alice collects the 6 seeds left on their side",
-    mancala.describe_event({ kind = "collected", by = "south", seeds = 6 }, update)
+    described(update, { kind = "collected", by = "south", seeds = 6 })
   )
-  assert_eq(nil, mancala.describe_event({ kind = "other", by = "south" }, update))
 end
 
 return T

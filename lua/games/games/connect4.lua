@@ -103,16 +103,12 @@ end
 ---@type games.GameAction[]
 M.actions = vim.iter(vim.fn.range(1, COLUMNS)):map(drop_action):totable()
 
----@param event games.Event
----@param update games.Connect4Update
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "dropped" then
-    return nil
-  end
-  ---@cast event games.Connect4DroppedEvent
-  local who = players.user_of_seat(update, event.by) or event.by
-  return ("%s dropped in column %d"):format(who, event.column)
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  dropped = function(event, talk)
+    ---@cast event games.Connect4DroppedEvent
+    return ("%s dropped in column %d"):format(talk.name(event.by), event.column)
+  end,
+}
 
 return M

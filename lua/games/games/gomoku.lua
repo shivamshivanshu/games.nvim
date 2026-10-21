@@ -31,15 +31,12 @@ end
 
 M.input = discs.input("h8")
 
----@param event games.Event
----@param update games.GomokuUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "placed" then
-    return nil
-  end
-  ---@cast event games.GomokuPlacedEvent
-  return ("%s placed %s"):format(discs.who(update, event.by), discs.cell_name(event.cell))
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  placed = function(event, talk)
+    ---@cast event games.GomokuPlacedEvent
+    return ("%s placed %s"):format(talk.name(event.by), discs.cell_name(event.cell))
+  end,
+}
 
 return M

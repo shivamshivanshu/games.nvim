@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local dots_and_boxes = require("games.games.dots_and_boxes")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
@@ -114,6 +115,13 @@ local function binding(bindings, key)
   return vim.iter(bindings):find(function(b)
     return b.key == key
   end)
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 local T = {}
@@ -315,9 +323,8 @@ function T.describe_event_names_the_drawer_the_edge_the_boxes_it_completed_and_a
     { drawn("p1", {}, false), "alice drew b1v" },
     { drawn("p2", one, true), "bob drew b1v, completing 1 box, and moves again" },
     { drawn("p2", two, false), "bob drew b1v, completing 2 boxes" },
-    { { kind = "other", by = "p1" }, nil },
   }) do
-    assert_eq(case[2], dots_and_boxes.describe_event(case[1], midgame()))
+    assert_eq(case[2], described(midgame(), case[1]))
   end
 end
 

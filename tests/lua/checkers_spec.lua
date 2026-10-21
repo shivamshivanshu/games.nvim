@@ -1,4 +1,5 @@
 local checkers = require("games.games.checkers")
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 
@@ -58,6 +59,13 @@ local function movable_marks(rendered)
   return #vim.tbl_filter(function(mark)
     return type(mark.hl) == "table" and vim.tbl_contains(mark.hl, MOVABLE)
   end, rendered.extmarks)
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 local T = {}
@@ -186,19 +194,12 @@ function T.describe_event_names_the_player_and_a_crowning()
   local update = checkers_update({})
   assert_eq(
     "alice played 22x31, crowned",
-    checkers.describe_event(
-      { kind = "moved", by = "black", move = "22x31", crowned = true },
-      update
-    )
+    described(update, { kind = "moved", by = "black", move = "22x31", crowned = true })
   )
   assert_eq(
     "bob played 22-18",
-    checkers.describe_event(
-      { kind = "moved", by = "white", move = "22-18", crowned = false },
-      update
-    )
+    described(update, { kind = "moved", by = "white", move = "22-18", crowned = false })
   )
-  assert_eq(nil, checkers.describe_event({ kind = "other" }, update))
 end
 
 function T.typed_move_is_sent_raw_for_the_server_to_parse()

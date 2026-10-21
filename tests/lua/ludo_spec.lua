@@ -1,4 +1,5 @@
 local assets = require("games.ui.assets")
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local ludo = require("games.games.ludo")
 local shell = require("games.ui.shell")
@@ -74,6 +75,13 @@ local function line_of(rendered, first)
     end
   end
   error("board not found: " .. first)
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 local T = {}
@@ -175,7 +183,7 @@ function T.events_read_as_sentences()
       "carol sent bob's token 2 to base",
     },
   }) do
-    assert_eq(case[2], ludo.describe_event(case[1], update))
+    assert_eq(case[2], described(update, case[1]))
   end
 end
 

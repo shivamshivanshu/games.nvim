@@ -1,4 +1,5 @@
 local battleship = require("games.games.battleship")
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local text_util = require("games.ui.text")
@@ -128,6 +129,13 @@ end
 local function render(state, view, catalogued)
   local rendered, _, bindings = shell.render(state, battleship, view, "alice", 0, nil, catalogued)
   return rendered, bindings
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 local T = {}
@@ -363,9 +371,8 @@ function T.describe_event_names_the_shooter_the_cell_and_what_it_found()
       },
       "bob fired at b9: sank the destroyer",
     },
-    { { kind = "other", by = "p1" }, nil },
   }) do
-    assert_eq(case[2], battleship.describe_event(case[1], placing()))
+    assert_eq(case[2], described(placing(), case[1]))
   end
 end
 

@@ -50,24 +50,20 @@ function M.player_extra(update, seat)
   return { compose.text(("%d disc%s"):format(count, count == 1 and "" or "s"), COUNT_HL) }
 end
 
----@param event games.Event
----@param update games.ReversiUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind == "placed" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  placed = function(event, talk)
     ---@cast event games.ReversiPlacedEvent
-    local flipped = #event.flipped
     return ("%s placed %s, flipping %d"):format(
-      discs.who(update, event.by),
+      talk.name(event.by),
       discs.cell_name(event.cell),
-      flipped
+      #event.flipped
     )
-  end
-  if event.kind == "passed" then
+  end,
+  passed = function(event, talk)
     ---@cast event games.ReversiPassedEvent
-    return ("%s has no move and passes"):format(discs.who(update, event.by))
-  end
-  return nil
-end
+    return ("%s has no move and passes"):format(talk.name(event.by))
+  end,
+}
 
 return M

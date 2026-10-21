@@ -1,4 +1,5 @@
 local connect4 = require("games.games.connect4")
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 
@@ -56,6 +57,13 @@ end
 ---@return string[]
 local function cell_hl(rendered, r, c)
   return helpers.hl_stack_at(rendered, BOARD_TOP + r - 1, BOARD_LEFT + (c - 1) * 2)
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 local T = {}
@@ -131,8 +139,7 @@ end
 
 function T.describe_event_names_the_player_and_column()
   local event = { kind = "dropped", by = "yellow", row = 5, column = 3 }
-  assert_eq("bob dropped in column 3", connect4.describe_event(event, update_with()))
-  assert_eq(nil, connect4.describe_event({ kind = "other", by = "red" }, update_with()))
+  assert_eq("bob dropped in column 3", described(update_with(), event))
 end
 
 return T

@@ -169,8 +169,8 @@ function M.layout(update, ctx)
         node = function()
           return kv({
             pairs = {
-              { players.user_of_seat(update, top) or top, TOP_ROW },
-              { players.user_of_seat(update, bottom) or bottom, BOTTOM_ROW },
+              { players.name_of_seat(update, top), TOP_ROW },
+              { players.name_of_seat(update, bottom), BOTTOM_ROW },
             },
             key_hl = KEY_HL,
             value_hl = VALUE_HL,
@@ -184,22 +184,18 @@ end
 ---@type games.GameAction[]
 M.actions = vim.tbl_map(sow_action, vim.fn.range(1, PITS))
 
----@param event games.Event
----@param update games.MancalaUpdate
----@return string|nil
-function M.describe_event(event, update)
-  local who = players.user_of_seat(update, event.by) or event.by
-  if event.kind == "sowed" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  sowed = function(event, talk)
     ---@cast event games.MancalaSowedEvent
     local captured = event.captured > 0 and (", capturing %d"):format(event.captured) or ""
     local again = event.again and ", and moves again" or ""
-    return ("%s sowed pit %d%s%s"):format(who, event.pit, captured, again)
-  end
-  if event.kind == "collected" then
+    return ("%s sowed pit %d%s%s"):format(talk.name(event.by), event.pit, captured, again)
+  end,
+  collected = function(event, talk)
     ---@cast event games.MancalaCollectedEvent
-    return ("%s collects the %d seeds left on their side"):format(who, event.seeds)
-  end
-  return nil
-end
+    return ("%s collects the %d seeds left on their side"):format(talk.name(event.by), event.seeds)
+  end,
+}
 
 return M

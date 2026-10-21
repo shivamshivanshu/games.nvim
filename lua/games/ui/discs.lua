@@ -1,6 +1,5 @@
 local board = require("games.ui.widgets.board")
 local compose = require("games.ui.compose")
-local players = require("games.core.players")
 
 ---@alias games.DiscSeat "black"|"white"
 
@@ -50,13 +49,6 @@ end
 ---@return string
 function M.cell_name(cell)
   return COLUMN_LETTERS:sub(cell.column, cell.column) .. cell.row
-end
-
----@param update games.GameUpdate
----@param seat games.DiscSeat
----@return string
-function M.who(update, seat)
-  return players.user_of_seat(update, seat) or seat
 end
 
 ---The prompt that sends the typed cell to the server, which parses it.

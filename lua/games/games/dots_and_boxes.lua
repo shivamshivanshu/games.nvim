@@ -232,22 +232,23 @@ M.actions = vim.list_extend(cursor.moves(reach, drawing), {
   },
 })
 
----@param event games.Event
----@param update games.DotsAndBoxesUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "drawn" then
-    return nil
-  end
-  ---@cast event games.DotsAndBoxesDrawnEvent
-  local who = players.user_of_seat(update, event.by) or event.by
-  local drew = ("%s drew %s"):format(who, edge_name(event.edge))
-  local completed = #event.boxes
-  if completed == 0 then
-    return drew
-  end
-  local again = event.again and ", and moves again" or ""
-  return ("%s, completing %d box%s%s"):format(drew, completed, completed == 1 and "" or "es", again)
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  drawn = function(event, talk)
+    ---@cast event games.DotsAndBoxesDrawnEvent
+    local drew = ("%s drew %s"):format(talk.name(event.by), edge_name(event.edge))
+    local completed = #event.boxes
+    if completed == 0 then
+      return drew
+    end
+    local again = event.again and ", and moves again" or ""
+    return ("%s, completing %d box%s%s"):format(
+      drew,
+      completed,
+      completed == 1 and "" or "es",
+      again
+    )
+  end,
+}
 
 return M

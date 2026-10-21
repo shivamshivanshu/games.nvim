@@ -353,15 +353,12 @@ M.actions = {
   M.flip_action,
 }
 
----@param event games.Event
----@param update games.ChessUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "moved" then
-    return nil
-  end
-  ---@cast event games.ChessMovedEvent
-  return ("%s played %s"):format(players.user_of_seat(update, event.by) or event.by, event.san)
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  moved = function(event, talk)
+    ---@cast event games.ChessMovedEvent
+    return ("%s played %s"):format(talk.name(event.by), event.san)
+  end,
+}
 
 return M

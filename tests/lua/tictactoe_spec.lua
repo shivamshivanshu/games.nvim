@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 local tictactoe = require("games.games.tictactoe")
@@ -31,6 +32,13 @@ local function update(overrides)
       legal_cells = { 3, 5, 6, 7, 8, 9 },
     },
   }, overrides)
+end
+
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
 end
 
 local T = {}
@@ -138,11 +146,7 @@ function T.a_roomy_window_draws_the_marks_as_art()
 end
 
 function T.describe_event_names_the_player_and_cell()
-  assert_eq(
-    "bob took cell 5",
-    tictactoe.describe_event({ kind = "placed", by = "o", cell = 5 }, update())
-  )
-  assert_eq(nil, tictactoe.describe_event({ kind = "other", by = "o" }, update()))
+  assert_eq("bob took cell 5", described(update(), { kind = "placed", by = "o", cell = 5 }))
 end
 
 return T

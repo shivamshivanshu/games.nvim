@@ -136,7 +136,7 @@ M.actions = {
 ---@param update games.ChessPuzzleUpdate
 ---@return string|nil
 function M.describe_event(event, update)
-  local who = players.user_of_seat(update, event.by) or event.by
+  local who = players.name_of_seat(update, event.by)
   if event.kind == "moved" then
     return ("%s played %s"):format(who, event.san)
   elseif event.kind == "replied" then

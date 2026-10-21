@@ -92,13 +92,6 @@ local function cell_name(cell)
   return COLUMN_LETTERS:sub(cell.col, cell.col) .. cell.row
 end
 
----@param update games.BattleshipUpdate
----@param seat games.BattleshipSeat
----@return string
-local function who(update, seat)
-  return players.user_of_seat(update, seat) or seat
-end
-
 ---@param update games.GameUpdate
 ---@return boolean
 local function placing(update)
@@ -333,20 +326,17 @@ M.actions = vim.list_extend(cursor.moves(BOUNDS, aiming), {
   { key = "f", label = "fill", action = { kind = RANDOM_KIND }, available = placing },
 })
 
----@param event games.Event
----@param update games.BattleshipUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind == "ready" then
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  ready = function(event, talk)
     ---@cast event games.BattleshipReadyEvent
-    return ("%s's fleet is ready"):format(who(update, event.by))
-  end
-  if event.kind == "shot" then
+    return ("%s's fleet is ready"):format(talk.name(event.by))
+  end,
+  shot = function(event, talk)
     ---@cast event games.BattleshipShotEvent
     local found = event.ship and ("sank the " .. event.ship) or event.outcome
-    return ("%s fired at %s: %s"):format(who(update, event.by), cell_name(event.cell), found)
-  end
-  return nil
-end
+    return ("%s fired at %s: %s"):format(talk.name(event.by), cell_name(event.cell), found)
+  end,
+}
 
 return M

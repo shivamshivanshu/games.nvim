@@ -111,15 +111,12 @@ M.actions = vim.tbl_map(function(cell)
   }
 end, vim.fn.range(1, CELLS))
 
----@param event games.Event
----@param update games.TicTacToeUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "placed" then
-    return nil
-  end
-  ---@cast event games.TicTacToePlacedEvent
-  return ("%s took cell %d"):format(players.user_of_seat(update, event.by) or event.by, event.cell)
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  placed = function(event, talk)
+    ---@cast event games.TicTacToePlacedEvent
+    return ("%s took cell %d"):format(talk.name(event.by), event.cell)
+  end,
+}
 
 return M

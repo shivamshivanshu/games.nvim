@@ -189,16 +189,16 @@ M.actions = {
   },
 }
 
----@param event games.Event
----@param update games.CheckersUpdate
----@return string|nil
-function M.describe_event(event, update)
-  if event.kind ~= "moved" then
-    return nil
-  end
-  ---@cast event games.CheckersMovedEvent
-  local who = players.user_of_seat(update, event.by) or event.by
-  return ("%s played %s%s"):format(who, event.move, event.crowned and ", crowned" or "")
-end
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  moved = function(event, talk)
+    ---@cast event games.CheckersMovedEvent
+    return ("%s played %s%s"):format(
+      talk.name(event.by),
+      event.move,
+      event.crowned and ", crowned" or ""
+    )
+  end,
+}
 
 return M

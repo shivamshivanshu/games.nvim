@@ -392,28 +392,21 @@ for token = 1, TOKENS_PER_SEAT do
   M.actions[#M.actions + 1] = move_action(token)
 end
 
----@param update games.LudoUpdate
----@param seat games.LudoSeat
----@return string
-local function name_of(update, seat)
-  return players.user_of_seat(update, seat) or seat
-end
-
----@type table<string, fun(event: games.Event, update: games.LudoUpdate): string>
-local DESCRIBE = {
-  rolled = function(event, update)
+---@type table<games.EventKind, games.Describer>
+M.describers = {
+  rolled = function(event, talk)
     ---@cast event games.LudoRolledEvent
-    return ("%s rolled %d"):format(name_of(update, event.by), event.value)
+    return ("%s rolled %d"):format(talk.name(event.by), event.value)
   end,
-  passed = function(event, update)
-    return ("%s cannot move"):format(name_of(update, event.by))
+  passed = function(event, talk)
+    return ("%s cannot move"):format(talk.name(event.by))
   end,
-  forfeited = function(event, update)
-    return ("%s rolled a third six and loses the turn"):format(name_of(update, event.by))
+  forfeited = function(event, talk)
+    return ("%s rolled a third six and loses the turn"):format(talk.name(event.by))
   end,
-  moved = function(event, update)
+  moved = function(event, talk)
     ---@cast event games.LudoMovedEvent
-    local who = name_of(update, event.by)
+    local who = talk.name(event.by)
     if event.from.kind == "base" then
       return ("%s brought token %d out"):format(who, event.token)
     end
@@ -425,22 +418,14 @@ local DESCRIBE = {
     end
     return ("%s moved token %d to square %d"):format(who, event.token, event.to.square)
   end,
-  captured = function(event, update)
+  captured = function(event, talk)
     ---@cast event games.LudoCapturedEvent
     return ("%s sent %s's token %d to base"):format(
-      name_of(update, event.by),
-      name_of(update, event.victim),
+      talk.name(event.by),
+      talk.name(event.victim),
       event.token
     )
   end,
 }
-
----@param event games.Event
----@param update games.LudoUpdate
----@return string|nil
-function M.describe_event(event, update)
-  local describe = DESCRIBE[event.kind]
-  return describe and describe(event, update)
-end
 
 return M

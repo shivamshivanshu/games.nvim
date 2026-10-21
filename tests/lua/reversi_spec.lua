@@ -1,3 +1,4 @@
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local reversi = require("games.games.reversi")
 local shell = require("games.ui.shell")
@@ -68,6 +69,13 @@ local function note(rendered, r)
   return rendered.lines[BOARD_TOP + r]:match("   (%l+ [%w%-]+)%s*$")
 end
 
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
+end
+
 local T = {}
 
 function T.the_movers_legal_cells_carry_a_marker_glyph_and_tint()
@@ -115,12 +123,8 @@ end
 
 function T.describe_event_names_the_move_and_the_automatic_pass()
   local placed = { kind = "placed", by = "black", cell = cell("d3"), flipped = { cell("d4") } }
-  assert_eq("alice placed d3, flipping 1", reversi.describe_event(placed, start()))
-  assert_eq(
-    "bob has no move and passes",
-    reversi.describe_event({ kind = "passed", by = "white" }, start())
-  )
-  assert_eq(nil, reversi.describe_event({ kind = "other", by = "black" }, start()))
+  assert_eq("alice placed d3, flipping 1", described(start(), placed))
+  assert_eq("bob has no move and passes", described(start(), { kind = "passed", by = "white" }))
 end
 
 return T

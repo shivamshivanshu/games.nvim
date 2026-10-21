@@ -1,4 +1,5 @@
 local chess960 = require("games.games.chess960")
+local describe = require("games.core.describe")
 local helpers = require("helpers")
 local shell = require("games.ui.shell")
 
@@ -44,6 +45,13 @@ local function board_lines(update, me)
   return vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + BOARD_LINES)
 end
 
+---@param update games.GameUpdate
+---@param event games.Event
+---@return string what the event reads as in update
+local function described(update, event)
+  return describe.events(vim.tbl_extend("force", update, { events = { event } }))
+end
+
 local T = {}
 
 function T.board_shows_the_start_position_number_and_numbers_moves_from_the_start()
@@ -86,10 +94,7 @@ function T.input_sends_the_typed_move_for_the_server_to_parse()
 end
 
 function T.events_name_the_player_and_the_move()
-  assert_eq(
-    "bob played O-O",
-    chess960.describe_event({ kind = "moved", by = "black", san = "O-O" }, castled())
-  )
+  assert_eq("bob played O-O", described(castled(), { kind = "moved", by = "black", san = "O-O" }))
 end
 
 return T

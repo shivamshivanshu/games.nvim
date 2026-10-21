@@ -24,7 +24,7 @@ M.asset_keys = chess.asset_keys
 M.player_extra = chess.player_extra
 M.input = chess.input
 M.actions = chess.actions
-M.describe_event = chess.describe_event
+M.describers = chess.describers
 
 ---@param update games.Chess960Update
 ---@param ctx games.LayoutCtx
