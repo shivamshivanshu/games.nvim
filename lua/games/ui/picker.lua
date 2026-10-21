@@ -92,6 +92,12 @@ function M.format_challenge(challenge, me, info)
   return ("%s → you: %s"):format(challenge.from, summary)
 end
 
+---@param presence games.UserPresence
+---@return string
+function M.format_presence(presence)
+  return presence.online and (presence.user .. " (online)") or presence.user
+end
+
 ---vim.ui.select that calls on_pick only when the user picked something, and otherwise on_cancel.
 ---@generic T
 ---@param items T[]

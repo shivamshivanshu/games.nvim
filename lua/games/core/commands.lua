@@ -68,8 +68,7 @@ local DONE_PICKING = { label = "done" }
 ---@param presence games.UserPresence
 ---@return games.OpponentChoice
 local function opponent_choice(presence)
-  local label = presence.online and (presence.user .. " (online)") or presence.user
-  return { label = label, user = presence.user }
+  return { label = picker.format_presence(presence), user = presence.user }
 end
 
 ---@class (private) games.OpponentRange
@@ -124,14 +123,11 @@ local function pick_opponents(client, me, range, on_done)
     on_ok(
       ---@param result games.UserListResult
       function(result)
-        local others = vim.tbl_filter(function(presence)
-          return presence.user ~= me
-        end, result.users)
+        local others = sources.other_players(result.users, me)
         if #others == 0 then
           say("games: no other users")
           return
         end
-        table.sort(others, sources.online_first)
         pick_opponents_from(vim.tbl_map(opponent_choice, others), range, on_done)
       end
     )

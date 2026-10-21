@@ -95,10 +95,10 @@ end
 ---@return integer[] how many handlers follow each kind of client event
 local function handler_counts(client)
   return {
-    #client.update_handlers,
-    #client.challenge_handlers,
-    #client.catalog_handlers,
-    #client.connection_handlers,
+    #client.update_signal.handlers(),
+    #client.challenge_signal.handlers(),
+    #client.catalog_signal.handlers(),
+    #client.connection_signal.handlers(),
   }
 end
 

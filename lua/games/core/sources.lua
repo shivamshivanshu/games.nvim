@@ -122,11 +122,23 @@ end
 ---@param a games.UserPresence
 ---@param b games.UserPresence
 ---@return boolean
-function M.online_first(a, b)
+local function online_first(a, b)
   if a.online ~= b.online then
     return a.online
   end
   return a.user < b.user
+end
+
+---users other than me, online ones first, each group by name.
+---@param users games.UserPresence[]
+---@param me games.UserID
+---@return games.UserPresence[]
+function M.other_players(users, me)
+  local others = vim.tbl_filter(function(presence)
+    return presence.user ~= me
+  end, users)
+  table.sort(others, online_first)
+  return others
 end
 
 ---@param update games.GameUpdate
@@ -467,10 +479,7 @@ end
 ---@return games.Source
 local function player_list(snapshot)
   local me, client = snapshot.me, snapshot.client
-  local others = vim.tbl_filter(function(presence)
-    return presence.user ~= me
-  end, snapshot.users)
-  table.sort(others, M.online_first)
+  local others = M.other_players(snapshot.users, me)
   return {
     name = SourceName.PLAYERS,
     title = "Players",
@@ -478,9 +487,7 @@ local function player_list(snapshot)
     key = function(presence)
       return presence.user
     end,
-    format = function(presence)
-      return presence.online and (presence.user .. " (online)") or presence.user
-    end,
+    format = picker.format_presence,
     preview = function(presence)
       local rows = { { "user", presence.user }, { "online", presence.online and "yes" or "no" } }
       if snapshot.stats then

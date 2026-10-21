@@ -1,3 +1,4 @@
+local Signal = require("games.core.signal")
 local notify = require("games.core.notify")
 local tables = require("games.core.tables")
 local types = require("games.types")
@@ -30,10 +31,10 @@ local FINISHED_CACHE_SIZE = 32
 ---@field package resolved_challenges table<games.ChallengeID, true> this connection's, which only its own lists can race
 ---@field package catalog? games.CatalogResult static per server process, so refetched per connection
 ---@field package catalog_index? games.CatalogIndex the catalog by game, built when it arrives
----@field private update_handlers games.UpdateHandler[]
----@field private challenge_handlers games.ChallengeHandler[]
----@field package catalog_handlers games.CatalogHandler[]
----@field package connection_handlers games.ConnectionHandler[]
+---@field package update_signal games.Signal of games.UpdateHandler
+---@field package challenge_signal games.Signal of games.ChallengeHandler
+---@field package catalog_signal games.Signal of games.CatalogHandler
+---@field package connection_signal games.Signal of games.ConnectionHandler
 ---@field user_list fun(self: games.Client, body: nil, cb?: games.Reply<games.UserListResult>)
 ---@field challenge_create fun(self: games.Client, body: games.ChallengeCreateRequest, cb?: games.Reply<games.ChallengeCreateResult>)
 ---@field challenge_accept fun(self: games.Client, body: games.ChallengeRef, cb?: games.ReplyCallback)
@@ -73,18 +74,16 @@ local function request_fn(message_type, on_reply)
   end
 end
 
----Calls every handler even when one raises; each failure is reported, naming what was handled.
+---Calls every handler of signal even when one raises; each failure is reported, naming what was
+---handled.
 ---@generic T
----@param handlers fun(item: T, is_new: boolean)[]
+---@param signal games.Signal
 ---@param item T
 ---@param is_new boolean
 ---@param what string e.g. "update for game <id>"
-local function emit(handlers, item, is_new, what)
-  for _, fn in ipairs(handlers) do
-    local ok, err = pcall(fn, item, is_new)
-    if not ok then
-      notify.say(("games: handling %s failed: %s"):format(what, err), vim.log.levels.ERROR)
-    end
+local function emit(signal, item, is_new, what)
+  for _, err in ipairs(signal.emit(item, is_new)) do
+    notify.say(("games: handling %s failed: %s"):format(what, err), vim.log.levels.ERROR)
   end
 end
 
@@ -139,7 +138,7 @@ end
 local function cache_catalog(self, _, _, result)
   if result then
     set_catalog(self, result --[[@as games.CatalogResult]])
-    emit(self.catalog_handlers, self.catalog, true, "the game catalog")
+    emit(self.catalog_signal, self.catalog, true, "the game catalog")
   end
 end
 
@@ -241,10 +240,10 @@ function Client.new(conn)
     finished_ids = {},
     challenges = {},
     resolved_challenges = {},
-    update_handlers = {},
-    challenge_handlers = {},
-    catalog_handlers = {},
-    connection_handlers = {},
+    update_signal = Signal.new(),
+    challenge_signal = Signal.new(),
+    catalog_signal = Signal.new(),
+    connection_signal = Signal.new(),
   }, Client)
   conn:on(MessageType.GAME_UPDATE, function(update)
     self:receive_update(update)
@@ -257,12 +256,12 @@ function Client.new(conn)
     set_catalog(self, nil)
     self.resolved_challenges = {}
     self:resync()
-    emit(self.connection_handlers, ConnectionState.CONNECTED, false, "the connection")
+    emit(self.connection_signal, ConnectionState.CONNECTED, false, "the connection")
   end)
   conn:on("disconnected", function()
     self.user = nil
     set_catalog(self, nil)
-    emit(self.connection_handlers, ConnectionState.DISCONNECTED, false, "the connection")
+    emit(self.connection_signal, ConnectionState.DISCONNECTED, false, "the connection")
   end)
   return self
 end
@@ -290,43 +289,28 @@ function Client:pending_challenges()
   return vim.tbl_values(self.challenges)
 end
 
----Adds fn to the handlers field holds; the handlers are replaced, never edited, so an emit in
----progress calls the list it started with.
----@param self games.Client
----@param field "update_handlers"|"challenge_handlers"|"catalog_handlers"|"connection_handlers"
----@param fn function
----@return games.Unsubscribe
-local function subscribe(self, field, fn)
-  self[field] = vim.list_extend(vim.list_slice(self[field]), { fn })
-  return function()
-    self[field] = vim.tbl_filter(function(handler)
-      return handler ~= fn
-    end, self[field])
-  end
-end
-
 ---@param fn games.UpdateHandler called with is_new = true the first time a game_id is seen
 ---@return games.Unsubscribe
 function Client:on_update(fn)
-  return subscribe(self, "update_handlers", fn)
+  return self.update_signal.connect(fn)
 end
 
 ---@param fn games.ChallengeHandler called with is_new = true the first time a challenge_id is seen
 ---@return games.Unsubscribe
 function Client:on_challenge(fn)
-  return subscribe(self, "challenge_handlers", fn)
+  return self.challenge_signal.connect(fn)
 end
 
 ---@param fn games.CatalogHandler called each time a connection fetches the catalog
 ---@return games.Unsubscribe
 function Client:on_catalog(fn)
-  return subscribe(self, "catalog_handlers", fn)
+  return self.catalog_signal.connect(fn)
 end
 
 ---@param fn games.ConnectionHandler called after each login, once resync is sent, and each drop
 ---@return games.Unsubscribe
 function Client:on_connection(fn)
-  return subscribe(self, "connection_handlers", fn)
+  return self.connection_signal.connect(fn)
 end
 
 ---Caches update unless the cache already holds this seq or a later one; a finished one is
@@ -339,7 +323,7 @@ function Client:store(update)
     return
   end
   self.updates[update.game_id] = update
-  emit(self.update_handlers, update, cached == nil, "update for game " .. update.game_id)
+  emit(self.update_signal, update, cached == nil, "update for game " .. update.game_id)
   if update.result then
     self:keep_finished(update.game_id)
   end
@@ -386,7 +370,7 @@ function Client:receive_challenge(challenge)
     self.challenges[id] = nil
     self.resolved_challenges[id] = true
   end
-  emit(self.challenge_handlers, challenge, is_new, "challenge " .. id)
+  emit(self.challenge_signal, challenge, is_new, "challenge " .. id)
 end
 
 ---@package
@@ -400,7 +384,7 @@ function Client:replace_challenges(challenges)
   for _, challenge in ipairs(unresolved) do
     self.challenges[challenge.challenge_id] = challenge
     if not previous[challenge.challenge_id] then
-      emit(self.challenge_handlers, challenge, true, "challenge " .. challenge.challenge_id)
+      emit(self.challenge_signal, challenge, true, "challenge " .. challenge.challenge_id)
     end
   end
 end

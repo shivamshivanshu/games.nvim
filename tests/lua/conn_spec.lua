@@ -6,7 +6,71 @@ local HEARTBEAT_ARGS = { "--heartbeat", "100ms", "--idle", "300ms" }
 local IDLE_MS = 300
 local RECONNECT_MIN_MS = 1000
 
+---Feeds chunk to conn as if its connection had just read it.
+---@param conn games.Conn
+---@param chunk string
+local function receive(conn, chunk)
+  local attempt = { buffer = "", idle_ms = 60000, watchdog = assert(vim.uv.new_timer()) }
+  conn.attempt = attempt
+  local ok, err = pcall(conn.receive, conn, attempt, nil, chunk)
+  attempt.watchdog:close()
+  conn.attempt = nil
+  assert(ok, err)
+end
+
+local UPDATE_FRAME = '{"type":"game.update","body":{"game_id":"g1"}}\n'
+
 local T = {}
+
+function T.a_push_goes_to_the_handlers_subscribed_when_it_arrived()
+  local conn = Conn.new({ host = "127.0.0.1", port = 1, username = "alice", password = "pw" })
+  local seen = {}
+  conn:on("game.update", function()
+    table.insert(seen, "early")
+  end)
+  receive(conn, UPDATE_FRAME)
+  conn:on("game.update", function()
+    table.insert(seen, "late")
+  end)
+  helpers.wait_for(function()
+    return #seen > 0
+  end, "the push")
+  vim.wait(20)
+  assert(vim.deep_equal(seen, { "early" }), vim.inspect(seen))
+end
+
+function T.a_raising_push_handler_reports_its_traceback_and_the_next_still_runs()
+  local conn = Conn.new({ host = "127.0.0.1", port = 1, username = "alice", password = "pw" })
+  local function failing_update_handler()
+    error("handler broke")
+  end
+  local ran_next = false
+  conn:on("game.update", function()
+    failing_update_handler()
+  end)
+  conn:on("game.update", function()
+    ran_next = true
+  end)
+  local raised = {}
+  local schedule = vim.schedule
+  local function schedule_capturing(fn)
+    schedule(function()
+      local ok, err = xpcall(fn, debug.traceback)
+      if not ok then
+        table.insert(raised, err)
+      end
+    end)
+  end
+  helpers.with_overrides({ { vim, "schedule", schedule_capturing } }, function()
+    receive(conn, UPDATE_FRAME)
+    helpers.wait_for(function()
+      return ran_next
+    end, "the second handler")
+  end)
+  assert(#raised == 1, vim.inspect(raised))
+  assert(raised[1]:find("handler broke", 1, true), raised[1])
+  assert(raised[1]:find("failing_update_handler", 1, true), raised[1])
+end
 
 function T.frames_split_across_chunks()
   local lines, rest = Conn.split_frames("", '{"a":1}\n{"b"')

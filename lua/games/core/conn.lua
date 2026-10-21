@@ -1,3 +1,4 @@
+local Signal = require("games.core.signal")
 local json = require("games.core.json")
 local timer = require("games.core.timer")
 local types = require("games.types")
@@ -53,7 +54,7 @@ local Phase = {
 ---@field private attempt? games.ConnAttempt
 ---@field private pending table<integer, games.ReplyCallback>
 ---@field private next_id integer
----@field private handlers table<games.ConnEvent, fun(payload: any)[]>
+---@field private signals table<games.ConnEvent, games.Signal>
 ---@field private auto_reconnect boolean
 ---@field private backoff_ms integer
 ---@field private reconnect_timer? uv.uv_timer_t
@@ -124,7 +125,7 @@ function Conn.new(opts)
     },
     pending = {},
     next_id = 1,
-    handlers = {},
+    signals = {},
     auto_reconnect = false,
     backoff_ms = RECONNECT_MIN_MS,
     credential_source = {
@@ -170,8 +171,8 @@ end
 ---@overload fun(self: games.Conn, event: "challenge.changed", fn: fun(challenge: games.Challenge))
 ---@overload fun(self: games.Conn, event: "game.update", fn: fun(update: games.GameUpdate))
 function Conn:on(event, fn)
-  self.handlers[event] = self.handlers[event] or {}
-  table.insert(self.handlers[event], fn)
+  self.signals[event] = self.signals[event] or Signal.new()
+  self.signals[event].connect(fn)
 end
 
 ---Connects and logs in, reconnecting with backoff until close() or a fatal login error.
@@ -252,7 +253,8 @@ end
 ---@overload fun(self: games.Conn, event: "connected", payload: games.LoginResult)
 ---@overload fun(self: games.Conn, event: "disconnected", payload: games.Disconnect)
 function Conn:emit(event, payload)
-  for _, fn in ipairs(self.handlers[event] or {}) do
+  local signal = self.signals[event]
+  for _, fn in ipairs(signal and signal.handlers() or {}) do
     vim.schedule(function()
       fn(payload)
     end)
