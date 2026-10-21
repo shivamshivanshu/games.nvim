@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Action": {
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "direction": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "direction"
+      ],
+      "description": "Action is a move; Direction is one of the Directions as text."
+    },
+    "ActionKind": {
+      "type": "string",
+      "enum": [
+        "move"
+      ],
+      "description": "ActionKind is the \"kind\" field every action object carries."
+    },
+    "MovedEvent": {
+      "properties": {
+        "kind": {
+          "const": "moved"
+        },
+        "by": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "gained": {
+          "type": "integer"
+        },
+        "spawned": {
+          "$ref": "#/$defs/Tile"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "direction",
+        "gained",
+        "spawned"
+      ],
+      "description": "MovedEvent reports a move: the score it gained and the tile that appeared after it."
+    },
+    "ReachedEvent": {
+      "properties": {
+        "kind": {
+          "const": "reached"
+        },
+        "by": {
+          "type": "string"
+        },
+        "tile": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "by",
+        "tile"
+      ],
+      "description": "ReachedEvent reports the move that first made a Goal tile."
+    },
+    "ResultReason": {
+      "type": "string",
+      "enum": [
+        "no_moves"
+      ],
+      "description": "The result reasons 2048 adds to the core's."
+    },
+    "Tile": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col",
+        "value"
+      ],
+      "description": "Tile is a 1-based cell, row 1 at the top, and the value it holds."
+    },
+    "View": {
+      "properties": {
+        "cells": {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "score": {
+          "type": "integer"
+        },
+        "reached": {
+          "type": "boolean"
+        },
+        "movable": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "cells",
+        "score",
+        "reached",
+        "movable"
+      ],
+      "description": "View holds Cells[row][col], rows from the top, each a tile's value or Empty. Score is the sum\nof every merge's value so far. Reached is true once a Goal tile has been made. Movable lists\nthe directions that would change the board, empty once the game is over."
+    }
+  },
+  "title": "2048",
+  "description": "The game-specific bodies inside a g2048 game.update and game.act.",
+  "x-action": {
+    "$ref": "#/$defs/Action"
+  },
+  "x-events": {
+    "moved": {
+      "$ref": "#/$defs/MovedEvent"
+    },
+    "reached": {
+      "$ref": "#/$defs/ReachedEvent"
+    }
+  },
+  "x-view": {
+    "$ref": "#/$defs/View"
+  }
+}
