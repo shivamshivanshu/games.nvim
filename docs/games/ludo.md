@@ -41,7 +41,7 @@ Classic Ludo for 2–4 players, ending at the first finisher. The server rules a
 | `time_control` | `none`, `3+2`, `5+0`, `10+5`, `15+10` | `10+5` | minutes + increment seconds |
 
 ## Controls and keys
-These are buffer-local, Normal-mode keys in the board buffer. A key is mapped only when the server's view offers that action to you.
+These are buffer-local, Normal-mode keys in the board buffer. The game keys follow your own view, which the server sends per seat: `r` is mapped while your `can_roll` is true, and a token key while that token is in your `movable`, so only the seat to act ever has them. The other keys are the core's controls.
 
 | Key | Action |
 |---|---|
@@ -55,20 +55,22 @@ These are buffer-local, Normal-mode keys in the board buffer. A key is mapped on
 **The board** is the classic 15×15 cross with no labels.
 - Bases sit in the corners and home columns lead to the centre.
 - Each square shows one glyph: a seat's token shape (blue `●`/`B`, yellow `■`/`Y`, red `▲`/`R`, green `◆`/`G`), with a count digit when several of that seat's tokens share it.
-- Several colours on one safe square show `※`/`x`.
+- Several colours on one safe square show `※`/`x` and their total count. `9` stands for 9 or more.
 - The latest move's square is highlighted.
-- The side panel shows the last roll, the sixes in a row, the phase, and each of your tokens: `base`, `n/56` or `home`. The ones you may move are marked `←`.
+- The side panel shows the last roll, the sixes in a row, the phase, and each of your tokens: `base`, `track n` (n steps from base), `lane n` (up the home column) or `home`. The ones you may move are marked `←`/`<`, a glyph from the asset pack.
 
 **Wire:** `{"kind":"roll"}` and `{"kind":"move","token":"1".."4"}`.
 - The token is a string because the action catalogue describes inputs as string fields, here with the values `1`–`4`.
 - The view carries:
-  - `starts`;
-  - `progress`;
+  - `starts`: each seat's start square;
+  - `safe`: the safe squares;
+  - `progress`: each token's steps from base, -1 in base to 56 home;
+  - `locations`: where each token stands, as `{kind: "base"}`, `{kind: "track", square: 0..51}`, `{kind: "home_column", step: 1..5}` or `{kind: "home"}`;
   - `last_roll`;
   - `sixes_in_row`;
   - `phase` (`roll`, `move` or `finished`);
   - the viewer's own `movable` and `can_roll`.
-- The events are `rolled`, `passed`, `forfeited`, `moved` (`token`, `from`, `to`) and `captured` (`victim`, `token`). Each carries `by`.
+- The events are `rolled`, `passed`, `forfeited`, `moved` (`token`, plus `from` and `to` as locations) and `captured` (`victim`, `token`). Each carries `by`.
 
 ## Result and scoring
 - Result reasons are `all_home`, plus the core's `resign`, `timeout` and `aborted`. There is no draw.
@@ -76,6 +78,6 @@ These are buffer-local, Normal-mode keys in the board buffer. A key is mapped on
 
 ## Known limits
 - 2nd and 3rd places are not played out (deferred).
-- The Lua board knows the cross's drawing geometry (13 squares per quarter, the home column and base spots). The server sends which quarter each seat starts in (`starts`).
+- The Lua board only maps the view onto its drawing. It draws the 52 track squares as a fixed loop around the cross, each corner's base spots, home column and goal, and finds a seat's corner by the loop square its `starts` names. Where tokens stand (`locations`) and which squares are safe (`safe`) come from the server; Lua does no track arithmetic.
 - The client cannot predict dice. Rolls come from the server's per-step RNG, derived from the game seed and the step number, so a restored game replays identically.
 - `docs/conformance/ludo.ndjson` plays three players to a finish by resignations, not dice. The first seat and the dice depend on the server's random seed, which a static transcript cannot follow.
