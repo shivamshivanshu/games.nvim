@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"sync"
 )
 
 var (
@@ -19,6 +18,7 @@ var (
 const (
 	lineDelimiter    = '\n'
 	initialBufferLen = 4096
+	frameOverhead    = len(`{"id":18446744073709551615,"type":,"body":}`) + 1
 )
 
 type Reader struct {
@@ -58,57 +58,21 @@ type Frame []byte
 // EncodeFrame encodes body once, straight into the line that marshalling the
 // Envelope holding it would give.
 func EncodeFrame(id *RequestID, typ MessageType, body any) (Frame, error) {
-	e := frameEncoders.Get().(*frameEncoder)
-	defer e.release()
-	e.buf.WriteByte('{')
-	if id != nil {
-		e.buf.WriteString(`"id":`)
-		e.buf.Write(strconv.AppendUint(e.buf.AvailableBuffer(), uint64(*id), 10))
-		e.buf.WriteByte(',')
-	}
-	e.buf.WriteString(`"type":`)
-	if err := e.value(typ); err != nil {
-		return nil, fmt.Errorf("protocol: encode type %s: %w", typ, err)
-	}
-	e.buf.WriteString(`,"body":`)
-	if err := e.value(body); err != nil {
+	raw, err := json.Marshal(body)
+	if err != nil {
 		return nil, fmt.Errorf("protocol: encode %s body: %w", typ, err)
 	}
-	e.buf.WriteByte('}')
-	e.buf.WriteByte(lineDelimiter)
-	return bytes.Clone(e.buf.Bytes()), nil
-}
-
-// frameEncoder builds frames in a buffer kept across them; each frame is
-// copied out, since sessions queue it after EncodeFrame returns.
-type frameEncoder struct {
-	buf bytes.Buffer
-	enc *json.Encoder
-}
-
-// maxKeptFrameBuffer is the largest buffer a frameEncoder keeps, so one huge
-// frame does not pin its memory.
-const maxKeptFrameBuffer = 64 << 10
-
-var frameEncoders = sync.Pool{New: func() any {
-	e := &frameEncoder{}
-	e.enc = json.NewEncoder(&e.buf)
-	return e
-}}
-
-// value writes v as json.Marshal would, without the newline the Encoder ends it with.
-func (e *frameEncoder) value(v any) error {
-	if err := e.enc.Encode(v); err != nil {
-		return err
+	quotedType, err := json.Marshal(typ)
+	if err != nil {
+		return nil, fmt.Errorf("protocol: encode type %s: %w", typ, err)
 	}
-	e.buf.Truncate(e.buf.Len() - 1)
-	return nil
-}
-
-func (e *frameEncoder) release() {
-	if e.buf.Cap() > maxKeptFrameBuffer {
-		return
+	frame := make(Frame, 0, len(raw)+len(quotedType)+frameOverhead)
+	frame = append(frame, '{')
+	if id != nil {
+		frame = strconv.AppendUint(append(frame, `"id":`...), uint64(*id), 10)
+		frame = append(frame, ',')
 	}
-	e.buf.Reset()
-	frameEncoders.Put(e)
+	frame = append(append(frame, `"type":`...), quotedType...)
+	frame = append(append(frame, `,"body":`...), raw...)
+	return append(frame, '}', lineDelimiter), nil
 }
