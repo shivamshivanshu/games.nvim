@@ -77,13 +77,13 @@ type Knockout interface {
 }
 
 // EventCatalog is optionally implemented by Rules to list one value of each
-// event type its states emit, so the wire schema can describe them.
+// event type its states emit, for an Info that lists no Events.
 type EventCatalog interface {
 	EventTypes() []Event
 }
 
 // ReasonCatalog is optionally implemented by Rules to list the result reasons
-// it adds to the core's.
+// it adds to the core's, for an Info that lists no Reasons.
 type ReasonCatalog interface {
 	Reasons() []ResultReason
 }
@@ -95,9 +95,6 @@ type Game interface {
 	New(opts Options, challenger UserID, invitees []UserID, rng *rand.Rand) (ErasedState, map[UserID]Seat, error)
 	// WireTypes are the Go types of the game's action and view.
 	WireTypes() (action, view reflect.Type)
-	// EventCatalog and ReasonCatalog are the rules' own, if they implement them.
-	EventCatalog() (EventCatalog, bool)
-	ReasonCatalog() (ReasonCatalog, bool)
 }
 
 type ErasedState interface {

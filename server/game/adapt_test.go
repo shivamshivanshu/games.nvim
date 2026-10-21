@@ -242,18 +242,37 @@ func TestForfeitToRemaining(t *testing.T) {
 type cataloguedCounterRules struct{ gametest.CounterRules }
 
 func (cataloguedCounterRules) EventTypes() []game.Event { return []game.Event{gametest.CountedEvent{}} }
+func (cataloguedCounterRules) Reasons() []game.ResultReason {
+	return []game.ResultReason{gametest.ReasonTargetReached}
+}
 
-func TestAdaptForwardsTheRulesCatalogs(t *testing.T) {
+type declaredCounterRules struct{ cataloguedCounterRules }
+
+func (declaredCounterRules) Info() game.Info {
+	info := gametest.CounterRules{}.Info()
+	info.Events = []game.Event{gametest.CountedEvent{}, gametest.CountedEvent{}}
+	info.Reasons = []game.ResultReason{"declared"}
+	return info
+}
+
+func TestAdaptFillsTheInfoFromTheRulesCatalogs(t *testing.T) {
 	action, view := game.Adapt(gametest.CounterRules{}).WireTypes()
 	if action != reflect.TypeFor[gametest.CounterAction]() || view != reflect.TypeFor[gametest.CounterView]() {
 		t.Errorf("wire types %v, %v", action, view)
 	}
-	if _, ok := game.Adapt(gametest.CounterRules{}).EventCatalog(); ok {
-		t.Error("counter rules have no event catalog")
-	}
-	catalog, ok := game.Adapt(cataloguedCounterRules{}).EventCatalog()
-	if !ok || len(catalog.EventTypes()) != 1 {
-		t.Errorf("event catalog %v, %t", catalog, ok)
+	for name, tc := range map[string]struct {
+		rules       game.Game
+		wantEvents  int
+		wantReasons []game.ResultReason
+	}{
+		"no catalogs":                  {game.Adapt(gametest.CounterRules{}), 0, nil},
+		"catalogs":                     {game.Adapt(cataloguedCounterRules{}), 1, []game.ResultReason{gametest.ReasonTargetReached}},
+		"the Info's own over catalogs": {game.Adapt(declaredCounterRules{}), 2, []game.ResultReason{"declared"}},
+	} {
+		info := tc.rules.Info()
+		if len(info.Events) != tc.wantEvents || !slices.Equal(info.Reasons, tc.wantReasons) {
+			t.Errorf("%s: events %v, reasons %v", name, info.Events, info.Reasons)
+		}
 	}
 }
 

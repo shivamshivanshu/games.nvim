@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -52,10 +51,14 @@ func New(ctx context.Context, d Deps) (*Hub, error) {
 		live:      make(map[game.GameID]*liveGame),
 	}
 	for _, g := range d.Games {
-		if err := errors.Join(g.Info().CheckOptions(), g.Info().CheckActions()); err != nil {
+		info := g.Info()
+		if err := info.Check(); err != nil {
 			return nil, fmt.Errorf("hub: %w", err)
 		}
-		h.gameTypes[g.Info().Type] = g
+		if _, registered := h.gameTypes[info.Type]; registered {
+			return nil, fmt.Errorf("hub: game %s registered twice", info.Type)
+		}
+		h.gameTypes[info.Type] = g
 	}
 	h.challenges = challenge.NewRegistry(d.Limits.ChallengeTTL, d.Time, h.challengeChanged, h.startChallenge)
 	if err := h.restoreOngoing(ctx); err != nil {

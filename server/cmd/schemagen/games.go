@@ -21,9 +21,8 @@ func gameFile(t game.GameType) string { return path.Join("games", string(t)+".js
 // by x-action, x-view and x-events; the core's enums stay in the protocol schema.
 func gameSchema(g game.Game, comments map[string]string) (*jsonschema.Schema, error) {
 	info := g.Info()
-	eventCatalog, ok := g.EventCatalog()
-	if !ok {
-		return nil, errors.New("its rules implement no game.EventCatalog")
+	if len(info.Events) == 0 {
+		return nil, errors.New("it declares no events")
 	}
 	actionKinds := closed(xslices.Map(info.Actions, func(a game.ActionSpec) game.ActionKind { return a.Kind })...)
 	local, core := enumRefs([]enum{actionKinds}, ""), enumRefs(coreEnums(), "../"+protocolFile)
@@ -47,7 +46,7 @@ func gameSchema(g game.Game, comments map[string]string) (*jsonschema.Schema, er
 		return nil, err
 	}
 	events := map[game.EventKind]*jsonschema.Schema{}
-	for _, e := range eventCatalog.EventTypes() {
+	for _, e := range info.Events {
 		if events[e.EventKind()], err = doc.eventRef(e); err != nil {
 			return nil, err
 		}
@@ -55,7 +54,7 @@ func gameSchema(g game.Game, comments map[string]string) (*jsonschema.Schema, er
 	if err := doc.defineEnum(actionKinds); err != nil {
 		return nil, err
 	}
-	if err := defineReasons(doc, g, info.Name); err != nil {
+	if err := defineReasons(doc, info); err != nil {
 		return nil, err
 	}
 	return &jsonschema.Schema{
@@ -102,13 +101,11 @@ func checkRequiredFields(info game.Info, action *jsonschema.Schema) error {
 	return nil
 }
 
-// defineReasons adds the ResultReason enum of a game whose rules are a
-// non-empty game.ReasonCatalog.
-func defineReasons(doc *document, g game.Game, name string) error {
-	catalog, ok := g.ReasonCatalog()
-	if !ok || len(catalog.Reasons()) == 0 {
+// defineReasons adds the ResultReason enum of a game that declares reasons.
+func defineReasons(doc *document, info game.Info) error {
+	if len(info.Reasons) == 0 {
 		return nil
 	}
-	reasons := closed(catalog.Reasons()...)
-	return doc.define(reasons.typ.Name(), reasons.schema(fmt.Sprintf("The result reasons %s adds to the core's.", name)))
+	reasons := closed(info.Reasons...)
+	return doc.define(reasons.typ.Name(), reasons.schema(fmt.Sprintf("The result reasons %s adds to the core's.", info.Name)))
 }

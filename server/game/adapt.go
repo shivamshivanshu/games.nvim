@@ -20,20 +20,21 @@ func Adapt[Opts, Action, View any](rules Rules[Opts, Action, View]) Game {
 	return adapted[Opts, Action, View]{rules: rules}
 }
 
-func (g adapted[Opts, Action, View]) Info() Info { return g.rules.Info() }
+// Info fills the Events and Reasons the rules' Info leaves out from their
+// EventCatalog and ReasonCatalog.
+func (g adapted[Opts, Action, View]) Info() Info {
+	info := g.rules.Info()
+	if catalog, ok := any(g.rules).(EventCatalog); ok && len(info.Events) == 0 {
+		info.Events = catalog.EventTypes()
+	}
+	if catalog, ok := any(g.rules).(ReasonCatalog); ok && len(info.Reasons) == 0 {
+		info.Reasons = catalog.Reasons()
+	}
+	return info
+}
 
 func (g adapted[Opts, Action, View]) WireTypes() (action, view reflect.Type) {
 	return reflect.TypeFor[Action](), reflect.TypeFor[View]()
-}
-
-func (g adapted[Opts, Action, View]) EventCatalog() (EventCatalog, bool) {
-	catalog, ok := any(g.rules).(EventCatalog)
-	return catalog, ok
-}
-
-func (g adapted[Opts, Action, View]) ReasonCatalog() (ReasonCatalog, bool) {
-	catalog, ok := any(g.rules).(ReasonCatalog)
-	return catalog, ok
 }
 
 func (g adapted[Opts, Action, View]) ResolveOptions(raw json.RawMessage) (Options, error) {

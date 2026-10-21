@@ -121,6 +121,11 @@ type Info struct {
 	Capabilities []Capability
 	Options      []OptionSpec
 	Actions      []ActionSpec
+	// Events holds one value of each event type the game's states emit, so
+	// the wire schema can describe them.
+	Events []Event
+	// Reasons are the result reasons the game adds to the core's.
+	Reasons []ResultReason
 }
 
 type Event interface{ EventKind() EventKind }
