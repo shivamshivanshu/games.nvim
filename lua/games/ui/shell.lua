@@ -326,8 +326,9 @@ end
 ---@param to_action fun(text: string): games.Action
 local function prompt_input(board, prompt, to_action)
   vim.ui.input({ prompt = prompt }, function(text)
-    if text and vim.trim(text) ~= "" then
-      act(board, to_action(text))
+    local typed = text and vim.trim(text) or ""
+    if typed ~= "" then
+      act(board, to_action(typed))
     end
   end)
 end
