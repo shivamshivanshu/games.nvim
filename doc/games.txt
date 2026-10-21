@@ -120,6 +120,7 @@ colour. Each group sets only the attribute of its role:
                     `GamesDrawn` `GamesClockLow` `GamesCheckSign`
                     `GamesDashSection`
                     `GamesGiven` (sudoku givens: the muted colour in bold)
+                    `GamesCardRed` (hearts, diamonds)
     ink (fg)        `<background group>Ink`, e.g. `GamesLastMoveInk`
     badge (both)    `GamesYourTurn`
 

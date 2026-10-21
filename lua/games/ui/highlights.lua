@@ -235,6 +235,12 @@ local GROUPS = {
     theme_style = { bold = true },
     vivid = { fg = "#808080", bold = true },
   },
+  {
+    name = "GamesCardRed",
+    role = Role.FOREGROUND,
+    theme = { from("DiagnosticError"), from("ErrorMsg") },
+    vivid = { fg = "#c62828" },
+  },
 }
 
 ---@type games.HlGroupSpec[] background groups, each with an ink group for the text over it

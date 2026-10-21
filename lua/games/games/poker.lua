@@ -1,11 +1,13 @@
 local art = require("games.ui.art")
+local assets = require("games.ui.assets")
 local board = require("games.ui.widgets.board")
+local cards = require("games.ui.cards")
 local compose = require("games.ui.compose")
 local kv = require("games.ui.widgets.kv")
 local players = require("games.core.players")
 local text_util = require("games.ui.text")
 
----@alias games.PokerCard string rank then suit letter, e.g. "As" or "Td"
+---@alias games.PokerCard games.CardKey
 ---@alias games.PokerMove "fold"|"check"|"call"|"bet"|"raise"|"allin"
 
 ---@class games.PokerSeatView
@@ -59,6 +61,7 @@ local BOARD_ROW, HAND_ROW = 1, 2
 local GLYPH_WIDTH = 2
 local EMPTY_KEY = "empty"
 local BLANK_KEY = "blank"
+local BUTTON_KEY = "button"
 local CARD_HL = "GamesSquareLight"
 local KEY_HL = "GamesKey"
 local MUTED_HL = "GamesMuted"
@@ -66,28 +69,17 @@ local MUTED_HL = "GamesMuted"
 local PANEL_WIDTH = 32
 ---Display columns a user name may take in the last-hand lines.
 local NAME_WIDTH = 10
-local BUTTON_MARK = "D"
 
+---What each move reads as in an event; an amount is the seat's total for the street.
 ---@type table<games.PokerMove, string>
 local MOVE_VERBS = {
   fold = "folds",
   check = "checks",
-  call = "calls %d",
+  call = "calls to %d",
   bet = "bets %d",
   raise = "raises to %d",
-  allin = "goes all-in for %d",
+  allin = "goes all-in to %d",
 }
-
----@return string[]
-local function card_keys()
-  local keys = {}
-  for rank in ("23456789TJQKA"):gmatch(".") do
-    for suit in ("cdhs"):gmatch(".") do
-      keys[#keys + 1] = rank .. suit
-    end
-  end
-  return keys
-end
 
 ---@param view games.PokerView
 ---@param row integer
@@ -103,13 +95,13 @@ end
 ---@param view games.PokerView
 ---@param row integer
 ---@param col integer
----@return string
-local function cell_key(view, row, col)
+---@return games.GridCell
+local function cell_for(view, row, col)
   local card = card_at(view, row, col)
   if card then
-    return card
+    return { card, cards.hl(card) }
   end
-  return row == BOARD_ROW and EMPTY_KEY or BLANK_KEY
+  return { row == BOARD_ROW and EMPTY_KEY or BLANK_KEY }
 end
 
 ---@param view games.PokerView
@@ -124,19 +116,6 @@ local function card_marks(view)
     end
   end
   return marks
-end
-
----@param set games.ArtSet
----@param cards games.PokerCard[]
----@param ambiwidth games.Ambiwidth
----@return string
-local function cards_text(set, cards, ambiwidth)
-  return table.concat(
-    vim.tbl_map(function(card)
-      return art.glyph(set, card, ambiwidth)
-    end, cards),
-    " "
-  )
 end
 
 ---@param update games.PokerUpdate
@@ -201,12 +180,14 @@ local function last_hand_lines(update, set, ambiwidth)
   if not last then
     return {}
   end
+  ---@type games.Node[]
   local lines = { compose.text(""), compose.text(("Last hand %d"):format(last.hand_no), KEY_HL) }
   for _, shown in ipairs(last.shown) do
     local name = text_util.pad_to_width(name_of(update, shown.seat), NAME_WIDTH)
-    local cards = cards_text(set, shown.cards, ambiwidth)
-    lines[#lines + 1] =
-      compose.text(("%s %s  %s"):format(name, cards, text_util.humanize(shown.category)))
+    local parts = { compose.text(name .. " ") }
+    vim.list_extend(parts, cards.nodes(set, shown.cards, ambiwidth))
+    parts[#parts + 1] = compose.text("  " .. text_util.humanize(shown.category))
+    lines[#lines + 1] = compose.row(parts)
   end
   for _, award in ipairs(last.awards) do
     lines[#lines + 1] = compose.text(award_text(update, award), MUTED_HL)
@@ -248,10 +229,20 @@ local function seat_view(view, seat)
   end)
 end
 
+---@param view games.PokerView
+---@param seat games.Seat
+---@param ctx games.LayoutCtx
+---@return string the button's glyph on its seat, blank on the others
+local function button_mark(view, seat, ctx)
+  local set = assert(ctx.art, "poker draws from an asset pack")
+  return art.glyph(set, view.button == seat and BUTTON_KEY or BLANK_KEY, ctx.ambiwidth)
+end
+
 local M = {}
 
----@type string[] keys every poker asset pack draws: the 52 cards, an empty board slot and a blank
-M.asset_keys = vim.list_extend(card_keys(), { EMPTY_KEY, BLANK_KEY })
+---@type string[] keys every poker asset pack draws: the 52 cards, an empty board slot, a blank
+---and the dealer button
+M.asset_keys = vim.list_extend(cards.keys(), { EMPTY_KEY, BLANK_KEY, BUTTON_KEY })
 
 M.glyph_width = GLYPH_WIDTH
 
@@ -259,8 +250,9 @@ M.glyph_width = GLYPH_WIDTH
 ---folded, is all-in or out, each column as wide as its widest entry at the table.
 ---@param update games.PokerUpdate
 ---@param seat games.Seat
+---@param ctx games.LayoutCtx
 ---@return games.TextNode[]|nil
-function M.player_extra(update, seat)
+function M.player_extra(update, seat, ctx)
   local view = update.view
   local entry = seat_view(view, seat)
   if not entry then
@@ -271,7 +263,7 @@ function M.player_extra(update, seat)
   end)
   local bet_width = widest(view.seats, bet_text)
   return {
-    compose.text(view.button == seat and BUTTON_MARK or " ", KEY_HL),
+    compose.text(button_mark(view, seat, ctx), KEY_HL),
     compose.text(" " .. text_util.align_right(tostring(entry.stack), stack_width)),
     compose.text(" " .. text_util.pad_to_width(bet_text(entry), bet_width)),
     compose.text(" " .. status_text(entry), MUTED_HL),
@@ -291,7 +283,7 @@ function M.layout(update, ctx)
       shade = "plain",
       cell_width = GLYPH_WIDTH,
       cell = function(r, c)
-        return { cell_key(view, r, c) }
+        return cell_for(view, r, c)
       end,
       marks = card_marks(view),
     },
@@ -340,7 +332,10 @@ M.actions = {
   },
   {
     key = "c",
-    label = "check/call",
+    label = function(update)
+      local view = update.view
+      return vim.tbl_contains(view.legal, "check") and "check" or ("call %d"):format(view.to_call)
+    end,
     action = { kind = "act", text = "call" },
     available = function(update)
       return legal_any(update, "check", "call")
@@ -348,40 +343,53 @@ M.actions = {
   },
 }
 
----@type table<string, fun(event: table, name: fun(seat: games.Seat): string): string>
+---@class (private) games.PokerTalk how events name seats and cards
+---@field name fun(seat: games.Seat): string
+---@field cards fun(cards: games.PokerCard[]): string
+
+---@type table<string, fun(event: table, talk: games.PokerTalk): string>
 local DESCRIBERS = {
   hand_started = function(event)
     return ("hand %d, blinds %d/%d"):format(event.hand_no, event.blinds.small, event.blinds.big)
   end,
-  posted = function(event, name)
-    return ("%s posts %d"):format(name(event.seat), event.amount)
+  posted = function(event, talk)
+    return ("%s posts %d"):format(talk.name(event.seat), event.amount)
   end,
-  acted = function(event, name)
-    return ("%s %s"):format(name(event.by), MOVE_VERBS[event.move]:format(event.amount))
+  acted = function(event, talk)
+    return ("%s %s"):format(talk.name(event.by), MOVE_VERBS[event.move]:format(event.amount))
   end,
-  board = function(event)
-    return ("%s %s"):format(event.street, table.concat(event.cards, " "))
+  board = function(event, talk)
+    return ("%s %s"):format(event.street, talk.cards(event.cards))
   end,
-  shown = function(event, name)
+  shown = function(event, talk)
     local hands = vim.tbl_map(function(hand)
-      return ("%s %s"):format(name(hand.seat), table.concat(hand.cards, " "))
+      return ("%s %s"):format(talk.name(hand.seat), talk.cards(hand.cards))
     end, event.hands)
     return "showdown: " .. table.concat(hands, ", ")
   end,
-  returned = function(event, name)
-    return ("%d returned to %s"):format(event.amount, name(event.seat))
+  returned = function(event, talk)
+    return ("%d returned to %s"):format(event.amount, talk.name(event.seat))
   end,
-  won = function(event, name)
+  won = function(event, talk)
     local pot = event.pot > 0 and (" (side %d)"):format(event.pot) or ""
-    return ("%s wins %d%s"):format(name(event.seat), event.amount, pot)
+    return ("%s wins %d%s"):format(talk.name(event.seat), event.amount, pot)
   end,
-  busted = function(event, name)
-    return ("%s is out"):format(name(event.seat))
+  busted = function(event, talk)
+    return ("%s is out"):format(talk.name(event.seat))
   end,
-  left = function(event, name)
-    return ("%s left the table"):format(name(event.by))
+  left = function(event, talk)
+    return ("%s left the table"):format(talk.name(event.by))
   end,
 }
+
+---The user's poker pack in the user's glyph mode, for card text outside a board.
+---@return games.ArtSet
+local function user_art()
+  local opts = require("games").open_options()
+  local pack_name = (opts.assets or {}).poker or assets.DEFAULT_PACK
+  local spec = { keys = M.asset_keys, glyph_width = M.glyph_width }
+  return assets.art_set(assets.load("poker", pack_name, spec), opts.glyphs)
+end
 
 ---@param event games.Event
 ---@param update games.PokerUpdate
@@ -391,9 +399,16 @@ function M.describe_event(event, update)
   if not describer then
     return nil
   end
-  return describer(event, function(seat)
-    return players.user_of_seat(update, seat) or seat
-  end)
+  ---@type games.PokerTalk
+  local talk = {
+    name = function(seat)
+      return players.user_of_seat(update, seat) or seat
+    end,
+    cards = function(shown)
+      return cards.text(user_art(), shown, vim.o.ambiwidth --[[@as games.Ambiwidth]])
+    end,
+  }
+  return describer(event, talk)
 end
 
 return M

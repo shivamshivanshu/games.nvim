@@ -39,7 +39,7 @@ local Control = types.Control
 
 ---@class games.GameAction
 ---@field key string
----@field label string
+---@field label string|fun(update: games.GameUpdate): string a function reads the label off the update, e.g. "call 40"
 ---@field action? games.Action
 ---@field available? fun(update: games.GameUpdate): boolean whether action applies now; default always
 ---@field local_fn? fun(view: games.ViewOptions): games.ViewOptions
@@ -366,6 +366,17 @@ local function is_catalogued(catalogued, kind)
   return catalogued ~= nil and catalogued[kind] == true
 end
 
+---@param entry games.GameAction
+---@param update games.GameUpdate
+---@return string
+local function label_of(entry, update)
+  local label = entry.label
+  if type(label) == "function" then
+    return label(update)
+  end
+  return label
+end
+
 ---@param update games.GameUpdate
 ---@param module games.GameModule
 ---@param catalogued? table<games.ActionKind, true> the action kinds the server lists for the game
@@ -401,7 +412,7 @@ local function bindings_for(update, module, catalogued)
     if local_fn then
       bindings[#bindings + 1] = {
         key = entry.key,
-        label = entry.label,
+        label = label_of(entry, update),
         run = function(board)
           board.view = local_fn(board.view)
           render_board(board)
@@ -415,7 +426,7 @@ local function bindings_for(update, module, catalogued)
     then
       bindings[#bindings + 1] = {
         key = entry.key,
-        label = entry.label,
+        label = label_of(entry, update),
         run = function(board)
           act(board, game_action)
         end,

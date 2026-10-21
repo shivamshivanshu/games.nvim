@@ -91,22 +91,52 @@ local function render(update, glyphs, catalogued)
   return shell.render(update, poker, poker_view(glyphs), "alice", 0, nil, catalogued or CATALOGUE).lines
 end
 
+---@param mark games.Extmark
+---@param group string
+---@return boolean
+local function has_hl(mark, group)
+  local hl = mark.hl
+  return hl == group or (type(hl) == "table" and vim.tbl_contains(hl, group))
+end
+
 local T = {}
+
+function T.c_reads_check_or_call_and_the_amount_off_the_view()
+  local checking =
+    render(poker_update({ legal = { "fold", "check", "bet", "allin" }, to_call = 0 }), "ascii")
+
+  assert(checking[#checking]:find("c check  ", 1, true), checking[#checking])
+  assert(not checking[#checking]:find("call", 1, true), checking[#checking])
+end
+
+function T.hearts_and_diamonds_are_red_on_the_board_and_in_the_last_hand()
+  local rendered =
+    shell.render(poker_update(), poker, poker_view("unicode"), "alice", 0, nil, CATALOGUE)
+  local red = vim.tbl_filter(function(mark)
+    return has_hl(mark, "GamesCardRed")
+  end, rendered.extmarks)
+  local where = vim.tbl_map(function(mark)
+    return { mark.row, rendered.lines[mark.row + 1]:sub(mark.col + 1, mark.end_col) }
+  end, red)
+
+  assert_eq({ { 5, "K♥" }, { 5, "T♦" }, { 12, "A♥" } }, where)
+end
 
 function T.seats_table_board_hand_and_betting_numbers_render_in_either_glyph_mode()
   for _, case in ipairs({
     {
       glyphs = "unicode",
+      button = "Ⓓ ",
       board = "A♠ K♥ T♦ ·· ··",
       hand = "Q♠ J♣",
       shown = "A♥ A♣",
     },
-    { glyphs = "ascii", board = "As Kh Td .. ..", hand = "Qs Jc", shown = "Ah Ac" },
+    { glyphs = "ascii", button = "D ", board = "As Kh Td .. ..", hand = "Qs Jc", shown = "Ah Ac" },
   }) do
     assert_eq({
-      "alice  p1    980             ←  your move ",
-      "bob    p2  D 940 bet 40                   ",
-      "carol  p3      0        out               ",
+      "alice  p1     980             ←  your move ",
+      "bob    p2  " .. case.button .. " 940 bet 40                   ",
+      "carol  p3       0        out               ",
       "",
       "",
       case.board .. "   Hand     3  blinds 10/20      ",
@@ -128,9 +158,9 @@ function T.only_the_seat_to_act_gets_fold_and_check_call_and_the_betting_lines()
   local waiting =
     render(poker_update({ legal = {}, to_call = 0, min_raise_to = 0, max_raise_to = 0 }), "ascii")
 
-  assert(acting[#acting]:find("f fold  c check/call", 1, true), acting[#acting])
+  assert(acting[#acting]:find("f fold  c call 40", 1, true), acting[#acting])
   assert(not waiting[#waiting]:find("f fold", 1, true), waiting[#waiting])
-  assert(not waiting[#waiting]:find("c check/call", 1, true), waiting[#waiting])
+  assert(not waiting[#waiting]:find("c ", 1, true), waiting[#waiting])
   assert(not table.concat(waiting, "\n"):find("To call", 1, true))
 end
 
@@ -186,14 +216,28 @@ function T.events_read_as_table_talk_with_users_for_seats()
       "bob posts 20",
       "alice raises to 120",
       "bob folds",
-      "flop As Kh Td",
-      "showdown: alice Qs Jc",
+      "flop A♠ K♥ T♦",
+      "showdown: alice Q♠ J♣",
       "80 returned to alice",
       "bob wins 50 (side 1)",
       "carol is out",
       "carol left the table",
     }, "; "),
     describe.events(update)
+  )
+end
+
+function T.event_cards_take_the_users_glyph_mode()
+  local update = poker_update()
+  update.events = { { kind = "board", by = "p1", street = "turn", cards = { "Qh" } } }
+  local games = require("games")
+
+  assert_eq("turn Q♥", describe.events(update))
+  helpers.with_overrides(
+    { { games, "config", { glyphs = "ascii", board = {}, assets = {} } } },
+    function()
+      assert_eq("turn Qh", describe.events(update))
+    end
   )
 end
 
