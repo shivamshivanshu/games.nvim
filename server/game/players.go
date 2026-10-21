@@ -39,3 +39,9 @@ func NumberSeats(users []UserID) ([]Seat, map[UserID]Seat) {
 	}
 	return order, seats
 }
+
+// SeatSolo is the one seat of a solo game.
+const SeatSolo Seat = "solver"
+
+// SoloSeat seats the challenger of a solo game.
+func SoloSeat(challenger UserID) map[UserID]Seat { return map[UserID]Seat{challenger: SeatSolo} }

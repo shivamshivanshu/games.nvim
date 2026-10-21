@@ -106,6 +106,31 @@ func FirstMoverOption() OptionSpec {
 	}
 }
 
+// OptionColor is the option choosing the challenger's side.
+const OptionColor OptionName = "color"
+
+// SideOption chooses the challenger's side: at random, first (the side that
+// moves first) or second.
+func SideOption[T ~string](first, second T) OptionSpec {
+	return OptionSpec{
+		Name:    OptionColor,
+		Values:  []OptionValue{OptionValue(FirstMoverRandom), OptionValue(first), OptionValue(second)},
+		Default: OptionValue(FirstMoverRandom),
+	}
+}
+
+// SideFirstMover is who moves first when the challenger chose the side
+// choice: any choice but first or second is random.
+func SideFirstMover[T ~string](choice, first, second T) FirstMover {
+	switch choice {
+	case first:
+		return FirstMoverMe
+	case second:
+		return FirstMoverOpponent
+	}
+	return FirstMoverRandom
+}
+
 // PickFirst reports whether the challenger moves first.
 func PickFirst(choice FirstMover, rng *rand.Rand) bool {
 	switch choice {
