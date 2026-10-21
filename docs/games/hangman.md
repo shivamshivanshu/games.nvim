@@ -38,6 +38,7 @@ Buffer-local, normal mode, in the board buffer; only keys valid now are mapped.
 | `R` | give up |
 | `A` | abort, before the first guess |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 The board is the word, one tile per letter. Beside it the gallows gains a body part per miss (head, body, arms, legs), and a panel lists the letters found and missed, each wrong word, the misses left, and the word once the game ends.

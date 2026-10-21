@@ -38,6 +38,7 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
 | `R` | resign: leave the table (confirms) |
 | `A` | abort, until every player has acted |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 ## Display

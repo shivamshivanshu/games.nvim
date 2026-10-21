@@ -59,6 +59,7 @@ Buffer-local, normal mode, in the board buffer. The footer lists `h j k l` only;
 | `R` | give up |
 | `A` | abort, before your first turn |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close (the game goes on; press `p` first) |
 
 ## Display

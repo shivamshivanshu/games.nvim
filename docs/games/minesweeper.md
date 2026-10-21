@@ -40,6 +40,7 @@ Buffer-local, normal mode, in the board buffer.
 | `R` | give up |
 | `A` | abort, before your first action |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 Rows are labelled a-p and columns 1-30. A panel beside the board shows the flags placed and the mines left (mines less flags). Each cell state has its own glyph, so none rests on colour: hidden `░░` (`##` in ascii), a count `1`-`8`, a 0 blank, a flag `⚑` (`F`), and once over a mine `✱` (`*`), a flagged mine `⚑✱` (`F*`), the exploded mine `✸` (`*!`, also tinted) and a wrong flag `✗` (`Fx`). In a roomy window counts and icons are drawn as block art and hidden cells as shaded squares.

@@ -50,6 +50,7 @@ These are buffer-local, Normal-mode keys in the board buffer. The game keys foll
 | `R` | resign |
 | `A` | abort, until every player has acted |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 **The board** is the classic 15×15 cross with no labels.

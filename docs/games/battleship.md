@@ -49,6 +49,7 @@ Two players, classic Battleship on 10 × 10. Server: `server/games/battleship/`,
 | `R` | resign |
 | `A` | abort, until both players have acted |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 The cursor and its orientation belong to the board in your Neovim, not to the game: moving it sends nothing.

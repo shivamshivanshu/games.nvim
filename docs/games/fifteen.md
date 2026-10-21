@@ -43,6 +43,7 @@ Buffer-local, normal mode, in the board buffer.
 | `R` | give up |
 | `A` | abort, before your first move |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 A panel beside the board shows the move count. A movable tile is bracketed `[ 7]` and tinted (`GamesMovable`), so that never rests on colour alone; once solved every tile is tinted (`GamesWin`). In a roomy window the tiles are drawn in block digits, a movable one underlined.

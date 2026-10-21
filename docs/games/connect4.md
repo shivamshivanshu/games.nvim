@@ -47,6 +47,7 @@ Keys are buffer-local, in Normal mode, in the board buffer. Only keys that are v
 | `X` | decline a pending draw offer |
 | `A` | abort, until both players have moved |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 ## Display

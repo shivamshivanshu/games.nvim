@@ -50,6 +50,7 @@ Buffer-local, normal mode, in the board buffer; only keys valid now are mapped.
 | `R` | give up |
 | `A` | abort, before the first guess |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 The top row is the secret, `?` per peg until the game ends. Below it are ten rows, one per guess: the 4 pegs, then 4 key pegs, blacks first, then whites, then a dot for each peg that scored neither. Empty rows show holes. The solving row is tinted `GamesWin`. Beside the board: the palette, what the key pegs mean, and the guesses left.

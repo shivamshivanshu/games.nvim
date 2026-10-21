@@ -51,6 +51,7 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
 | `R` | resign, or give up alone (confirms) |
 | `A` | abort, until every player has acted |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 A box's letter shows on the scorecard, and is mapped, only while that box is one you may score now; `m` is skipped because the shell reserves it.

@@ -36,6 +36,7 @@ Buffer-local, normal mode, in the board buffer; only keys valid now are mapped.
 | `R` | resign |
 | `A` | abort, until both have moved |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 The footer groups the cell keys, e.g. `3,5-9 place`. Empty cells show their own number. Marks take their player's seat colour from the header; the last move and a winning line are tinted. In a roomy window the marks draw as block art.

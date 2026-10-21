@@ -41,6 +41,7 @@ Buffer-local, normal mode, in the board buffer; only keys valid now are mapped.
 | `R` | give up |
 | `A` | abort, before the first guess |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 The board is six rows of five tiles, one row per guess, empty rows dotted. Beside it a keyboard shows each letter's best mark so far, then the guesses left, or the answer once the game ends.

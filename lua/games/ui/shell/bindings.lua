@@ -103,8 +103,11 @@ end
 ---@param board games.Board
 ---@param bindings games.KeyBinding[] every key the board binds now
 local function toggle_help(board, bindings)
+  local game = board.update.game
+  local info = board.client:game_info(game)
   help.toggle({
-    game = board.update.game,
+    owner = board.buf,
+    title = info and info.name or game,
     legend = board.module.legend({
       art = board.view.art,
       ambiwidth = vim.o.ambiwidth --[[@as games.Ambiwidth]],

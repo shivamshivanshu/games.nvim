@@ -45,6 +45,7 @@ Buffer-local, normal mode, in the board buffer.
 | `R` | give up |
 | `A` | abort, before your first move |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 Rows and columns are labelled 1-9, and thin lines mark the 3x3 boxes. Givens are muted and bold (`GamesGiven`), your digits take your seat colour, and empty cells show `·` (`.` in ascii). A conflicting digit is framed `[5]` and tinted. After the game, digits from the solution fill the empty and wrong cells as `(5)`, tinted. In a roomy window the digits are drawn as block art, with bars either side of a conflict and corner ticks under a revealed digit.

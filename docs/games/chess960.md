@@ -38,7 +38,7 @@ A separate game type from `chess`, so its games keep their own stats and leaderb
 | `color` | `random`, `white`, `black` | `random` | the challenger's colour |
 
 ## Controls and keys
-Chess's: `m` move, `C` claim draw (when the server marks one claimable), `F` flip, `R` resign, `D` offer or accept a draw, `X` decline, `A` abort, `]g` next game, `q` close. The board, legend, move list and material display are chess's; a panel beside the move list shows the start position's number.
+Chess's: `m` move, `C` claim draw (when the server marks one claimable), `F` flip, `R` resign, `D` offer or accept a draw, `X` decline, `A` abort, `]g` next game, `?` help: legend and keys, `q` close. The board, legend, move list and material display are chess's; a panel beside the move list shows the start position's number.
 
 ## Result and scoring
 - Result reasons and scoring are chess's: win +1, loss -1, draw 0, abort none.

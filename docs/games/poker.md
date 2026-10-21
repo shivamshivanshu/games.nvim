@@ -71,6 +71,7 @@ Buffer-local, normal mode, in the board buffer. Only the keys valid now are mapp
 | `R` | resign: leave the table (confirms) |
 | `A` | abort, while the core offers it |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 All-in is only on `m`, so it cannot be hit by accident.

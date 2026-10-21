@@ -54,6 +54,7 @@ Buffer-local, normal mode, in the board buffer; only keys valid in the current s
 | `X` | decline a pending draw offer |
 | `A` | abort, until both have moved |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 The board is drawn from the viewer's side (black at the bottom if you are black); `F` toggles it. The last move and a checked king are highlighted. The move list is two columns, numbered on from the view's `first_ply`, the plies the start position has behind it (0 for the standard start).

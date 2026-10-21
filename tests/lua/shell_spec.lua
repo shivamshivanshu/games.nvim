@@ -1251,4 +1251,32 @@ function T.question_mark_q_and_escape_close_the_help_and_it_never_opens_twice()
   vim.api.nvim_buf_delete(buf, { force = true })
 end
 
+function T.help_is_titled_by_the_catalogue_name_and_another_boards_question_mark_replaces_it()
+  local client, conn = client_with(
+    "alice",
+    { chess_update({ game_id = "aown01" }), chess_update({ game_id = "bown02" }) }
+  )
+  conn:respond("catalog.list", { games = { { id = "chess", name = "Chess", actions = {} } } })
+  local first = shell.open(client, "aown01")
+  local first_win = vim.api.nvim_get_current_win()
+  local second = shell.open(client, "bown02")
+  local second_win = vim.api.nvim_get_current_win()
+
+  vim.api.nvim_set_current_win(first_win)
+  mapping(first, "?").callback()
+  local first_help = floats()[1]
+  assert_eq("Chess — help", vim.api.nvim_win_get_config(first_help).title[1][1])
+
+  vim.api.nvim_set_current_win(second_win)
+  mapping(second, "?").callback()
+  assert_eq(1, #floats())
+  assert(floats()[1] ~= first_help, "the other board's ? did not open its own help")
+
+  vim.api.nvim_set_current_win(second_win)
+  mapping(second, "?").callback()
+  assert_eq({}, floats())
+  vim.api.nvim_buf_delete(first, { force = true })
+  vim.api.nvim_buf_delete(second, { force = true })
+end
+
 return T

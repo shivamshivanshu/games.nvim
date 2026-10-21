@@ -45,6 +45,7 @@ The core runs it as for chess. When the opponent passes, the mover keeps the tur
 | `X` | decline a pending draw offer |
 | `A` | abort, until both players have moved |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 ## Display

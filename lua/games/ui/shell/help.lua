@@ -12,15 +12,20 @@ local INDENT = 2
 local SAMPLE_GAP = 1
 
 ---@class games.HelpProps
----@field game games.GameType
+---@field owner integer the buffer of the board it is the help of
+---@field title string the game's name
 ---@field legend games.LegendEntry[]
 ---@field keys games.KvPair[] each bound key, its aliases beside it, and its label
 ---@field toggle_key string the key that opens the help, which closes it too
 
 local M = {}
 
----@type integer|nil
-local help_win
+---@class (private) games.OpenHelp
+---@field win integer
+---@field owner integer
+
+---@type games.OpenHelp|nil
+local open_help
 
 ---@param entry games.LegendEntry
 ---@return integer
@@ -59,16 +64,17 @@ function M.node(legend, keys)
   })
 end
 
----Opens the help in a float, or closes it when it is open.
+---Closes the help when it is open for props.owner; otherwise opens it, in place of any other float.
 ---@param props games.HelpProps
 function M.toggle(props)
-  if help_win and vim.api.nvim_win_is_valid(help_win) then
-    vim.api.nvim_win_close(help_win, true)
-    help_win = nil
+  local shown = open_help and vim.api.nvim_win_is_valid(open_help.win) and open_help
+  if shown and shown.owner == props.owner then
+    vim.api.nvim_win_close(shown.win, true)
+    open_help = nil
     return
   end
-  local win = float.open(("%s — help"):format(props.game), M.node(props.legend, props.keys))
-  help_win = win
+  local win = float.open(("%s — help"):format(props.title), M.node(props.legend, props.keys))
+  open_help = { win = win, owner = props.owner }
   vim.keymap.set("n", props.toggle_key, function()
     vim.api.nvim_win_close(win, true)
   end, { buffer = vim.api.nvim_win_get_buf(win), nowait = true, desc = "games: close" })

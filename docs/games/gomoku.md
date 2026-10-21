@@ -47,6 +47,7 @@ The core runs it as for chess: it starts once both players have moved, and the i
 | `X` | decline a pending draw offer |
 | `A` | abort, until both players have moved |
 | `]g` | next game waiting on your move |
+| `?` | help: legend and keys |
 | `q` | close |
 
 The server checks the cell; a taken or off-board cell comes back as an error notice and the game does not move on.

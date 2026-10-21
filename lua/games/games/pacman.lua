@@ -102,13 +102,21 @@ local function ghost_key(name, mode)
   return name
 end
 
----@param ghost games.PacmanGhost
+---@param name games.PacmanGhostName
+---@param mode games.PacmanGhostMode
 ---@return games.Hl
-local function ghost_hl(ghost)
-  if ghost.mode == "frightened" then
+local function ghost_hl(name, mode)
+  if mode == "frightened" then
     return FRIGHTENED_HL
   end
-  return ghost.mode == "eyes" and EYES_HL or GHOST_HLS[ghost.name]
+  return mode == "eyes" and EYES_HL or GHOST_HLS[name]
+end
+
+---@param name games.PacmanGhostName
+---@param mode games.PacmanGhostMode
+---@return games.GridCell
+local function ghost_cell(name, mode)
+  return { ghost_key(name, mode), ghost_hl(name, mode) }
 end
 
 ---Who stands on each cell: Pac-Man over any ghost, an earlier ghost over a later one.
@@ -128,7 +136,7 @@ local function actor_cell(view, actor)
     return { pacman_key(view.pacman.facing), Group.PACMAN }
   end
   ---@cast actor games.PacmanGhost
-  return { ghost_key(actor.name, actor.mode), ghost_hl(actor) }
+  return ghost_cell(actor.name, actor.mode)
 end
 
 ---@param update games.PacmanUpdate
@@ -245,7 +253,7 @@ function M.legend(ctx)
   local ghosts = {}
   for i, name in ipairs(GHOST_NAMES) do
     ghosts[#ghosts + 1] = i > 1 and compose.text(" ") or nil
-    ghosts[#ghosts + 1] = grid.sample(ctx, { name, GHOST_HLS[name] })
+    ghosts[#ghosts + 1] = grid.sample(ctx, ghost_cell(name, "chase"))
   end
   local first = GHOST_NAMES[1]
   return {
@@ -255,11 +263,11 @@ function M.legend(ctx)
     },
     { sample = ghosts, meaning = "the ghosts: blinky, pinky, inky and clyde" },
     {
-      sample = { grid.sample(ctx, { ghost_key(first, "frightened"), FRIGHTENED_HL }) },
+      sample = { grid.sample(ctx, ghost_cell(first, "frightened")) },
       meaning = "a frightened ghost",
     },
     {
-      sample = { grid.sample(ctx, { ghost_key(first, "eyes"), EYES_HL }) },
+      sample = { grid.sample(ctx, ghost_cell(first, "eyes")) },
       meaning = "a ghost's eyes, going home",
     },
     tile("dot", "a dot"),
