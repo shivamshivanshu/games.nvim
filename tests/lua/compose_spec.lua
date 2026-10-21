@@ -35,6 +35,24 @@ function T.box_centres_child_with_odd_padding_right_and_bottom()
   assert_eq({ row = 1, col = 1, end_col = 3, hl = "GamesKey" }, rendered.extmarks[6])
 end
 
+function T.row_pads_a_shorter_child_and_marks_its_neighbours_at_their_byte_columns()
+  local node = compose.pad(
+    1,
+    compose.row({
+      compose.text("♟", "GamesKey"),
+      compose.col({ compose.text("ab", "GamesWin"), compose.text("c", "GamesKey") }),
+    })
+  )
+  local rendered = compose.render(node)
+
+  assert_eq({ " ♟ab", "  c " }, rendered.lines)
+  assert_eq({
+    { row = 0, col = 1, end_col = 4, hl = "GamesKey" },
+    { row = 0, col = 4, end_col = 6, hl = "GamesWin" },
+    { row = 1, col = 2, end_col = 3, hl = "GamesKey" },
+  }, rendered.extmarks)
+end
+
 function T.measure_reports_display_size()
   local node =
     compose.row({ compose.text("♟♟"), compose.col({ compose.text("x"), compose.text("") }) })

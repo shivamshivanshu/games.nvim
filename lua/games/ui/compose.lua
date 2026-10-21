@@ -43,9 +43,12 @@ local text_util = require("games.ui.text")
 ---@field w integer display columns
 ---@field h integer lines
 
----@class games.Block: games.Rendered
----@field widths integer[] display width of each line
----@field width integer display width of the widest line
+---Lines being laid out, each node written once at its absolute row and column.
+---@class (private) games.Canvas
+---@field fragments table<integer, string[]> by 0-based row, joined into its line at the end
+---@field bytes table<integer, integer> by 0-based row, bytes written so far
+---@field cols table<integer, integer> by 0-based row, the display column the nodes written so far report reaching
+---@field extmarks games.Extmark[]
 
 local M = {}
 
@@ -107,146 +110,145 @@ function M.box(props)
   return { kind = "box", w = props.w, h = props.h, hl = props.hl, child = props.child }
 end
 
----@param mark games.Extmark
----@param row_offset integer
----@param col_offset integer
----@return games.Extmark
-local function shifted_mark(mark, row_offset, col_offset)
-  return {
-    row = mark.row + row_offset,
-    col = mark.col + col_offset,
-    end_col = mark.end_col + col_offset,
-    hl = mark.hl,
-  }
-end
-
----@param extmarks games.Extmark[]
----@param row_offset integer
----@param col_offset integer
----@return games.Extmark[]
-local function shifted(extmarks, row_offset, col_offset)
-  return vim.tbl_map(function(mark)
-    return shifted_mark(mark, row_offset, col_offset)
-  end, extmarks)
-end
-
----@param extmarks games.Extmark[]
----@return table<integer, games.Extmark[]> by row, holding only rows that have marks
-local function marks_by_row(extmarks)
-  local by_row = {}
-  for _, mark in ipairs(extmarks) do
-    local row_marks = by_row[mark.row]
-    if not row_marks then
-      row_marks = {}
-      by_row[mark.row] = row_marks
-    end
-    row_marks[#row_marks + 1] = mark
+---Pads row with spaces out to display column col, or takes col as reached when it is past it.
+---@param canvas games.Canvas
+---@param row integer
+---@param col integer
+local function advance(canvas, row, col)
+  local reached = canvas.cols[row]
+  if not reached then
+    canvas.fragments[row], canvas.bytes[row], reached = {}, 0, 0
   end
-  return by_row
+  if col > reached then
+    local fragments = canvas.fragments[row]
+    fragments[#fragments + 1] = text_util.spaces(col - reached)
+    canvas.bytes[row] = canvas.bytes[row] + col - reached
+  end
+  canvas.cols[row] = col
 end
 
----@param node games.BoxNode
----@param child games.Block
----@return games.Block
-local function layout_box(node, child)
-  local top = math.max(0, math.floor((node.h - #child.lines) / 2))
-  local left = math.max(0, math.floor((node.w - child.width) / 2))
-  local indent = text_util.spaces(left)
-  local lines, extmarks, widths = {}, {}, {}
-  for i = 1, node.h do
-    local child_row = i - top
-    local child_line = child.lines[child_row]
-    if child_line then
-      lines[i] = indent .. child_line .. text_util.spaces(node.w - left - child.widths[child_row])
-    else
-      lines[i] = text_util.spaces(node.w)
-    end
-    widths[i] = node.w
+local place
+
+---@param canvas games.Canvas
+---@param node games.TextNode
+---@param row integer
+---@param col integer
+---@return integer width
+---@return integer height
+local function place_text(canvas, node, row, col)
+  local str = node.str or ""
+  advance(canvas, row, col)
+  if #str > 0 then
+    local start = canvas.bytes[row]
     if node.hl then
-      extmarks[#extmarks + 1] = { row = i - 1, col = 0, end_col = #lines[i], hl = node.hl }
+      canvas.extmarks[#canvas.extmarks + 1] =
+        { row = row, col = start, end_col = start + #str, hl = node.hl }
     end
+    local fragments = canvas.fragments[row]
+    fragments[#fragments + 1] = str
+    canvas.bytes[row] = start + #str
   end
-  vim.list_extend(extmarks, shifted(child.extmarks, top, left))
-  return { lines = lines, extmarks = extmarks, widths = widths, width = node.w }
+  local width = text_util.width(str)
+  canvas.cols[row] = col + width
+  return width, 1
 end
 
+---@param canvas games.Canvas
+---@param node games.BoxNode
+---@param row integer
+---@param col integer
+---@return integer width
+---@return integer height
+local function place_box(canvas, node, row, col)
+  local child = M.measure(node.child)
+  local line_marks = {}
+  for i = 0, node.h - 1 do
+    advance(canvas, row + i, col)
+    if node.hl then
+      local mark = { row = row + i, col = canvas.bytes[row + i], end_col = 0, hl = node.hl }
+      line_marks[i] = mark
+      canvas.extmarks[#canvas.extmarks + 1] = mark
+    end
+  end
+  local top = math.max(0, math.floor((node.h - child.h) / 2))
+  local left = math.max(0, math.floor((node.w - child.w) / 2))
+  place(canvas, node.child, row + top, col + left)
+  for i = 0, node.h - 1 do
+    advance(canvas, row + i, col + node.w)
+    if line_marks[i] then
+      line_marks[i].end_col = canvas.bytes[row + i]
+    end
+  end
+  return node.w, node.h
+end
+
+---@param canvas games.Canvas
+---@param node games.RowNode
+---@param row integer
+---@param col integer
+---@return integer width
+---@return integer height
+local function place_row(canvas, node, row, col)
+  local width, height = 0, 0
+  for _, child in ipairs(node.children) do
+    local w, h = place(canvas, child, row, col + width)
+    width, height = width + w, math.max(height, h)
+  end
+  for i = 0, height - 1 do
+    advance(canvas, row + i, col + width)
+  end
+  return width, height
+end
+
+---@param canvas games.Canvas
+---@param node games.ColNode
+---@param row integer
+---@param col integer
+---@return integer width
+---@return integer height
+local function place_col(canvas, node, row, col)
+  local width, height = 0, 0
+  for _, child in ipairs(node.children) do
+    local w, h = place(canvas, child, row + height, col)
+    width, height = math.max(width, w), height + h
+  end
+  return width, height
+end
+
+---Writes node with its top left at row and col; a line's columns left of col are filled first.
+---@param canvas games.Canvas
 ---@param node games.Node
----@return games.Block
-local function layout(node)
+---@param row integer
+---@param col integer
+---@return integer width
+---@return integer height
+place = function(canvas, node, row, col)
   if node.kind == "text" then
-    local str = node.str or ""
-    local extmarks = {}
-    if node.hl and #str > 0 then
-      extmarks[1] = { row = 0, col = 0, end_col = #str, hl = node.hl }
-    end
-    local width = text_util.width(str)
-    return { lines = { str }, extmarks = extmarks, widths = { width }, width = width }
+    return place_text(canvas, node, row, col)
   end
-
   if node.kind == "pad" then
-    local child = layout(node.child)
-    local indent = text_util.spaces(node.n)
-    return {
-      lines = vim.tbl_map(function(line)
-        return indent .. line
-      end, child.lines),
-      extmarks = shifted(child.extmarks, 0, node.n),
-      widths = vim.tbl_map(function(width)
-        return width + node.n
-      end, child.widths),
-      width = child.width + node.n,
-    }
+    local w, h = place(canvas, node.child, row, col + node.n)
+    return w + node.n, h
   end
-
   if node.kind == "box" then
-    return layout_box(node, layout(node.child))
+    return place_box(canvas, node, row, col)
   end
-
-  local blocks = vim.tbl_map(layout, node.children)
-
   if node.kind == "col" then
-    local lines, extmarks, widths, width = {}, {}, {}, 0
-    for _, block in ipairs(blocks) do
-      vim.list_extend(extmarks, shifted(block.extmarks, #lines, 0))
-      vim.list_extend(lines, block.lines)
-      vim.list_extend(widths, block.widths)
-      width = math.max(width, block.width)
-    end
-    return { lines = lines, extmarks = extmarks, widths = widths, width = width }
+    return place_col(canvas, node, row, col)
   end
-
-  local height, width = 0, 0
-  for _, block in ipairs(blocks) do
-    height = math.max(height, #block.lines)
-    width = width + block.width
-  end
-  local lines, extmarks, widths = {}, {}, {}
-  for i = 1, height do
-    lines[i] = ""
-    widths[i] = width
-  end
-  for _, block in ipairs(blocks) do
-    local block_marks = marks_by_row(block.extmarks)
-    for i = 1, height do
-      local line_prefix_bytes = #lines[i]
-      local row_marks = block_marks[i - 1]
-      if row_marks then
-        for _, mark in ipairs(row_marks) do
-          extmarks[#extmarks + 1] = shifted_mark(mark, 0, line_prefix_bytes)
-        end
-      end
-      local shortfall = block.width - (block.widths[i] or 0)
-      lines[i] = lines[i] .. (block.lines[i] or "") .. text_util.spaces(shortfall)
-    end
-  end
-  return { lines = lines, extmarks = extmarks, widths = widths, width = width }
+  return place_row(canvas, node, row, col)
 end
 
 ---@param node games.Node
 ---@return games.Rendered
 function M.render(node)
-  local block = layout(node)
-  return { lines = block.lines, extmarks = block.extmarks }
+  local canvas = { fragments = {}, bytes = {}, cols = {}, extmarks = {} }
+  local _, height = place(canvas, node, 0, 0)
+  local lines = {}
+  for row = 0, height - 1 do
+    lines[row + 1] = table.concat(canvas.fragments[row])
+  end
+  return { lines = lines, extmarks = canvas.extmarks }
 end
 
 ---The size render would give node, without laying it out.
