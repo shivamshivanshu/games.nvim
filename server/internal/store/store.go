@@ -35,6 +35,10 @@ const (
 	StepAction  StepKind = "action"
 	StepControl StepKind = "control"
 	StepTimeout StepKind = "timeout"
+	// StepTick and StepPause are the core's steps of a game.Ticking game,
+	// made by no player.
+	StepTick  StepKind = "tick"
+	StepPause StepKind = "pause"
 )
 
 type Outcome string

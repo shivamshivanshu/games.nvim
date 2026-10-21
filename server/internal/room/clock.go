@@ -13,9 +13,10 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-// timeoutRetryDelay paces retries after a timeout fails to persist, so a flag
-// that is already down does not re-fire in a tight loop.
-const timeoutRetryDelay = time.Second
+// retryDelay paces retries after a timeout or a tick fails to persist, so a
+// flag that is already down or a tick already due does not re-fire in a tight
+// loop.
+const retryDelay = time.Second
 
 func (s roomState) left(user game.UserID, at time.Time) time.Duration {
 	if !s.clockRunning || !s.hasTurn(user) {
@@ -65,16 +66,30 @@ func (s roomState) wireClock(g Setup, at time.Time) *protocol.WireClock {
 	return wire
 }
 
+// armTimer keeps one timer, for whichever comes first of a flag falling and a tick.
 func (r *Room) armTimer() {
 	r.stopTimer()
-	if _, d, ok := r.cur.soonestFlag(r.setup.Time.Now()); ok {
+	if d, ok := r.cur.nextWake(r.setup.Time.Now()); ok {
 		r.armIn(d)
 	}
 }
 
+// nextWake is how long after at the room must step on its own, if it must.
+func (s roomState) nextWake(at time.Time) (time.Duration, bool) {
+	_, flag, flagging := s.soonestFlag(at)
+	if s.nextTickAt.IsZero() {
+		return flag, flagging
+	}
+	tick := max(0, s.nextTickAt.Sub(at))
+	if !flagging {
+		return tick, true
+	}
+	return min(flag, tick), true
+}
+
 func (r *Room) armIn(d time.Duration) {
 	r.stopTimer()
-	r.timer = r.setup.Time.AfterFunc(d, r.tick)
+	r.timer = r.setup.Time.AfterFunc(d, r.wake)
 }
 
 func (r *Room) stopTimer() {
@@ -84,8 +99,9 @@ func (r *Room) stopTimer() {
 	}
 }
 
-// tick only wakes the actor: the loop expires flagged players before every message.
-func (r *Room) tick() {
+// wake only wakes the actor: the loop expires flagged players and ticks a due
+// game before every message.
+func (r *Room) wake() {
 	select {
 	case r.inbox <- func() {}:
 	case <-r.exited:
@@ -100,6 +116,6 @@ func (r *Room) expireFlagged() {
 	}
 	if _, err := r.commit(step{seq: r.cur.seq + 1, user: user, kind: store.StepTimeout, at: now}); err != nil {
 		slog.Error("room: persist timeout", "game", r.setup.ID, "user", user, "err", err)
-		r.armIn(timeoutRetryDelay)
+		r.armIn(retryDelay)
 	}
 }

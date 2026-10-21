@@ -19,6 +19,10 @@ type step struct {
 	at      time.Time
 }
 
+// paces reports whether st is a tick or a pause, which set a real-time game's
+// pace and come too often for a player to have seen before acting.
+func (st step) paces() bool { return st.kind == store.StepTick || st.kind == store.StepPause }
+
 func (st step) record(remaining map[game.UserID]time.Duration) (store.StepRecord, error) {
 	rec := store.StepRecord{Seq: st.seq, User: st.user, Kind: st.kind, Payload: st.action, At: st.at, ClockRemaining: remaining}
 	if st.kind != store.StepControl {

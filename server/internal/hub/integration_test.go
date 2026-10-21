@@ -70,7 +70,7 @@ func (e *env) start(t *testing.T) server {
 	ctx, cancel := context.WithCancel(context.Background())
 	h, err := hub.New(ctx, hub.Deps{
 		Store:   e.store,
-		Games:   append(games.All(), game.Adapt(gametest.CounterRules{}), game.Adapt(gametest.ScoredCounterRules{}), game.Adapt(gametest.SoloCounterRules{})),
+		Games:   append(games.All(), game.Adapt(gametest.CounterRules{}), game.Adapt(gametest.ScoredCounterRules{}), game.Adapt(gametest.SoloCounterRules{}), game.Adapt(gametest.MetronomeRules{})),
 		Limits:  lim,
 		Time:    e.clock,
 		Lockout: auth.NewLockout(lim.LockoutFailures, lim.LockoutWindow, lim.LockoutDuration, e.clock.Now),

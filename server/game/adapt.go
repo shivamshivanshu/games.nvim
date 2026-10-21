@@ -2,10 +2,12 @@ package game
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"reflect"
 	"slices"
+	"time"
 )
 
 type adapted[Opts, Action, View any] struct {
@@ -142,6 +144,31 @@ func (e erased[Action, View]) KnockedOut() []Seat {
 		return []Seat{}
 	}
 	return knockout.KnockedOut()
+}
+
+func (e erased[Action, View]) NextTick() (time.Duration, bool) {
+	ticking, ok := e.state.(Ticking[Action, View])
+	if !ok {
+		return 0, false
+	}
+	return ticking.NextTick()
+}
+
+func (e erased[Action, View]) Tick(rng *rand.Rand) (ErasedState, []json.RawMessage, error) {
+	ticking, ok := e.state.(Ticking[Action, View])
+	if !ok {
+		return nil, nil, errors.New("game: tick of a state that does not tick")
+	}
+	next, events := ticking.Tick(rng)
+	return erasedWithEvents(next, events)
+}
+
+func (e erased[Action, View]) Pause() ErasedState {
+	ticking, ok := e.state.(Ticking[Action, View])
+	if !ok {
+		return erased[Action, View]{state: e.state}
+	}
+	return erased[Action, View]{state: ticking.Pause()}
 }
 
 func (e erased[Action, View]) Scores() (map[Seat]int64, bool) {

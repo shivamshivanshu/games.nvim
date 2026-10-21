@@ -89,7 +89,7 @@ is defined in [Game updates](#game-updates).
 | Type | Body | Sent to |
 |---|---|---|
 | `challenge.changed` | `Challenge` | Every participant, on each change: created, an accept, accepted, declined, cancelled, expired. |
-| `game.update` | `GameUpdate` | Every player, after every step (an action, a control or a timeout). Each recipient gets its own `view` and `controls`. |
+| `game.update` | `GameUpdate` | Every player, after every step (an action, a control, a timeout, or a real-time game's tick or pause). Each recipient gets its own `view` and `controls`. |
 
 ## Error codes
 
@@ -102,7 +102,7 @@ is defined in [Game updates](#game-updates).
 | `not_found` | No such game, the user is not one of its players, or `game.act`/`game.control` on a finished game the server has dropped (see below). |
 | `not_your_turn` | `game.act` when the user is not in `to_act`. |
 | `illegal_action` | The game rejects the action, the control is not in `controls`, or the game is over but the server still holds it. |
-| `stale` | `seq` is not the game's current seq. Nothing changed. |
+| `stale` | `seq` is not the game's current seq; in a real-time game, ticks and pauses past it do not count (see [Ticks](#ticks)). Nothing changed. |
 | `internal` | A server fault, or `server full` before login. |
 | `summary_mismatch` | `game.verify` with a summary the server did not seal. |
 
@@ -135,8 +135,8 @@ Arrays are never `null`. Every field is always present.
 
 ### Seq rules
 
-- `seq` counts the game's steps: 0 at the start, plus 1 for each accepted action, control or timeout.
-- `game.act` and `game.control` carry the seq the client acted on. If it differs from the current seq, the reply is `stale` and nothing changes. The reply's `seq` is the step's new seq, and the matching `game.update` push carries the same seq.
+- `seq` counts the game's steps: 0 at the start, plus 1 for each accepted action, control, timeout, tick or pause.
+- `game.act` and `game.control` carry the seq the client acted on. If it differs from the current seq, the reply is `stale` and nothing changes. A real-time game's ticks and pauses are the exception: see [Ticks](#ticks). The reply's `seq` is the step's new seq, and the matching `game.update` push carries the same seq.
 - Updates with equal seq hold the same state. Keep the update with the highest seq, and ignore any update whose seq is not higher than the one held.
 - A push whose seq jumps by more than 1 means steps were missed. Their events are lost, so take a `game.snapshot` rather than relying on the push.
 - Error-checking order for `game.act` and `game.control`: `not_found`, then `stale`, then the game's verdict (`not_your_turn`, `illegal_action`, `bad_request`).
@@ -151,6 +151,18 @@ snapshot or list, it is the time of the read.
 - `running` is the user whose time is falling, or `null` when no clock runs. A clock runs only once every player has acted once.
 - To show a countdown, compute `remaining_ms[running] - max(0, now_ms - as_of_ms)`, clamped at 0. This assumes the client's and the server's wall clocks agree. The server alone decides timeouts, and sends them as a step whose result reason is `timeout`.
 - The increment is added to the mover after their move.
+
+### Ticks
+
+A real-time game, such as Pacman, moves on its own. The server steps it in
+ticks; the game sets the time between them, which can change as it goes, and
+stops them while it waits on its player.
+
+- A tick is a step like any other: it takes the next seq, is stored, replayed on a restart, and pushed as a `game.update` with the events it made. A game ticks at several steps a second, so expect that many pushes; each is the whole game.
+- Input does not delay a tick: an action keeps the next tick at the time it was due.
+- A seq is stale only once a player's step (an action or a control) came after it. Ticks and pauses after it do not make it stale, so a client may act on the latest update it has even if ticks went past it in flight. The reply's `seq` is still the step's new seq.
+- **Pause.** The server pauses a real-time game when its player's last session closes, and when it restarts with the game ongoing; a pause is a step of its own. The game may also take a pause action from its player. While paused, no ticks come. The game's own actions resume it; Pacman resumes on any turn.
+- No tick comes once the game is finished.
 
 ### Finished games
 
@@ -525,16 +537,18 @@ server with users `alice`, `bob`, `carol` and `dave`, all with the password
 {"client": "alice", "send": {...envelope...}}
 {"client": "alice", "recv": {...envelope...}}
 {"client": "alice", "close": true}
+{"advance_ms": 120}
 ```
 
 - A client connects on its first `send`, and again on its first `send` after a `close`.
 - `recv` takes the first message that client has received, in arrival order, that matches. This allows pushes and replies to interleave. Objects match on exactly the same keys.
 - A string `"$name"` is a placeholder for an id, a time or a UUID. It matches any value the first time and binds `name` to it. Every later use of the same name, in any `recv`, must equal the bound value, and in `send` it is replaced by that value.
 - A string starting `$$` is a literal: `"$$x"` matches or sends `"$x"`.
+- `advance_ms` moves the server's clock on, firing the timers that come due, such as a real-time game's tick or a flag falling.
 - At the end, and before each `close`, any message the transcript did not expect fails the replay.
 - The replay also validates every server line against `schema/`.
 - `solo_counter` is a test game the replay server registers, so that a solo start is covered.
 
 The Go replay is `TestConformanceTranscripts` in `server/internal/hub`. It
-runs the real hub, store and sessions, with a clock that does not advance
-during the run.
+runs the real hub, store and sessions, with a clock that advances only on
+`advance_ms`.

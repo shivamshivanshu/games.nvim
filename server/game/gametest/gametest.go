@@ -2,6 +2,7 @@ package gametest
 
 import (
 	"maps"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"testing"
@@ -11,7 +12,22 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
+// StepKind is who makes a script step: a seat acting, or the core ticking or
+// pausing a game.Ticking state.
+type StepKind int
+
+const (
+	// StepAction is Seat applying Action; the zero kind.
+	StepAction StepKind = iota
+	// StepTick is the core's tick of a state whose NextTick is due.
+	StepTick
+	// StepPause is the core pausing a state, as when its player goes away.
+	StepPause
+)
+
+// Step is one step of a Script. Seat, Action and WantErr apply to StepAction alone.
 type Step[Action any] struct {
+	Kind    StepKind
 	Seat    game.Seat
 	Action  Action
 	WantErr bool
@@ -86,7 +102,7 @@ func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, V
 	applied := game.Seq(0)
 	for i, step := range script.Steps {
 		before := observe(t, state, allSeats)
-		next, events, err := state.Apply(step.Seat, step.Action, game.StepRNG(script.Seed, applied+1))
+		next, events, err := advance(t, state, step, game.StepRNG(script.Seed, applied+1))
 		if diff := cmp.Diff(before, observe(t, state, allSeats)); diff != "" {
 			t.Fatalf("step %d: Apply mutated its receiver (-before +after):\n%s", i, diff)
 		}
@@ -105,6 +121,27 @@ func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, V
 	}
 	result, finished := state.Outcome()
 	return replay[View]{Seats: seats, Observed: observed, FinalResult: result, Finished: finished}, state
+}
+
+// advance makes step on state; a tick or pause step on a state that is not a
+// game.Ticking, or a tick it does not want, fails the test.
+func advance[Action, View any](t testing.TB, state game.State[Action, View], step Step[Action], rng *rand.Rand) (game.State[Action, View], []game.Event, error) {
+	t.Helper()
+	if step.Kind == StepAction {
+		return state.Apply(step.Seat, step.Action, rng)
+	}
+	ticking, ok := state.(game.Ticking[Action, View])
+	if !ok {
+		t.Fatalf("a tick or pause step on %T, which is not a game.Ticking", state)
+	}
+	if step.Kind == StepPause {
+		return ticking.Pause(), nil, nil
+	}
+	if _, due := ticking.NextTick(); !due {
+		t.Fatalf("a tick step on a state that wants no tick")
+	}
+	next, events := ticking.Tick(rng)
+	return next, events, nil
 }
 
 // record observes state as reached by a step that emitted events.
@@ -136,6 +173,11 @@ func observe[Action, View any](t testing.TB, state game.State[Action, View], sea
 	toAct := state.ToAct()
 	if finished != (len(toAct) == 0) {
 		t.Fatalf("ToAct()=%v but Outcome finished=%t: ToAct must be empty exactly when finished", toAct, finished)
+	}
+	if ticking, ok := state.(game.Ticking[Action, View]); ok && finished {
+		if _, due := ticking.NextTick(); due {
+			t.Fatalf("a finished state wants a tick; NextTick must be false once finished")
+		}
 	}
 	return observation[View]{Views: views, ToAct: toAct, Result: result, Finished: finished}
 }

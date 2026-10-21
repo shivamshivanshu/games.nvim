@@ -55,6 +55,20 @@ type Opener interface {
 	OpeningEvents() []Event
 }
 
+// Ticking is optionally implemented by a state that moves on its own, such as
+// a real-time game. The core ticks it as a step of its own, recorded like an
+// action, so a restore replays it exactly; the rules read no clock.
+type Ticking[Action, View any] interface {
+	// NextTick is how long after reaching this state its next tick is due,
+	// and false while it waits on its players, such as paused or finished.
+	NextTick() (time.Duration, bool)
+	// Tick advances the state by one tick, drawing from the tick step's rng.
+	Tick(rng *rand.Rand) (State[Action, View], []Event)
+	// Pause is the state stopped until its player acts again; the core
+	// pauses a game whose player went away.
+	Pause() State[Action, View]
+}
+
 // Knockout is optionally implemented by a state whose rules put seats out of
 // play before the game ends, such as a player left with no dice or no chips.
 // The core counts those seats as eliminated without calling Eliminate: they
@@ -104,6 +118,12 @@ type ErasedState interface {
 	// KnockedOut are the seats a Knockout state's rules put out, and empty
 	// otherwise.
 	KnockedOut() []Seat
+	// NextTick is a Ticking state's own, and false for any other.
+	NextTick() (time.Duration, bool)
+	// Tick fails for a state that is not Ticking.
+	Tick(rng *rand.Rand) (ErasedState, []json.RawMessage, error)
+	// Pause is the state itself for a state that is not Ticking.
+	Pause() ErasedState
 }
 
 func ForfeitToRemaining(all []Seat, eliminated Seat, reason ResultReason) Result {

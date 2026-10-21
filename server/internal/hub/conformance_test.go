@@ -17,6 +17,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
+	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
@@ -29,14 +30,16 @@ const (
 	syncID = "999999"
 )
 
-// transcriptLine is one line of a docs/conformance transcript: a comment, or
-// one client sending, receiving, or closing its connection.
+// transcriptLine is one line of a docs/conformance transcript: a comment,
+// one client sending, receiving, or closing its connection, or the server's
+// clock moving on by AdvanceMS, which fires the timers that come due.
 type transcriptLine struct {
-	Comment string          `json:"comment"`
-	Client  string          `json:"client"`
-	Send    json.RawMessage `json:"send"`
-	Recv    json.RawMessage `json:"recv"`
-	Close   bool            `json:"close"`
+	Comment   string          `json:"comment"`
+	Client    string          `json:"client"`
+	Send      json.RawMessage `json:"send"`
+	Recv      json.RawMessage `json:"recv"`
+	Close     bool            `json:"close"`
+	AdvanceMS int64           `json:"advance_ms"`
 }
 
 func TestConformanceTranscripts(t *testing.T) {
@@ -48,7 +51,8 @@ func TestConformanceTranscripts(t *testing.T) {
 	for _, path := range paths {
 		t.Run(strings.TrimSuffix(filepath.Base(path), ".ndjson"), func(t *testing.T) {
 			t.Parallel()
-			r := &replay{t: t, addr: newEnv(t).start(t).addr, wire: loadWireSchema(t), clients: map[string]*rawClient{}, bound: map[string]any{}}
+			e := newEnv(t)
+			r := &replay{t: t, addr: e.start(t).addr, clock: e.clock, wire: loadWireSchema(t), clients: map[string]*rawClient{}, bound: map[string]any{}}
 			for n, line := range readTranscript(t, path) {
 				r.step(fmt.Sprintf("%s:%d", filepath.Base(path), n+1), line)
 			}
@@ -83,6 +87,7 @@ func readTranscript(t *testing.T, path string) []transcriptLine {
 type replay struct {
 	t       *testing.T
 	addr    string
+	clock   *clocktest.FakeClock
 	wire    *wireSchema
 	clients map[string]*rawClient
 	bound   map[string]any
@@ -99,6 +104,8 @@ func (r *replay) step(at string, line transcriptLine) {
 		r.flush(line.Client)
 		_ = r.clients[line.Client].conn.Close()
 		delete(r.clients, line.Client)
+	case line.AdvanceMS > 0:
+		r.clock.Advance(time.Duration(line.AdvanceMS) * time.Millisecond)
 	default:
 		r.t.Fatalf("%s: line does nothing", at)
 	}

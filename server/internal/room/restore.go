@@ -36,5 +36,12 @@ func Restore(ctx context.Context, g Setup, steps []store.StepRecord) (*Room, err
 	}
 	// Downtime is not charged: clocks resume from the last persisted values as of now.
 	s.since = p.Time.Now()
-	return launch(ctx, g, s), nil
+	r := newRoom(ctx, g, s)
+	// Nobody is connected to a game the server has just restored, so a
+	// ticking one waits, paused, for its player.
+	if _, err := r.pause(); err != nil {
+		return nil, fmt.Errorf("room: restore %s: pause: %w", p.ID, err)
+	}
+	go r.run()
+	return r, nil
 }

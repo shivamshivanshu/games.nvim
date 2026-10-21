@@ -527,7 +527,7 @@ func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
 	h.persist.setFail(errors.New("disk full"))
 	h.clock.Advance(10 * time.Minute)
 
-	retryAt := h.clock.Now().Add(timeoutRetryDelay)
+	retryAt := h.clock.Now().Add(retryDelay)
 	deadline := time.Now().Add(waitTimeout)
 	for h.persist.attempted() < 3 || !slices.Equal(h.clock.Armed(), []time.Time{retryAt}) {
 		if time.Now().After(deadline) {

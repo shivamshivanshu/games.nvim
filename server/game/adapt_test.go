@@ -6,6 +6,7 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -200,5 +201,36 @@ func TestAdaptForwardsTheRulesCatalogs(t *testing.T) {
 	catalog, ok := game.Adapt(cataloguedCounterRules{}).EventCatalog()
 	if !ok || len(catalog.EventTypes()) != 1 {
 		t.Errorf("event catalog %v, %t", catalog, ok)
+	}
+}
+
+func TestAdaptTicksOnlyATickingState(t *testing.T) {
+	counter, _, err := game.Adapt(gametest.CounterRules{}).New(game.Options{optStep: "1"}, "u", nil, game.StepRNG(1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, due := counter.NextTick(); due {
+		t.Error("a counter, which does not tick, wants a tick")
+	}
+	if _, _, err := counter.Tick(game.StepRNG(1, 1)); err == nil {
+		t.Error("ticking a counter succeeded")
+	}
+
+	metronome, _, err := game.Adapt(gametest.MetronomeRules{}).New(game.Options{}, "u", nil, game.StepRNG(1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, due := metronome.NextTick(); d != gametest.MetronomeInterval || !due {
+		t.Errorf("metronome NextTick = %v, %t; want %v, true", d, due, gametest.MetronomeInterval)
+	}
+	ticked, events, err := metronome.Tick(game.StepRNG(1, 1))
+	if err != nil || len(events) != 1 || !strings.Contains(string(events[0]), `"kind":"beat"`) {
+		t.Fatalf("metronome tick events %s, %v; want one beat", events, err)
+	}
+	if _, due := ticked.Pause().NextTick(); due {
+		t.Error("a paused metronome wants a tick")
+	}
+	if _, due := ticked.NextTick(); !due {
+		t.Error("pausing changed the state it paused")
 	}
 }

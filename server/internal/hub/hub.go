@@ -80,12 +80,31 @@ func (h *Hub) addSession(s *session.Session) {
 }
 
 func (h *Hub) removeSession(s *session.Session) {
+	if h.dropSession(s) {
+		h.pauseGamesOf(s.User())
+	}
+}
+
+// dropSession reports whether s was its user's last session.
+func (h *Hub) dropSession(s *session.Session) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	set := h.sessions[s.User()]
 	delete(set, s)
-	if len(set) == 0 {
-		delete(h.sessions, s.User())
+	if len(set) > 0 {
+		return false
+	}
+	delete(h.sessions, s.User())
+	return true
+}
+
+// pauseGamesOf pauses the real-time games of a user who went away, so they
+// do not play on without the user.
+func (h *Hub) pauseGamesOf(user game.UserID) {
+	for _, r := range h.liveRoomsOf(user) {
+		if err := r.Pause(h.ctx); err != nil && h.ctx.Err() == nil {
+			slog.Error("hub: pause on disconnect", "user", user, "err", err)
+		}
 	}
 }
 

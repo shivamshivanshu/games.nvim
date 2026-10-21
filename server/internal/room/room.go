@@ -117,6 +117,11 @@ type roomState struct {
 	remaining  map[game.UserID]time.Duration
 	since      time.Time
 	lastStepAt time.Time
+	// freshFrom is the oldest seq a player may act on: ticks and pauses
+	// since then do not make it stale.
+	freshFrom game.Seq
+	// nextTickAt is when a ticking game's next tick is due, zero when none is.
+	nextTickAt time.Time
 	final      *archive.Finished
 	// result, toAct and clockRunning follow from the fields above; settled
 	// recomputes them whenever those change.
@@ -126,7 +131,7 @@ type roomState struct {
 }
 
 func initialState(g Setup, state game.ErasedState, now time.Time) roomState {
-	s := roomState{game: state, events: state.OpeningEvents(), since: now, lastStepAt: g.CreatedAt}
+	s := roomState{game: state, events: state.OpeningEvents(), since: now, lastStepAt: g.CreatedAt, nextTickAt: tickDue(state, now)}
 	if g.clock.Enabled {
 		s.remaining = make(map[game.UserID]time.Duration, len(g.Players))
 		for _, player := range g.Players {
@@ -172,6 +177,10 @@ func (s roomState) apply(g Setup, st step) (roomState, error) {
 		next, err = next.applyControl(g, st)
 	case store.StepTimeout:
 		next, err = next.applyTimeout(g, st)
+	case store.StepTick:
+		next, err = next.applyTick(g, st)
+	case store.StepPause:
+		next = next.applyPause(g)
 	default:
 		err = fmt.Errorf("room: unknown step kind %q", st.kind)
 	}
@@ -179,8 +188,12 @@ func (s roomState) apply(g Setup, st step) (roomState, error) {
 		return roomState{}, err
 	}
 	next.seq = st.seq
+	if !st.paces() {
+		next.freshFrom = st.seq
+	}
 	next.since, next.lastStepAt = st.at, st.at
 	next.remaining = s.clockAfter(g, st, next)
+	next.nextTickAt = s.tickAfter(st, next)
 	return next, nil
 }
 
@@ -378,7 +391,13 @@ func Start(ctx context.Context, g Setup, state game.ErasedState) *Room {
 }
 
 func launch(ctx context.Context, g Setup, s roomState) *Room {
-	r := &Room{
+	r := newRoom(ctx, g, s)
+	go r.run()
+	return r
+}
+
+func newRoom(ctx context.Context, g Setup, s roomState) *Room {
+	return &Room{
 		setup:  g,
 		ctx:    ctx,
 		cur:    s,
@@ -386,8 +405,6 @@ func launch(ctx context.Context, g Setup, s roomState) *Room {
 		done:   make(chan struct{}),
 		exited: make(chan struct{}),
 	}
-	go r.run()
-	return r
 }
 
 func (r *Room) Done() <-chan struct{} { return r.done }
@@ -400,6 +417,7 @@ func (r *Room) run() {
 		select {
 		case msg := <-r.inbox:
 			r.expireFlagged()
+			r.tickIfDue()
 			msg()
 		case <-r.ctx.Done():
 			return
@@ -468,10 +486,10 @@ func (r *Room) submit(ctx context.Context, seq game.Seq, st step) (game.Seq, err
 		if _, ok := r.setup.seats[st.user]; !ok {
 			return 0, ErrNotAPlayer
 		}
-		if seq != r.cur.seq {
+		if seq < r.cur.freshFrom || seq > r.cur.seq {
 			return 0, ErrStale
 		}
-		st.seq, st.at = seq+1, r.setup.Time.Now()
+		st.seq, st.at = r.cur.seq+1, r.setup.Time.Now()
 		return r.commit(st)
 	}, r.rejectAfterExit)
 }
@@ -485,8 +503,10 @@ func (r *Room) commit(st step) (game.Seq, error) {
 		return 0, err
 	}
 	r.cur = next
-	r.broadcast()
+	// Armed before the update goes out, so a test clock advanced on seeing
+	// the update always finds the next wake.
 	r.armTimer()
+	r.broadcast()
 	return next.seq, nil
 }
 
