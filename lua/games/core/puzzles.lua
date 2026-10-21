@@ -167,18 +167,23 @@ local function read_file(path, read, opts)
     end,
   })
   local every, count = opts.progress_every or PROGRESS_LINES, 0
-  for line in lines do
-    reader.line(line)
-    if file.capped then
-      close()
-      return file
+  local ok, err = pcall(function()
+    for line in lines do
+      reader.line(line)
+      if file.capped then
+        return
+      end
+      count = count + 1
+      if opts.on_progress and count % every == 0 then
+        opts.on_progress(count)
+      end
     end
-    count = count + 1
-    if opts.on_progress and count % every == 0 then
-      opts.on_progress(count)
-    end
+    reader.finish()
+  end)
+  close()
+  if not ok then
+    error(err, 0)
   end
-  reader.finish()
   return file
 end
 

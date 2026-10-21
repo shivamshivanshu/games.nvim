@@ -132,9 +132,13 @@ function M.lines(path)
   end
   local function fill()
     local read_err, chunk = call(uv.fs_read, fd, CHUNK_BYTES, -1)
-    if read_err or chunk == "" then
+    if read_err then
+      at_end = true
+      call(uv.fs_close, fd)
+      error(read_err, 0)
+    end
+    if chunk == "" then
       close()
-      raise(read_err)
       lines, index = partial ~= "" and { partial } or {}, 0
       return
     end

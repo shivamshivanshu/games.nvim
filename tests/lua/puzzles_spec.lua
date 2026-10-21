@@ -376,4 +376,33 @@ function T.summaries_give_each_saved_set_its_size_and_next_entry()
   end)
 end
 
+---@return integer
+local function open_files()
+  return #vim.fn.readdir("/dev/fd")
+end
+
+function T.a_reader_that_fails_mid_file_fails_the_import_and_closes_the_file()
+  with_sets_dir(function()
+    local before = open_files()
+    helpers.with_overrides({
+      {
+        formats.READERS,
+        "csv",
+        function()
+          return {
+            line = function()
+              error("bad row", 0)
+            end,
+            finish = function() end,
+          }
+        end,
+      },
+    }, function()
+      assert_eq("bad row", (import(CSV, nil)))
+    end)
+    assert_eq(before, open_files())
+    assert_eq({}, puzzles.set_names())
+  end)
+end
+
 return T
