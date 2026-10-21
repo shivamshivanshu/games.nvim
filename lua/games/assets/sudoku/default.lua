@@ -1,45 +1,11 @@
-local GLYPH_WIDTH = 3
+local art = require("games.ui.art")
+local build = require("games.assets.shared.build")
+local font = require("games.assets.pixel_font")
+local sudoku = require("games.games.sudoku")
 
----3x5 pixel digits, "#" lit.
----@type table<string, string[]>
-local FONT = {
-  ["1"] = { " # ", "## ", " # ", " # ", "###" },
-  ["2"] = { "## ", "  #", " # ", "#  ", "###" },
-  ["3"] = { "## ", "  #", " # ", "  #", "## " },
-  ["4"] = { "# #", "# #", "###", "  #", "  #" },
-  ["5"] = { "###", "#  ", "## ", "  #", "## " },
-  ["6"] = { " ##", "#  ", "###", "# #", "###" },
-  ["7"] = { "###", "  #", " # ", " # ", " # " },
-  ["8"] = { "###", "# #", "###", "# #", "###" },
-  ["9"] = { "###", "# #", "###", "  #", "## " },
-}
-
----Each pixel pair stacked in one line: upper, lower, both or neither lit.
-local HALF_BLOCKS =
-  { [" "] = { [" "] = " ", ["#"] = "▄" }, ["#"] = { [" "] = "▀", ["#"] = "█" } }
-
----@param pixels string[]
----@return string[] the pixels at one column each, two rows to a line
-local function half_height(pixels)
-  local lines = {}
-  for row = 1, #pixels, 2 do
-    local upper, lower = pixels[row], pixels[row + 1] or (" "):rep(#pixels[row])
-    local line = {}
-    for col = 1, #upper do
-      line[col] = HALF_BLOCKS[upper:sub(col, col)][lower:sub(col, col)]
-    end
-    lines[#lines + 1] = table.concat(line)
-  end
-  return lines
-end
-
----@param pixels string[]
----@return string[] the pixels at two full-block columns each, one row to a line
-local function full_size(pixels)
-  return vim.tbl_map(function(row)
-    return (row:gsub(" ", "  "):gsub("#", "██"))
-  end, pixels)
-end
+---@type string[] the digits a cell holds
+local DIGITS = vim.tbl_map(tostring, vim.fn.range(1, 9))
+local PLAIN = "plain"
 
 ---How a marker frames a digit, without colour: the one-line glyph, and the columns either side
 ---of the art, by line.
@@ -49,7 +15,7 @@ end
 
 ---@type table<string, games.SudokuFrame>
 local FRAMES = {
-  plain = {
+  [PLAIN] = {
     glyph = function(digit)
       return (" %s "):format(digit)
     end,
@@ -82,7 +48,7 @@ local FRAMES = {
 ---@param frame string
 ---@return string
 local function key_of(digit, frame)
-  return frame == "plain" and digit or ("%s:%s"):format(frame, digit)
+  return art.marked_key(digit, frame ~= PLAIN and frame or nil)
 end
 
 ---@param body string[]
@@ -94,28 +60,29 @@ local function framed(body, frame)
     local left, right = frame.sides(i, #body)
     lines[i] = left .. line .. right
   end
-  return { h = #lines, w = vim.fn.strchars(lines[1]), lines = lines }
+  return build.sprite(lines)
 end
 
 ---@param empty string
 ---@return games.ArtSet each digit plain and framed per marker, and the empty cell
 local function glyph_set(empty)
-  local set = { empty = { { h = 1, w = GLYPH_WIDTH, lines = { (" %s "):format(empty) } } } }
-  for digit in pairs(FONT) do
+  local lines = { empty = (" %s "):format(empty) }
+  for _, digit in ipairs(DIGITS) do
     for name, frame in pairs(FRAMES) do
-      set[key_of(digit, name)] = { { h = 1, w = GLYPH_WIDTH, lines = { frame.glyph(digit) } } }
+      lines[key_of(digit, name)] = frame.glyph(digit)
     end
   end
-  return set
+  return build.glyph_set(lines, sudoku.glyph_width)
 end
 
 ---@return games.ArtSet
 local function art_set()
   local set = {}
-  for digit, pixels in pairs(FONT) do
+  for _, digit in ipairs(DIGITS) do
+    local pixels = font.DIGITS[digit]
     for name, frame in pairs(FRAMES) do
       set[key_of(digit, name)] =
-        { framed(half_height(pixels), frame), framed(full_size(pixels), frame) }
+        { framed(font.half_height(pixels), frame), framed(font.full_size(pixels), frame) }
     end
   end
   return set

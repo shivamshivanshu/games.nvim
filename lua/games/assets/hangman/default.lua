@@ -1,8 +1,12 @@
-local wordle = require("games.assets.wordle.default")
+local art = require("games.ui.art")
+local build = require("games.assets.shared.build")
+local hangman = require("games.games.hangman")
+local letters = require("games.assets.shared.letters")
+local text = require("games.ui.text")
 
-local LETTERS = "abcdefghijklmnopqrstuvwxyz"
----Line heights of the block art, matching Wordle's letter sprites.
-local ART_HEIGHTS = { 3, 6 }
+local GALLOWS_MARKER = "gallows"
+---@type table<string, games.LetterMarker> an unfound letter draws as the shared present letter
+local UNFOUND_MARKERS = { unfound = letters.Marker.PRESENT }
 
 ---The whole gallows, one figure per glyph mode; the misses draw its body parts in PARTS order.
 ---@type table<games.Glyphs, string[]>
@@ -32,59 +36,41 @@ local PARTS = { { 3, 7 }, { 4, 7 }, { 4, 6 }, { 4, 8 }, { 5, 6 }, { 5, 8 } }
 ---@param misses integer
 ---@return games.ArtEntry the gallows with the first misses parts of the body drawn
 local function stage(figure, misses)
-  local rows = vim.tbl_map(function(line)
-    return vim.fn.split(line, "\\zs")
-  end, figure)
+  local rows = vim.tbl_map(text.chars, figure)
   for i = misses + 1, #PARTS do
     local line, col = unpack(PARTS[i])
     rows[line][col] = " "
   end
-  return {
-    h = #figure,
-    w = #rows[1],
-    lines = vim.tbl_map(table.concat, rows),
-  }
-end
-
----@param line string
----@return games.ArtEntry
-local function glyph(line)
-  return { h = 1, w = 3, lines = { line } }
+  return build.sprite(vim.tbl_map(table.concat, rows))
 end
 
 ---@param mode games.Glyphs
 ---@return games.ArtSet
 local function glyph_set(mode)
-  local set = { hidden = { glyph(" _ ") } }
-  for letter in LETTERS:gmatch(".") do
-    set[letter] = { glyph((" %s "):format(letter:upper())) }
-    set["unfound:" .. letter] = { glyph(("(%s)"):format(letter:upper())) }
-  end
+  local lines = letters.by_letter(letters.glyph, UNFOUND_MARKERS)
+  lines.hidden = " _ "
+  local set = build.glyph_set(lines, hangman.glyph_width)
   for misses = 0, #PARTS do
-    set["gallows:" .. misses] = { stage(GALLOWS[mode], misses) }
+    set[art.marked_key(misses, GALLOWS_MARKER)] = { stage(GALLOWS[mode], misses) }
   end
   return set
 end
 
----A hidden letter in block art: a bar along the bottom of the tile.
+---A hidden letter in block art: a bar along the bottom of a letter's tile.
 ---@param h integer
 ---@return games.ArtEntry
 local function hidden_sprite(h)
-  local w = 2 * h
-  local lines = vim.fn["repeat"]({ (" "):rep(w) }, h - 1)
+  local w = art.CELL_ASPECT * h
+  local lines = vim.fn["repeat"]({ text.spaces(w) }, h - 1)
   lines[h] = ("▀"):rep(w)
-  return { h = h, w = w, lines = lines }
+  return build.sprite(lines)
 end
 
----Block art: Wordle's letter sprites, its present-marked ones for unfound letters, and a bar for a
----hidden letter.
+---Block art: the shared letters, present-marked for unfound ones, and a bar for a hidden letter.
 ---@return games.ArtSet
 local function art_set()
-  local set = { hidden = vim.tbl_map(hidden_sprite, ART_HEIGHTS) }
-  for letter in LETTERS:gmatch(".") do
-    set[letter] = wordle.art[letter]
-    set["unfound:" .. letter] = wordle.art["present:" .. letter]
-  end
+  local set = letters.by_letter(letters.art, UNFOUND_MARKERS)
+  set.hidden = vim.tbl_map(hidden_sprite, letters.HEIGHTS)
   return set
 end
 
