@@ -341,6 +341,22 @@ An action object always carries `kind`.
   - `word` is absent until the game finishes, however it ends.
 - Actions: `guess` (`text`: one letter, or a 5-letter word from the word list; any case, surrounding spaces ignored). A repeated guess, or a word outside the list, is an `illegal_action` and costs nothing. The catalogue gives the pattern.
 
+### Minesweeper
+
+- Solo: one seat, `solver`; start it with `game.start`. Option `difficulty`: `easy` (default, 9x9 with 10 mines), `medium` (16x16, 40), `hard` (16 rows by 30 columns, 99).
+- Reasons: `mine` (a loss, no winner), `cleared`.
+- Events, `row` and `col` 1-based from the top left:
+  - `revealed {by: seat, row, col, opened}`, `opened` the cells it opened, 0 for a mine;
+  - `flagged {by: seat, row, col, flagged}`, `flagged` false when the flag came off;
+  - `chorded {by: seat, row, col, opened}`, on the number chorded.
+- View `{cells, flags, remaining, chordable}`:
+  - `cells` is rows of strings, row 1 at the top: `hidden`, `flag`, or a revealed count `"0"` to `"8"`; once the game is over every mine is `mine`, the one revealed `exploded`, and a flag on a safe cell `wrong_flag`;
+  - no cell is `mine`, `exploded` or `wrong_flag` before the end, and nothing else in the view or events locates a mine;
+  - `remaining` is the mine count less `flags`, negative with more flags than mines;
+  - `chordable` lists `{row, col}` of the revealed numbers a chord acts on now; `[]` once over.
+- Actions `reveal`, `flag` and `chord`, each with `cell`: a row letter `a`-`p`, either case, then a column number `1`-`30`, e.g. `"c12"`. The catalogue gives the pattern; a cell off the chosen board is an `illegal_action`.
+- The mines are placed by the first `reveal`, from that step's seeded random source, never on the revealed cell or its neighbours.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked

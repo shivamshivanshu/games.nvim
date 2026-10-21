@@ -380,6 +380,9 @@ the current state are mapped; the footer lists them.
             as a miss
     m       mastermind: guess 4 colour letters from `rgbyop`, e.g. `rgby`
     m       hangman: guess one letter, or the whole word
+    m       minesweeper: reveal a cell, `c12` is row c, column 12
+    f       minesweeper: flag or unflag a cell
+    c       minesweeper: chord a revealed number, when one can be chorded
     ]g      next game waiting on your move
     q       close
 

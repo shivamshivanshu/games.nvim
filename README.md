@@ -21,6 +21,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Chess puzzles and study | 1 (solo) | [docs/games/chess_puzzle.md](docs/games/chess_puzzle.md) |
 | Mastermind | 1 (solo) | [docs/games/mastermind.md](docs/games/mastermind.md) |
 | Hangman | 1 (solo) | [docs/games/hangman.md](docs/games/hangman.md) |
+| Minesweeper | 1 (solo) | [docs/games/minesweeper.md](docs/games/minesweeper.md) |
 
 ## Requirements
 
@@ -286,6 +287,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `n` | reveal the line's move (chess puzzle, study mode only); counts as a miss |
 | `m` (mastermind) | guess a code of 4 colour letters from `rgbyop`, e.g. `rgby` |
 | `m` (hangman) | guess one letter, or the whole word |
+| `m`, `f`, `c` (minesweeper) | reveal, flag or unflag, and chord a cell: `c12` is row c, column 12; `c` only when a number can be chorded |
 | `]g` | next game waiting on your move |
 | `q` | close |
 
