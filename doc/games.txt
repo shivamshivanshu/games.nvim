@@ -286,8 +286,8 @@ Keys are buffer-local and act on the line under the cursor:
     a       accept the request
     d       decline the incoming request, or cancel your own
     r       resign the game, or give up a solo one (confirms)
-    1-9     start a game of that New type: a solo game starts at once,
-            any other asks whom to challenge
+    1-9     start a game of that New type: a solo game asks for its
+            options and starts, any other asks whom to challenge
     /       open the finder on this section's source
     R       refresh from the server
     ?       list every key
