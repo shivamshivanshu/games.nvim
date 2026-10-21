@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 const solver game.UserID = "sam"
@@ -40,11 +41,7 @@ func wrongCodes(secret Code, n int) []string {
 func play(t *testing.T, st game.State[Action, View], codes ...string) game.State[Action, View] {
 	t.Helper()
 	for _, code := range codes {
-		next, _, err := st.Apply(game.SeatSolo, guess(code), nil)
-		if err != nil {
-			t.Fatalf("guess %q: %v", code, err)
-		}
-		st = next
+		st, _ = gametest.MustApply(t, st, game.SeatSolo, guess(code), nil)
 	}
 	return st
 }

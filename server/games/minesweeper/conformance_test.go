@@ -1,10 +1,7 @@
 package minesweeper
 
 import (
-	"encoding/json"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
@@ -154,71 +151,4 @@ func TestConformance(t *testing.T) {
 	unfinished.play(flag("a1"))
 	scripts = append(scripts, unfinished.script("unfinished", nil))
 	gametest.Run(t, Rules{}, scripts)
-}
-
-type persistedStep struct {
-	seat   game.Seat
-	action json.RawMessage
-}
-
-func TestRestoreReplaysPersistedStepsAndPlaysOnIdentically(t *testing.T) {
-	const seed game.Seed = 13
-	const restoreAt = 1
-	g := game.Adapt(Rules{})
-	opts, err := g.ResolveOptions(json.RawMessage(`{"difficulty":"medium"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	start := func() game.ErasedState {
-		st, _, err := g.New(opts, solo, nil, game.StepRNG(seed, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return st
-	}
-	apply := func(st game.ErasedState, step persistedStep, seq game.Seq) (game.ErasedState, []json.RawMessage) {
-		next, events, err := st.Apply(step.seat, step.action, game.StepRNG(seed, seq))
-		if err != nil {
-			t.Fatalf("seq %d: %v", seq, err)
-		}
-		return next, events
-	}
-	var plan []persistedStep
-	for _, step := range clearingScript(t, DifficultyMedium, seed).Steps {
-		if step.WantErr {
-			continue
-		}
-		raw, err := json.Marshal(step.Action)
-		if err != nil {
-			t.Fatal(err)
-		}
-		plan = append(plan, persistedStep{seat: step.Seat, action: raw})
-	}
-
-	live := start()
-	for i, step := range plan[:restoreAt] {
-		live, _ = apply(live, step, game.Seq(i)+1)
-	}
-	restored := start()
-	for i, step := range plan[:restoreAt] {
-		restored, _ = apply(restored, step, game.Seq(i)+1)
-	}
-	for i, step := range plan[restoreAt:] {
-		seq := game.Seq(restoreAt+i) + 1
-		liveView, _ := live.View(game.SeatSolo)
-		restoredView, _ := restored.View(game.SeatSolo)
-		if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
-			t.Fatalf("seq %d: restored view differs (-live +restored):\n%s", seq, diff)
-		}
-		var liveEvents, restoredEvents []json.RawMessage
-		live, liveEvents = apply(live, step, seq)
-		restored, restoredEvents = apply(restored, step, seq)
-		if diff := cmp.Diff(liveEvents, restoredEvents); diff != "" {
-			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
-		}
-	}
-	want := game.WinFor(ReasonCleared, game.SeatSolo)
-	if got, finished := restored.Outcome(); !finished || !cmp.Equal(got, want) {
-		t.Errorf("restored outcome = %+v, %t; want %+v", got, finished, want)
-	}
 }

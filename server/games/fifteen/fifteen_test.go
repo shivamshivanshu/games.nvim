@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
@@ -33,11 +34,7 @@ func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, action := range actions {
-		next, emitted, err := s.Apply(game.SeatSolo, action, nil)
-		if err != nil {
-			t.Fatalf("Apply(%+v): %v", action, err)
-		}
-		s, events = next.(state), emitted
+		s, events = gametest.MustApply(t, s, game.SeatSolo, action, nil)
 	}
 	return s, events
 }

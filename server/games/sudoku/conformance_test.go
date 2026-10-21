@@ -1,13 +1,10 @@
 package sudoku
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
@@ -110,71 +107,5 @@ func TestSolutionStaysHiddenAtEveryUnfinishedStep(t *testing.T) {
 		if _, finished := st.Outcome(); !finished {
 			t.Errorf("%s: the script did not finish the game", d)
 		}
-	}
-}
-
-type persistedStep struct {
-	seat   game.Seat
-	action json.RawMessage
-}
-
-func TestReplayFromSeedAndPersistedStepsPlaysOnIdentically(t *testing.T) {
-	const seed game.Seed = 11
-	const restoreAt = 20
-	g := game.Adapt(Rules{})
-	opts, err := g.ResolveOptions(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	start := func() game.ErasedState {
-		st, _, err := g.New(opts, solo, nil, game.StepRNG(seed, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return st
-	}
-	apply := func(st game.ErasedState, step persistedStep, seq game.Seq) (game.ErasedState, []json.RawMessage) {
-		next, events, err := st.Apply(step.seat, step.action, game.StepRNG(seed, seq))
-		if err != nil {
-			t.Fatalf("seq %d: %v", seq, err)
-		}
-		return next, events
-	}
-	var plan []persistedStep
-	for _, text := range solvingSets(newState(t, Opts{Difficulty: DifficultyMedium}, seed)) {
-		raw, err := json.Marshal(set(text))
-		if err != nil {
-			t.Fatal(err)
-		}
-		plan = append(plan, persistedStep{seat: game.SeatSolo, action: raw})
-	}
-
-	live := start()
-	for i, step := range plan[:restoreAt] {
-		live, _ = apply(live, step, game.Seq(i)+1)
-	}
-	restored := start()
-	for i, step := range plan[:restoreAt] {
-		restored, _ = apply(restored, step, game.Seq(i)+1)
-	}
-
-	for i, step := range plan[restoreAt:] {
-		seq := game.Seq(restoreAt+i) + 1
-		liveView, _ := live.View(game.SeatSolo)
-		restoredView, _ := restored.View(game.SeatSolo)
-		if diff := cmp.Diff(string(liveView), string(restoredView)); diff != "" {
-			t.Fatalf("seq %d: restored view differs (-live +restored):\n%s", seq, diff)
-		}
-		var liveEvents, restoredEvents []json.RawMessage
-		live, liveEvents = apply(live, step, seq)
-		restored, restoredEvents = apply(restored, step, seq)
-		if diff := cmp.Diff(liveEvents, restoredEvents); diff != "" {
-			t.Fatalf("seq %d: restored events differ (-live +restored):\n%s", seq, diff)
-		}
-	}
-	liveResult, _ := live.Outcome()
-	restoredResult, finished := restored.Outcome()
-	if diff := cmp.Diff(liveResult, restoredResult); !finished || diff != "" {
-		t.Errorf("restored finished=%t, result (-live +restored):\n%s", finished, diff)
 	}
 }

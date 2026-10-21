@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/games/words"
 )
 
@@ -69,11 +70,7 @@ func wordsNot(word string, n int) []string {
 func play(t *testing.T, st game.State[Action, View], texts ...string) game.State[Action, View] {
 	t.Helper()
 	for _, text := range texts {
-		next, _, err := st.Apply(game.SeatSolo, guess(text), nil)
-		if err != nil {
-			t.Fatalf("guess %q: %v", text, err)
-		}
-		st = next
+		st, _ = gametest.MustApply(t, st, game.SeatSolo, guess(text), nil)
 	}
 	return st
 }
