@@ -94,8 +94,9 @@ func parseCastling(s string) (CastlingRights, error) {
 		return 0, nil
 	}
 	var rights CastlingRights
+	castlings := standardLayout.castlings[:]
 	for i := range len(s) {
-		idx := slices.IndexFunc(castlings[:], func(c castling) bool { return c.letter == s[i] })
+		idx := slices.IndexFunc(castlings, func(c castling) bool { return c.letter == s[i] })
 		if idx < 0 || rights&castlings[idx].right != 0 {
 			return 0, fmt.Errorf("fen: invalid castling %q", s)
 		}
@@ -171,7 +172,7 @@ func writeRank(b *strings.Builder, p Position, rank int) {
 
 func (p Position) castlingField() string {
 	var field []byte
-	for _, c := range castlings {
+	for _, c := range p.castlings() {
 		if p.Castling&c.right != 0 {
 			field = append(field, c.letter)
 		}

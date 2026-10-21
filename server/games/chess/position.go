@@ -16,4 +16,6 @@ type Position struct {
 	EnPassant      Square
 	HalfmoveClock  int
 	FullmoveNumber int
+	// layout is nil for standard chess.
+	layout *castlingLayout
 }

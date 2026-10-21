@@ -27,11 +27,8 @@ func (p Position) SAN(m Move) string {
 
 func (p Position) sanWithoutCheckSuffix(m Move, legal []Move) string {
 	moving := p.Board[m.From]
-	if c, ok := castlingByKingMove(moving, m); ok {
-		if c.kingTo.File() > c.kingFrom.File() {
-			return kingsideCastleSAN
-		}
-		return queensideCastleSAN
+	if c, ok := p.castlingByKingMove(moving, m); ok {
+		return c.san
 	}
 	var b strings.Builder
 	isCapture := !p.Board[m.To].IsEmpty() || (moving.Kind == Pawn && m.From.File() != m.To.File())

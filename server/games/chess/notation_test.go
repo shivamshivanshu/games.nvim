@@ -17,6 +17,14 @@ func mustFEN(t *testing.T, fen string) Position {
 	return p
 }
 
+func mustParseSquare(s string) Square {
+	sq, err := ParseSquare(s)
+	if err != nil {
+		panic(err)
+	}
+	return sq
+}
+
 func mustParse(t *testing.T, p Position, input string) Move {
 	t.Helper()
 	m, err := p.ParseMove(input)
