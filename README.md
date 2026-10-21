@@ -329,7 +329,7 @@ Buffer-local, normal mode, in a `games://` board buffer. Only keys valid for the
 | `m`, `h` `j` `k` `l` (fifteen) | slide a tile by number, e.g. `7`, or the tile that moves left, down, up or right |
 | `h` `j` `k` `l` or the arrows (2048) | move every tile left, down, up or right, when that changes the board |
 | `1`-`6` (mancala) | sow that pit of yours, counted from your left, on your move |
-| `h` `j` `k` `l` (pacman) | turn Pac-Man left, down, up or right at the first cell where it can; starts a paused game |
+| `h` `j` `k` `l` or the arrows (pacman) | turn Pac-Man left, down, up or right at the first cell where it can; starts a paused game; the footer lists only `hjkl` |
 | `p` (pacman) | pause, while the game runs |
 | `]g` | next game waiting on your move |
 | `q` | close |

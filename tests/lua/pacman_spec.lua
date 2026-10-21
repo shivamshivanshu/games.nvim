@@ -149,19 +149,25 @@ function T.turn_keys_while_the_game_goes_on_and_pause_only_while_it_runs()
   assert_eq("]g next game  q close", footer(render(over)))
 end
 
-function T.each_key_sends_its_action()
+function T.each_key_and_arrow_sends_its_action()
   local sent = {}
   for _, entry in ipairs(pacman.actions) do
-    sent[entry.key] = entry.action
+    for _, key in ipairs({ entry.key, unpack(entry.aliases or {}) }) do
+      sent[key] = entry.action
+    end
   end
   local function turn(direction)
     return { kind = "turn", direction = direction }
   end
   assert_eq({
     h = turn("left"),
+    ["<Left>"] = turn("left"),
     j = turn("down"),
+    ["<Down>"] = turn("down"),
     k = turn("up"),
+    ["<Up>"] = turn("up"),
     l = turn("right"),
+    ["<Right>"] = turn("right"),
     p = { kind = "pause" },
   }, sent)
 end

@@ -47,14 +47,14 @@ Solo, in real time: steer Pac-Man through the arcade maze, eating every dot whil
 None.
 
 ## Controls and keys
-Buffer-local, normal mode, in the board buffer.
+Buffer-local, normal mode, in the board buffer. The footer lists `h j k l` only; the arrows are mapped as well.
 
 | Key | Action |
 |---|---|
-| `h` | turn left |
-| `j` | turn down |
-| `k` | turn up |
-| `l` | turn right |
+| `h` or `<Left>` | turn left |
+| `j` or `<Down>` | turn down |
+| `k` or `<Up>` | turn up |
+| `l` or `<Right>` | turn right |
 | `p` | pause, while running |
 | `R` | give up |
 | `A` | abort, before your first turn |

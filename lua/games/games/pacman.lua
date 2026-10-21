@@ -84,14 +84,15 @@ local DIRECTIONS = { "up", "down", "left", "right" }
 
 ---@class (private) games.PacmanDirectionKey
 ---@field key string
+---@field arrow string bound too, but left out of the footer
 ---@field direction games.PacmanDirection
 
 ---@type games.PacmanDirectionKey[]
 local DIRECTION_KEYS = {
-  { key = "h", direction = "left" },
-  { key = "j", direction = "down" },
-  { key = "k", direction = "up" },
-  { key = "l", direction = "right" },
+  { key = "h", arrow = "<Left>", direction = "left" },
+  { key = "j", arrow = "<Down>", direction = "down" },
+  { key = "k", arrow = "<Up>", direction = "up" },
+  { key = "l", arrow = "<Right>", direction = "right" },
 }
 
 ---@param direction games.PacmanDirection
@@ -149,6 +150,7 @@ end
 local function turn_action(entry)
   return {
     key = entry.key,
+    aliases = { entry.arrow },
     label = entry.direction,
     action = { kind = TURN_KIND, direction = entry.direction },
     available = function(update)

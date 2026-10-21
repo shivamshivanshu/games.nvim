@@ -423,7 +423,8 @@ the current state are mapped; the footer lists them.
     r       dots_and_boxes: turn the cursor's edge across or down
     <CR>    dots_and_boxes: draw the edge under the cursor
     h j k l pacman: turn left, down, up or right at the first cell where
-            it can, and start a paused game
+            it can, and start a paused game; the arrow keys too, though
+            the footer lists only h j k l
     p       pacman: pause, while the game runs
     ]g      next game waiting on your move
     q       close
