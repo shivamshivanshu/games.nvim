@@ -2,7 +2,7 @@
 
 Turn-based games against friends inside Neovim: a Go game server plus a Neovim Lua plugin that renders boards and talks to it over TCP.
 
-Only chess exists today. The server owns all state and rules; Neovim renders what it is sent and forwards your input. Wire format is NDJSON over TCP.
+See the Games table below for what you can play. The server owns all state and rules; Neovim renders what it is sent and forwards your input. Wire format is NDJSON over TCP.
 
 ## Games
 

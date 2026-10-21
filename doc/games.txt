@@ -18,7 +18,7 @@ CONTENTS                                                         *games-contents
 
 games.nvim renders boards in Neovim buffers and talks to a Go game server
 over TCP (NDJSON). The server owns all state and rules; the plugin renders
-what it is sent and forwards your input. Only chess exists today.
+what it is sent and forwards your input. |games-keys| lists every game.
 
 Requires Neovim 0.11+. The server needs Go 1.26+ to build.
 
