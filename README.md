@@ -17,6 +17,7 @@ See the Games table below for what you can play. The server owns all state and r
 | Sudoku | 1 (solo) | [docs/games/sudoku.md](docs/games/sudoku.md) |
 | Poker | 2–6 | [docs/games/poker.md](docs/games/poker.md) |
 | Gomoku | 2 | [docs/games/gomoku.md](docs/games/gomoku.md) |
+| Reversi | 2 | [docs/games/reversi.md](docs/games/reversi.md) |
 
 ## Requirements
 

@@ -285,6 +285,19 @@ An action object always carries `kind`.
   - `legal_cells` holds the viewer's own: the empty cells as `{row, column}`, empty unless the viewer is to move.
 - Actions: `place` (`cell`: a column letter `a`-`o` then a row number `1`-`15`, e.g. `"h8"`; either case, surrounding spaces ignored). The catalogue gives the pattern.
 
+### Reversi
+
+- Reasons: `more_discs` (decisive), `equal_discs` (draw); both mean neither seat could move.
+- Events:
+  - `placed {by: seat, cell: {row, column}, flipped: [{row, column}]}`, every disc the move turned over;
+  - `passed {by: seat}`: the seat had no legal move, so its opponent moves again. The server passes for it; there is no pass action. It follows the `placed` that blocked the seat, in the same update.
+- Seats: `black`, which moves first, and `white`; option `first` as in Gomoku.
+- View `{cells, last: {row, column} | null, legal_cells, discs: {black, white}}`:
+  - `cells` is 8 rows of 8, row 1 at the top; it starts with white on d4 and e5, black on e4 and d5.
+  - `legal_cells` holds the viewer's own: the cells where its disc would flip at least one, empty unless the viewer is to move.
+  - `discs` counts each seat's discs on the board.
+- Actions: `place` (`cell`: `a`-`h` then `1`-`8`, e.g. `"d3"`), as in Gomoku. A cell that flips nothing is an `illegal_action`.
+
 ## Stats
 
 `stats.get {user?}` → `{records, head_to_head, leaderboard}`, already ranked
