@@ -45,11 +45,11 @@ func PlaceSpec(coords grid.Coords, description string) game.ActionSpec {
 // PlacedPoint is the point a place action names, or why the action is illegal.
 func PlacedPoint(coords grid.Coords, action Action) (grid.Point, error) {
 	if action.Kind != ActionPlace {
-		return grid.Point{}, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+		return grid.Point{}, game.UnknownAction(action.Kind)
 	}
 	p, ok := coords.Parse(action.Cell)
 	if !ok {
-		return grid.Point{}, game.IllegalActionError{Msg: fmt.Sprintf("cell must be %s, a letter then a number, got %q", coords.Range(), action.Cell)}
+		return grid.Point{}, game.Illegalf("cell must be %s, a letter then a number, got %q", coords.Range(), action.Cell)
 	}
 	return p, nil
 }

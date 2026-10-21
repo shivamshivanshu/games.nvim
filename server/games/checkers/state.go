@@ -13,25 +13,26 @@ import (
 const drawQuietPlies = 80
 
 type state struct {
+	game.Ending
 	board      Board
 	toMove     game.Seat
 	legal      []Move
 	quietPlies int
 	history    []string
 	last       []Square
-	result     game.Result
-	finished   bool
 }
 
 func newState(b Board, toMove game.Seat, quietPlies int) state {
 	s := state{board: b, toMove: toMove, legal: b.LegalMoves(toMove), quietPlies: quietPlies}
-	s.result, s.finished = s.ending()
+	if result, ended := s.ending(); ended {
+		s.Ending = s.Concluded(result)
+	}
 	return s
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
 	if action.Kind != ActionMove {
-		return nil, nil, illegal("unknown action: " + string(action.Kind))
+		return nil, nil, game.UnknownAction(action.Kind)
 	}
 	move, err := matchMove(action.Text, s.legal)
 	if err != nil {
@@ -57,14 +58,14 @@ func (s state) play(m Move) (state, bool) {
 // ending checks the side to move: with no legal move it has lost, which takes
 // precedence over the quiet-ply draw.
 func (s state) ending() (game.Result, bool) {
-	winner := []game.Seat{sides.Other(s.toMove)}
+	winner := sides.Other(s.toMove)
 	switch {
 	case len(s.board.squaresOf(s.toMove)) == 0:
-		return game.Result{Kind: game.ResultDecisive, Winners: winner, Reason: ReasonNoPieces}, true
+		return game.WinFor(ReasonNoPieces, winner), true
 	case len(s.legal) == 0:
-		return game.Result{Kind: game.ResultDecisive, Winners: winner, Reason: ReasonNoMoves}, true
+		return game.WinFor(ReasonNoMoves, winner), true
 	case s.quietPlies >= drawQuietPlies:
-		return game.Result{Kind: game.ResultDraw, Reason: ReasonFortyMove}, true
+		return game.DrawBy(ReasonFortyMove), true
 	}
 	return game.Result{}, false
 }
@@ -83,26 +84,19 @@ func (s state) View(seat game.Seat) View {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
 	return []game.Seat{s.toMove}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 // Conclude takes a result the core imposed, so the game stops offering moves.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if !s.finished {
-		s.result, s.finished = result, true
-	}
+	s.Ending = s.Concluded(result)
 	return s
 }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	if s.finished {
-		return s, nil
-	}
-	s.result, s.finished = game.ForfeitToRemaining(sides.Seats(), seat, reason), true
+	s.Ending = s.Concluded(game.ForfeitToRemaining(sides.Seats(), seat, reason))
 	return s, nil
 }

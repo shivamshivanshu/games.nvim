@@ -57,7 +57,7 @@ func playedOut(t *testing.T, size Size, choose func(legal []Line) Line) ([]move,
 	t.Helper()
 	s := newGame(t, size)
 	var moves []move
-	for !s.finished {
+	for !s.Over() {
 		mover := s.toMove
 		line := choose(s.View(mover).LegalEdges)
 		m := move{seat: mover, edge: nameOf(line)}
@@ -336,12 +336,12 @@ func TestTheLastBoxMovesNoOneAgain(t *testing.T) {
 func TestEqualBoxesDraw(t *testing.T) {
 	even := newState(2)
 	even.owners = map[grid.Point]game.Seat{{Row: 0, Col: 0}: p1, {Row: 0, Col: 1}: p2, {Row: 1, Col: 0}: p2, {Row: 1, Col: 1}: p1}
-	if got, want := even.ended().result, (game.Result{Kind: game.ResultDraw, Reason: ReasonEqualBoxes}); !cmp.Equal(want, got) {
-		t.Errorf("2 boxes each: %+v, want %+v", got, want)
+	if got, _ := even.ended().Outcome(); !cmp.Equal(game.Result{Kind: game.ResultDraw, Reason: ReasonEqualBoxes}, got) {
+		t.Errorf("2 boxes each: %+v, want a draw", got)
 	}
 	even.owners[grid.Point{Row: 1, Col: 1}] = p2
-	if got, want := even.ended().result, (game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{p2}, Reason: ReasonMoreBoxes}); !cmp.Equal(want, got) {
-		t.Errorf("3 to 1: %+v, want %+v", got, want)
+	if got, _ := even.ended().Outcome(); !cmp.Equal(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{p2}, Reason: ReasonMoreBoxes}, got) {
+		t.Errorf("3 to 1: %+v, want p2's win", got)
 	}
 }
 

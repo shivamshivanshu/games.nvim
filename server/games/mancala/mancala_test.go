@@ -350,7 +350,7 @@ func TestConcludeStopsOfferingPitsAndKeepsAReachedResult(t *testing.T) {
 		t.Errorf("legal pits %v after a draw was agreed", legal)
 	}
 	played := game.Result{Kind: game.ResultDraw, Reason: ReasonEqualSeeds}
-	ended := state{board: at([6]int{}, 24, [6]int{}, 24), result: played, finished: true}
+	ended := state{Ending: game.Ending{}.Concluded(played), board: at([6]int{}, 24, [6]int{}, 24)}
 	if got, _ := ended.Conclude(agreed).Outcome(); !cmp.Equal(got, played) {
 		t.Errorf("Conclude replaced a played result with %+v", got)
 	}
@@ -365,8 +365,8 @@ func TestSeedsAreConservedThroughAPlayedOutGame(t *testing.T) {
 	if total != 2*pitsPerSide*startSeeds {
 		t.Errorf("%d seeds at the end, want %d", total, 2*pitsPerSide*startSeeds)
 	}
-	if !final.finished || !final.board.pitsEmpty(SeatSouth) || !final.board.pitsEmpty(SeatNorth) {
-		t.Errorf("played-out game: finished %t, board %v; want finished with every pit empty", final.finished, final.board)
+	if !final.Over() || !final.board.pitsEmpty(SeatSouth) || !final.board.pitsEmpty(SeatNorth) {
+		t.Errorf("played-out game: finished %t, board %v; want finished with every pit empty", final.Over(), final.board)
 	}
 }
 

@@ -1,7 +1,6 @@
 package checkers
 
 import (
-	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -28,18 +27,18 @@ func matchMove(input string, legal []Move) (Move, error) {
 		return legal[i], nil
 	}
 	if !regexp.MustCompile(movePattern).MatchString(text) {
-		return Move{}, illegal(fmt.Sprintf("illegal move %q: write %s", text, notationHint))
+		return Move{}, game.Illegalf("illegal move %q: write %s", text, notationHint)
 	}
 	if continuations := movesExtending(text, legal); len(continuations) > 0 {
-		return Move{}, illegal(fmt.Sprintf("illegal move %s: the jump must continue, as in %s", text, joinTexts(continuations)))
+		return Move{}, game.Illegalf("illegal move %s: the jump must continue, as in %s", text, joinTexts(continuations))
 	}
 	if len(legal) == 0 || !legal[0].IsCapture() {
-		return Move{}, illegal("illegal move: " + text)
+		return Move{}, game.Illegalf("illegal move: %s", text)
 	}
 	if !strings.Contains(text, captureSeparator) {
-		return Move{}, illegal(fmt.Sprintf("illegal move %s: a capture is mandatory: %s", text, joinTexts(legal)))
+		return Move{}, game.Illegalf("illegal move %s: a capture is mandatory: %s", text, joinTexts(legal))
 	}
-	return Move{}, illegal(fmt.Sprintf("illegal move %s: the captures are %s", text, joinTexts(legal)))
+	return Move{}, game.Illegalf("illegal move %s: the captures are %s", text, joinTexts(legal))
 }
 
 func movesExtending(prefix string, legal []Move) []Move {
@@ -54,5 +53,3 @@ func movesExtending(prefix string, legal []Move) []Move {
 func joinTexts(moves []Move) string { return strings.Join(moveTexts(moves), ", ") }
 
 func moveTexts(moves []Move) []string { return xslices.Map(moves, Move.Text) }
-
-func illegal(msg string) error { return game.IllegalActionError{Msg: msg} }

@@ -3,7 +3,6 @@
 package chesspuzzle
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"slices"
 
@@ -65,18 +64,18 @@ func (Rules) Info() game.Info {
 // moves up to the solver's first.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	if !slices.Contains(modes(), opts.Mode) {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown mode %q", opts.Mode)}
+		return nil, nil, game.BadRequestf("unknown mode %q", opts.Mode)
 	}
 	solver, ok := opts.Player.color()
 	if !ok {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown player %q", opts.Player)}
+		return nil, nil, game.BadRequestf("unknown player %q", opts.Player)
 	}
 	parsed, err := parseLine(opts.FEN, opts.Moves)
 	if err != nil {
 		return nil, nil, err
 	}
 	if parsed.movesBy(solver, 0) == 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("the line has no move for %s", opts.Player)}
+		return nil, nil, game.BadRequestf("the line has no move for %s", opts.Player)
 	}
 	start, replies := newState(opts.Mode, solver, parsed).replyUntilSolverMoves()
 	return opened{state: start, replies: replies}, game.SoloSeat(challenger), nil

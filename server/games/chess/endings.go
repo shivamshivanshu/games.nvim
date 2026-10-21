@@ -16,7 +16,7 @@ const (
 
 type RepetitionKey string
 
-type Ending struct {
+type Termination struct {
 	Reason game.ResultReason
 	Kind   game.ResultKind
 	Winner *Color
@@ -51,21 +51,21 @@ func (p Position) hasLegalEnPassantCapture(legal []Move) bool {
 	})
 }
 
-func DetectEnding(p Position, legal []Move, key RepetitionKey, history []RepetitionKey) (Ending, bool) {
+func DetectEnding(p Position, legal []Move, key RepetitionKey, history []RepetitionKey) (Termination, bool) {
 	switch {
 	case len(legal) == 0 && p.InCheck():
 		winner := p.SideToMove.Opponent()
-		return Ending{Reason: ReasonCheckmate, Kind: game.ResultDecisive, Winner: &winner}, true
+		return Termination{Reason: ReasonCheckmate, Kind: game.ResultDecisive, Winner: &winner}, true
 	case len(legal) == 0:
-		return Ending{Reason: ReasonStalemate, Kind: game.ResultDraw}, true
+		return Termination{Reason: ReasonStalemate, Kind: game.ResultDraw}, true
 	case p.hasInsufficientMaterial():
-		return Ending{Reason: ReasonInsufficientMaterial, Kind: game.ResultDraw}, true
+		return Termination{Reason: ReasonInsufficientMaterial, Kind: game.ResultDraw}, true
 	case repetitions(key, history) >= fivefoldCount:
-		return Ending{Reason: ReasonFivefold, Kind: game.ResultDraw}, true
+		return Termination{Reason: ReasonFivefold, Kind: game.ResultDraw}, true
 	case p.HalfmoveClock >= seventyFiveHalfmoves:
-		return Ending{Reason: ReasonSeventyFive, Kind: game.ResultDraw}, true
+		return Termination{Reason: ReasonSeventyFive, Kind: game.ResultDraw}, true
 	}
-	return Ending{}, false
+	return Termination{}, false
 }
 
 func ClaimableDraw(p Position, history []RepetitionKey) (game.ResultReason, bool) {

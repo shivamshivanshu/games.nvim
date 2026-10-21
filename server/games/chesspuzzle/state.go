@@ -10,6 +10,7 @@ import (
 )
 
 type state struct {
+	game.Ending
 	mode     Mode
 	solver   chess.Color
 	line     line
@@ -18,8 +19,6 @@ type state struct {
 	history  []string
 	last     *chess.MoveSquares
 	misses   int
-	result   game.Result
-	finished bool
 }
 
 func newState(mode Mode, solver chess.Color, l line) state {
@@ -33,7 +32,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	case ActionReveal:
 		return s.applyReveal()
 	}
-	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	return nil, nil, game.UnknownAction(action.Kind)
 }
 
 func (s state) applyMove(text string) (game.State[Action, View], []game.Event, error) {
@@ -47,19 +46,19 @@ func (s state) applyMove(text string) (game.State[Action, View], []game.Event, e
 	}
 	san := s.position.SAN(move)
 	if s.mode == ModePuzzle && givesMate(s.position, move) {
-		return s.play(move, san).endLine(won(ReasonSolved)), []game.Event{MovedEvent{By: game.SeatSolo, SAN: san}}, nil
+		return s.play(move, san).endLine(game.WinFor(ReasonSolved, game.SeatSolo)), []game.Event{MovedEvent{By: game.SeatSolo, SAN: san}}, nil
 	}
 	s.misses++
 	missed := []game.Event{MissedEvent{By: game.SeatSolo, SAN: san}}
 	if s.mode == ModePuzzle {
-		return s.finish(lost(ReasonWrongMove)), missed, nil
+		return s.finish(game.LossBy(ReasonWrongMove)), missed, nil
 	}
 	return s, missed, nil
 }
 
 func (s state) applyReveal() (game.State[Action, View], []game.Event, error) {
 	if s.mode != ModeStudy {
-		return nil, nil, game.IllegalActionError{Msg: "reveal is for study mode only"}
+		return nil, nil, game.Illegalf("reveal is for study mode only")
 	}
 	s.misses++
 	next, replies := s.playLine().replyUntilSolverMoves()
@@ -75,7 +74,7 @@ func (s state) replyUntilSolverMoves() (state, []game.Event) {
 		s = s.playLine()
 	}
 	if s.ply == len(s.line.moves) {
-		s = s.finish(won(s.mode.endReason()))
+		s = s.finish(game.WinFor(s.mode.endReason(), game.SeatSolo))
 	}
 	return s, replies
 }
@@ -100,7 +99,7 @@ func (s state) endLine(result game.Result) state {
 }
 
 func (s state) finish(result game.Result) state {
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }
 
@@ -116,14 +115,6 @@ func (m Mode) endReason() game.ResultReason {
 	return ReasonSolved
 }
 
-func won(reason game.ResultReason) game.Result {
-	return game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{game.SeatSolo}, Reason: reason}
-}
-
-func lost(reason game.ResultReason) game.Result {
-	return game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, game.SeatSolo, reason)
-}
-
 func (s state) View(game.Seat) View {
 	view := View{
 		FEN:         s.position.FEN(),
@@ -136,7 +127,7 @@ func (s state) View(game.Seat) View {
 		Remaining:   s.line.movesBy(s.solver, s.ply),
 		Solution:    []string{},
 	}
-	if s.finished {
+	if s.Over() {
 		view.Solution = slices.Clone(s.line.san)
 	} else {
 		view.LegalMoves = xslices.Map(s.position.LegalMoves(), chess.Move.UCI)
@@ -145,23 +136,18 @@ func (s state) View(game.Seat) View {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
 	return []game.Seat{game.SeatSolo}
 }
 
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil
+	return s.Conclude(game.LossBy(reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game,
 // which drops the legal moves and reveals the solution.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
 	return s.finish(result)
 }

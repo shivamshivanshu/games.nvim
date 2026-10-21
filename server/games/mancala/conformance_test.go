@@ -19,7 +19,7 @@ func playedOutChoosing(t *testing.T, choose func(legal []int) int) ([]gametest.S
 	t.Helper()
 	s := newState(t)
 	var steps []gametest.Step[Action]
-	for !s.finished {
+	for !s.Over() {
 		mover := s.toMove
 		action := sow(strconv.Itoa(choose(s.View(mover).LegalPits)))
 		next, _, err := s.Apply(mover, action, nil)

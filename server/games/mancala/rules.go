@@ -2,7 +2,6 @@
 package mancala
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"strconv"
 
@@ -57,7 +56,7 @@ func parsePit(text string) (int, error) {
 			return i + 1, nil
 		}
 	}
-	return 0, game.IllegalActionError{Msg: fmt.Sprintf("pit must be 1 to %d, got %q", pitsPerSide, text)}
+	return 0, game.Illegalf("pit must be 1 to %d, got %q", pitsPerSide, text)
 }
 
 // New seats the first mover as south, which sows first.

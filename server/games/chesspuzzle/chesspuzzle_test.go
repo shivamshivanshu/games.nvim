@@ -234,7 +234,7 @@ func TestPuzzleEndings(t *testing.T) {
 			opts:       scholars,
 			input:      "qxf7",
 			wantEvents: []game.Event{MovedEvent{By: game.SeatSolo, SAN: "Qxf7#"}},
-			wantResult: won(ReasonSolved),
+			wantResult: game.WinFor(ReasonSolved, game.SeatSolo),
 			wantFEN:    "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4",
 		},
 		{
@@ -242,7 +242,7 @@ func TestPuzzleEndings(t *testing.T) {
 			opts:       backRank,
 			input:      "Qd8",
 			wantEvents: []game.Event{MovedEvent{By: game.SeatSolo, SAN: "Qd8#"}},
-			wantResult: won(ReasonSolved),
+			wantResult: game.WinFor(ReasonSolved, game.SeatSolo),
 			wantFEN:    "3Q3k/6pp/8/8/8/8/6PP/R6K b - - 1 1",
 		},
 		{
@@ -250,7 +250,7 @@ func TestPuzzleEndings(t *testing.T) {
 			opts:       scholars,
 			input:      "Qxe5+",
 			wantEvents: []game.Event{MissedEvent{By: game.SeatSolo, SAN: "Qxe5+"}},
-			wantResult: lost(ReasonWrongMove),
+			wantResult: game.LossBy(ReasonWrongMove),
 			wantFEN:    "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
 			wantMisses: 1,
 			wantLeft:   1,
@@ -303,7 +303,7 @@ func TestStudyMissesWaitForTheRightMove(t *testing.T) {
 		t.Errorf("last move events (-want +got):\n%s", diff)
 	}
 	result, finished := s.Outcome()
-	if diff := cmp.Diff(won(ReasonCompleted), result); !finished || diff != "" {
+	if diff := cmp.Diff(game.WinFor(ReasonCompleted, game.SeatSolo), result); !finished || diff != "" {
 		t.Errorf("finished = %t, result (-want +got):\n%s", finished, diff)
 	}
 	final := s.View(game.SeatSolo)

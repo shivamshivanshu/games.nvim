@@ -1,7 +1,6 @@
 package reversi
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -22,11 +21,11 @@ func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.St
 		return nil, nil, err
 	}
 	if s.board.At(at) != discs.NoDisc {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("%s is taken", coords.Name(at))}
+		return nil, nil, game.Illegalf("%s is taken", coords.Name(at))
 	}
 	turned := flips(s.board, seat, at)
 	if len(turned) == 0 {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("%s flips no disc; a move must flip at least one", coords.Name(at))}
+		return nil, nil, game.Illegalf("%s flips no disc; a move must flip at least one", coords.Name(at))
 	}
 	next, events := s.place(seat, at, turned)
 	return next, events, nil
@@ -47,7 +46,7 @@ func (s state) place(seat game.Seat, at grid.Point, turned []grid.Point) (state,
 		next.Turn = s.To(seat)
 		events = append(events, PassedEvent{By: opponent})
 	default:
-		next.Turn = s.Finish(countResult(next.board))
+		next.Turn = s.Turn.Conclude(countResult(next.board))
 	}
 	return next, events
 }
@@ -56,11 +55,11 @@ func countResult(b discs.Board) game.Result {
 	black, white := b.Count(discs.SeatBlack), b.Count(discs.SeatWhite)
 	switch {
 	case black > white:
-		return game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{discs.SeatBlack}, Reason: ReasonMoreDiscs}
+		return game.WinFor(ReasonMoreDiscs, discs.SeatBlack)
 	case white > black:
-		return game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{discs.SeatWhite}, Reason: ReasonMoreDiscs}
+		return game.WinFor(ReasonMoreDiscs, discs.SeatWhite)
 	}
-	return game.Result{Kind: game.ResultDraw, Reason: ReasonEqualDiscs}
+	return game.DrawBy(ReasonEqualDiscs)
 }
 
 func (s state) View(viewer game.Seat) View {

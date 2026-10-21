@@ -1,7 +1,6 @@
 package chesspuzzle
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -39,14 +38,14 @@ func parseLine(fen, text string) (line, error) {
 	}
 	fields := strings.Fields(text)
 	if len(fields) == 0 || len(fields) > MaxPlies {
-		return line{}, game.BadRequestError{Msg: fmt.Sprintf("the line holds %d plies, want 1 to %d", len(fields), MaxPlies)}
+		return line{}, game.BadRequestf("the line holds %d plies, want 1 to %d", len(fields), MaxPlies)
 	}
 	parsed := line{start: start, moves: make([]chess.Move, 0, len(fields)), san: make([]string, 0, len(fields))}
 	position := start
 	for i, field := range fields {
 		move, err := position.ParseMove(field)
 		if err != nil {
-			return line{}, game.BadRequestError{Msg: fmt.Sprintf("ply %d: %v", i+1, err)}
+			return line{}, game.BadRequestf("ply %d: %v", i+1, err)
 		}
 		parsed.moves = append(parsed.moves, move)
 		parsed.san = append(parsed.san, position.SAN(move))

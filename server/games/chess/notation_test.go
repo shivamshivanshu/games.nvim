@@ -130,7 +130,7 @@ func historyAfter(t *testing.T, p Position, sans ...string) (Position, []Repetit
 	return p, history
 }
 
-func detectEnding(p Position, history []RepetitionKey) (Ending, bool) {
+func detectEnding(p Position, history []RepetitionKey) (Termination, bool) {
 	return DetectEnding(p, p.LegalMoves(), p.RepetitionKey(), history)
 }
 

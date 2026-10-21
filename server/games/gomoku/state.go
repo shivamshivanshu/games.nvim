@@ -1,7 +1,6 @@
 package gomoku
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -27,7 +26,7 @@ func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.St
 		return nil, nil, err
 	}
 	if s.board.At(at) != discs.NoDisc {
-		return nil, nil, game.IllegalActionError{Msg: fmt.Sprintf("%s is taken", s.board.Coords().Name(at))}
+		return nil, nil, game.Illegalf("%s is taken", s.board.Coords().Name(at))
 	}
 	next := s.place(seat, at)
 	return next, []game.Event{PlacedEvent{By: seat, Cell: *next.last}}, nil
@@ -39,9 +38,9 @@ func (s state) place(seat game.Seat, at grid.Point) state {
 	next.winningLines = xslices.Map(grid.WinningLines(next.board.Rows(), at, winLength, discs.NoDisc), discs.CellsAt)
 	switch {
 	case len(next.winningLines) > 0:
-		next.Turn = s.Finish(game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{seat}, Reason: ReasonFiveInARow})
+		next.Turn = s.Turn.Conclude(game.WinFor(ReasonFiveInARow, seat))
 	case len(next.board.Empty()) == 0:
-		next.Turn = s.Finish(game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull})
+		next.Turn = s.Turn.Conclude(game.DrawBy(ReasonBoardFull))
 	default:
 		next.Turn = s.To(discs.Sides.Other(seat))
 	}

@@ -272,7 +272,7 @@ func selfPlay(t *testing.T, choose pick) []gametest.Step[Action] {
 	t.Helper()
 	st := newState(StartBoard(), SeatBlack, 0)
 	var steps []gametest.Step[Action]
-	for !st.finished {
+	for !st.Over() {
 		step := gametest.Step[Action]{Seat: st.toMove, Action: move(choose(st.legal).Text())}
 		next, _, err := st.Apply(step.Seat, step.Action, nil)
 		if err != nil {

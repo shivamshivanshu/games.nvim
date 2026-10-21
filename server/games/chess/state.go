@@ -9,13 +9,13 @@ import (
 )
 
 type state struct {
+	game.Ending
 	start    Position
 	position Position
 	legal    []Move
 	history  []RepetitionKey
 	san      []string
 	last     *MoveSquares
-	result   *game.Result
 }
 
 func newState(p Position) state {
@@ -30,7 +30,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	case ActionClaimDraw:
 		return s.applyClaimDraw()
 	}
-	return nil, nil, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+	return nil, nil, game.UnknownAction(action.Kind)
 }
 
 func (s state) applyMove(seat game.Seat, input string) (game.State[Action, View], []game.Event, error) {
@@ -51,7 +51,7 @@ func (s state) applyMove(seat game.Seat, input string) (game.State[Action, View]
 		last:     &MoveSquares{From: move.From.String(), To: move.To.String()},
 	}
 	if ending, ok := DetectEnding(position, legal, key, next.history); ok {
-		next.result = new(ending.result())
+		next.Ending = next.Concluded(ending.result())
 	}
 	return next, []game.Event{MovedEvent{By: seat, SAN: san}}, nil
 }
@@ -59,13 +59,13 @@ func (s state) applyMove(seat game.Seat, input string) (game.State[Action, View]
 func (s state) applyClaimDraw() (game.State[Action, View], []game.Event, error) {
 	reason, ok := s.position.claimableDraw(s.history[len(s.history)-1], s.history)
 	if !ok {
-		return nil, nil, game.IllegalActionError{Msg: "no draw can be claimed"}
+		return nil, nil, game.Illegalf("no draw can be claimed")
 	}
-	s.result = &game.Result{Kind: game.ResultDraw, Reason: reason}
+	s.Ending = s.Concluded(game.DrawBy(reason))
 	return s, nil, nil
 }
 
-func (e Ending) result() game.Result {
+func (e Termination) result() game.Result {
 	result := game.Result{Kind: e.Kind, Reason: e.Reason}
 	if e.Winner != nil {
 		result.Winners = []game.Seat{seatOf(*e.Winner)}
@@ -89,30 +89,18 @@ func (s state) View(seat game.Seat) View {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.result != nil {
+	if s.Over() {
 		return nil
 	}
 	return []game.Seat{seatOf(s.position.SideToMove)}
 }
 
-func (s state) Outcome() (game.Result, bool) {
-	if s.result == nil {
-		return game.Result{}, false
-	}
-	return *s.result, true
-}
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	if s.result != nil {
-		return s, nil
-	}
-	s.result = new(game.ForfeitToRemaining(sides.Seats(), seat, reason))
+	s.Ending = s.Concluded(game.ForfeitToRemaining(sides.Seats(), seat, reason))
 	return s, nil
 }
 
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.result == nil {
-		s.result = &result
-	}
+	s.Ending = s.Concluded(result)
 	return s
 }

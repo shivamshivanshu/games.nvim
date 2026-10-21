@@ -1,7 +1,6 @@
 package tictactoe
 
 import (
-	"fmt"
 	"slices"
 	"strconv"
 
@@ -29,7 +28,7 @@ func cellInputs() []string {
 func parseCell(text string) (Cell, error) {
 	i := slices.Index(cellInputs(), text)
 	if i < 0 {
-		return 0, game.IllegalActionError{Msg: fmt.Sprintf("cell must be 1-%d, got %q", cellCount, text)}
+		return 0, game.Illegalf("cell must be 1-%d, got %q", cellCount, text)
 	}
 	return Cell(i + 1), nil
 }

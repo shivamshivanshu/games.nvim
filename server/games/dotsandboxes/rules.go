@@ -3,7 +3,6 @@
 package dotsandboxes
 
 import (
-	"fmt"
 	"math/rand/v2"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -52,7 +51,7 @@ func (Rules) Info() game.Info {
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
 	side := boxesPerSide(opts.Size)
 	if side == 0 {
-		return nil, nil, game.BadRequestError{Msg: fmt.Sprintf("unknown size %q", opts.Size)}
+		return nil, nil, game.BadRequestf("unknown size %q", opts.Size)
 	}
 	return newState(side), sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng)), nil
 }

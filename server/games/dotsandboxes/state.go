@@ -1,7 +1,6 @@
 package dotsandboxes
 
 import (
-	"fmt"
 	"maps"
 	"math/rand/v2"
 	"slices"
@@ -13,14 +12,13 @@ import (
 
 // state is immutable: every change returns a copy with fresh maps.
 type state struct {
-	side     int
-	edges    grid.Edges
-	drawn    map[grid.Edge]game.Seat
-	owners   map[grid.Point]game.Seat
-	last     *grid.Edge
-	toMove   game.Seat
-	result   game.Result
-	finished bool
+	game.Ending
+	side   int
+	edges  grid.Edges
+	drawn  map[grid.Edge]game.Seat
+	owners map[grid.Point]game.Seat
+	last   *grid.Edge
+	toMove game.Seat
 }
 
 func newState(side int) state {
@@ -39,25 +37,25 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 		return nil, nil, err
 	}
 	next, completed := s.withEdge(seat, edge)
-	again := !next.finished && next.toMove == seat
+	again := !next.Over() && next.toMove == seat
 	return next, []game.Event{DrawnEvent{By: seat, Edge: lineOf(edge), Boxes: xslices.Map(completed, boxOf), Again: again}}, nil
 }
 
 // undrawnEdge is the edge action draws, or why it may not.
 func (s state) undrawnEdge(action Action) (grid.Edge, error) {
 	if action.Kind != ActionDraw {
-		return grid.Edge{}, game.IllegalActionError{Msg: "unknown action: " + string(action.Kind)}
+		return grid.Edge{}, game.UnknownAction(action.Kind)
 	}
 	edge, ok := catalogueEdges().Parse(action.Edge)
 	if !ok {
-		return grid.Edge{}, game.IllegalActionError{Msg: fmt.Sprintf("edge must be a dot then h or v, such as b2h, got %q", action.Edge)}
+		return grid.Edge{}, game.Illegalf("edge must be a dot then h or v, such as b2h, got %q", action.Edge)
 	}
 	name := s.edges.Name(edge)
 	if !s.edges.Contains(edge) {
-		return grid.Edge{}, game.IllegalActionError{Msg: fmt.Sprintf("%s is off the board of %d boxes a side", name, s.side)}
+		return grid.Edge{}, game.Illegalf("%s is off the board of %d boxes a side", name, s.side)
 	}
 	if _, taken := s.drawn[edge]; taken {
-		return grid.Edge{}, game.IllegalActionError{Msg: name + " is already drawn"}
+		return grid.Edge{}, game.Illegalf("%s is already drawn", name)
 	}
 	return edge, nil
 }
@@ -99,13 +97,12 @@ func (s state) ended() state {
 	first, second := sides[0], sides[1]
 	switch {
 	case scores[first] > scores[second]:
-		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{first}, Reason: ReasonMoreBoxes}
+		s.Ending = s.Concluded(game.WinFor(ReasonMoreBoxes, first))
 	case scores[second] > scores[first]:
-		s.result = game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{second}, Reason: ReasonMoreBoxes}
+		s.Ending = s.Concluded(game.WinFor(ReasonMoreBoxes, second))
 	default:
-		s.result = game.Result{Kind: game.ResultDraw, Reason: ReasonEqualBoxes}
+		s.Ending = s.Concluded(game.DrawBy(ReasonEqualBoxes))
 	}
-	s.finished = true
 	return s
 }
 
@@ -168,13 +165,11 @@ func seatRows(rows, cols int, at func(grid.Point) game.Seat) [][]game.Seat {
 }
 
 func (s state) ToAct() []game.Seat {
-	if s.finished {
+	if s.Over() {
 		return nil
 	}
 	return []game.Seat{s.toMove}
 }
-
-func (s state) Outcome() (game.Result, bool) { return s.result, s.finished }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
@@ -183,10 +178,7 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is offered
 // an edge.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	if s.finished {
-		return s
-	}
-	s.result, s.finished = result, true
+	s.Ending = s.Concluded(result)
 	return s
 }
 
