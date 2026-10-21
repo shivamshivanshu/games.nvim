@@ -84,28 +84,3 @@ func TestConformance(t *testing.T) {
 	}
 	gametest.Run(t, Rules{}, scripts)
 }
-
-func TestSolutionStaysHiddenAtEveryUnfinishedStep(t *testing.T) {
-	for _, d := range difficulties() {
-		script := solvingScript(t, d, conformanceSeed)
-		var st game.State[Action, View] = newState(t, script.Opts, script.Seed)
-		for i, step := range script.Steps {
-			if len(st.ToAct()) == 0 {
-				break
-			}
-			if got := st.View(game.SeatSolo).Solution; len(got) != 0 {
-				t.Fatalf("%s before step %d: unfinished view shows solution %v", d, i, got)
-			}
-			next, _, err := st.Apply(step.Seat, step.Action, nil)
-			if (err != nil) != step.WantErr {
-				t.Fatalf("%s step %d: err = %v, want error %t", d, i, err, step.WantErr)
-			}
-			if err == nil {
-				st = next
-			}
-		}
-		if _, finished := st.Outcome(); !finished {
-			t.Errorf("%s: the script did not finish the game", d)
-		}
-	}
-}

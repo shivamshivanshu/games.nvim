@@ -87,6 +87,8 @@ func TestRunRejectsNonconformingGames(t *testing.T) {
 		{"secret in a view before finish", 2, 2, leakSecretInView, `view leaks "answer-42"`},
 		{"secret that JSON escapes, in a view", 2, 2, leakEscapedSecretInView, `view leaks "a<b&\"c"`},
 		{"secret in an event before finish", 2, 2, leakSecretInEvent, `events leaks "answer-42"`},
+		{"secret spelled out as an array in a view", 2, 2, leakSecretSpelledInView, `view leaks "answer-42" as an array`},
+		{"secret spanning an array's pieces in a view", 2, 2, leakSecretSpannedInView, `view leaks "answer-42" as an array`},
 		{"finishes with two seats left", 3, 4, finishOnFirstElimination, "play must continue while 2 or more remain"},
 		{"solo game survives eliminating its only seat", 1, 1, ignoreElimination, "only seat must finish a solo game"},
 		{"two-player game survives an elimination", 2, 2, ignoreElimination, "left one seat but did not finish"},

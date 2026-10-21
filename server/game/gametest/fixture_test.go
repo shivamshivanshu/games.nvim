@@ -5,6 +5,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"slices"
+	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
@@ -24,6 +25,8 @@ const (
 	leakSecretInView
 	leakEscapedSecretInView
 	leakSecretInEvent
+	leakSecretSpelledInView
+	leakSecretSpannedInView
 	finishOnFirstElimination
 	ignoreElimination
 	eliminateRewritesFinished
@@ -64,10 +67,11 @@ type tableAction struct {
 }
 
 type tableView struct {
-	Hand   string
-	Others []string
-	Counts map[string]int
-	Answer string
+	Hand    string
+	Others  []string
+	Counts  map[string]int
+	Answer  string
+	Spelled []string
 }
 
 type saidEvent struct {
@@ -183,6 +187,10 @@ func (s tableState) View(seat game.Seat) tableView {
 		v.Answer = tableSecret
 	case s.flaw == leakEscapedSecretInView:
 		v.Answer = escapedSecret
+	case s.flaw == leakSecretSpelledInView:
+		v.Spelled = strings.Split(tableSecret, "")
+	case s.flaw == leakSecretSpannedInView:
+		v.Spelled = []string{"x", "answer", "-42", "y"}
 	}
 	for _, other := range s.seats {
 		if other == seat {

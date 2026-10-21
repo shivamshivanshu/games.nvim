@@ -44,7 +44,10 @@ type Script[Opts, Action any] struct {
 	WantResult *game.Result
 	// PrivateOf names, per state, the strings only that seat may see: never in another seat's view, nor in any event.
 	PrivateOf Privacy
-	// Secrets must not appear in any view or event until the game finishes.
+	// Secrets must not appear in any view or event until the game finishes,
+	// within a key, string or number, nor in an array's strings and numbers
+	// joined, such as a code sent digit by digit; a secret shorter than 8
+	// bytes counts there only as the whole array.
 	Secrets []string
 }
 
