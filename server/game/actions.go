@@ -1,6 +1,7 @@
 package game
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -27,7 +28,8 @@ type ActionInput struct {
 }
 
 // checkActions reports an empty catalogue, a duplicate kind, or an input that
-// has both or neither of Pattern and Values, or whose Pattern does not compile.
+// names no field, has both or neither of Pattern and Values, or whose Pattern
+// does not compile.
 func (i Info) checkActions() error {
 	if len(i.Actions) == 0 {
 		return fmt.Errorf("game %s: declares no actions", i.Type)
@@ -48,6 +50,9 @@ func (i Info) checkActions() error {
 func (in *ActionInput) check() error {
 	if in == nil {
 		return nil
+	}
+	if in.Field == "" {
+		return errors.New("input names no field")
 	}
 	if (in.Pattern == "") == (len(in.Values) == 0) {
 		return fmt.Errorf("input %q needs exactly one of a pattern or values", in.Field)

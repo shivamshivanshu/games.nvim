@@ -18,6 +18,7 @@ func TestInfoCheckRejectsInvalidActions(t *testing.T) {
 		{"values", []game.ActionSpec{{Kind: "pick", Input: &game.ActionInput{Field: "side", Values: []string{"a", "b"}}}}, false},
 		{"no actions", nil, true},
 		{"duplicate kind", []game.ActionSpec{{Kind: "pass"}, {Kind: "pass"}}, true},
+		{"no field", []game.ActionSpec{{Kind: "drop", Input: &game.ActionInput{Pattern: "^[1-7]$"}}}, true},
 		{"neither pattern nor values", []game.ActionSpec{{Kind: "drop", Input: &game.ActionInput{Field: "col"}}}, true},
 		{"both pattern and values", []game.ActionSpec{{Kind: "drop", Input: &game.ActionInput{Field: "col", Pattern: "^1$", Values: []string{"1"}}}}, true},
 		{"bad pattern", []game.ActionSpec{{Kind: "drop", Input: &game.ActionInput{Field: "col", Pattern: "("}}}, true},
