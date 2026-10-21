@@ -61,9 +61,9 @@ local AUGROUP_NAME = "games.dashboard"
 ---@field finished games.GameUpdate[] as the last game.list finished returned them
 ---@field view? games.DashboardView last rendered
 ---@field show_keys boolean
----@field render_pending boolean
+---@field request_render fun() renders it on the next tick, once however often it is asked
 ---@field unsubscribes games.Unsubscribe[]
----@field tick? uv.uv_timer_t running while a shown clock is
+---@field ticker games.Ticker re-renders it while a shown clock runs
 
 ---@class (private) games.DashboardKey: games.KeyHint
 ---@field run fun(state: games.DashboardState)
@@ -218,30 +218,7 @@ end
 ---@param snapshot games.SourceSnapshot
 ---@return boolean
 local function shows_running_clock(snapshot)
-  return vim.iter(snapshot.games):any(function(update)
-    return update.result == nil and update.clock ~= nil and update.clock.running ~= nil
-  end)
-end
-
----@type fun(state: games.DashboardState)
-local request_render
-
----@param state games.DashboardState
----@param needed boolean
-local function sync_tick(state, needed)
-  if needed and not state.tick then
-    state.tick = assert(vim.uv.new_timer())
-    state.tick:start(
-      CLOCK_TICK_MS,
-      CLOCK_TICK_MS,
-      vim.schedule_wrap(function()
-        request_render(state)
-      end)
-    )
-  elseif not needed and state.tick then
-    timer.close(state.tick)
-    state.tick = nil
-  end
+  return vim.iter(snapshot.games):any(describe.has_running_clock)
 end
 
 ---@param lines string[]
@@ -272,28 +249,14 @@ local function render(state)
   local line = line_of(view, kept) or first_target_line(view) or 1
   vim.api.nvim_win_set_cursor(state.win, { math.min(line, #view.rendered.lines), 0 })
   local connected = state.connection == ConnectionState.CONNECTED
-  sync_tick(state, connected and shows_running_clock(snapshot))
-end
-
----Coalesces a burst of client events into one render on the next tick.
-request_render = function(state)
-  if state.render_pending then
-    return
-  end
-  state.render_pending = true
-  vim.schedule(function()
-    state.render_pending = false
-    if current == state then
-      render(state)
-    end
-  end)
+  state.ticker.sync(connected and shows_running_clock(snapshot))
 end
 
 ---@param state games.DashboardState
 local function fetch_finished(state)
   state.client:finished_games(function(finished)
     state.finished = finished
-    request_render(state)
+    state.request_render()
   end)
 end
 
@@ -451,7 +414,7 @@ local function watch_window(state)
   vim.api.nvim_create_autocmd("VimResized", {
     group = state.augroup,
     callback = function()
-      request_render(state)
+      state.request_render()
     end,
   })
 end
@@ -459,7 +422,7 @@ end
 ---@param state games.DashboardState
 local function subscribe(state)
   local function rerender()
-    request_render(state)
+    state.request_render()
   end
   state.unsubscribes = {
     state.client:on_update(rerender),
@@ -487,7 +450,7 @@ release = function(state)
   for _, unsubscribe in ipairs(state.unsubscribes) do
     unsubscribe()
   end
-  sync_tick(state, false)
+  state.ticker.close()
   vim.api.nvim_del_augroup_by_id(state.augroup)
 end
 
@@ -526,7 +489,13 @@ function M.open(client)
   vim.wo[win].cursorline = true
   vim.wo[win].winfixbuf = true
   ---@type games.DashboardState
-  local state = {
+  local state
+  local function render_if_current()
+    if current == state then
+      render(state)
+    end
+  end
+  state = {
     client = client,
     me = me,
     connection = ConnectionState.CONNECTED,
@@ -535,8 +504,9 @@ function M.open(client)
     augroup = vim.api.nvim_create_augroup(AUGROUP_NAME, { clear = true }),
     finished = {},
     show_keys = false,
-    render_pending = false,
+    request_render = timer.coalesced(render_if_current),
     unsubscribes = {},
+    ticker = timer.ticker(CLOCK_TICK_MS, render_if_current),
   }
   current = state
   map_keys(state)

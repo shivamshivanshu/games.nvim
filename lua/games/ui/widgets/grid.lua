@@ -31,7 +31,7 @@ local text_util = require("games.ui.text")
 ---@field rows integer
 ---@field cols integer
 ---@field cell fun(row: integer, col: integer): games.GridCell
----@field shade "checker"|"plain"
+---@field shade? "checker"|"plain" default "plain"
 ---@field labels? games.GridLabels
 ---@field marks? games.GridMark[] a later mark on a cell replaces an earlier one
 ---@field flip? boolean
@@ -93,7 +93,7 @@ function M.is_dark(row, col)
   return (row + col) % 2 == 1
 end
 
----@param shade "checker"|"plain"
+---@param shade "checker"|"plain"|nil
 ---@param row integer
 ---@param col integer
 ---@return string|nil

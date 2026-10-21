@@ -17,7 +17,7 @@ local CELL_ASPECT = 2
 ---passes it and the board never narrows as h grows.
 ---@class games.BoardProps
 ---@field grid games.GridProps the board sets cell_height, art, ambiwidth, and cell_width above h = 1
----@field art? games.ArtSet
+---@field art? games.ArtSet default ctx.art
 ---@field beside? games.GridProps[] more grids right of grid, left to right, with as many rows and drawn at its cell height
 ---@field titles? string[] a line centred above each grid, grid's first; a game that titles its grids titles them in every state
 ---@field panels? games.BoardPanel[] beside the grids, left to right
@@ -48,14 +48,15 @@ end
 
 ---Every grid of props at cell_height side by side, each under its title.
 ---@param props games.BoardProps
+---@param art games.ArtSet|nil
 ---@param cell_height integer
 ---@param ambiwidth games.Ambiwidth
 ---@return games.Node
-local function grids_at(props, cell_height, ambiwidth)
+local function grids_at(props, art, cell_height, ambiwidth)
   local titles = props.titles or {}
   local parts = {}
   for i, grid_props in ipairs(vim.list_extend({ props.grid }, props.beside or {})) do
-    local node = titled(grid_at(grid_props, props.art, cell_height, ambiwidth), titles[i])
+    local node = titled(grid_at(grid_props, art, cell_height, ambiwidth), titles[i])
     parts[i] = i > 1 and compose.pad(GRID_GAP, node) or node
   end
   return #parts == 1 and parts[1] or compose.row(parts)
@@ -91,10 +92,11 @@ end
 return function(props, ctx)
   local panels = props.panels or {}
   local space = ctx.space
+  local art = props.art or ctx.art
   local candidates = {}
   for cell_height = tallest_cell(props, space, ctx.max_cell_height), 1, -1 do
     candidates[#candidates + 1] = function()
-      return grids_at(props, cell_height, ctx.ambiwidth)
+      return grids_at(props, art, cell_height, ctx.ambiwidth)
     end
   end
   local board, size

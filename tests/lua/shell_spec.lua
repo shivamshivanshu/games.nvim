@@ -464,13 +464,13 @@ function T.hidden_buffer_marked_dirty()
       },
     })
   )
-  assert_eq(true, vim.b[buf].games_dirty)
+  assert_eq(true, shell.board(buf).dirty)
   local stale = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   assert(not table.concat(stale, "\n"):find("1. e4", 1, true))
 
   vim.api.nvim_set_current_buf(buf)
   helpers.wait_for(function()
-    return vim.b[buf].games_dirty == false
+    return shell.board(buf).dirty == false
   end, "the shown board to refit")
   local fresh = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   assert(table.concat(fresh, "\n"):find("1. e4", 1, true), vim.inspect(fresh))
@@ -788,7 +788,7 @@ function T.a_clock_tick_rewrites_the_clocks_in_place_unless_the_column_or_board_
       end),
       "the refit open scheduled"
     )
-    vim.b[buf].games_dirty = case.dirty == true
+    shell.board(buf).dirty = case.dirty == true
     local expected, height = shell.render(update, chess, ASCII, "alice", elapsed_ms)
     local expected_lines = vim.list_slice(expected.lines, 1, height)
     local expected_marks = by_position(vim.tbl_filter(function(mark)
@@ -996,6 +996,99 @@ function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
   local controls = "R resign  D offer draw  A abort  "
   assert_eq(controls .. "m go to  r rotate  ]g next game  q close", footer(true))
   assert_eq(controls .. "]g next game  q close", footer(false))
+end
+
+function T.typed_input_goes_in_the_field_the_catalogue_names_and_only_for_the_player_to_act()
+  ---@type games.GameModule
+  local module = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    input = { kind = "go", prompt = "Go to: " },
+  }
+  local update = chess_update({ game_id = "go01", seq = 2 })
+  ---@param field string
+  ---@param me games.UserID
+  ---@return games.KeyBinding|nil
+  local function input_binding(field, me)
+    local catalogued = { go = { kind = "go", description = "go", input = { field = field } } }
+    local _, _, bindings = shell.render(update, module, ASCII, me, 0, nil, catalogued)
+    return vim.iter(bindings):find(function(binding)
+      return binding.key == "m"
+    end)
+  end
+  local acted = {}
+  local board = {
+    update = update,
+    me = "alice",
+    client = {
+      game_act = function(_, request)
+        acted[#acted + 1] = request.action
+      end,
+    },
+  }
+  helpers.with_input_answers({ "c5", "d6" }, function()
+    assert(input_binding("cell", "alice")).run(board)
+    assert(input_binding("square", "alice")).run(board)
+  end)
+
+  assert_eq({ { kind = "go", cell = "c5" }, { kind = "go", square = "d6" } }, acted)
+  assert(not input_binding("cell", "bob"), "bound for a player who is not to act")
+end
+
+function T.a_flippable_game_gets_the_flip_key_and_draws_flipped_for_its_bottom_seat()
+  ---@type games.GameModule
+  local module = {
+    layout = function(_, ctx)
+      return require("games.ui.compose").text(tostring(ctx.flip))
+    end,
+    flippable = { bottom_seat = "black" },
+  }
+  ---@param me games.UserID
+  ---@param flipped boolean
+  ---@return string[]
+  local function render(me, flipped)
+    local view = vim.tbl_extend("force", ASCII, { flipped = flipped })
+    return shell.render(chess_update({}), module, view, me, 0).lines
+  end
+  local board_line = 5
+
+  assert_eq("false", render("alice", false)[board_line])
+  assert_eq("true", render("alice", true)[board_line])
+  assert_eq("true", render("bob", false)[board_line])
+  assert_eq("false", render("bob", true)[board_line])
+  local footer = render("alice", false)[board_line + 2]
+  assert(footer:find("F flip  ]g next game", 1, true), footer)
+
+  package.loaded["games.games.flip_test"] = module
+  local client = client_with("alice", { chess_update({ game_id = "flip01", game = "flip_test" }) })
+  local buf = assert(shell.open(client, "flip01"))
+  local board = assert(shell.board(buf))
+  board.bindings.F.run(board)
+  local flipped = vim.api.nvim_buf_get_lines(buf, board_line - 1, board_line, false)[1]
+  package.loaded["games.games.flip_test"] = nil
+  vim.api.nvim_buf_delete(buf, { force = true })
+  assert_eq("true", flipped)
+end
+
+function T.a_flippable_game_may_not_bind_the_flip_key_itself()
+  package.loaded["games.games.flip_clash"] = {
+    layout = function()
+      return require("games.ui.compose").text("board")
+    end,
+    flippable = { bottom_seat = "black" },
+    actions = { { key = "F", label = "fold", action = { kind = "fold" } } },
+  }
+  local client = client_with("alice", { chess_update({ game_id = "flip02", game = "flip_clash" }) })
+  local ok, err = pcall(shell.open, client, "flip02")
+  package.loaded["games.games.flip_clash"] = nil
+  assert(not ok and tostring(err):find('"F" is reserved', 1, true), tostring(err))
+end
+
+function T.a_game_with_asset_keys_needs_its_art()
+  local ok, err = pcall(shell.render, chess_update({}), chess, { glyphs = "ascii" }, "alice", 0)
+
+  assert(not ok and tostring(err):find("chess draws from an asset pack", 1, true), tostring(err))
 end
 
 return T

@@ -1,5 +1,6 @@
 local assets = require("games.ui.assets")
 local compose = require("games.ui.compose")
+local controls = require("games.core.controls")
 local describe = require("games.core.describe")
 local games = require("games")
 local key_hints = require("games.ui.widgets.key_hints")
@@ -7,7 +8,6 @@ local notify = require("games.core.notify")
 local paint = require("games.ui.paint")
 local theme = require("games.ui.theme")
 local players = require("games.core.players")
-local prompt = require("games.ui.prompt")
 local registry = require("games.core.registry")
 local text_util = require("games.ui.text")
 local timer = require("games.core.timer")
@@ -27,6 +27,7 @@ local Control = types.Control
 ---@field me games.UserID
 ---@field space? games.Size what the board and its panels may fill; nil draws the smallest board
 ---@field ambiwidth games.Ambiwidth
+---@field flip boolean whether a flippable game's board draws flipped, as the user now sees it
 
 ---@class games.DescribeCtx how event text outside a board draws
 ---@field art? games.ArtSet the game's asset pack in the user's glyph mode
@@ -37,11 +38,16 @@ local Control = types.Control
 ---@field ambiwidth? games.Ambiwidth the 'ambiwidth' in effect, default "single"
 ---@field seats? integer player lines the header reserves, held from the board's first update
 
+---Prompts for the text of a catalogued action, which the shell sends in the field the catalogue
+---names for it.
 ---@class games.GameInput
----@field kind games.ActionKind of the action parse builds
+---@field kind games.ActionKind
 ---@field prompt string
----@field parse fun(text: string): games.Action
+---@field parse? fun(text: string): games.Action builds the action itself, in place of the catalogue's field
 ---@field available? fun(update: games.GameUpdate): boolean whether it applies now; default always
+
+---@class games.Flippable
+---@field bottom_seat games.Seat the seat a flipped board draws at the bottom, so its player sees it flipped
 
 ---@class games.GameAction
 ---@field key string
@@ -62,6 +68,7 @@ local Control = types.Control
 ---@field glyph_width? integer display columns of a one-line glyph, its cell_width at h = 1; default 1
 ---@field picture_keys? string[] keys its packs draw as whole pictures beside the board
 ---@field player_extra? fun(update: games.GameUpdate, seat: games.Seat, ctx: games.LayoutCtx): games.TextNode[]|nil what the header shows after the clock on seat's line
+---@field flippable? games.Flippable the shell binds a key that turns the board, and sets ctx.flip
 
 ---@class games.OpenOptions
 ---@field glyphs games.Glyphs
@@ -79,7 +86,8 @@ local Control = types.Control
 ---@field clocks? games.ClockColumn where its header draws the clocks; nil without a clock
 ---@field bindings table<string, games.KeyBinding> by key; each is mapped in the buffer
 ---@field text_area? games.Size the window space it was last fitted to, nil until shown
----@field refit_pending boolean
+---@field dirty boolean holds an update it has not drawn
+---@field request_refit fun() refits it on the next tick, once however often it is asked
 ---@field seats integer players in its first update, which size the header for its whole life
 
 ---Where the header draws each player's clock, which a clock tick rewrites in place. Clock text is
@@ -118,6 +126,7 @@ local CONTROL_KEYS = {
   { control = Control.ABORT, key = "A", wording = labelled("abort") },
 }
 local INPUT_KEY = "m"
+local FLIP_KEY = "F"
 local NEXT_GAME_KEY = "]g"
 local CLOSE_KEY = "q"
 local CLOCK_TICK_MS = 1000
@@ -138,9 +147,6 @@ local CORE_KEYS = vim.iter(CONTROL_KEYS):fold(
   end
 )
 
----@type table<games.GameModule, true>
-local checked_modules = setmetatable({}, { __mode = "k" })
-
 local NAMESPACE = vim.api.nvim_create_namespace("games.shell")
 local AUGROUP = vim.api.nvim_create_augroup("games.shell", { clear = true })
 
@@ -150,8 +156,6 @@ local M = {}
 local boards = {}
 ---@type table<games.Client, true>
 local subscribed_clients = setmetatable({}, { __mode = "k" })
----@type uv.uv_timer_t|nil
-local clock_timer
 
 ---@param update games.GameUpdate
 ---@param user games.UserID
@@ -296,46 +300,36 @@ local function stack(top, bottom)
 end
 
 ---@param board games.Board
----@return games.ReplyCallback
-local function report_error(board)
-  return function(err)
-    if err then
-      notify.say(
-        ("%s: %s"):format(describe.title(board.update, board.me), err.message),
-        vim.log.levels.ERROR
-      )
-    end
-  end
-end
-
----@param board games.Board
 ---@param game_action games.Action
 local function act(board, game_action)
   board.client:game_act(
     { game_id = board.update.game_id, seq = board.update.seq, action = game_action },
-    report_error(board)
+    controls.report_failure(board.update, board.me)
   )
 end
 
----@param board games.Board
----@param control games.Control
----@param wording games.ControlWording
-local function send_control(board, control, wording)
-  if wording.confirm and not prompt.confirm(wording.confirm) then
-    return
-  end
-  board.client:game_control(
-    { game_id = board.update.game_id, seq = board.update.seq, control = control },
-    report_error(board)
-  )
-end
-
----@param board games.Board
+---What input sends for text: what its parse builds or, without one, the catalogued action with
+---text in the field the catalogue names, which a parse-less input's action must have.
 ---@param input games.GameInput
-local function prompt_input(board, input)
-  vim.ui.input({ prompt = input.prompt }, function(text)
+---@param spec games.ActionSpec input's action in the catalogue
+---@return fun(text: string): games.Action
+local function text_action(input, spec)
+  if input.parse then
+    return input.parse
+  end
+  local field = assert(spec.input, ("action %q takes no text"):format(input.kind)).field
+  return function(text)
+    return { kind = input.kind, [field] = text }
+  end
+end
+
+---@param board games.Board
+---@param prompt string
+---@param to_action fun(text: string): games.Action
+local function prompt_input(board, prompt, to_action)
+  vim.ui.input({ prompt = prompt }, function(text)
     if text and vim.trim(text) ~= "" then
-      act(board, input.parse(text))
+      act(board, to_action(text))
     end
   end)
 end
@@ -360,18 +354,16 @@ end
 
 ---@param module games.GameModule
 local function check_action_keys(module)
-  if checked_modules[module] then
-    return
-  end
+  local reserved = module.flippable and vim.tbl_extend("error", CORE_KEYS, { [FLIP_KEY] = true })
+    or CORE_KEYS
   local seen = {}
   for _, entry in ipairs(module.actions or {}) do
     for _, key in ipairs(keys_of(entry)) do
-      assert(not CORE_KEYS[key], ("game action key %q is reserved by the shell"):format(key))
+      assert(not reserved[key], ("game action key %q is reserved by the shell"):format(key))
       assert(not seen[key], ("game action key %q is bound twice"):format(key))
       seen[key] = true
     end
   end
-  checked_modules[module] = true
 end
 
 ---Whether the catalogue lists kind; nothing is, until the catalogue is known.
@@ -400,13 +392,19 @@ local function is_available(entry, update)
   return not entry.available or entry.available(update)
 end
 
+---@param board games.Board
+local function toggle_flip(board)
+  board.view = vim.tbl_extend("force", board.view, { flipped = not board.view.flipped })
+  render_board(board)
+end
+
 ---@param update games.GameUpdate
 ---@param module games.GameModule
 ---@param view games.ViewOptions
+---@param me games.UserID
 ---@param catalogued? table<games.ActionKind, games.ActionSpec> the actions the server lists for the game
 ---@return games.KeyBinding[]
-local function bindings_for(update, module, view, catalogued)
-  check_action_keys(module)
+local function bindings_for(update, module, view, me, catalogued)
   local ongoing = update.result == nil
   local bindings = {}
   for _, spec in ipairs(CONTROL_KEYS) do
@@ -416,23 +414,31 @@ local function bindings_for(update, module, view, catalogued)
         key = spec.key,
         label = wording.label,
         run = function(board)
-          send_control(board, spec.control, wording)
+          controls.send(
+            board.client,
+            board.update,
+            spec.control,
+            wording,
+            controls.report_failure(board.update, board.me)
+          )
         end,
       }
     end
   end
   local input = module.input
   if
-    ongoing
-    and input
+    input
+    and players.is_to_act(update, me)
     and is_catalogued(catalogued, input.kind)
     and is_available(input, update)
   then
+    ---@cast catalogued -nil
+    local to_action = text_action(input, catalogued[input.kind])
     bindings[#bindings + 1] = {
       key = INPUT_KEY,
       label = (input.prompt:gsub(":%s*$", ""):lower()),
       run = function(board)
-        prompt_input(board, input)
+        prompt_input(board, input.prompt, to_action)
       end,
     }
   end
@@ -451,19 +457,24 @@ local function bindings_for(update, module, view, catalogued)
         end,
       }
     elseif ongoing and kind and is_catalogued(catalogued, kind) and is_available(entry, update) then
+      ---@cast catalogued -nil
+      local to_action = entry_input and text_action(entry_input, catalogued[kind])
       bindings[#bindings + 1] = {
         key = entry.key,
         aliases = entry.aliases,
         label = label_of(entry, update),
         run = function(board)
           if entry_input then
-            prompt_input(board, entry_input)
+            prompt_input(board, entry_input.prompt, assert(to_action))
           else
             act(board, game_action --[[@as games.Action]])
           end
         end,
       }
     end
+  end
+  if module.flippable then
+    bindings[#bindings + 1] = { key = FLIP_KEY, label = "flip", run = toggle_flip }
   end
   bindings[#bindings + 1] = {
     key = NEXT_GAME_KEY,
@@ -489,6 +500,19 @@ local function layout_space(seats, footer_lines, text_area)
   return { w = text_area.w, h = text_area.h - chrome }
 end
 
+---Whether a flippable module's board draws flipped: its bottom seat's player sees it so, and
+---either player sees it the other way once they turn it.
+---@param update games.GameUpdate
+---@param module games.GameModule
+---@param view games.ViewOptions
+---@param me games.UserID
+---@return boolean
+local function is_flipped(update, module, view, me)
+  local flippable = module.flippable
+  return flippable ~= nil
+    and (players.seat_of_user(update, me) == flippable.bottom_seat) ~= view.flipped
+end
+
 ---@param update games.GameUpdate
 ---@param module games.GameModule
 ---@param view games.ViewOptions
@@ -501,14 +525,19 @@ end
 ---@return games.KeyBinding[] bindings the footer lists
 ---@return games.ClockColumn|nil clocks where the header draws the clocks
 function M.render(update, module, view, me, elapsed_ms, display, catalogued)
+  assert(
+    view.art or not module.asset_keys,
+    ("games: %s draws from an asset pack, and none is loaded"):format(update.game)
+  )
   local measured = display or {}
-  local bindings = bindings_for(update, module, view, catalogued)
+  local bindings = bindings_for(update, module, view, me, catalogued)
   local footer = key_hints(bindings, measured.text_area and measured.text_area.w)
   local seats = measured.seats or #update.players
   local ctx = vim.tbl_extend("force", view, {
     me = me,
     space = layout_space(seats, compose.measure(footer).h, measured.text_area),
     ambiwidth = measured.ambiwidth or DEFAULT_AMBIWIDTH,
+    flip = is_flipped(update, module, view, me),
   }) --[[@as games.LayoutCtx]]
   local header, clocks =
     render_header(update, me, elapsed_ms or 0, extras_column(update, module, ctx))
@@ -565,7 +594,7 @@ render_board = function(board)
     }, board.client:action_specs(board.update.game))
   paint(board.buf, NAMESPACE, 0, -1, rendered)
   board.clocks = clocks
-  vim.b[board.buf].games_dirty = false
+  board.dirty = false
   map_keys(board, bindings)
 end
 
@@ -607,7 +636,7 @@ end
 local function repaint_clocks(board)
   local clocks = board.clocks
   local cells = clock_cells(board.update, elapsed_ms(board))
-  if vim.b[board.buf].games_dirty or not (clocks and widest_clock(cells) == clocks.width) then
+  if board.dirty or not (clocks and widest_clock(cells) == clocks.width) then
     render_board(board)
     return
   end
@@ -669,33 +698,23 @@ local function refit(board)
   end
   vim.iter(wins):each(prepare_window)
   local text_area = shared_text_area(wins)
-  if vim.b[board.buf].games_dirty or not vim.deep_equal(text_area, board.text_area) then
+  if board.dirty or not vim.deep_equal(text_area, board.text_area) then
     board.text_area = text_area
     render_board(board)
     vim.iter(wins):each(scroll_to_top)
   end
 end
 
----Coalesces a burst of window events into one refit on the next tick.
 ---@param board games.Board
 local function request_refit(board)
-  if board.refit_pending then
-    return
-  end
-  board.refit_pending = true
-  vim.schedule(function()
-    board.refit_pending = false
-    if boards[board.buf] then
-      refit(board)
-    end
-  end)
+  board.request_refit()
 end
 
 ---@return games.Board[] boards with a window in the current tabpage
 local function boards_in_tab()
   return vim.tbl_filter(function(board)
     return #windows_in_tab(board.buf) > 0
-  end, vim.tbl_values(boards))
+  end, boards)
 end
 
 vim.api.nvim_create_autocmd({ "WinResized", "VimResized", "WinEnter", "TabEnter" }, {
@@ -710,7 +729,7 @@ vim.api.nvim_create_autocmd("OptionSet", {
   pattern = "ambiwidth",
   callback = function()
     for _, board in pairs(boards) do
-      vim.b[board.buf].games_dirty = true
+      board.dirty = true
     end
     vim.iter(boards_in_tab()):each(request_refit)
   end,
@@ -719,24 +738,16 @@ vim.api.nvim_create_autocmd("OptionSet", {
 ---@return games.Board[]
 local function ticking_boards()
   return vim.tbl_filter(function(board)
-    return board.update.clock ~= nil and board.update.clock.running ~= nil and is_shown(board.buf)
-  end, vim.tbl_values(boards))
+    return describe.has_running_clock(board.update) and is_shown(board.buf)
+  end, boards)
 end
 
+local clock_ticker = timer.ticker(CLOCK_TICK_MS, function()
+  vim.iter(ticking_boards()):each(repaint_clocks)
+end)
+
 local function sync_clock_timer()
-  local needed = #ticking_boards() > 0
-  clock_timer = clock_timer or assert(vim.uv.new_timer())
-  if needed and not clock_timer:is_active() then
-    clock_timer:start(
-      CLOCK_TICK_MS,
-      CLOCK_TICK_MS,
-      vim.schedule_wrap(function()
-        vim.iter(ticking_boards()):each(repaint_clocks)
-      end)
-    )
-  elseif not needed and clock_timer:is_active() then
-    clock_timer:stop()
-  end
+  clock_ticker.sync(#ticking_boards() > 0)
 end
 
 ---@param board games.Board
@@ -746,7 +757,7 @@ local function apply_update(board, update)
   if is_shown(board.buf) then
     render_board(board)
   else
-    vim.b[board.buf].games_dirty = true
+    board.dirty = true
   end
   sync_clock_timer()
 end
@@ -767,6 +778,13 @@ function M.is_visible(game_id)
   return vim.iter(vim.tbl_values(boards)):any(function(board)
     return board.update.game_id == game_id and is_shown(board.buf)
   end)
+end
+
+---The board buf shows, while it is open.
+---@param buf integer
+---@return games.Board|nil
+function M.board(buf)
+  return boards[buf]
 end
 
 ---@param client games.Client
@@ -911,6 +929,7 @@ open_update = function(client, update, me, opts)
     notify.say(("games: no board for game type %s"):format(update.game), vim.log.levels.ERROR)
     return nil
   end
+  check_action_keys(module)
 
   subscribe(client)
   local buf = vim.api.nvim_create_buf(true, true)
@@ -934,7 +953,13 @@ open_update = function(client, update, me, opts)
     view = view_for(update.game, module, options),
     update = update,
     bindings = {},
-    refit_pending = false,
+    dirty = false,
+    request_refit = timer.coalesced(function()
+      local open = boards[buf]
+      if open then
+        refit(open)
+      end
+    end),
     seats = #update.players,
   }
   boards[buf] = board

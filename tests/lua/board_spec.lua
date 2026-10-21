@@ -109,6 +109,22 @@ function T.an_unsized_panel_is_drawn_at_the_board_height()
   assert_eq(alone.h, beside.h)
 end
 
+function T.a_board_draws_from_the_ctx_art_and_shades_plain_by_default()
+  local grid = {
+    rows = 1,
+    cols = 2,
+    cell = function(_, col)
+      return { col == 1 and "x" or "o" }
+    end,
+  }
+  local art =
+    { x = { { h = 1, w = 1, lines = { "X" } } }, o = { { h = 1, w = 1, lines = { "O" } } } }
+  local rendered = compose.render(board({ grid = grid }, { art = art, ambiwidth = "single" }))
+
+  assert_eq({ "X O" }, rendered.lines)
+  assert_eq({}, rendered.extmarks)
+end
+
 function T.a_banner_never_resizes_the_board()
   local area = { w = 200, h = 46 }
   local offered = with_history({})

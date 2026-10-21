@@ -114,7 +114,7 @@ end
 function T.a_waiting_seat_has_no_raise_line_and_cannot_call_dudo()
   local lines = render(bidding({ min_bids = {}, can_dudo = false }), "bob")
   assert(not shows(lines, "Raise"))
-  assert_eq("R resign  m bid, e.g. 3x5  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  ]g next game  q close", lines[#lines])
 end
 
 function T.the_seat_to_act_may_bid_or_call_dudo()

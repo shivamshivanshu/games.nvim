@@ -153,7 +153,7 @@ function T.a_waiting_seat_sees_no_hint_marks_or_moves()
   assert(not shows(lines, "Now"))
   local hand = assert(line_of(lines, "Y1  B2"))
   assert_eq("", vim.trim(lines[hand + 1]))
-  assert_eq("R resign  m play, e.g. r5 or w g  ]g next game  q close", lines[#lines])
+  assert_eq("R resign  ]g next game  q close", lines[#lines])
 end
 
 function T.colour_keys_name_their_colour()

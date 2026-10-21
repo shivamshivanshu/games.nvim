@@ -1,4 +1,5 @@
 local compose = require("games.ui.compose")
+local controls = require("games.core.controls")
 local describe = require("games.core.describe")
 local kv = require("games.ui.widgets.kv")
 local picker = require("games.ui.picker")
@@ -332,7 +333,13 @@ local function resign_action(name, client, solo)
         and vim.tbl_contains(update.controls, types.Control.RESIGN)
     end,
     run = function(update)
-      commands().resign(client, update)
+      controls.send(
+        client,
+        update,
+        types.Control.RESIGN,
+        describe.resign_wording(update),
+        controls.report_message
+      )
     end,
   }
 end

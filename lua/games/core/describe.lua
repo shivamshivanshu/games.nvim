@@ -92,6 +92,13 @@ function M.clock_elapsed_ms(update, now_ms)
   return math.max(0, now_ms - update.clock.as_of_ms)
 end
 
+---Whether update's game is ongoing with a clock counting down.
+---@param update games.GameUpdate
+---@return boolean
+function M.has_running_clock(update)
+  return update.result == nil and update.clock ~= nil and update.clock.running ~= nil
+end
+
 ---@param update games.GameUpdate with a clock
 ---@param user games.UserID
 ---@param elapsed_ms integer charged to user's clock if it is the running one

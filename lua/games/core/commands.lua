@@ -1,6 +1,5 @@
 local Archive = require("games.core.archive")
 local dashboard = require("games.ui.dashboard")
-local describe = require("games.core.describe")
 local finder = require("games.ui.finder")
 local float = require("games.ui.float")
 local kv = require("games.ui.widgets.kv")
@@ -469,20 +468,6 @@ function M.respond(client, me, challenge, label)
     return
   end
   action.send(client, { challenge_id = challenge.challenge_id }, on_ok())
-end
-
----Resigns update's game once confirmed, at the seq the client holds by then.
----@param client games.Client
----@param update games.GameUpdate
-function M.resign(client, update)
-  if not prompt.confirm(describe.resign_wording(update).confirm) then
-    return
-  end
-  local latest = client:game(update.game_id) or update
-  client:game_control(
-    { game_id = latest.game_id, seq = latest.seq, control = types.Control.RESIGN },
-    on_ok()
-  )
 end
 
 ---@type games.SubcommandRun
