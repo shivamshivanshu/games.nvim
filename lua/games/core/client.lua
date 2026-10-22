@@ -424,10 +424,9 @@ end
 ---@package
 ---@param listed games.GameUpdate[]
 function Client:snapshot_unlisted(listed)
-  local listed_ids = {}
-  for _, update in ipairs(listed) do
-    listed_ids[update.game_id] = true
-  end
+  local listed_ids = tables.set_of(listed, function(update)
+    return update.game_id
+  end)
   for game_id, update in pairs(self.updates) do
     if update.result == nil and not listed_ids[game_id] then
       resync_snapshot(self, { game_id = game_id })
