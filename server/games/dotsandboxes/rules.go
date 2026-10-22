@@ -47,7 +47,7 @@ func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng 
 	if side == 0 {
 		return nil, nil, game.BadRequestf("unknown size %q", opts.Size)
 	}
-	return newState(side), sides.AssignFirst(opts.First, challenger, invitees, rng), nil
+	return newState(side), sides.Assign(opts.First, challenger, invitees, rng), nil
 }
 
 // boxesPerSide is the number size names, 0 for an unknown size.

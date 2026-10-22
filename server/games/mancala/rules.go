@@ -44,5 +44,5 @@ func parsePit(text string) (int, error) {
 
 // New seats the first mover as south, which sows first.
 func (Rules) New(opts game.TurnOpts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	return state{Turn: game.TurnTo(SeatSouth), board: startBoard()}, sides.AssignFirst(opts.First, challenger, invitees, rng), nil
+	return state{Turn: game.TurnTo(SeatSouth), board: startBoard()}, sides.Assign(opts.First, challenger, invitees, rng), nil
 }

@@ -29,8 +29,8 @@ func TestPairSeatsAndAssigns(t *testing.T) {
 		{game.FirstMoverRandom, 6, challengerFirst},
 	}
 	for _, tc := range tests {
-		if got := pair.AssignFirst(tc.first, "alice", []game.UserID{"bob"}, game.StepRNG(tc.seed, 0)); !cmp.Equal(got, tc.want) {
-			t.Errorf("AssignFirst(%s, seed %d) = %v, want %v", tc.first, tc.seed, got, tc.want)
+		if got := pair.Assign(tc.first, "alice", []game.UserID{"bob"}, game.StepRNG(tc.seed, 0)); !cmp.Equal(got, tc.want) {
+			t.Errorf("Assign(%s, seed %d) = %v, want %v", tc.first, tc.seed, got, tc.want)
 		}
 	}
 }
