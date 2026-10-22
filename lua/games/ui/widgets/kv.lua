@@ -24,9 +24,9 @@ local M = {}
 ---@param props games.KvProps
 ---@return games.Node
 local function render(props)
-  local key_width = text_util.max_display_width(vim.tbl_map(function(pair)
+  local key_width = text_util.widest(props.pairs, function(pair)
     return pair[1]
-  end, props.pairs))
+  end)
   local lines = vim.tbl_map(function(pair)
     local key = text_util.pad_to_width(pair[1], key_width)
     return compose.row({

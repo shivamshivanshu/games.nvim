@@ -402,9 +402,9 @@ local function game_types(snapshot)
   table.sort(infos, function(a, b)
     return a.name < b.name
   end)
-  local name_width = text.max_display_width(vim.tbl_map(function(info)
+  local name_width = text.widest(infos, function(info)
     return info.name
-  end, infos))
+  end)
   return {
     name = SourceName.TYPES,
     title = "New game",
@@ -513,9 +513,9 @@ end
 ---@return games.Source
 local function puzzle_sets(snapshot)
   local client = snapshot.client
-  local name_width = text.max_display_width(vim.tbl_map(function(set)
+  local name_width = text.widest(snapshot.puzzle_sets, function(set)
     return set.name
-  end, snapshot.puzzle_sets))
+  end)
   return {
     name = SourceName.PUZZLES,
     title = "Puzzles",
