@@ -292,6 +292,19 @@ same `dir` can both append the same events to `events.jsonl`.
                         refuses is reported and skipped. Completes the saved
                         sets. Rules: docs/games/chess_puzzle.md.
 
+:Games register                                             *:Games-register*
+                        Create your account on the server with its sign-up
+                        passphrase, which the host shares (|games-server|),
+                        then log in. Asks for the username unless
+                        configured, for the password twice unless
+                        configured (a mismatch asks again once), then for
+                        the passphrase; all but the username are hidden.
+                        The username and password are kept for the
+                        session; set `username` in your config to skip its
+                        prompt next time. A refused sign-up (sign-up off, a
+                        wrong passphrase, a taken name) is reported once
+                        and not retried. Does nothing when logged in.
+
 Incoming challenges, and moves in boards you are not viewing, arrive as
 |vim.notify()| messages. Accepting a challenge opens the board when the game
 starts.
@@ -459,9 +472,9 @@ glyph rendering works (if not, try `glyphs = "ascii"`), and the palette with
 ==============================================================================
 8. RUNNING AND JOINING A SERVER                                    *games-server*
 
-Joining: get an account and the server address from whoever hosts it, set
-`server.host` / `server.port` (|games-config|), then run |:Games|. There is no
-self-registration.
+Joining: get the server address from whoever hosts it and set `server.host` /
+`server.port` (|games-config|). Then run |:Games-register| with the host's
+sign-up passphrase, or ask the host for an account and run |:Games|.
 
 Hosting (needs Go 1.26+): >sh
     go install github.com/shivamshivanshu/games.nvim/server/cmd/games-server@latest
@@ -475,11 +488,20 @@ From a checkout, `make build` produces `bin/games-server` instead.
     Flag            Default            Meaning ~
     `--addr`          `127.0.0.1:7777`     listen address
     `--db`            `games.db`           SQLite file
+    `--signup-passphrase-file`
+                    none               file holding the sign-up passphrase
     `--heartbeat`     `15s`                heartbeat interval
     `--idle`          `45s`                idle timeout before a client is dropped
 
 `adduser [--db games.db] [--password-stdin] <name>`: `--password-stdin` reads
 the password from one line of stdin. Use the same `--db` as `serve`.
+
+Sign-up: with a passphrase, anyone who knows it can create an account with
+|:Games-register|. `serve` reads it from `--signup-passphrase-file` (its
+trailing newline dropped), else from `$GAMES_SIGNUP_PASSPHRASE`; without
+either, sign-up is off and `adduser` is the only way in. It is never a flag
+value, since anyone on the host can read those from the process list. To
+revoke it, restart the server with a new passphrase or none.
 
                                                                 *games-docker*
 Docker: the image serves `/data/games.db` on the `games-data` volume as uid
@@ -508,7 +530,10 @@ address, or keep the default and use an SSH tunnel: >
 <
 Use a password you use nowhere else.
 
-Failed logins are locked out per IP: 5 failures in 5 minutes locks that IP
-out for 5 minutes.
+Failed logins and wrong sign-up passphrases are locked out per IP: 5
+failures in 5 minutes locks that IP out for 5 minutes.
+
+The sign-up passphrase crosses the wire in cleartext like the password;
+anyone holding it can create accounts.
 
  vim:tw=78:ts=8:ft=help:norl:

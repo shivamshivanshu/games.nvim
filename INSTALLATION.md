@@ -19,12 +19,22 @@ bin/games-server adduser alice   # prompts for a password
 bin/games-server serve
 ```
 
-Accounts exist only through `adduser [--db games.db] [--password-stdin] <name>`; use the same `--db` as `serve`.
+`adduser [--db games.db] [--password-stdin] <name>` creates an account; use the same `--db` as `serve`.
+
+To let people create their own accounts with `:Games register`, give `serve` a sign-up passphrase and share it out of band:
+
+```sh
+bin/games-server serve --signup-passphrase-file passphrase.txt   # its trailing newline is dropped
+GAMES_SIGNUP_PASSPHRASE='…' bin/games-server serve               # used when no file is given
+```
+
+Without either, sign-up is off and `adduser` is the only way in. The passphrase is never a flag value, since anyone on the host can read those from the process list. To revoke it, restart the server with a new one or none.
 
 | `serve` flag | Default | Meaning |
 |---|---|---|
 | `--addr` | `127.0.0.1:7777` | listen address, e.g. your Tailscale IP to host friends |
 | `--db` | `games.db` | SQLite file |
+| `--signup-passphrase-file` | none | file holding the sign-up passphrase; default `$GAMES_SIGNUP_PASSPHRASE` |
 | `--heartbeat` | `15s` | heartbeat interval |
 | `--idle` | `45s` | drop a silent client after this |
 
@@ -84,4 +94,4 @@ MiniDeps.add("shivamshivanshu/games.nvim")
 
 vim-plug: `Plug 'shivamshivanshu/games.nvim'`. Native packages: clone into `~/.local/share/nvim/site/pack/games/start/games.nvim`, then `:helptags ALL`.
 
-To join a server, get an account from its host, set `server.host` and `server.port`, and run `:Games`. `:checkhealth games` diagnoses the setup; `:help games` is the manual.
+To join a server, set `server.host` and `server.port`, then run `:Games register` with the host's sign-up passphrase, or ask the host for an account and run `:Games`. `:checkhealth games` diagnoses the setup; `:help games` is the manual.

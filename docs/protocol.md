@@ -8,7 +8,7 @@ leaderboards and export files. A client presents that data and re-implements no
 game rules. Display wording, glyphs and colours stay client-side, so this
 document lists the enums behind them.
 
-Protocol version: **1**. It is sent in `auth.login` as `v`.
+Protocol version: **1**. It is sent in `auth.login` and `auth.register` as `v`.
 
 ## Files
 
@@ -47,7 +47,7 @@ The schema is generated from the Go types: `make schema` writes it, and
 
 ## Session
 
-1. Connect, then send `auth.login` within **10 s**, or the server closes the connection.
+1. Connect, then send `auth.login` (or `auth.register`) within **10 s**, or the server closes the connection.
 2. Before login, any other request gets `unauthenticated`.
 3. After login, send something (`ping` will do) at least every `heartbeat_ms` (15000). The server closes a connection that sends nothing for **3 × heartbeat** (45 s). The server does not ping the client.
 4. One user may hold several connections. Every connection gets every push for that user.
@@ -60,6 +60,15 @@ The schema is generated from the Go types: `make schema` writes it, and
 - A wrong username or password gets `auth_failed`. **Lockout is per client IP**: after 5 failures within 5 minutes, that IP gets `auth_failed` for 5 minutes, even with the right password. A client stops retrying on `auth_failed`.
 - A second `auth.login` on a logged-in connection gets `bad_request`.
 
+## Sign-up
+
+- `auth.register` takes `{v, username, password, passphrase}`. On success it creates the account and logs that connection in, with the same reply as `auth.login`; later connections use `auth.login`.
+- The passphrase is the server's sign-up passphrase, shared by its host out of band. A server started without one answers `signup_disabled`.
+- The server checks, in order: `v`, the IP lockout, that sign-up is on, the passphrase, the username, a non-empty password, and that the username is free. So a client without the passphrase learns nothing about which names are taken.
+- A wrong passphrase gets `passphrase_rejected` and counts toward the IP lockout like a failed login.
+- A taken username gets `user_exists`. An invalid username or an empty password gets `bad_request`.
+- A client stops retrying on `signup_disabled`, `passphrase_rejected` and `user_exists`.
+
 ## Requests
 
 Every body here is defined in `schema/protocol.json`. The "Game update" type
@@ -68,6 +77,7 @@ is defined in [Game updates](#game-updates).
 | Type | Body | `ok` reply | Notes |
 |---|---|---|---|
 | `auth.login` | `LoginRequest {v, username, password}` | `LoginResult {user, heartbeat_ms}` | Only allowed before login. |
+| `auth.register` | `RegisterRequest {v, username, password, passphrase}` | `LoginResult {user, heartbeat_ms}` | Only allowed before login; see [Sign-up](#sign-up). |
 | `ping` | `{}` | `{}` | Heartbeat. |
 | `catalog.list` | `{}` | `{games: GameInfo[]}` | The registered games; see [Catalogue](#catalogue). |
 | `user.list` | `{}` | `{users: [{user, online}]}` | Sorted by name. |
@@ -95,9 +105,9 @@ is defined in [Game updates](#game-updates).
 
 | Code | When |
 |---|---|
-| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that cannot seat one player, an unknown or already resolved challenge, a challenge the user may not resolve, an action with a field its game's actions lack or with another kind's input field, an action the game cannot parse, a second `auth.login`. |
-| `version_mismatch` | `auth.login` with another protocol version. |
-| `unauthenticated` | Any request but `auth.login` before login. |
+| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that cannot seat one player, an unknown or already resolved challenge, a challenge the user may not resolve, an action with a field its game's actions lack or with another kind's input field, an action the game cannot parse, a second `auth.login` or `auth.register`, `auth.register` with an invalid username or an empty password. |
+| `version_mismatch` | `auth.login` or `auth.register` with another protocol version. |
+| `unauthenticated` | Any request but `auth.login` or `auth.register` before login. |
 | `auth_failed` | Wrong credentials, or the IP is locked out. |
 | `not_found` | No such game, the user is not one of its players, or `game.act`/`game.control` on a finished game the server has dropped (see below). |
 | `not_your_turn` | `game.act` when the user is not in `to_act`. |
@@ -105,6 +115,9 @@ is defined in [Game updates](#game-updates).
 | `stale` | `seq` is not the game's current seq; in a real-time game, only a control past it, or a seq past the game's, counts (see [Ticks](#ticks)). Nothing changed. |
 | `internal` | A server fault, or `server full` before login. |
 | `summary_mismatch` | `game.verify` with a summary the server did not seal. |
+| `signup_disabled` | `auth.register` on a server without a sign-up passphrase. |
+| `passphrase_rejected` | `auth.register` with the wrong passphrase. |
+| `user_exists` | `auth.register` for a username already taken. |
 
 The client also uses `disconnected` for a lost connection. The server never
 sends it.
@@ -538,7 +551,8 @@ milliseconds: `heartbeat_ms` and `remaining_ms`.
 
 - **Reconnect** on a lost connection:
   - use exponential backoff with jitter (the Neovim client uses 1 s doubling to 30 s, ±20%);
-  - do not reconnect after `auth_failed` or `version_mismatch`.
+  - do not reconnect after `auth_failed`, `version_mismatch`, `signup_disabled`, `passphrase_rejected` or `user_exists`;
+  - reconnect with `auth.login`, even after an `auth.register` logged in.
 - **Resync** after every login, because pushes sent while disconnected are lost:
   1. `game.list` (ongoing) replaces the cached state of every listed game.
   2. A `game.snapshot` for each cached game that is missing from the list: it finished while the client was away.

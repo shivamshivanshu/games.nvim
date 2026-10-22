@@ -115,6 +115,7 @@ A pack that fails these checks is replaced by `"default"`, with one notice.
 | `:Games export` | archive your 50 most recent finished games |
 | `:Games import <file> [set] [max]` | import a Lichess puzzle `.csv` or a `.pgn` into a puzzle set (default: the file's name), keeping the first `max` entries; works offline; a PGN game without a `FEN` header is a study |
 | `:Games puzzle [set]` | start the next entry of a puzzle set (default: the latest imported) |
+| `:Games register` | create your account with the server's sign-up passphrase, then log in; asks for the username and password unless configured |
 
 Options are asked one at a time, default first; cancelling one cancels the start. Challenges, and moves in boards you are not viewing, arrive as notifications.
 
@@ -217,7 +218,7 @@ No core edits.
 
 ## Security
 
-Transport is plain TCP: usernames, passwords and games cross the wire in cleartext. The server binds `127.0.0.1` by default; to share it, bind `--addr` to a Tailscale or WireGuard address or use an SSH tunnel (`ssh -L 7777:127.0.0.1:7777 host`), and use a password you use nowhere else. Passwords are stored as bcrypt hashes. Five failed logins in 5 minutes lock that IP out for 5 minutes.
+Transport is plain TCP: usernames, passwords and games cross the wire in cleartext. The server binds `127.0.0.1` by default; to share it, bind `--addr` to a Tailscale or WireGuard address or use an SSH tunnel (`ssh -L 7777:127.0.0.1:7777 host`), and use a password you use nowhere else. Passwords are stored as bcrypt hashes. Five failed logins or sign-up passphrases in 5 minutes lock that IP out for 5 minutes. The sign-up passphrase crosses the wire in cleartext like the password; anyone holding it can create accounts.
 
 ## Development
 
