@@ -15,6 +15,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/clocktest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 	"github.com/shivamshivanshu/games.nvim/server/internal/storetest"
 )
@@ -346,16 +347,16 @@ func TestStatsExcludeAborted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantStats := []store.StatRecord{
-		{User: alice, Game: "chess", Tally: store.Tally{Wins: 1, Draws: 1}},
-		{User: bob, Game: "chess", Tally: store.Tally{Losses: 1, Draws: 1}},
+	wantStats := []protocol.StatsRecord{
+		{User: alice, Game: "chess", Tally: protocol.Tally{Wins: 1, Draws: 1}},
+		{User: bob, Game: "chess", Tally: protocol.Tally{Losses: 1, Draws: 1}},
 	}
 	if diff := cmp.Diff(wantStats, stats.Records); diff != "" {
 		t.Fatalf("stats (-want +got):\n%s", diff)
 	}
-	wantH2H := []store.HeadToHeadRecord{
-		{User: alice, Opponent: bob, Game: "chess", Tally: store.Tally{Wins: 1, Draws: 1}},
-		{User: bob, Opponent: alice, Game: "chess", Tally: store.Tally{Losses: 1, Draws: 1}},
+	wantH2H := []protocol.HeadToHeadRecord{
+		{User: alice, Opponent: bob, Game: "chess", Tally: protocol.Tally{Wins: 1, Draws: 1}},
+		{User: bob, Opponent: alice, Game: "chess", Tally: protocol.Tally{Losses: 1, Draws: 1}},
 	}
 	if diff := cmp.Diff(wantH2H, stats.HeadToHead); diff != "" {
 		t.Fatalf("head-to-head (-want +got):\n%s", diff)
@@ -364,6 +365,20 @@ func TestStatsExcludeAborted(t *testing.T) {
 	finished, err := s.LoadFinished(ctx, alice, 10)
 	if err != nil || len(finished) != 3 {
 		t.Fatalf("finished = %v, err = %v", finished, err)
+	}
+}
+
+func TestStatsOfNoGamesEncodeAsEmptyArrays(t *testing.T) {
+	stats, err := storetest.Open(t, passwordHash, alice).Stats(t.Context(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"records":[],"head_to_head":[],"leaderboard":[]}`; string(raw) != want {
+		t.Errorf("got %s, want %s", raw, want)
 	}
 }
 
@@ -385,10 +400,10 @@ func TestStatsRankAndFilterByUser(t *testing.T) {
 		}
 		finish(t, s, g.id, finishOf(1, game.ResultDecisive, game.ReasonResign, map[game.UserID]store.Standing{g.winner: won, g.loser: lost}))
 	}
-	wantLeaderboard := []store.UserTally{
-		{User: carol, Tally: store.Tally{Wins: 2}},
-		{User: alice, Tally: store.Tally{Wins: 2, Losses: 1}},
-		{User: bob, Tally: store.Tally{Wins: 1, Losses: 4}},
+	wantLeaderboard := []protocol.LeaderboardEntry{
+		{User: carol, Tally: protocol.Tally{Wins: 2}},
+		{User: alice, Tally: protocol.Tally{Wins: 2, Losses: 1}},
+		{User: bob, Tally: protocol.Tally{Wins: 1, Losses: 4}},
 	}
 	all, err := s.Stats(ctx, "")
 	if err != nil {
@@ -408,7 +423,7 @@ func TestStatsRankAndFilterByUser(t *testing.T) {
 	if len(alices.Records) != 1 || alices.Records[0].User != alice || len(alices.HeadToHead) != 1 || alices.HeadToHead[0].User != alice {
 		t.Errorf("alice's stats %+v, want only her own rows", alices)
 	}
-	for name, got := range map[string][]store.UserTally{"unfiltered": all.Leaderboard, "filtered": alices.Leaderboard} {
+	for name, got := range map[string][]protocol.LeaderboardEntry{"unfiltered": all.Leaderboard, "filtered": alices.Leaderboard} {
 		if diff := cmp.Diff(wantLeaderboard, got); diff != "" {
 			t.Errorf("%s leaderboard (-want +got):\n%s", name, diff)
 		}
@@ -475,17 +490,17 @@ func TestStatsLeaderboardLeavesOutGamesPlayedAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantRecords := []store.StatRecord{
-		{User: alice, Game: "chess", Tally: store.Tally{Wins: 1}},
-		{User: bob, Game: "chess", Tally: store.Tally{Wins: 1, Losses: 1}},
-		{User: alice, Game: solo, Tally: store.Tally{Losses: 1}},
+	wantRecords := []protocol.StatsRecord{
+		{User: alice, Game: "chess", Tally: protocol.Tally{Wins: 1}},
+		{User: bob, Game: "chess", Tally: protocol.Tally{Wins: 1, Losses: 1}},
+		{User: alice, Game: solo, Tally: protocol.Tally{Losses: 1}},
 	}
 	if diff := cmp.Diff(wantRecords, stats.Records); diff != "" {
 		t.Errorf("records (-want +got):\n%s", diff)
 	}
-	wantLeaderboard := []store.UserTally{
-		{User: alice, Tally: store.Tally{Wins: 1}},
-		{User: bob, Tally: store.Tally{Losses: 1}},
+	wantLeaderboard := []protocol.LeaderboardEntry{
+		{User: alice, Tally: protocol.Tally{Wins: 1}},
+		{User: bob, Tally: protocol.Tally{Losses: 1}},
 	}
 	if diff := cmp.Diff(wantLeaderboard, stats.Leaderboard); diff != "" {
 		t.Errorf("leaderboard (-want +got):\n%s", diff)

@@ -4,37 +4,9 @@ import (
 	"context"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
-
-type Tally struct {
-	Wins, Losses, Draws int
-}
-
-type StatRecord struct {
-	User game.UserID
-	Game game.GameType
-	Tally
-}
-
-type HeadToHeadRecord struct {
-	User, Opponent game.UserID
-	Game           game.GameType
-	Tally
-}
-
-type UserTally struct {
-	User game.UserID
-	Tally
-}
-
-// Stats holds Records grouped by game and ranked within each, HeadToHead by
-// user, opponent and game, and Leaderboard every user's totals over the ranked
-// games, ranked. A rank orders most wins, then fewest losses, then most draws, then user.
-type Stats struct {
-	Records     []StatRecord
-	HeadToHead  []HeadToHeadRecord
-	Leaderboard []UserTally
-}
 
 const (
 	outcomeTallies = `
@@ -48,10 +20,11 @@ const (
 
 // Stats reads the records and head-to-head of user alone, or of everyone when
 // user is "", and the whole leaderboard either way, which leaves out the games
-// played alone.
-func (s *Store) Stats(ctx context.Context, user game.UserID) (Stats, error) {
-	records, err := queryAll(ctx, s.reader, func(row scanner) (StatRecord, error) {
-		var r StatRecord
+// played alone, ranked as protocol.StatsResult says; HeadToHead is by user,
+// opponent and game.
+func (s *Store) Stats(ctx context.Context, user game.UserID) (protocol.StatsResult, error) {
+	records, err := queryAll(ctx, s.reader, func(row scanner) (protocol.StatsRecord, error) {
+		var r protocol.StatsRecord
 		return r, row.Scan(&r.User, &r.Game, &r.Wins, &r.Losses, &r.Draws)
 	}, `
 		SELECT a.username, g.game_type,`+outcomeTallies+`
@@ -60,10 +33,10 @@ func (s *Store) Stats(ctx context.Context, user game.UserID) (Stats, error) {
 		GROUP BY a.username, g.game_type
 		ORDER BY g.game_type, `+byRank, user, user)
 	if err != nil {
-		return Stats{}, err
+		return protocol.StatsResult{}, err
 	}
-	headToHead, err := queryAll(ctx, s.reader, func(row scanner) (HeadToHeadRecord, error) {
-		var r HeadToHeadRecord
+	headToHead, err := queryAll(ctx, s.reader, func(row scanner) (protocol.HeadToHeadRecord, error) {
+		var r protocol.HeadToHeadRecord
 		return r, row.Scan(&r.User, &r.Opponent, &r.Game, &r.Wins, &r.Losses, &r.Draws)
 	}, `
 		SELECT a.username, b.username, g.game_type,`+outcomeTallies+`
@@ -74,10 +47,10 @@ func (s *Store) Stats(ctx context.Context, user game.UserID) (Stats, error) {
 		GROUP BY a.username, b.username, g.game_type
 		ORDER BY a.username, b.username, g.game_type`, user, user)
 	if err != nil {
-		return Stats{}, err
+		return protocol.StatsResult{}, err
 	}
-	leaderboard, err := queryAll(ctx, s.reader, func(row scanner) (UserTally, error) {
-		var r UserTally
+	leaderboard, err := queryAll(ctx, s.reader, func(row scanner) (protocol.LeaderboardEntry, error) {
+		var r protocol.LeaderboardEntry
 		return r, row.Scan(&r.User, &r.Wins, &r.Losses, &r.Draws)
 	}, `
 		SELECT a.username,`+outcomeTallies+`
@@ -86,5 +59,12 @@ func (s *Store) Stats(ctx context.Context, user game.UserID) (Stats, error) {
 		AND (SELECT COUNT(*) FROM game_players p WHERE p.game_id = a.game_id) > 1
 		GROUP BY a.username
 		ORDER BY `+byRank)
-	return Stats{Records: records, HeadToHead: headToHead, Leaderboard: leaderboard}, err
+	if err != nil {
+		return protocol.StatsResult{}, err
+	}
+	return protocol.StatsResult{
+		Records:     xslices.Clone(records),
+		HeadToHead:  xslices.Clone(headToHead),
+		Leaderboard: xslices.Clone(leaderboard),
+	}, nil
 }
