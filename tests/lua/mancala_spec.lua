@@ -1,21 +1,13 @@
 local helpers = require("helpers")
 local mancala = require("games.games.mancala")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("mancala")
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4
 ---Display columns from one cell's start to the next: the glyph and the gap.
 local CELL_STEP = 5
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("mancala", mancala, glyphs, extra)
-end
+local BOARD = { top = BOARD_TOP, left = 1, step = CELL_STEP }
 
 ---alice (south) sowed pit 1, then bob (north) captured; bob is to move again after a store landing.
 ---@param overrides? table
@@ -39,7 +31,7 @@ end
 ---@param glyphs? games.Glyphs
 ---@return games.Rendered
 local function render(update, me, glyphs)
-  return (shell.render(update, mancala, view_options(glyphs or "ascii"), me, 0, nil, CATALOGUED))
+  return (helpers.render_game("mancala", update, { me = me, glyphs = glyphs }))
 end
 
 ---@param rendered games.Rendered
@@ -47,7 +39,7 @@ end
 ---@param c integer
 ---@return games.Hl[] the highlight stack on cell r, c at cell height 1
 local function cell_hl(rendered, r, c)
-  return helpers.hl_stack_at(rendered, BOARD_TOP + r - 1, 1 + (c - 1) * CELL_STEP)
+  return helpers.cell_hl_at(rendered, BOARD, r, c)
 end
 
 ---@param rendered games.Rendered

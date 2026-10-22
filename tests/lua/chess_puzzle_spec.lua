@@ -1,23 +1,14 @@
 local describe = require("games.core.describe")
 local helpers = require("helpers")
 local puzzle = require("games.games.chess_puzzle")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("chess_puzzle")
 local LINE = "g8f6 h5f7"
 local SCHOLARS = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
 local AFTER_NF6 = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
 local FIRST_BOARD_ROW = 3
 local BOARD_LINES = 9
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("chess_puzzle", puzzle, glyphs, extra)
-end
 
 ---alice's puzzle after the server's setup move Nf6, white to find Qxf7#.
 ---@param mode games.ChessPuzzleMode
@@ -87,15 +78,8 @@ function T.board_faces_the_solvers_side_beside_the_status_and_hides_the_line()
       },
     },
   }) do
-    local rendered = shell.render(
-      update("puzzle", case.player),
-      puzzle,
-      view_options("unicode"),
-      "alice",
-      0,
-      nil,
-      CATALOGUED
-    )
+    local rendered =
+      helpers.render_game("chess_puzzle", update("puzzle", case.player), { glyphs = "unicode" })
     assert_eq(
       case.board,
       vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + BOARD_LINES)
@@ -108,7 +92,7 @@ function T.a_failed_puzzle_shows_its_miss_and_the_solution_numbered_from_the_fen
   local over =
     finished(update("puzzle", "white"), { kind = "decisive", winners = {}, reason = "wrong_move" })
   over.view.misses = 1
-  local rendered = shell.render(over, puzzle, view_options("ascii"), "alice", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("chess_puzzle", over)
   assert_eq(
     {
       "mode       puzzle",
@@ -148,7 +132,7 @@ function T.reveal_is_offered_only_in_a_running_study()
     },
   }) do
     local rendered, _, bindings =
-      shell.render(case.state, puzzle, view_options("unicode"), "alice", 0, nil, CATALOGUED)
+      helpers.render_game("chess_puzzle", case.state, { glyphs = "unicode" })
     assert_eq(case.footer, rendered.lines[#rendered.lines])
     local reveal = vim.iter(bindings):find(function(binding)
       return binding.key == "n"

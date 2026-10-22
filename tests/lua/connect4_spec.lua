@@ -1,22 +1,14 @@
 local connect4 = require("games.games.connect4")
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = helpers.catalogued("connect4")
 local ALL_COLUMNS = { 1, 2, 3, 4, 5, 6, 7 }
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4
 ---Display columns before the first cell: the blank row label and its gap.
 local BOARD_LEFT = 1
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("connect4", connect4, glyphs, extra)
-end
+local BOARD = { top = BOARD_TOP, left = BOARD_LEFT, step = 2 }
 
 ---alice (red) has three along the bottom under bob's three; bob is to move.
 ---@param overrides? table
@@ -46,7 +38,7 @@ end
 ---@param me games.UserID
 ---@return games.Rendered
 local function render(update, me)
-  return (shell.render(update, connect4, view_options("ascii"), me, 0, nil, CATALOGUE))
+  return (helpers.render_game("connect4", update, { me = me }))
 end
 
 ---The highlight stack drawn on the ascii cell at row r, column c.
@@ -55,7 +47,7 @@ end
 ---@param c integer
 ---@return string[]
 local function cell_hl(rendered, r, c)
-  return helpers.hl_stack_at(rendered, BOARD_TOP + r - 1, BOARD_LEFT + (c - 1) * 2)
+  return helpers.cell_hl_at(rendered, BOARD, r, c)
 end
 
 local T = {}
@@ -66,7 +58,7 @@ function T.board_draws_each_seats_glyph_with_column_labels_in_both_glyph_modes()
     { glyphs = "ascii", bottom = { " O O O . . . .", " X X X . . . ." } },
   }) do
     local rendered =
-      shell.render(update_with(), connect4, view_options(case.glyphs), "bob", 0, nil, CATALOGUE)
+      helpers.render_game("connect4", update_with(), { me = "bob", glyphs = case.glyphs })
     local board = vim.list_slice(rendered.lines, BOARD_TOP + 1, BOARD_TOP + 7)
     assert_eq({ case.glyphs, case.bottom }, { case.glyphs, vim.list_slice(board, 5, 6) })
     assert_eq(" 1 2 3 4 5 6 7", board[7])

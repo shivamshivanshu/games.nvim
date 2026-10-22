@@ -1,11 +1,8 @@
-local assets = require("games.ui.assets")
 local helpers = require("helpers")
 local ludo = require("games.games.ludo")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = helpers.catalogued("ludo")
 local BASE = { kind = "base" }
 local HOME = { kind = "home" }
 
@@ -19,14 +16,6 @@ end
 ---@return games.LudoLocation
 local function lane(step)
   return { kind = "home_column", step = step }
-end
-
----@param glyphs games.Glyphs
----@return games.ViewOptions
-local function ludo_view(glyphs)
-  local spec = { keys = ludo.asset_keys, glyph_width = ludo.glyph_width }
-  local pack = assets.load("ludo", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
 end
 
 ---Three players mid-game, alice (blue) to move after a six, with view overrides on top.
@@ -76,7 +65,7 @@ end
 local T = {}
 
 function T.tokens_stand_on_their_seats_squares_counted_when_stacked()
-  local rendered = shell.render(ludo_update(), ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  local rendered = helpers.render_game("ludo", ludo_update())
   local board = {
     "                  B  .  .                      roll  6         ",
     "   B        o     .  :: *     R        R       sixes 1         ",
@@ -133,7 +122,7 @@ function T.a_token_takes_its_seats_colour_and_the_last_move_is_marked_from_a_sna
     can_roll = true,
   })
   update.events = {}
-  local rendered = shell.render(update, ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  local rendered = helpers.render_game("ludo", update)
   local row = blue_token_line(rendered)
   local blue_token, red_token = hl_at(rendered, row, 18), hl_at(rendered, row + 1, 30)
   assert(vim.tbl_contains(blue_token, "GamesSeat1"), vim.inspect(blue_token))
@@ -142,14 +131,14 @@ function T.a_token_takes_its_seats_colour_and_the_last_move_is_marked_from_a_sna
 end
 
 function T.no_square_is_marked_without_a_last_move()
-  local rendered = shell.render(ludo_update(), ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  local rendered = helpers.render_game("ludo", ludo_update())
   local blue_token = hl_at(rendered, blue_token_line(rendered), 18)
   assert(not vim.tbl_contains(blue_token, "GamesLastMove"), vim.inspect(blue_token))
 end
 
 function T.keys_follow_what_the_view_offers_the_viewer()
   local function game_keys(update, me)
-    local _, _, bindings = shell.render(update, ludo, ludo_view("ascii"), me, 0, nil, CATALOGUE)
+    local _, _, bindings = helpers.render_game("ludo", update, { me = me })
     return vim
       .iter(bindings)
       :map(function(binding)
@@ -222,16 +211,15 @@ end
 function T.several_colours_on_a_safe_square_show_their_count()
   local update = ludo_update()
   update.view.locations.yellow = { track(8), track(8), BASE, track(14) }
-  local rendered = shell.render(update, ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  local rendered = helpers.render_game("ludo", update)
   update.view.locations.blue = { track(8), track(10), lane(2), HOME }
-  local mixed = shell.render(update, ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  local mixed = helpers.render_game("ludo", update)
   assert_eq("                  Y2 :: Y", board_rows(rendered, "                  B")[3]:sub(1, 25))
   assert_eq("                  x3 :: Y", board_rows(mixed, "                  B")[3]:sub(1, 25))
 end
 
 function T.the_unicode_pack_draws_each_seat_by_shape()
-  local rendered =
-    shell.render(ludo_update(), ludo, ludo_view("unicode"), "alice", 0, nil, CATALOGUE)
+  local rendered = helpers.render_game("ludo", ludo_update(), { glyphs = "unicode" })
   local rows = board_rows(rendered, "                  ●")
   assert_eq("   ●        ○     ·  ░░ ✶     ▲        ▲    ", rows[2])
   assert_eq(
@@ -251,7 +239,7 @@ function T.a_resigned_seat_leaves_its_corner_empty_and_uncoloured()
   for _, field in ipairs({ "starts", "progress", "locations" }) do
     update.view[field].red = nil
   end
-  local rendered = shell.render(update, ludo, ludo_view("ascii"), "alice", 0, nil, CATALOGUE)
+  local rendered = helpers.render_game("ludo", update)
   local rows = board_rows(rendered, "                  B")
   assert_eq("   B        o     .  :: *     o        o    ", rows[2])
   assert_eq("                  .  :: *                   ", rows[13])

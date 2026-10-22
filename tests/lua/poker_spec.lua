@@ -2,19 +2,8 @@ local assets = require("games.ui.assets")
 local describe = require("games.core.describe")
 local helpers = require("helpers")
 local poker = require("games.games.poker")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
-
-local CATALOGUE = helpers.catalogued("poker")
-
----@param glyphs games.Glyphs
----@return games.ViewOptions
-local function poker_view(glyphs)
-  local spec = { keys = poker.asset_keys, glyph_width = poker.glyph_width }
-  local pack = assets.load("poker", assets.DEFAULT_PACK, spec)
-  return { glyphs = glyphs, flipped = false, art = assets.art_set(pack, glyphs) }
-end
 
 ---Hand 3 on the flop: alice to act facing bob's bet of 40, carol out; view overrides on top.
 ---@param view_overrides? table
@@ -83,7 +72,7 @@ end
 ---@param glyphs games.Glyphs
 ---@return string[]
 local function render(update, glyphs)
-  return shell.render(update, poker, poker_view(glyphs), "alice", 0, nil, CATALOGUE).lines
+  return helpers.render_game("poker", update, { glyphs = glyphs }).lines
 end
 
 ---@param mark games.Extmark
@@ -110,13 +99,18 @@ function T.c_sends_check_when_check_is_legal_and_call_otherwise()
   end)
   local checking = poker_update({ legal = { "fold", "check", "bet", "allin" }, to_call = 0 })
 
-  assert_eq({ kind = "act", text = "check" }, c.act(checking, poker_view("ascii")))
-  assert_eq({ kind = "act", text = "call" }, c.act(poker_update(), poker_view("ascii")))
+  assert_eq(
+    { kind = "act", text = "check" },
+    c.act(checking, helpers.view_options("poker", "ascii"))
+  )
+  assert_eq(
+    { kind = "act", text = "call" },
+    c.act(poker_update(), helpers.view_options("poker", "ascii"))
+  )
 end
 
 function T.hearts_and_diamonds_are_red_on_the_board_and_in_the_last_hand()
-  local rendered =
-    shell.render(poker_update(), poker, poker_view("unicode"), "alice", 0, nil, CATALOGUE)
+  local rendered = helpers.render_game("poker", poker_update(), { glyphs = "unicode" })
   local red = vim.tbl_filter(function(mark)
     return has_hl(mark, "GamesCardRed")
   end, helpers.extmarks(rendered))

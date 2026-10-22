@@ -1,19 +1,10 @@
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 local wordle = require("games.games.wordle")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("wordle")
 local BOARD_ROWS = { 4, 9 }
 local BOARD_WIDTH = 19
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("wordle", wordle, glyphs, extra)
-end
 
 ---sam, alone, after crane and route against "rouse": four guesses left.
 ---@param overrides? table
@@ -97,8 +88,7 @@ function T.board_frames_hits_and_presents_and_lists_the_keyboard_beside_it()
   }) do
     local state = update()
     state.view.keyboard.t = "hit"
-    local rendered =
-      shell.render(state, wordle, view_options(case.glyphs), "sam", 0, nil, CATALOGUED)
+    local rendered = helpers.render_game("wordle", state, { me = "sam", glyphs = case.glyphs })
     local board = vim.tbl_map(function(line)
       return (line:gsub("%s+$", ""))
     end, vim.list_slice(rendered.lines, BOARD_ROWS[1], BOARD_ROWS[2]))
@@ -107,8 +97,7 @@ function T.board_frames_hits_and_presents_and_lists_the_keyboard_beside_it()
 end
 
 function T.tiles_and_keys_take_their_marks_background()
-  local rendered =
-    shell.render(update(), wordle, view_options("unicode"), "sam", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("wordle", update(), { me = "sam", glyphs = "unicode" })
   local first_line = BOARD_ROWS[1] - 1
   local miss, present, hit =
     { "GamesMiss", "GamesMissInk" },
@@ -129,8 +118,7 @@ function T.tiles_and_keys_take_their_marks_background()
 end
 
 function T.finished_game_shows_the_answer_in_place_of_the_guesses_left()
-  local rendered =
-    shell.render(failed(), wordle, view_options("unicode"), "sam", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("wordle", failed(), { me = "sam", glyphs = "unicode" })
   local panel = table.concat(rendered.lines, "\n")
   assert(panel:find("answer ROUSE", 1, true), panel)
   assert(not panel:find("guesses left", 1, true), panel)
@@ -147,7 +135,8 @@ function T.events_name_the_player_and_the_word()
 end
 
 function T.the_legend_shows_each_mark_as_the_board_draws_it()
-  local legend = wordle.legend({ art = view_options("ascii").art, ambiwidth = "single" })
+  local legend =
+    wordle.legend({ art = helpers.view_options("wordle", "ascii").art, ambiwidth = "single" })
   local marks = vim.tbl_map(function(entry)
     return { entry.sample[1].str, entry.sample[1].hl, entry.meaning }
   end, vim.list_slice(legend, 1, 3))

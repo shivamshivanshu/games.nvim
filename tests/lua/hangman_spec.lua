@@ -1,19 +1,10 @@
 local describe = require("games.core.describe")
 local hangman = require("games.games.hangman")
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("hangman")
 local BOARD_ROWS = { 4, 9 }
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("hangman", hangman, glyphs, extra)
-end
 
 ---sam, alone, against "about": b and o found, e and q missed, and the word crane missed.
 ---@param overrides? table
@@ -92,30 +83,25 @@ function T.board_shows_the_word_as_found_the_gallows_and_the_guesses()
       },
     },
   }) do
-    local rendered =
-      shell.render(update(), hangman, view_options(case.glyphs), "sam", 0, nil, CATALOGUED)
+    local rendered = helpers.render_game("hangman", update(), { me = "sam", glyphs = case.glyphs })
     assert_eq(case.board, board_lines(rendered))
   end
 end
 
 function T.the_gallows_falls_back_to_ascii_where_box_drawing_widens()
   helpers.with_overrides({ { vim.o, "ambiwidth", "double" } }, function()
-    local rendered = shell.render(
-      update(),
-      hangman,
-      view_options("unicode"),
-      "sam",
-      0,
-      { text_area = { w = 120, h = 40 }, ambiwidth = "double" },
-      CATALOGUED
-    )
+    local rendered = helpers.render_game("hangman", update(), {
+      me = "sam",
+      glyphs = "unicode",
+      display = { text_area = { w = 120, h = 40 }, ambiwidth = "double" },
+    })
     local text = table.concat(rendered.lines, "\n")
     assert(text:find("+---+", 1, true) and not text:find("┌", 1, true), text)
   end)
 end
 
 function T.hanged_board_draws_the_whole_figure_and_frames_the_unfound_letters()
-  local rendered = shell.render(hanged(), hangman, view_options("ascii"), "sam", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("hangman", hanged(), { me = "sam" })
   local lines = board_lines(rendered)
   assert_eq("(A)  B   O  (U) (T)     +---+     found       b o", lines[1])
   assert_eq("                        |  / \\    word        ABOUT", lines[5])

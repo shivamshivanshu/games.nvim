@@ -1,12 +1,10 @@
 local helpers = require("helpers")
 local paint = require("games.ui.paint")
 local pacman = require("games.games.pacman")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
 local NAMESPACE = vim.api.nvim_create_namespace("games.paint_spec")
-local CATALOGUED = helpers.catalogued("pacman")
 
 ---@param rows string[]
 ---@param extmarks? games.Extmark[]
@@ -51,9 +49,9 @@ local function pacman_frame(view_overrides, text_area)
       can_pause = true,
     },
   }, { view = view_overrides })
-  local view = helpers.view_options("pacman", pacman, "unicode")
+  local view = helpers.view_options("pacman", "unicode")
   local display = { text_area = text_area, ambiwidth = "single", seats = 1 }
-  return (shell.render(update, pacman, view, "alice", 0, display, CATALOGUED))
+  return (helpers.render_game("pacman", update, { view = view, display = display }))
 end
 
 ---The lines of buf and, row by row in the order they were set, its marks in ns.

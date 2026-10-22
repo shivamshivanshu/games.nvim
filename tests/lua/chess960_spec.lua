@@ -1,20 +1,11 @@
 local chess960 = require("games.games.chess960")
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("chess960")
 local CASTLED_FEN = "rqnbnrk1/pppppbpp/8/5p2/5P2/8/PPPPPBPP/RQNBNRK1 w - - 4 4"
 local FIRST_BOARD_ROW = 4
 local BOARD_LINES = 9
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("chess960", chess960, glyphs, extra)
-end
 
 ---alice (white) and bob after both castled kingside from start position 413.
 ---@param overrides? table
@@ -38,7 +29,7 @@ end
 ---@param me string
 ---@return string[]
 local function board_lines(update, me)
-  local rendered = shell.render(update, chess960, view_options("ascii"), me, 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("chess960", update, { me = me })
   return vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + BOARD_LINES)
 end
 
@@ -73,8 +64,7 @@ function T.claim_draw_is_offered_only_when_the_view_allows_it()
   for _, claimable in ipairs({ false, true }) do
     local update = castled()
     update.view.claimable_draw = claimable
-    local rendered =
-      shell.render(update, chess960, view_options("ascii"), "alice", 0, nil, CATALOGUED)
+    local rendered = helpers.render_game("chess960", update)
     assert_eq(claimable, rendered.lines[#rendered.lines]:find(" C claim draw ", 1, true) ~= nil)
   end
 end

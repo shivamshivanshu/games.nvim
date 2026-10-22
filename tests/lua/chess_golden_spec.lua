@@ -32,7 +32,7 @@ local T = {}
 function T.chess_at_cell_height_one_renders_as_before_scalable_boards()
   for _, expected in ipairs(golden()) do
     local case = cases[expected.name]
-    local view = helpers.view_options("chess", chess, case.glyphs, { flipped = case.flipped })
+    local view = helpers.view_options("chess", case.glyphs, { flipped = case.flipped })
     local rendered, header_height =
       shell.render(case.update, chess, view, case.me, case.elapsed_ms, nil, CATALOGUED)
     helpers.assert_eq({ expected.name, expected.lines }, { expected.name, rendered.lines })

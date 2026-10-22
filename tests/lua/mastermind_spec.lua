@@ -1,20 +1,11 @@
 local helpers = require("helpers")
 local mastermind = require("games.games.mastermind")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
 local REPO_ROOT = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
-local CATALOGUED = helpers.catalogued("mastermind")
 local BOARD_ROWS = { 4, 15 }
 local BOARD_WIDTH = 34
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("mastermind", mastermind, glyphs, extra)
-end
 
 ---sam, alone, after rgby and oopp: eight guesses left.
 ---@param overrides? table
@@ -104,7 +95,7 @@ function T.board_shows_the_hidden_secret_each_guess_and_its_key_pegs()
     },
   }) do
     local rendered =
-      shell.render(update(), mastermind, view_options(case.glyphs), "sam", 0, nil, CATALOGUED)
+      helpers.render_game("mastermind", update(), { me = "sam", glyphs = case.glyphs })
     local want =
       vim.list_extend(vim.deepcopy(case.head), vim.fn["repeat"]({ empty[case.glyphs] }, 8))
     assert_eq(want, board_lines(rendered))
@@ -112,8 +103,7 @@ function T.board_shows_the_hidden_secret_each_guess_and_its_key_pegs()
 end
 
 function T.pegs_take_their_colour_and_the_solving_row_is_marked()
-  local rendered =
-    shell.render(update(), mastermind, view_options("unicode"), "sam", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("mastermind", update(), { me = "sam", glyphs = "unicode" })
   local first_guess = BOARD_ROWS[1] + 1
   assert_eq(
     { "GamesPegRed", "GamesPegGreen", "GamesPegBlue", "GamesPegYellow" },
@@ -121,8 +111,7 @@ function T.pegs_take_their_colour_and_the_solving_row_is_marked()
   )
   assert_eq({}, cell_hls(rendered, BOARD_ROWS[1] - 1))
 
-  local finished =
-    shell.render(solved(), mastermind, view_options("unicode"), "sam", 0, nil, CATALOGUED)
+  local finished = helpers.render_game("mastermind", solved(), { me = "sam", glyphs = "unicode" })
   assert_eq(" Ⓡ   Ⓑ   Ⓖ   Ⓖ", board_lines(finished)[1])
   local solving = cell_hls(finished, first_guess + 2)
   assert_eq(4, #solving)
@@ -141,8 +130,7 @@ function T.only_a_solved_result_marks_the_last_row()
   local not_solved = solved()
   not_solved.result = { kind = "decisive", winners = {}, reason = "resign" }
   for _, case in ipairs({ { solved(), 4 }, { not_solved, 0 }, { update(), 0 } }) do
-    local rendered =
-      shell.render(case[1], mastermind, view_options("unicode"), "sam", 0, nil, CATALOGUED)
+    local rendered = helpers.render_game("mastermind", case[1], { me = "sam", glyphs = "unicode" })
     assert_eq(case[2], solved_marks(rendered))
   end
 end
@@ -175,8 +163,7 @@ function T.pack_draws_a_peg_for_exactly_the_servers_palette()
 end
 
 function T.panel_lists_the_palette_the_key_pegs_and_guesses_left()
-  local rendered =
-    shell.render(update(), mastermind, view_options("ascii"), "sam", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("mastermind", update(), { me = "sam" })
   local panel = table.concat(rendered.lines, "\n")
   for _, wanted in ipairs({
     "R r  G g  B b  Y y  O o  P p",

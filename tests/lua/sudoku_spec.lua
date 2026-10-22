@@ -1,22 +1,13 @@
 local describe = require("games.core.describe")
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 local sudoku = require("games.games.sudoku")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("sudoku")
 local PUZZLE = "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
 local SOLUTION = "534678912672195348198342567859761423426853791713924856961537284287419635345286179"
 local FIRST_BOARD_ROW = 3
 local BOARD_LINES = 12
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("sudoku", sudoku, glyphs, extra)
-end
 
 ---@param digits string
 ---@return integer[]
@@ -96,8 +87,7 @@ function T.board_draws_the_grid_in_boxes_with_labels_and_frames_conflicts_withou
       },
     },
   }) do
-    local rendered =
-      shell.render(update(), sudoku, view_options(case.glyphs), "alice", 0, nil, CATALOGUED)
+    local rendered = helpers.render_game("sudoku", update(), { glyphs = case.glyphs })
     assert_eq(
       case.board,
       vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + BOARD_LINES)
@@ -106,8 +96,7 @@ function T.board_draws_the_grid_in_boxes_with_labels_and_frames_conflicts_withou
 end
 
 function T.givens_are_bold_and_muted_entries_take_the_seat_colour_and_conflicts_are_tinted()
-  local rendered =
-    shell.render(update(), sudoku, view_options("unicode"), "alice", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("sudoku", update(), { glyphs = "unicode" })
   assert_eq(
     { { "GamesCheck", "GamesGiven" }, "GamesGiven", { "GamesCheck", "GamesSeat1" } },
     vim.list_slice(helpers.hls_on_row(rendered, FIRST_BOARD_ROW), 1, 3)
@@ -115,8 +104,7 @@ function T.givens_are_bold_and_muted_entries_take_the_seat_colour_and_conflicts_
 end
 
 function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_conflicts_clear()
-  local rendered =
-    shell.render(gave_up(), sudoku, view_options("unicode"), "alice", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("sudoku", gave_up(), { glyphs = "unicode" })
   assert_eq(
     { "1  5   3  (4)│(6)  7  (8)│(9) (1) (2)", "2  6  (7) (2)│ 1   9   5 │(3) (4) (8)" },
     vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + 2)
@@ -128,8 +116,7 @@ function T.after_giving_up_the_solution_replaces_wrong_and_empty_cells_and_confl
 end
 
 function T.x_prompts_for_a_cell_and_sends_clear()
-  local _, _, bindings =
-    shell.render(update(), sudoku, view_options("ascii"), "alice", 0, nil, CATALOGUED)
+  local _, _, bindings = helpers.render_game("sudoku", update())
   local clear = vim.iter(bindings):find(function(binding)
     return binding.key == "x"
   end)

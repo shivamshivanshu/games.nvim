@@ -1,6 +1,7 @@
 local Conn = require("games.core.conn")
 local describe = require("games.core.describe")
 local json = require("games.core.json")
+local registry = require("games.core.registry")
 local tables = require("games.core.tables")
 
 local M = {}
@@ -270,13 +271,43 @@ end
 ---A game's view options in glyphs, drawing from its default asset pack, with extra (e.g. cursor
 ---or flipped) on top.
 ---@param game games.GameType
----@param module games.GameModule
 ---@param glyphs games.Glyphs
 ---@param extra? table
 ---@return games.ViewOptions
-function M.view_options(game, module, glyphs, extra)
+function M.view_options(game, glyphs, extra)
+  local module = assert(registry.game_module(game))
   local art = require("games.ui.assets").module_art(game, module, { glyphs = glyphs })
   return vim.tbl_extend("force", { glyphs = glyphs, flipped = false, art = art }, extra or {})
+end
+
+---@class games.test.RenderGameOptions
+---@field me? games.UserID default "alice"
+---@field glyphs? games.Glyphs default "ascii"
+---@field view? games.ViewOptions drawn with in place of the glyphs' view_options
+---@field display? games.Display
+
+---What the shell draws of game's update for opts.me, at no elapsed time, binding the actions the
+---catalog lists for game.
+---@param game games.GameType
+---@param update games.GameUpdate
+---@param opts? games.test.RenderGameOptions
+---@return games.Rendered
+---@return integer header_height
+---@return games.KeyBinding[] bindings
+function M.render_game(game, update, opts)
+  local options = opts or {}
+  local view = options.view or M.view_options(game, options.glyphs or "ascii")
+  local module = assert(registry.game_module(game))
+  local me = options.me or "alice"
+  return require("games.ui.shell").render(
+    update,
+    module,
+    view,
+    me,
+    0,
+    options.display,
+    M.catalogued(game)
+  )
 end
 
 ---@class games.Extmark one mark of games.Marks
@@ -330,6 +361,22 @@ end
 function M.hl_stack_at(rendered, row, col)
   local hl = M.hl_at(rendered, row, col)
   return type(hl) == "table" and hl or { hl }
+end
+
+---Where the cells of a board sit in its rendered lines.
+---@class games.test.BoardGeometry
+---@field top integer 0-based line of row 1
+---@field left integer byte column of column 1
+---@field step integer bytes from one column's cell to the next
+
+---The highlight stack on cell r, c of a board laid out as board.
+---@param rendered games.Rendered
+---@param board games.test.BoardGeometry
+---@param r integer
+---@param c integer
+---@return string[]
+function M.cell_hl_at(rendered, board, r, c)
+  return M.hl_stack_at(rendered, board.top + r - 1, board.left + (c - 1) * board.step)
 end
 
 ---The highlights of the extmarks on row (0-based) in column order, only those starting before

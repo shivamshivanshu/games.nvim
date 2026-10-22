@@ -15,13 +15,6 @@ local CELL_CODES = {
   ["!"] = "wrong_flag",
 }
 
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("minesweeper", minesweeper, glyphs, extra)
-end
-
 ---@param rows string[] "#" hidden, "F" flag, a digit revealed, and "*", "M", "X", "!" once over
 ---@return games.MinesweeperTile[][]
 local function cells_of(rows)
@@ -123,8 +116,7 @@ function T.board_labels_rows_by_letter_and_columns_by_number_beside_the_flag_cou
       },
     },
   }) do
-    local rendered =
-      shell.render(update(), minesweeper, view_options(case.glyphs), "alice", 0, nil, CATALOGUED)
+    local rendered = helpers.render_game("minesweeper", update(), { glyphs = case.glyphs })
     assert_eq(case.board, vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + 10))
   end
 end
@@ -133,8 +125,7 @@ function T.a_hard_board_numbers_all_thirty_columns()
   local rows = vim.fn["repeat"]({ ("#"):rep(30) }, 16)
   local hard =
     update({ view = { cells = cells_of(rows), flags = 0, remaining = 99, chordable = {} } })
-  local rendered =
-    shell.render(hard, minesweeper, view_options("ascii"), "alice", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("minesweeper", hard)
   local labels = rendered.lines[FIRST_BOARD_ROW + 17]
   assert(vim.startswith(labels, "  1  2  3"), labels)
   assert(vim.endswith(vim.trim(labels), "28 29 30"), labels)
@@ -143,8 +134,15 @@ end
 
 function T.keys_follow_the_catalogue_the_chordable_cells_and_the_end()
   local function footer(state, catalogued)
-    local rendered =
-      shell.render(state, minesweeper, view_options("unicode"), "alice", 0, nil, catalogued)
+    local rendered = shell.render(
+      state,
+      minesweeper,
+      helpers.view_options("minesweeper", "unicode"),
+      "alice",
+      0,
+      nil,
+      catalogued
+    )
     return rendered.lines[#rendered.lines]
   end
   local nothing_to_chord = update()
@@ -171,14 +169,10 @@ function T.a_lost_board_tells_flagged_unflagged_and_exploded_mines_and_wrong_fla
       "b       1  1  1  ## F* *    mines left 1",
     },
   }) do
-    local rendered =
-      shell.render(lost(), minesweeper, view_options(glyphs), "alice", 0, nil, CATALOGUED)
+    local rendered = helpers.render_game("minesweeper", lost(), { glyphs = glyphs })
     assert_eq(want, vim.list_slice(rendered.lines, FIRST_BOARD_ROW + 1, FIRST_BOARD_ROW + 2))
   end
-  local hls = hls_on_line_with(
-    shell.render(lost(), minesweeper, view_options("ascii"), "alice", 0, nil, CATALOGUED),
-    "*!"
-  )
+  local hls = hls_on_line_with(helpers.render_game("minesweeper", lost()), "*!")
   assert_eq({
     "GamesCardRed",
     { "GamesCheck", "GamesCheckInk" },

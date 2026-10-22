@@ -1,18 +1,8 @@
 local describe = require("games.core.describe")
 local helpers = require("helpers")
 local liars_dice = require("games.games.liars_dice")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
-
-local CATALOGUE = helpers.catalogued("liars_dice")
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("liars_dice", liars_dice, glyphs, extra)
-end
 
 ---alice (p1) to raise bob's bid in round 2; carol is out and round 1 was revealed.
 ---@param view? table overrides of the view
@@ -66,7 +56,7 @@ end
 ---@param glyphs? games.Glyphs
 ---@return string[]
 local function render(update, me, glyphs)
-  return shell.render(update, liars_dice, view_options(glyphs or "ascii"), me, 0, nil, CATALOGUE).lines
+  return helpers.render_game("liars_dice", update, { me = me, glyphs = glyphs }).lines
 end
 
 ---@param lines string[]

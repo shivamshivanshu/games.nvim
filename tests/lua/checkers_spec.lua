@@ -6,13 +6,6 @@ local assert_eq = helpers.assert_eq
 
 local MOVABLE = "GamesMovable"
 
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("checkers", checkers, glyphs, extra)
-end
-
 ---@return games.CheckersPiece[]
 local function start_board()
   local board = {}
@@ -91,16 +84,24 @@ function T.white_sees_square_1_top_left_and_black_sees_the_board_turned_with_its
       },
     },
   }) do
-    local rendered, header_height =
-      shell.render(checkers_update({}), checkers, view_options("ascii"), case.me)
+    local rendered, header_height = shell.render(
+      checkers_update({}),
+      checkers,
+      helpers.view_options("checkers", "ascii"),
+      case.me
+    )
     assert_eq(case.lines, board_lines(rendered, header_height))
     assert_eq("- move  x jump", vim.trim(rendered.lines[header_height + 10]))
   end
 end
 
 function T.flip_mirrors_the_drawing_and_the_numbering_together()
-  local rendered, header_height =
-    shell.render(checkers_update({}), checkers, view_options("ascii", { flipped = true }), "bob")
+  local rendered, header_height = shell.render(
+    checkers_update({}),
+    checkers,
+    helpers.view_options("checkers", "ascii", { flipped = true }),
+    "bob"
+  )
   assert_eq("  w   w   w   w     32  31  30  29", board_lines(rendered, header_height)[1])
 end
 
@@ -110,7 +111,7 @@ function T.unicode_draws_hollow_white_and_solid_black_with_kings()
   local rendered, header_height = shell.render(
     checkers_update({ view = { board = board } }),
     checkers,
-    view_options("unicode"),
+    helpers.view_options("checkers", "unicode"),
     "bob"
   )
   local lines = board_lines(rendered, header_height)
@@ -129,7 +130,8 @@ function T.last_move_path_is_tinted_and_the_movers_pieces_are_marked_only_for_th
   }
   local update = checkers_update({ seq = 1, to_act = { "bob" }, view = view })
 
-  local rendered, header_height = shell.render(update, checkers, view_options("ascii"), "bob")
+  local rendered, header_height =
+    shell.render(update, checkers, helpers.view_options("checkers", "ascii"), "bob")
 
   assert_eq(
     { "GamesSquareDark", "GamesLastMove", "GamesLastMoveDark", "GamesLastMoveDarkInk" },
@@ -146,7 +148,7 @@ function T.last_move_path_is_tinted_and_the_movers_pieces_are_marked_only_for_th
   local other = shell.render(
     vim.tbl_extend("force", update, { view = waiting }),
     checkers,
-    view_options("ascii"),
+    helpers.view_options("checkers", "ascii"),
     "alice"
   )
   assert_eq(0, movable_marks(other))
@@ -164,7 +166,7 @@ function T.long_jump_chains_and_move_numbers_past_99_stay_inside_the_window()
   local rendered = shell.render(
     update,
     checkers,
-    view_options("unicode"),
+    helpers.view_options("checkers", "unicode"),
     "bob",
     0,
     { text_area = area, seats = 2 }

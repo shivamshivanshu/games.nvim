@@ -1,17 +1,7 @@
 local hearts = require("games.games.hearts")
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
-
-local CATALOGUE = helpers.catalogued("hearts")
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("hearts", hearts, glyphs, extra)
-end
 
 ---bob (p2) to play the third card of a trick in hand 2, which passed right; dave left.
 ---@param view? table overrides of the view
@@ -99,7 +89,7 @@ end
 ---@param glyphs? games.Glyphs
 ---@return string[]
 local function render(update, me, glyphs)
-  return shell.render(update, hearts, view_options(glyphs or "ascii"), me, 0, nil, CATALOGUE).lines
+  return helpers.render_game("hearts", update, { me = me, glyphs = glyphs }).lines
 end
 
 ---@param lines string[]
@@ -139,7 +129,7 @@ function T.the_trick_sits_round_the_viewer_the_seat_on_its_left_on_the_left()
 end
 
 function T.cards_played_draw_on_a_card_background_and_empty_places_do_not()
-  local out = shell.render(playing(), hearts, view_options("ascii"), "bob", 0, nil, CATALOGUE)
+  local out = helpers.render_game("hearts", playing(), { me = "bob" })
   local backed = {}
   for _, mark in ipairs(helpers.extmarks(out)) do
     if type(mark.hl) == "table" and vim.tbl_contains(mark.hl, "GamesSquareLight") then

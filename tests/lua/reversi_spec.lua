@@ -1,21 +1,13 @@
 local helpers = require("helpers")
 local reversi = require("games.games.reversi")
-local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = helpers.catalogued("reversi")
 ---Lines above the board at cell height 1: two players, the status row and a blank.
 local BOARD_TOP = 4
 ---Display columns before the first cell: the row label and its gap.
 local BOARD_LEFT = 2
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("reversi", reversi, glyphs, extra)
-end
+local BOARD = { top = BOARD_TOP, left = BOARD_LEFT, step = 2 }
 
 ---@param name string e.g. "d3"
 ---@return games.Cell
@@ -48,7 +40,7 @@ end
 ---@param me games.UserID
 ---@return games.Rendered
 local function render(update, me)
-  return (shell.render(update, reversi, view_options("ascii"), me, 0, nil, CATALOGUE))
+  return (helpers.render_game("reversi", update, { me = me }))
 end
 
 ---The highlight stack drawn on the ascii cell named name; none on a plain empty cell.
@@ -57,7 +49,7 @@ end
 ---@return string[]
 local function cell_hl(rendered, name)
   local at = cell(name)
-  return helpers.hl_stack_at(rendered, BOARD_TOP + at.row - 1, BOARD_LEFT + (at.col - 1) * 2)
+  return helpers.cell_hl_at(rendered, BOARD, at.row, at.col)
 end
 
 ---The note beside board line r, such as "last h8"; nil when there is none.

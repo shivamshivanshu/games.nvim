@@ -5,18 +5,11 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("g2048")
 ---Lines above the board at cell height 1: the player, the status row and a blank.
 local BOARD_TOP = 3
 ---Display columns from one cell's start to the next: the glyph and the gap.
 local CELL_STEP = 7
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("g2048", g2048, glyphs, extra)
-end
+local BOARD = { top = BOARD_TOP, left = 0, step = CELL_STEP }
 
 ---alice's board after a few merges, a 2048 among them; three directions still move.
 ---@param overrides? table
@@ -58,9 +51,7 @@ end
 ---@param display? games.Display
 ---@return games.Rendered
 local function render(update, glyphs, display)
-  return (
-    shell.render(update, g2048, view_options(glyphs or "ascii"), "alice", 0, display, CATALOGUED)
-  )
+  return (helpers.render_game("g2048", update, { glyphs = glyphs, display = display }))
 end
 
 ---@param rendered games.Rendered
@@ -68,7 +59,7 @@ end
 ---@param c integer
 ---@return games.Hl[] the highlight stack on cell r, c at cell height 1
 local function cell_hl(rendered, r, c)
-  return helpers.hl_stack_at(rendered, BOARD_TOP + r - 1, (c - 1) * CELL_STEP)
+  return helpers.cell_hl_at(rendered, BOARD, r, c)
 end
 
 ---@param rendered games.Rendered
@@ -109,7 +100,19 @@ function T.direction_keys_are_bound_only_for_the_movable_directions()
   assert_eq("]g next game  ? help  q close", footer(render(lost())))
   assert_eq(
     "R give up  ]g next game  ? help  q close",
-    footer((shell.render(update_with(), g2048, view_options("ascii"), "alice", 0, nil, {})))
+    footer(
+      (
+        shell.render(
+          update_with(),
+          g2048,
+          helpers.view_options("g2048", "ascii"),
+          "alice",
+          0,
+          nil,
+          {}
+        )
+      )
+    )
   )
 end
 

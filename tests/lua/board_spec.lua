@@ -27,8 +27,7 @@ end
 ---@return integer
 ---@return string[] lines
 local function cell_height(update, text_area, max_cell_height)
-  local view =
-    helpers.view_options("chess", chess, "unicode", { max_cell_height = max_cell_height })
+  local view = helpers.view_options("chess", "unicode", { max_cell_height = max_cell_height })
   local display = { text_area = text_area, ambiwidth = vim.o.ambiwidth }
   local rendered, _, bindings = shell.render(update, chess, view, "alice", 0, display)
   local footer_lines = compose.measure(key_hints(bindings, text_area.w)).h

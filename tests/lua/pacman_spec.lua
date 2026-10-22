@@ -6,18 +6,11 @@ local shell = require("games.ui.shell")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("pacman")
 ---Lines above the board at cell height 1: the player, the status row and a blank.
 local BOARD_TOP = 3
 ---Display columns from one cell's start to the next: cells touch.
 local CELL_STEP = 2
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("pacman", pacman, glyphs, extra)
-end
+local BOARD = { top = BOARD_TOP, left = 0, step = CELL_STEP }
 
 ---A small maze mid-game: Blinky chasing, Pinky frightened, Inky's eyes going home, and Clyde in
 ---the house under Pac-Man's own cell.
@@ -55,9 +48,7 @@ end
 ---@param glyphs? games.Glyphs
 ---@return games.Rendered
 local function render(update, glyphs)
-  return (
-    shell.render(update, pacman, view_options(glyphs or "ascii"), "alice", 0, nil, CATALOGUED)
-  )
+  return (helpers.render_game("pacman", update, { glyphs = glyphs }))
 end
 
 ---@param rendered games.Rendered
@@ -65,7 +56,7 @@ end
 ---@param c integer
 ---@return games.Hl[] the highlight stack on cell r, c
 local function cell_hl(rendered, r, c)
-  return helpers.hl_stack_at(rendered, BOARD_TOP + r - 1, (c - 1) * CELL_STEP)
+  return helpers.cell_hl_at(rendered, BOARD, r, c)
 end
 
 ---@param rendered games.Rendered
@@ -135,8 +126,12 @@ function T.a_board_redrawing_from_its_kept_rows_draws_each_update_as_afresh()
       local line_counts = {}
       for _, max_cell_height in ipairs({ 1, 2 }) do
         local function draw(rows)
-          local view = view_options(glyphs, { grid_rows = rows, max_cell_height = max_cell_height })
-          return shell.render(update, pacman, view, "alice", 0, display, CATALOGUED)
+          local view = helpers.view_options(
+            "pacman",
+            glyphs,
+            { grid_rows = rows, max_cell_height = max_cell_height }
+          )
+          return helpers.render_game("pacman", update, { view = view, display = display })
         end
         local kept, afresh = draw(grid_rows), draw(nil)
         assert_eq(afresh.lines, kept.lines)
@@ -218,14 +213,10 @@ end
 
 function T.taller_cells_keep_the_walls_joined()
   local update = update_with()
-  local rendered = shell.render(
+  local rendered = helpers.render_game(
+    "pacman",
     update,
-    pacman,
-    view_options("unicode"),
-    "alice",
-    0,
-    { text_area = { w = 120, h = 16 } },
-    CATALOGUED
+    { glyphs = "unicode", display = { text_area = { w = 120, h = 16 } } }
   )
   for line = BOARD_TOP + 1, BOARD_TOP + 2 do
     assert_eq(("█"):rep(28), vim.fn.strcharpart(rendered.lines[line], 0, 28))

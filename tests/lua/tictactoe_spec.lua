@@ -8,13 +8,6 @@ local CATALOGUED = helpers.catalogued("tictactoe")
 local BOARD_ROWS = { 4, 8 }
 local FOOTER_ROW = 10
 
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("tictactoe", tictactoe, glyphs, extra)
-end
-
 ---alice (x) and bob (o) after x 1, o 4, x 2: bob to move, last move on 2.
 ---@param overrides? table
 ---@return games.TicTacToeUpdate
@@ -53,7 +46,7 @@ function T.board_draws_marks_in_phone_order_and_numbers_the_free_cells()
     },
   }) do
     local rendered =
-      shell.render(update(), tictactoe, view_options(case.glyphs), "bob", 0, nil, CATALOGUED)
+      helpers.render_game("tictactoe", update(), { me = "bob", glyphs = case.glyphs })
     assert_eq(case.board, vim.list_slice(rendered.lines, BOARD_ROWS[1] + 1, BOARD_ROWS[2] + 1))
   end
 end
@@ -75,8 +68,15 @@ function T.place_keys_are_the_movers_legal_cells_and_need_the_catalogue()
   }) do
     local state = update()
     state.view.legal_cells = case.legal_cells or state.view.legal_cells
-    local rendered, _, bindings =
-      shell.render(state, tictactoe, view_options("unicode"), case.me, 0, nil, case.catalogued)
+    local rendered, _, bindings = shell.render(
+      state,
+      tictactoe,
+      helpers.view_options("tictactoe", "unicode"),
+      case.me,
+      0,
+      nil,
+      case.catalogued
+    )
     assert_eq(case.footer, rendered.lines[FOOTER_ROW + 1])
     local place = vim.iter(bindings):find(function(binding)
       return binding.key == "5"
@@ -102,7 +102,7 @@ function T.marks_take_their_seats_colour_in_player_order_with_last_move_and_win_
     result = { kind = "decisive", winners = { "alice" }, reason = "three_in_a_row" },
   })
   won.view.winning_lines = { { { row = 1, col = 1 }, { row = 2, col = 2 }, { row = 3, col = 3 } } }
-  local rendered = shell.render(won, tictactoe, view_options("unicode"), "bob", 0, nil, CATALOGUED)
+  local rendered = helpers.render_game("tictactoe", won, { me = "bob", glyphs = "unicode" })
   assert_eq({
     { "GamesWin", "GamesSeat1" },
     "GamesMuted",
@@ -116,8 +116,7 @@ function T.marks_take_their_seats_colour_in_player_order_with_last_move_and_win_
 
   local bob_first =
     update({ players = { { user = "bob", seat = "o" }, { user = "alice", seat = "x" } } })
-  local swapped =
-    shell.render(bob_first, tictactoe, view_options("unicode"), "bob", 0, nil, CATALOGUED)
+  local swapped = helpers.render_game("tictactoe", bob_first, { me = "bob", glyphs = "unicode" })
   assert_eq(
     { "GamesSeat2", "GamesMuted" },
     vim.list_slice(helpers.hls_on_row(swapped, BOARD_ROWS[1]), 1, 2)
@@ -125,9 +124,11 @@ function T.marks_take_their_seats_colour_in_player_order_with_last_move_and_win_
 end
 
 function T.a_roomy_window_draws_the_marks_as_art()
-  local rendered = shell.render(update(), tictactoe, view_options("unicode"), "bob", 0, {
-    text_area = { w = 80, h = 24 },
-  }, CATALOGUED)
+  local rendered = helpers.render_game(
+    "tictactoe",
+    update(),
+    { me = "bob", glyphs = "unicode", display = { text_area = { w = 80, h = 24 } } }
+  )
   assert(
     vim.iter(rendered.lines):any(function(line)
       return line:find("▜█▖    ▗█▛", 1, true) ~= nil

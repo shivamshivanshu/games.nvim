@@ -1,17 +1,7 @@
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 local uno = require("games.games.uno")
 
 local assert_eq = helpers.assert_eq
-
-local CATALOGUE = helpers.catalogued("uno")
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("uno", uno, glyphs, extra)
-end
 
 ---alice (p1) to play on a wild that named green; bob has one card left and carol left.
 ---@param view? table overrides of the view
@@ -50,7 +40,7 @@ end
 ---@param glyphs? games.Glyphs
 ---@return games.Rendered
 local function rendered(update, me, glyphs)
-  return shell.render(update, uno, view_options(glyphs or "ascii"), me, 0, nil, CATALOGUE)
+  return helpers.render_game("uno", update, { me = me, glyphs = glyphs })
 end
 
 ---@param update games.UnoUpdate

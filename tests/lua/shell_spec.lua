@@ -11,8 +11,8 @@ local assert_eq = helpers.assert_eq
 
 local AFTER_E4_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 local FOOLS_MATE_FEN = "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
-local ASCII = helpers.view_options("chess", chess, "ascii")
-local UNICODE = helpers.view_options("chess", chess, "unicode")
+local ASCII = helpers.view_options("chess", "ascii")
+local UNICODE = helpers.view_options("chess", "unicode")
 
 local chess_update = helpers.chess_update
 

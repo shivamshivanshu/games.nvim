@@ -1,21 +1,12 @@
 local describe = require("games.core.describe")
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 local yahtzee = require("games.games.yahtzee")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUE = helpers.catalogued("yahtzee")
 local DICE_COUNT = 5
 ---Lines above the dice at cell height 1: two players, the status row and a blank.
 local DICE_TOP = 5
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("yahtzee", yahtzee, glyphs, extra)
-end
 
 ---@param seat games.Seat
 ---@param overrides? table
@@ -68,7 +59,7 @@ end
 ---@param me games.UserID
 ---@return string[]
 local function render(update, me)
-  return shell.render(update, yahtzee, view_options("ascii"), me, 0, nil, CATALOGUE).lines
+  return helpers.render_game("yahtzee", update, { me = me }).lines
 end
 
 ---The scorecard line whose label is label, without the dice beside it.
@@ -167,8 +158,7 @@ function T.events_name_the_dice_and_the_box()
 end
 
 function T.unicode_dice_draw_their_faces()
-  local lines =
-    shell.render(rolled(), yahtzee, view_options("unicode"), "alice", 0, nil, CATALOGUE).lines
+  local lines = helpers.render_game("yahtzee", rolled(), { glyphs = "unicode" }).lines
   assert(lines[DICE_TOP]:find("⚂ ⚂ ⚄ ⚀ ⚂", 1, true), lines[DICE_TOP])
   assert(lines[DICE_TOP + 1]:find("▲ ▲     ▲", 1, true), lines[DICE_TOP + 1])
 end
@@ -190,7 +180,7 @@ end
 function T.on_a_big_window_each_die_is_outlined_apart_from_the_next()
   local display = { text_area = { w = 120, h = 40 }, seats = 2 }
   local lines =
-    shell.render(rolled(), yahtzee, view_options("unicode"), "alice", 0, display, CATALOGUE).lines
+    helpers.render_game("yahtzee", rolled(), { glyphs = "unicode", display = display }).lines
   local tops = vim.iter(lines):find(function(l)
     return l:find("▁▁▁▁▁▁", 1, true) ~= nil
   end)

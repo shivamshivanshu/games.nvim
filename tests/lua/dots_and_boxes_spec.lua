@@ -1,20 +1,11 @@
 local dots_and_boxes = require("games.games.dots_and_boxes")
 local helpers = require("helpers")
-local shell = require("games.ui.shell")
 local text_util = require("games.ui.text")
 
 local assert_eq = helpers.assert_eq
 
-local CATALOGUED = helpers.catalogued("dots_and_boxes")
 local FIRST_BOARD_ROW = 5
 local CONTROLS = { "resign", "offer_draw" }
-
----@param glyphs games.Glyphs
----@param extra? table
----@return games.ViewOptions
-local function view_options(glyphs, extra)
-  return helpers.view_options("dots_and_boxes", dots_and_boxes, glyphs, extra)
-end
 
 ---@param rows integer
 ---@param cols integer
@@ -92,8 +83,11 @@ end
 ---@return games.Rendered
 ---@return games.KeyBinding[]
 local function render(state, view, me, display)
-  local rendered, _, bindings =
-    shell.render(state, dots_and_boxes, view, me or "bob", 0, display, CATALOGUED)
+  local rendered, _, bindings = helpers.render_game(
+    "dots_and_boxes",
+    state,
+    { me = me or "bob", view = view, display = display }
+  )
   return rendered, bindings
 end
 
@@ -142,16 +136,18 @@ function T.the_board_draws_dots_edges_owned_boxes_the_latest_edge_and_the_cursor
       "  a   b   c   d",
     },
   }) do
-    local rendered = render(midgame(), view_options(glyphs, { cursor = at }))
+    local rendered =
+      render(midgame(), helpers.view_options("dots_and_boxes", glyphs, { cursor = at }))
     assert_eq(want, lines_of(rendered, FIRST_BOARD_ROW, 8))
   end
-  local rendered = render(midgame(), view_options("ascii", { cursor = at }))
+  local rendered =
+    render(midgame(), helpers.view_options("dots_and_boxes", "ascii", { cursor = at }))
   assert_eq("GamesLastMove", helpers.hl_at(rendered, FIRST_BOARD_ROW, 6))
   assert_eq("GamesMovable", helpers.hl_at(rendered, FIRST_BOARD_ROW + 2, 6))
 end
 
 function T.a_box_takes_its_owners_glyph_and_header_colour()
-  local rendered = render(midgame(), view_options("ascii"))
+  local rendered = render(midgame(), helpers.view_options("dots_and_boxes", "ascii"))
   local box = helpers.hl_at(rendered, FIRST_BOARD_ROW, 3)
   assert_eq("GamesSeat2", type(box) == "table" and box[#box] or box)
   assert_eq("O", rendered.lines[FIRST_BOARD_ROW + 1]:sub(5, 5))
@@ -159,7 +155,8 @@ end
 
 function T.the_cursor_on_a_drawn_edge_is_blocked_and_enter_sends_nothing()
   local at = { row = 1, col = 1, orientation = "across" }
-  local rendered, bindings = render(midgame(), view_options("ascii", { cursor = at }))
+  local rendered, bindings =
+    render(midgame(), helpers.view_options("dots_and_boxes", "ascii", { cursor = at }))
   assert_eq(
     { "1 +xxx+   +   +   your move", "  | O #           at a1h: drawn" },
     lines_of(rendered, FIRST_BOARD_ROW, 2)
@@ -171,7 +168,8 @@ end
 function T.enter_sends_the_edge_under_the_cursor_lying_its_way()
   local function sent(at)
     local state = midgame()
-    local _, bindings = render(state, view_options("ascii", { cursor = at }))
+    local _, bindings =
+      render(state, helpers.view_options("dots_and_boxes", "ascii", { cursor = at }))
     local acted
     binding(bindings, "<CR>").run({
       update = state,
@@ -194,7 +192,7 @@ function T.the_cursor_keeps_to_the_edges_of_the_boards_size()
     by_key[action.key] = action.local_fn
   end
   local function after(state, keys)
-    local view = view_options("ascii")
+    local view = helpers.view_options("dots_and_boxes", "ascii")
     for key in keys:gmatch(".") do
       view = by_key[key](view, state)
     end
@@ -214,7 +212,11 @@ end
 
 function T.an_80_column_window_wraps_the_footer_while_abort_is_offered()
   local opening = midgame({ controls = { "resign", "offer_draw", "abort" } })
-  local view = view_options("ascii", { cursor = { row = 2, col = 2, orientation = "down" } })
+  local view = helpers.view_options(
+    "dots_and_boxes",
+    "ascii",
+    { cursor = { row = 2, col = 2, orientation = "down" } }
+  )
   local rendered = render(opening, view, "bob", { text_area = { w = 80, h = 40 } })
   assert_eq({
     "",
@@ -225,7 +227,11 @@ end
 
 function T.a_wrapped_footer_keeps_the_board_inside_the_window()
   local opening = midgame({ controls = { "resign", "offer_draw", "abort" } })
-  local view = view_options("unicode", { cursor = { row = 2, col = 2, orientation = "down" } })
+  local view = helpers.view_options(
+    "dots_and_boxes",
+    "unicode",
+    { cursor = { row = 2, col = 2, orientation = "down" } }
+  )
   for h = 16, 50 do
     local rendered = render(opening, view, "bob", { text_area = { w = 80, h = h } })
     assert(#rendered.lines <= h, ("%d lines in a window %d tall"):format(#rendered.lines, h))
@@ -261,17 +267,21 @@ function T.keys_follow_the_turn()
     end
     local rendered = render(
       state,
-      view_options("ascii", { cursor = { row = 2, col = 2, orientation = "down" } }),
+      helpers.view_options(
+        "dots_and_boxes",
+        "ascii",
+        { cursor = { row = 2, col = 2, orientation = "down" } }
+      ),
       me
     )
     assert_eq(want, rendered.lines[#rendered.lines])
   end
-  local rendered = render(over, view_options("ascii"))
+  local rendered = render(over, helpers.view_options("dots_and_boxes", "ascii"))
   assert_eq({ "1 +---+   +   +   game over" }, lines_of(rendered, FIRST_BOARD_ROW, 1))
 end
 
 function T.the_header_gives_each_player_its_glyph_and_boxes()
-  local rendered = render(midgame(), view_options("unicode"))
+  local rendered = render(midgame(), helpers.view_options("dots_and_boxes", "unicode"))
   assert_eq(
     { "alice  p1  ● 0 boxes", "bob    p2  ○ 1 box    ←  your move" },
     lines_of(rendered, 1, 2)
@@ -284,7 +294,11 @@ function T.the_largest_board_and_panel_fit_eighty_by_twenty_four_at_one_line_a_c
   seven.view.legal_edges = { { row = 1, col = 1, orientation = "across" } }
   local rendered = render(
     seven,
-    view_options("unicode", { cursor = { row = 8, col = 7, orientation = "across" } }),
+    helpers.view_options(
+      "dots_and_boxes",
+      "unicode",
+      { cursor = { row = 8, col = 7, orientation = "across" } }
+    ),
     "bob",
     {
       text_area = { w = 80, h = 22 },
@@ -304,7 +318,11 @@ function T.the_player_waiting_reads_their_move()
   local waiting = midgame({ view = { legal_edges = {} } })
   assert_eq(
     { "1 +---+   +   +   their move" },
-    lines_of(render(waiting, view_options("ascii"), "alice"), FIRST_BOARD_ROW, 1)
+    lines_of(
+      render(waiting, helpers.view_options("dots_and_boxes", "ascii"), "alice"),
+      FIRST_BOARD_ROW,
+      1
+    )
   )
 end
 
