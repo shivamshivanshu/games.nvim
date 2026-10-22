@@ -121,7 +121,6 @@ local BOARD_ROW, HAND_ROW = 1, 2
 local EMPTY_KEY = "empty"
 local BLANK_KEY = "blank"
 local BUTTON_KEY = "button"
-local CARD_HL = Group.SQUARE_LIGHT
 ---Display columns the table panel reserves: "Moves    fold call raise allin".
 local PANEL_WIDTH = 32
 
@@ -166,7 +165,7 @@ local function card_marks(view)
   for row = BOARD_ROW, HAND_ROW do
     for col = 1, BOARD_SIZE do
       if card_at(view, row, col) then
-        marks[#marks + 1] = grid.mark(row, col, CARD_HL)
+        marks[#marks + 1] = grid.mark(row, col, cards.CARD_HL)
       end
     end
   end
@@ -423,12 +422,9 @@ M.describers = {
 ---@param ctx games.DescribeCtx
 ---@return games.LegendEntry[]
 function M.legend(ctx)
-  local function card(key)
-    return grid.sample(ctx, { key, cards.hl(key) }, CARD_HL)
-  end
   return {
     {
-      sample = { card("Qs"), compose.text(" "), card("Ah") },
+      sample = cards.sample(ctx, { "Qs", "Ah" }),
       meaning = "a card: the board's on top, yours below",
     },
     grid.legend_entry(ctx, { EMPTY_KEY }, "a board card still to come"),

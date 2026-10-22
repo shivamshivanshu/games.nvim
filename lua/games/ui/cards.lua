@@ -1,5 +1,6 @@
 local art = require("games.ui.art")
 local compose = require("games.ui.compose")
+local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local text_util = require("games.ui.text")
 
@@ -29,6 +30,8 @@ local M = {}
 
 ---What marks a card of a hand, on the line beneath it.
 M.MARK = MARK
+---The shade a card is drawn on.
+M.CARD_HL = Group.SQUARE_LIGHT
 
 ---Display columns of a playing card's one-line glyph.
 M.GLYPH_WIDTH = 2
@@ -135,6 +138,26 @@ function M.hand(props)
     end
   end
   return lines
+end
+
+---A legend's sample of playing cards keys, a space apart, each on a card's shade.
+---@param ctx games.DescribeCtx
+---@param keys games.CardKey[]
+---@return games.TextNode[]
+function M.sample(ctx, keys)
+  return grid.samples(
+    ctx,
+    vim.tbl_map(function(key)
+      return { key, M.hl(key) }
+    end, keys),
+    M.CARD_HL
+  )
+end
+
+---The legend entry of MARK under a card of a hand.
+---@return games.LegendEntry
+function M.playable_entry()
+  return { sample = { compose.text(MARK) }, meaning = "under a card in your hand: you may play it" }
 end
 
 ---Cards as their glyphs in set, a space apart, uncoloured, for text such as a notification.

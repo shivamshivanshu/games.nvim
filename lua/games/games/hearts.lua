@@ -101,7 +101,6 @@ local Group = highlights.Group
 
 local EMPTY_KEY = "empty"
 local BLANK_KEY = "blank"
-local CARD_HL = Group.SQUARE_LIGHT
 local PLAY_KIND = "play"
 local PASS_KIND = "pass"
 local HOLD = "hold"
@@ -198,7 +197,7 @@ local function trick_cells(update, me)
     local card = played[seat_at(update, me, offset)]
     cells[place.row][place.col] = card and { card, cards.hl(card) } or { EMPTY_KEY, Group.MUTED }
     if card then
-      marks[#marks + 1] = grid.mark(place.row, place.col, CARD_HL)
+      marks[#marks + 1] = grid.mark(place.row, place.col, cards.CARD_HL)
     end
   end
   return cells, marks
@@ -429,19 +428,13 @@ M.describers = {
 ---@param ctx games.DescribeCtx
 ---@return games.LegendEntry[]
 function M.legend(ctx)
-  local function card(key)
-    return grid.sample(ctx, { key, cards.hl(key) }, CARD_HL)
-  end
   return {
     {
-      sample = { card("Qs"), compose.text(" "), card("Ah") },
+      sample = cards.sample(ctx, { "Qs", "Ah" }),
       meaning = "a card played to the trick; hearts and diamonds red",
     },
     grid.legend_entry(ctx, { EMPTY_KEY, Group.MUTED }, "a seat still to play to the trick"),
-    {
-      sample = { compose.text(cards.MARK) },
-      meaning = "under a card in your hand: you may play it",
-    },
+    cards.playable_entry(),
   }
 end
 

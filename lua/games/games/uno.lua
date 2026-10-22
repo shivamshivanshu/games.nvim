@@ -87,7 +87,6 @@ local Group = highlights.Group
 ---@field by games.Seat
 
 local DECK_KEY = "deck"
-local CARD_HL = Group.SQUARE_LIGHT
 local PLAY_KIND = "play"
 ---Display columns the table panel reserves: nine cards to a line of the hand.
 local PANEL_WIDTH = 36
@@ -190,7 +189,7 @@ function M.layout(update, ctx)
         end
         return { DECK_KEY, Group.MUTED }
       end,
-      marks = { grid.mark(1, 1, CARD_HL), grid.mark(1, 2, CARD_HL) },
+      marks = { grid.mark(1, 1, cards.CARD_HL), grid.mark(1, 2, cards.CARD_HL) },
     },
     panels = {
       {
@@ -319,13 +318,10 @@ function M.legend(ctx)
       ctx,
       { "R5", cards.uno_hl("R5") },
       "the discard pile's top card, in the colour in play",
-      CARD_HL
+      cards.CARD_HL
     ),
-    grid.legend_entry(ctx, { DECK_KEY, Group.MUTED }, "the draw pile", CARD_HL),
-    {
-      sample = { compose.text(cards.MARK) },
-      meaning = "under a card in your hand: you may play it",
-    },
+    grid.legend_entry(ctx, { DECK_KEY, Group.MUTED }, "the draw pile", cards.CARD_HL),
+    cards.playable_entry(),
   }
 end
 
