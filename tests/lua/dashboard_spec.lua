@@ -282,6 +282,30 @@ function T.a_render_that_changes_nothing_shown_rewrites_no_line_and_leaves_the_w
   end)
 end
 
+function T.its_window_grows_and_shrinks_with_its_lines_and_stays_centred()
+  with_dashboard(function(_, conn)
+    local function placed()
+      local config = vim.api.nvim_win_get_config(0)
+      return {
+        height = config.height,
+        centred = config.row == math.floor((vim.o.lines - config.height) / 2),
+      }
+    end
+    local before = placed()
+    local challenge = vim.tbl_extend(
+      "force",
+      hub.INCOMING,
+      { challenge_id = "c-new", from = "dave", expires_at = hub.INCOMING.expires_at - 1 }
+    )
+    conn:push("challenge.changed", challenge)
+    vim.wait(20)
+    assert_eq({ height = before.height + 1, centred = true }, placed())
+    conn:push("challenge.changed", vim.tbl_extend("force", challenge, { state = "cancelled" }))
+    vim.wait(20)
+    assert_eq(before, placed())
+  end)
+end
+
 function T.close_drops_the_handlers_the_autocmds_and_the_clock_tick()
   local client = hub.client()
   local before, timers = handler_counts(client), active_timers()
