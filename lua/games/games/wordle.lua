@@ -4,6 +4,7 @@ local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
+local notation = require("games.ui.notation")
 local text = require("games.ui.text")
 
 local Group = highlights.Group
@@ -116,7 +117,7 @@ M.Mark = Mark
 ---@type string[] keys every wordle asset pack draws: each letter plain, framed per mark, and an empty tile
 M.asset_keys = vim.list_extend(
   vim
-    .iter(text.chars(text.ALPHABET))
+    .iter(notation.LETTERS)
     :map(function(letter)
       return { letter, key_for(letter, Mark.HIT), key_for(letter, Mark.PRESENT) }
     end)

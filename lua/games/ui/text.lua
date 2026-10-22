@@ -1,6 +1,5 @@
 local M = {}
 
-M.ALPHABET = "abcdefghijklmnopqrstuvwxyz"
 ---Display columns a player's name takes in a game's panel.
 M.NAME_WIDTH = 10
 

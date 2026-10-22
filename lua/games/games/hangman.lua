@@ -4,7 +4,7 @@ local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
-local text = require("games.ui.text")
+local notation = require("games.ui.notation")
 
 local Group = highlights.Group
 
@@ -126,7 +126,7 @@ local M = {}
 ---end, and a hidden letter
 M.asset_keys = vim.list_extend(
   vim
-    .iter(text.chars(text.ALPHABET))
+    .iter(notation.LETTERS)
     :map(function(letter)
       return { letter, unfound_key(letter) }
     end)

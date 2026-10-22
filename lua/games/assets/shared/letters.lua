@@ -1,6 +1,7 @@
 local art = require("games.ui.art")
 local build = require("games.assets.shared.build")
 local font = require("games.assets.pixel_font")
+local notation = require("games.ui.notation")
 local text = require("games.ui.text")
 
 ---How a marked letter draws without colour, beside its plain look.
@@ -88,7 +89,7 @@ end
 ---@return table<string, T> each letter's plain look, and its look under each key marker, "hit:a" and so on
 function M.by_letter(look, markers)
   local set = {}
-  for _, letter in ipairs(text.chars(text.ALPHABET)) do
+  for _, letter in ipairs(notation.LETTERS) do
     set[letter] = look(letter)
     for key_marker, marker in pairs(markers) do
       set[art.marked_key(letter, key_marker)] = look(letter, marker)

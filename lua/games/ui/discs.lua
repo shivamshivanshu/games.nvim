@@ -3,7 +3,6 @@ local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
-local text = require("games.ui.text")
 
 local Group = highlights.Group
 
@@ -49,13 +48,6 @@ M.MarkKind = MarkKind
 ---@return string[]
 function M.asset_keys()
   return { "black", "white", EMPTY_KEY }
-end
-
----A cell named as its column's letter then its row's number, e.g. h8.
----@param cell games.Cell
----@return string
-function M.cell_name(cell)
-  return text.ALPHABET:sub(cell.col, cell.col) .. cell.row
 end
 
 ---The prompt that sends the typed cell to the server, which parses it.
@@ -125,10 +117,11 @@ local function notes(view, props)
   end
   local lines = {}
   if view.last then
-    lines[1] = note("last", M.cell_name(view.last))
+    lines[1] = note("last", notation.cell_name(view.last))
   end
   for _, line in ipairs(props.winning_lines or {}) do
-    lines[#lines + 1] = note("line", M.cell_name(line[1]) .. "-" .. M.cell_name(line[#line]))
+    lines[#lines + 1] =
+      note("line", notation.cell_name(line[1]) .. "-" .. notation.cell_name(line[#line]))
   end
   return compose.col(lines)
 end

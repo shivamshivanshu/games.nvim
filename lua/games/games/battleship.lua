@@ -88,12 +88,6 @@ local PANEL_WIDTH = SHIP_COLUMN + STATE_COLUMN + #"theirs"
 ---@type games.GridLabels
 local LABELS = { cols = notation.letters(SIZE), rows = notation.numbers(SIZE) }
 
----@param cell games.GridPos
----@return string as typed, the column's letter then the row's number, e.g. c5
-local function cell_name(cell)
-  return text_util.ALPHABET:sub(cell.col, cell.col) .. cell.row
-end
-
 ---@param update games.GameUpdate
 ---@return boolean
 local function placing(update)
@@ -213,14 +207,14 @@ local function status_lines(update, ctx)
   local view = update.view
   local at = cursor.of(ctx)
   if view.next then
-    local where = ("%s at %s"):format(at.orientation, cell_name(at))
+    local where = ("%s at %s"):format(at.orientation, notation.cell_name(at))
     return {
       ("place %s %d"):format(view.next.name, view.next.size),
       berthable(view, at) and where or (where .. ": blocked"),
     }
   end
   if players.is_to_act(update, ctx.me) then
-    local where = "at " .. cell_name(at)
+    local where = "at " .. notation.cell_name(at)
     return { "your shot", open_water(view, at) and where or (where .. ": fired") }
   end
   if view.phase == "over" then
@@ -239,7 +233,7 @@ local function last_lines(update, ctx)
   end
   local whose = last.by == players.seat_of_user(update, ctx.me) and "your" or "their"
   local found = last.ship and ("sank the " .. last.ship) or last.outcome
-  return { ("last: %s shot at %s"):format(whose, cell_name(last.cell)), found }
+  return { ("last: %s shot at %s"):format(whose, notation.cell_name(last.cell)), found }
 end
 
 ---@param update games.BattleshipUpdate
@@ -315,9 +309,10 @@ M.actions = vim.list_extend(cursor.moves(BOUNDS, aiming), {
     act = function(update, view)
       local at = cursor.of(view)
       if placing(update) then
-        return { kind = PLACE_KIND[at.orientation], cell = cell_name(at) }
+        return { kind = PLACE_KIND[at.orientation], cell = notation.cell_name(at) }
       end
-      return open_water(update.view, at) and { kind = FIRE_KIND, cell = cell_name(at) } or nil
+      return open_water(update.view, at) and { kind = FIRE_KIND, cell = notation.cell_name(at) }
+        or nil
     end,
   },
   { key = "f", label = "fill", action = { kind = RANDOM_KIND }, available = placing },
@@ -332,7 +327,7 @@ M.describers = {
   shot = function(event, talk)
     ---@cast event games.BattleshipShotEvent
     local found = event.ship and ("sank the " .. event.ship) or event.outcome
-    return ("%s fired at %s: %s"):format(talk.name(event.by), cell_name(event.cell), found)
+    return ("%s fired at %s: %s"):format(talk.name(event.by), notation.cell_name(event.cell), found)
   end,
 }
 

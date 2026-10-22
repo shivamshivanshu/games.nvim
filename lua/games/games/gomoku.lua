@@ -1,4 +1,5 @@
 local discs = require("games.ui.discs")
+local notation = require("games.ui.notation")
 
 ---@class games.GomokuView: games.DiscView
 ---@field cells (games.DiscSeat|"")[][] 15 rows of 15 from the top; "" for an empty cell
@@ -37,7 +38,7 @@ M.input = discs.input("h8")
 M.describers = {
   placed = function(event, talk)
     ---@cast event games.GomokuPlacedEvent
-    return ("%s placed %s"):format(talk.name(event.by), discs.cell_name(event.cell))
+    return ("%s placed %s"):format(talk.name(event.by), notation.cell_name(event.cell))
   end,
 }
 

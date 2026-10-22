@@ -3,7 +3,6 @@ local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local kv = require("games.ui.widgets.kv")
 local notation = require("games.ui.notation")
-local text = require("games.ui.text")
 
 local Group = highlights.Group
 
@@ -60,7 +59,7 @@ local CELL_HL = { hidden = HIDDEN_HL, flag = FLAG_HL, flagged_mine = FLAG_HL, wr
 ---@param col integer
 ---@return string the cell as typed, e.g. "c12"
 local function address(row, col)
-  return text.ALPHABET:sub(row, row) .. col
+  return notation.letter(row) .. col
 end
 
 ---@param view games.MinesweeperView

@@ -1,6 +1,7 @@
 local compose = require("games.ui.compose")
 local discs = require("games.ui.discs")
 local highlights = require("games.ui.highlights")
+local notation = require("games.ui.notation")
 
 local Group = highlights.Group
 
@@ -58,7 +59,7 @@ M.describers = {
     ---@cast event games.ReversiPlacedEvent
     return ("%s placed %s, flipping %d"):format(
       talk.name(event.by),
-      discs.cell_name(event.cell),
+      notation.cell_name(event.cell),
       #event.flipped
     )
   end,

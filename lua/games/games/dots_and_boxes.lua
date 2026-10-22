@@ -6,7 +6,6 @@ local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
 local players = require("games.core.players")
-local text = require("games.ui.text")
 local theme = require("games.ui.theme")
 
 local Group = highlights.Group
@@ -71,7 +70,7 @@ end
 ---@param line games.DotsAndBoxesLine|games.GridCursor
 ---@return string as typed: the dot's column letter and row number, then h or v, e.g. b2h
 local function edge_name(line)
-  return text.ALPHABET:sub(line.col, line.col) .. line.row .. ORIENTATION_SUFFIX[line.orientation]
+  return notation.cell_name(line) .. ORIENTATION_SUFFIX[line.orientation]
 end
 
 ---@param line games.DotsAndBoxesLine|games.GridCursor|nil
