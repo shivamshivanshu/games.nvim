@@ -43,14 +43,29 @@ function M.pad_to_width(line, width)
   return line .. M.spaces(width - M.width(line))
 end
 
----Centres line in width columns; odd padding goes right.
+---@param line string
+---@param padding integer blanks around line; odd padding goes right
+---@return string
+local function centred(line, padding)
+  local left = math.floor(padding / 2)
+  return M.spaces(left) .. line .. M.spaces(padding - left)
+end
+
+---Centres line in width display columns; odd padding goes right.
 ---@param line string
 ---@param width integer
 ---@return string
 function M.center_to_width(line, width)
-  local padding = width - M.width(line)
-  local left = math.floor(padding / 2)
-  return M.spaces(left) .. line .. M.spaces(padding - left)
+  return centred(line, width - M.width(line))
+end
+
+---Centres line in width characters, whatever their display columns; odd padding goes right. An
+---asset pack centres so, to come out the same under any 'ambiwidth'.
+---@param line string
+---@param width integer
+---@return string
+function M.center_to_chars(line, width)
+  return centred(line, width - vim.fn.strchars(line))
 end
 
 ---line cut to width characters, then padded to width.

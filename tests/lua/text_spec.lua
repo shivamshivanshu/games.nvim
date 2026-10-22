@@ -23,4 +23,10 @@ function T.fit_to_width_cuts_then_pads_and_widest_measures_by_text_of()
   assert_eq({ "a", "♔", "b" }, text.chars("a♔b"))
 end
 
+function T.center_to_chars_counts_characters_where_center_to_width_counts_columns()
+  helpers.with_overrides({ { vim.o, "ambiwidth", "double" } }, function()
+    assert_eq({ " · ", "· " }, { text.center_to_chars("·", 3), text.center_to_width("·", 3) })
+  end)
+end
+
 return T
