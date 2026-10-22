@@ -37,7 +37,7 @@ type Step[Action any] struct {
 type Script[Opts, Action any] struct {
 	Name string
 	Opts Opts
-	// Challenger and Invitees are alice against bob when Challenger is empty.
+	// Challenger is alice when empty, and then Invitees are bob when nil.
 	Challenger game.UserID
 	Invitees   []game.UserID
 	Seed       game.Seed
@@ -54,10 +54,13 @@ type Script[Opts, Action any] struct {
 
 // players are the script's challenger and invitees.
 func (s Script[Opts, Action]) players() (game.UserID, []game.UserID) {
-	if s.Challenger == "" {
+	switch {
+	case s.Challenger != "":
+		return s.Challenger, s.Invitees
+	case s.Invitees == nil:
 		return userNames[0], Users(2)[1:]
 	}
-	return s.Challenger, s.Invitees
+	return userNames[0], s.Invitees
 }
 
 func start[Opts, Action, View any](rules game.Rules[Opts, Action, View], script Script[Opts, Action]) (game.State[Action, View], map[game.UserID]game.Seat, error) {
