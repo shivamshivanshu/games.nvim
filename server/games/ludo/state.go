@@ -4,7 +4,6 @@ import (
 	"maps"
 	"math/rand/v2"
 	"slices"
-	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/dice"
@@ -70,8 +69,8 @@ func (s state) applyRoll(rng *rand.Rand) (game.State[Action, View], []game.Event
 }
 
 func parseToken(text string) (Token, error) {
-	n, err := strconv.Atoi(text)
-	if err != nil || n < 1 || n > TokensPerSeat {
+	n, ok := game.ParseNumbered(text, TokensPerSeat)
+	if !ok {
 		return 0, game.Illegalf("token must be 1 to %d, got %q", TokensPerSeat, text)
 	}
 	return Token(n), nil

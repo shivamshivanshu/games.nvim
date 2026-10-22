@@ -372,6 +372,7 @@ func TestIllegalActions(t *testing.T) {
 		{"token out of range", rolled(6, inBase(), inBase()), SeatBlue, moveToken(5), `token must be 1 to 4, got "5"`},
 		{"missing token", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove}, `token must be 1 to 4, got ""`},
 		{"token not a number", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove, Token: "two"}, `token must be 1 to 4, got "two"`},
+		{"token not in canonical form", rolled(6, inBase(), inBase()), SeatBlue, Action{Kind: ActionMove, Token: "01"}, `token must be 1 to 4, got "01"`},
 		{"leave base without a six", rolled(3, Tokens{out, 4, out, out}, inBase()), SeatBlue, moveToken(1), "token 1 cannot move 3"},
 		{"overshoot home", rolled(4, Tokens{53, 4, out, out}, inBase()), SeatBlue, moveToken(1), "token 1 cannot move 4"},
 		{"move a finished token", rolled(1, Tokens{home, 4, out, out}, inBase()), SeatBlue, moveToken(1), "token 1 cannot move 1"},
