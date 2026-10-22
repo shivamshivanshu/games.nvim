@@ -5,12 +5,14 @@ import (
 	"bufio"
 	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -189,6 +191,29 @@ func ReplyOf(env protocol.Envelope) (json.RawMessage, error) {
 		return nil, protocol.Error{Code: body.Code, Msg: body.Message}
 	}
 	return nil, fmt.Errorf("reply of type %s", env.Type)
+}
+
+// Serve runs serve on a fresh local listener and returns its address and a
+// shutdown, run once however often it is called, that cancels serve's context
+// and is the error serve returned, or one if it did not return within wait.
+func Serve(t testing.TB, cancel context.CancelFunc, wait time.Duration, serve func(net.Listener) error) (string, func() error) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	served := make(chan error, 1)
+	go func() { served <- serve(ln) }()
+	return ln.Addr().String(), sync.OnceValue(func() error {
+		cancel()
+		select {
+		case err := <-served:
+			return err
+		case <-time.After(wait):
+			return fmt.Errorf("serve did not return within %v of shutdown", wait)
+		}
+	})
 }
 
 // WaitFor polls done every millisecond until it holds, for at most timeout,

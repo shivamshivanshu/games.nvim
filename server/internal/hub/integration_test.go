@@ -80,27 +80,17 @@ func (e *env) start(t *testing.T) server {
 		cancel()
 		t.Fatal(err)
 	}
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		cancel()
-		t.Fatal(err)
-	}
-	served := make(chan error, 1)
-	go func() { served <- session.Serve(ctx, ln, lim, h.Login(), h.Routes(), h.Hooks()) }()
+	addr, shutdown := prototest.Serve(t, cancel, shutdownWait, func(ln net.Listener) error {
+		return session.Serve(ctx, ln, lim, h.Login(), h.Routes(), h.Hooks())
+	})
 	stop := sync.OnceFunc(func() {
-		cancel()
-		select {
-		case err := <-served:
-			if err != nil {
-				t.Errorf("serve: %v", err)
-			}
-		case <-time.After(shutdownWait):
-			t.Error("serve did not return after shutdown")
+		if err := shutdown(); err != nil {
+			t.Errorf("serve: %v", err)
 		}
 		h.Wait()
 	})
 	t.Cleanup(stop)
-	return server{addr: ln.Addr().String(), stop: stop, hub: h}
+	return server{addr: addr, stop: stop, hub: h}
 }
 
 func (s server) login(t *testing.T, user game.UserID) *prototest.Client {

@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -61,31 +60,19 @@ type server struct {
 
 func startServer(t *testing.T, lim limits.Limits, routes session.Router, hooks session.Hooks) server {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
 	if routes == nil {
 		routes = session.Router{typeEcho: session.Handle(echo)}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	served := make(chan error, 1)
-	go func() { served <- session.Serve(ctx, ln, lim, stubLogin, routes, hooks) }()
-	shutdown := sync.OnceValue(func() error {
-		cancel()
-		select {
-		case err := <-served:
-			return err
-		case <-time.After(replyTimeout):
-			return errors.New("Serve did not return after cancel")
-		}
+	addr, shutdown := prototest.Serve(t, cancel, replyTimeout, func(ln net.Listener) error {
+		return session.Serve(ctx, ln, lim, stubLogin, routes, hooks)
 	})
 	t.Cleanup(func() {
 		if err := shutdown(); err != nil {
 			t.Error(err)
 		}
 	})
-	return server{addr: ln.Addr().String(), shutdown: shutdown}
+	return server{addr: addr, shutdown: shutdown}
 }
 
 func login(t *testing.T, c *prototest.Client) {
