@@ -103,15 +103,7 @@ func (s state) direction() Direction {
 	return CounterClockwise
 }
 
-func (s state) activeCount() int {
-	n := 0
-	for _, out := range s.out {
-		if !out {
-			n++
-		}
-	}
-	return n
-}
+func (s state) activeCount() int { return xslices.Count(s.out, false) }
 
 // next is the first seat after i, in the direction of play, still in the game.
 func (s state) next(i int) int {

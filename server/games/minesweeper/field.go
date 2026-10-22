@@ -76,13 +76,3 @@ func (s state) coveredAround(cell int) []int {
 	}
 	return out
 }
-
-func countSet(cells []bool) int {
-	count := 0
-	for _, set := range cells {
-		if set {
-			count++
-		}
-	}
-	return count
-}

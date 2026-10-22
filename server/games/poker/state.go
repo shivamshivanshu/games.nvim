@@ -6,6 +6,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 // state is the whole table. Its arrays make every copy independent, so a
@@ -36,15 +37,7 @@ func (s state) seatIndex(seat game.Seat) (int, bool) {
 	return i, i >= 0
 }
 
-func (s state) aliveCount() int {
-	n := 0
-	for i := range s.n {
-		if !s.out[i] {
-			n++
-		}
-	}
-	return n
-}
+func (s state) aliveCount() int { return xslices.Count(s.out[:s.n], false) }
 
 // nextAlive is the first seat after i, clockwise, still in the game.
 func (s state) nextAlive(i int) int {

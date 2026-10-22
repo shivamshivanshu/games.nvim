@@ -5,6 +5,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 // Board is a square board of discs. It is immutable: With returns a changed copy.
@@ -52,15 +53,7 @@ func (b Board) Empty() []grid.Point {
 }
 
 // Count is how many of seat's discs are on the board.
-func (b Board) Count(seat game.Seat) int {
-	count := 0
-	for _, disc := range b.discs {
-		if disc == seat {
-			count++
-		}
-	}
-	return count
-}
+func (b Board) Count(seat game.Seat) int { return xslices.Count(b.discs, seat) }
 
 // Full reports whether no cell is empty.
 func (b Board) Full() bool { return !slices.Contains(b.discs, NoDisc) }

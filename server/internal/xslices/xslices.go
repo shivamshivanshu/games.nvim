@@ -12,6 +12,17 @@ func Map[S ~[]E, E, R any](s S, f func(E) R) []R {
 	return out
 }
 
+// Count is how many elements of s are v.
+func Count[S ~[]E, E comparable](s S, v E) int {
+	n := 0
+	for _, e := range s {
+		if e == v {
+			n++
+		}
+	}
+	return n
+}
+
 func MapErr[S ~[]E, E, R any](s S, f func(E) (R, error)) ([]R, error) {
 	out := make([]R, 0, len(s))
 	for _, e := range s {

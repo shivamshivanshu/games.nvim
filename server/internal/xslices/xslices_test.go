@@ -33,3 +33,12 @@ func TestCloneDoesNotShareItsInput(t *testing.T) {
 		t.Fatalf("clone changed with its input: %v", out)
 	}
 }
+
+func TestCountCountsEqualElements(t *testing.T) {
+	if got := Count([]string{"a", "b", "a"}, "a"); got != 2 {
+		t.Errorf("Count = %d, want 2", got)
+	}
+	if got := Count([]bool(nil), true); got != 0 {
+		t.Errorf("Count of nil = %d, want 0", got)
+	}
+}

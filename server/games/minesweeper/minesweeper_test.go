@@ -10,6 +10,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const solo game.UserID = "alice"
@@ -144,9 +145,9 @@ func TestFirstRevealAlwaysOpensAZeroWithTheMinesPlacedAfterIt(t *testing.T) {
 				}
 				s := next.(state)
 				p := lvl.point(first)
-				if got := s.View(game.SeatSolo).Cells[p.Row][p.Col]; got != "0" || countSet(s.mines) != lvl.mines || s.Over() {
+				if got := s.View(game.SeatSolo).Cells[p.Row][p.Col]; got != "0" || xslices.Count(s.mines, true) != lvl.mines || s.Over() {
 					t.Errorf("%s seed %d reveal %s: cell %q, %d mines, finished %t; want \"0\", %d mines, playing",
-						d, seed, address(p), got, countSet(s.mines), s.Over(), lvl.mines)
+						d, seed, address(p), got, xslices.Count(s.mines, true), s.Over(), lvl.mines)
 				}
 				layouts[string(d)+fmtMines(s)] = true
 			}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const noCell = -1
@@ -96,7 +97,7 @@ func (s state) settled() state {
 	switch {
 	case s.exploded != noCell:
 		s.Ending = s.Concluded(game.LossBy(ReasonMine))
-	case s.mines != nil && countSet(s.open) == s.lvl.cells()-s.lvl.mines:
+	case s.mines != nil && xslices.Count(s.open, true) == s.lvl.cells()-s.lvl.mines:
 		s.Ending = s.Concluded(game.WinFor(ReasonCleared, game.SeatSolo))
 	}
 	return s
@@ -112,7 +113,7 @@ func (s state) View(game.Seat) View {
 			view.Chordable = append(view.Chordable, s.lvl.point(cell).Cell())
 		}
 	}
-	view.Flags = countSet(s.flags)
+	view.Flags = xslices.Count(s.flags, true)
 	view.Remaining = s.lvl.mines - view.Flags
 	return view
 }

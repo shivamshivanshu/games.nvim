@@ -7,6 +7,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/cards"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 // state is the match. Every slice is replaced, never written through, so a
@@ -103,15 +104,7 @@ func (s state) holderOf(c cards.Card) int {
 	return slices.IndexFunc(s.hands, func(hand []cards.Card) bool { return slices.Contains(hand, c) })
 }
 
-func (s state) activeCount() int {
-	n := 0
-	for _, out := range s.out {
-		if !out {
-			n++
-		}
-	}
-	return n
-}
+func (s state) activeCount() int { return xslices.Count(s.out, false) }
 
 // legal are the cards seat i may play to the trick now.
 func (s state) legal(i int) []cards.Card {
