@@ -9,6 +9,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
+	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
 const metronomeType game.GameType = "metronome"
@@ -37,6 +38,19 @@ func pausedSnapshot(t *testing.T, c *prototest.Client, id game.GameID) protocol.
 	return u
 }
 
+// awaitStoredPause waits until the pause a player's last session set off on
+// closing is written, so a test logging the player back in cannot overtake it.
+func awaitStoredPause(t *testing.T, st *store.Store, id game.GameID) {
+	t.Helper()
+	stored := func() bool {
+		rec, err := st.LoadGame(t.Context(), id)
+		return err == nil && len(rec.Steps) > 0 && rec.Steps[len(rec.Steps)-1].Kind == store.StepPause
+	}
+	if !prototest.WaitFor(pushTimeout, stored) {
+		t.Fatalf("game %s: no pause stored", id)
+	}
+}
+
 func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -54,6 +68,7 @@ func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {
 		t.Fatalf("paused while alice still has a session: %+v", u)
 	}
 	_ = again.Close()
+	awaitStoredPause(t, e.store, id)
 
 	b := srv.login(t, prototest.Alice)
 	paused := pausedSnapshot(t, b, id)
@@ -79,6 +94,7 @@ func TestADisconnectPauseArrivingAfterTheUserIsBackIsDropped(t *testing.T) {
 	gone := srv.login(t, prototest.Alice)
 	id := call[protocol.GameUpdate](t, gone, protocol.TypeGameStart, protocol.GameStartRequest{Game: metronomeType}).GameID
 	_ = gone.Close()
+	awaitStoredPause(t, e.store, id)
 	back := srv.login(t, prototest.Alice)
 	paused := pausedSnapshot(t, back, id)
 	call[protocol.SeqResult](t, back, protocol.TypeGameAct, protocol.GameActRequest{
