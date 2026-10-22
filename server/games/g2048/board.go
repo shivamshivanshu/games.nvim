@@ -122,7 +122,7 @@ func (b board) spawned(rng *rand.Rand) (board, Tile) {
 		value = 2
 	}
 	b[at.Row][at.Col] = value
-	return b, Tile{Row: at.Row + 1, Col: at.Col + 1, Value: value}
+	return b, Tile{Cell: at.Cell(), Value: value}
 }
 
 func (b board) cells() [][]int {

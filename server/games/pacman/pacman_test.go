@@ -482,7 +482,7 @@ func TestViewShowsTheMazeOneBased(t *testing.T) {
 	if len(v.Maze) != Rows || len(v.Maze[0]) != Cols || v.Maze[3][1] != byte(TilePellet) {
 		t.Fatalf("maze %d rows of %d, (4,2) %q", len(v.Maze), len(v.Maze[0]), v.Maze[3][1])
 	}
-	want := PacmanView{Actor: Actor{Row: 24, Col: 14, Facing: grid.Left}}
+	want := PacmanView{Actor: Actor{Cell: grid.Cell{Row: 24, Col: 14}, Facing: grid.Left}}
 	if diff := cmp.Diff(want, v.Pacman); diff != "" {
 		t.Errorf("pacman (-want +got):\n%s", diff)
 	}

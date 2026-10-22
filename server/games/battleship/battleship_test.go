@@ -11,6 +11,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 func TestNewSeatsTheFirstMoverAsP1(t *testing.T) {
@@ -122,7 +123,7 @@ func TestSetupViewOffersOnlyTheViewersNextShipAndItsAnchors(t *testing.T) {
 	if got := len(placing.Anchors.Down); got != 10*7-5 {
 		t.Errorf("%d down anchors", got)
 	}
-	if slices.Contains(placing.Anchors.Across, Square{Row: 1, Col: 2}) || !slices.Contains(placing.Anchors.Across, Square{Row: 1, Col: 6}) {
+	if slices.Contains(placing.Anchors.Across, grid.Cell{Row: 1, Col: 2}) || !slices.Contains(placing.Anchors.Across, grid.Cell{Row: 1, Col: 6}) {
 		t.Errorf("across anchors on row 1: %v", placing.Anchors.Across[:3])
 	}
 	if diff := cmp.Diff([]ShipState{ShipAfloat, ShipUnplaced, ShipUnplaced, ShipUnplaced, ShipUnplaced}, states(placing.Fleet)); diff != "" {
@@ -191,11 +192,11 @@ func TestShotsReportMissHitAndTheShipTheySink(t *testing.T) {
 		cell string
 		want ShotEvent
 	}{
-		{p1, "j10", ShotEvent{By: p1, Cell: Square{Row: 10, Col: 10}, Outcome: ShotMiss}},
-		{p2, "a9", ShotEvent{By: p2, Cell: Square{Row: 9, Col: 1}, Outcome: ShotHit}},
-		{p1, "i1", ShotEvent{By: p1, Cell: Square{Row: 1, Col: 9}, Outcome: ShotHit}},
-		{p2, "b9", ShotEvent{By: p2, Cell: Square{Row: 9, Col: 2}, Outcome: ShotSunk, Ship: ShipDestroyer}},
-		{p1, "I2", ShotEvent{By: p1, Cell: Square{Row: 2, Col: 9}, Outcome: ShotSunk, Ship: ShipDestroyer}},
+		{p1, "j10", ShotEvent{By: p1, Cell: grid.Cell{Row: 10, Col: 10}, Outcome: ShotMiss}},
+		{p2, "a9", ShotEvent{By: p2, Cell: grid.Cell{Row: 9, Col: 1}, Outcome: ShotHit}},
+		{p1, "i1", ShotEvent{By: p1, Cell: grid.Cell{Row: 1, Col: 9}, Outcome: ShotHit}},
+		{p2, "b9", ShotEvent{By: p2, Cell: grid.Cell{Row: 9, Col: 2}, Outcome: ShotSunk, Ship: ShipDestroyer}},
+		{p1, "I2", ShotEvent{By: p1, Cell: grid.Cell{Row: 2, Col: 9}, Outcome: ShotSunk, Ship: ShipDestroyer}},
 	}
 	for _, shot := range shots {
 		next, events, err := st.Apply(shot.seat, fire(shot.cell), nil)
@@ -221,7 +222,7 @@ func TestShotsReportMissHitAndTheShipTheySink(t *testing.T) {
 		t.Errorf("last (-want +got):\n%s", diff)
 	}
 	bob := st.View(p2)
-	if len(bob.Targets) != 98 || slices.Contains(bob.Targets, Square{Row: 9, Col: 1}) || len(alice.Targets) != 0 {
+	if len(bob.Targets) != 98 || slices.Contains(bob.Targets, grid.Cell{Row: 9, Col: 1}) || len(alice.Targets) != 0 {
 		t.Errorf("bob may fire at %d cells, alice at %d", len(bob.Targets), len(alice.Targets))
 	}
 }

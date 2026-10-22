@@ -42,15 +42,8 @@ type Action struct {
 
 // Line is an edge on the wire: Row and Col are its left or top dot, 1-based from the top left.
 type Line struct {
-	Row         int                  `json:"row"`
-	Col         int                  `json:"col"`
+	grid.Cell
 	Orientation grid.EdgeOrientation `json:"orientation"`
-}
-
-// Box is a box on the wire, 1-based: row 1 is the top, column 1 the left.
-type Box struct {
-	Row int `json:"row"`
-	Col int `json:"col"`
 }
 
 // View holds the board as rows from the top: Across[r][c] is the seat that drew the edge across
@@ -70,10 +63,10 @@ type View struct {
 // DrawnEvent reports By's edge and the boxes it completed. Again is true when By moves again,
 // having completed a box with the game still on.
 type DrawnEvent struct {
-	By    game.Seat `json:"by"`
-	Edge  Line      `json:"edge"`
-	Boxes []Box     `json:"boxes"`
-	Again bool      `json:"again"`
+	By    game.Seat   `json:"by"`
+	Edge  Line        `json:"edge"`
+	Boxes []grid.Cell `json:"boxes"`
+	Again bool        `json:"again"`
 }
 
 // EventDrawn is DrawnEvent's kind.

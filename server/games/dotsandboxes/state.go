@@ -37,7 +37,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	}
 	next, completed := s.withEdge(seat, edge)
 	again := slices.Contains(next.ToAct(), seat)
-	return next, []game.Event{DrawnEvent{By: seat, Edge: lineOf(edge), Boxes: xslices.Map(completed, boxOf), Again: again}}, nil
+	return next, []game.Event{DrawnEvent{By: seat, Edge: lineOf(edge), Boxes: grid.Cells(completed), Again: again}}, nil
 }
 
 // undrawnEdge is the edge action draws, or why it may not.
@@ -175,7 +175,5 @@ func (s state) Conclude(result game.Result) game.State[Action, View] {
 }
 
 func lineOf(edge grid.Edge) Line {
-	return Line{Row: edge.Dot.Row + 1, Col: edge.Dot.Col + 1, Orientation: edge.Orientation}
+	return Line{Cell: edge.Dot.Cell(), Orientation: edge.Orientation}
 }
-
-func boxOf(cell grid.Point) Box { return Box{Row: cell.Row + 1, Col: cell.Col + 1} }

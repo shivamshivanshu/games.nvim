@@ -43,8 +43,7 @@ type View struct {
 
 // Tile is a 1-based cell, row 1 at the top, and the value it holds.
 type Tile struct {
-	Row   int `json:"row"`
-	Col   int `json:"col"`
+	grid.Cell
 	Value int `json:"value"`
 }
 

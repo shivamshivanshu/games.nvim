@@ -127,7 +127,7 @@ func (s state) fire(seat game.Seat, cell string) (state, []game.Event, error) {
 		return state{}, nil, game.Illegalf("you have already fired at %s", coords().Name(p))
 	}
 	hit, outcome, ship := target.fire(p)
-	shot := ShotEvent{By: seat, Cell: squareAt(p), Outcome: outcome, Ship: ship}
+	shot := ShotEvent{By: seat, Cell: p.Cell(), Outcome: outcome, Ship: ship}
 	s.waters = xslices.With(s.waters, opponent, hit)
 	s.last = &shot
 	s.toFire = opponent
@@ -155,8 +155,8 @@ func (s state) View(viewer game.Seat) View {
 		Target:  enemy.tiles(false, s.Over()),
 		Fleet:   own.fleet(true),
 		Enemy:   enemy.fleet(false),
-		Anchors: Anchors{Across: []Square{}, Down: []Square{}},
-		Targets: []Square{},
+		Anchors: Anchors{Across: []grid.Cell{}, Down: []grid.Cell{}},
+		Targets: []grid.Cell{},
 		Last:    s.last,
 	}
 	if !slices.Contains(s.ToAct(), viewer) {
@@ -165,12 +165,12 @@ func (s state) View(viewer game.Seat) View {
 	if spec, placing := own.next(); placing {
 		view.Next = &spec
 		view.Anchors = Anchors{
-			Across: xslices.Map(own.anchors(spec.Size, Across), squareAt),
-			Down:   xslices.Map(own.anchors(spec.Size, Down), squareAt),
+			Across: grid.Cells(own.anchors(spec.Size, Across)),
+			Down:   grid.Cells(own.anchors(spec.Size, Down)),
 		}
 		return view
 	}
-	view.Targets = xslices.Map(enemy.unshot(), squareAt)
+	view.Targets = grid.Cells(enemy.unshot())
 	return view
 }
 

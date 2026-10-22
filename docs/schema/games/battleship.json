@@ -80,13 +80,13 @@
       "properties": {
         "across": {
           "items": {
-            "$ref": "#/$defs/Square"
+            "$ref": "#/$defs/Cell"
           },
           "type": "array"
         },
         "down": {
           "items": {
-            "$ref": "#/$defs/Square"
+            "$ref": "#/$defs/Cell"
           },
           "type": "array"
         }
@@ -98,6 +98,23 @@
         "down"
       ],
       "description": "Anchors are the squares the viewer's next ship may start on, its left end\nlying across or its top end lying down. Both are empty unless the viewer is placing."
+    },
+    "Cell": {
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col"
+      ],
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, col 1 the left."
     },
     "Phase": {
       "type": "string",
@@ -196,7 +213,7 @@
           "type": "string"
         },
         "cell": {
-          "$ref": "#/$defs/Square"
+          "$ref": "#/$defs/Cell"
         },
         "outcome": {
           "$ref": "#/$defs/ShotOutcome"
@@ -223,7 +240,7 @@
           "type": "string"
         },
         "cell": {
-          "$ref": "#/$defs/Square"
+          "$ref": "#/$defs/Cell"
         },
         "outcome": {
           "$ref": "#/$defs/ShotOutcome"
@@ -250,23 +267,6 @@
         "sunk"
       ],
       "description": "ShotOutcome is what a shot found: water, a ship, or the last afloat square of a ship."
-    },
-    "Square": {
-      "properties": {
-        "row": {
-          "type": "integer"
-        },
-        "col": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "row",
-        "col"
-      ],
-      "description": "Square is a board position on the wire, 1-based: row 1 is the top, column 1 the left."
     },
     "Tile": {
       "type": "string",
@@ -329,7 +329,7 @@
         },
         "targets": {
           "items": {
-            "$ref": "#/$defs/Square"
+            "$ref": "#/$defs/Cell"
           },
           "type": "array"
         },

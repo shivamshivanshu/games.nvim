@@ -117,22 +117,22 @@ func TestDrawing(t *testing.T) {
 		moves      []move
 		wantEvent  DrawnEvent
 		wantToAct  game.Seat
-		wantBoxes  map[game.Seat][]Box
+		wantBoxes  map[game.Seat][]grid.Cell
 		wantScores map[game.Seat]int
 	}{
 		{
 			name:       "an edge that completes no box passes the move",
 			moves:      []move{{p1, "b2v"}},
-			wantEvent:  DrawnEvent{By: p1, Edge: Line{Row: 2, Col: 2, Orientation: grid.EdgeDown}, Boxes: []Box{}},
+			wantEvent:  DrawnEvent{By: p1, Edge: Line{Cell: grid.Cell{Row: 2, Col: 2}, Orientation: grid.EdgeDown}, Boxes: []grid.Cell{}},
 			wantToAct:  p2,
 			wantScores: map[game.Seat]int{p1: 0, p2: 0},
 		},
 		{
 			name:       "completing a box claims it and moves again",
 			moves:      append(boxA1(), move{p2, "b1v"}),
-			wantEvent:  DrawnEvent{By: p2, Edge: Line{Row: 1, Col: 2, Orientation: grid.EdgeDown}, Boxes: []Box{{Row: 1, Col: 1}}, Again: true},
+			wantEvent:  DrawnEvent{By: p2, Edge: Line{Cell: grid.Cell{Row: 1, Col: 2}, Orientation: grid.EdgeDown}, Boxes: []grid.Cell{{Row: 1, Col: 1}}, Again: true},
 			wantToAct:  p2,
-			wantBoxes:  map[game.Seat][]Box{p2: {{Row: 1, Col: 1}}},
+			wantBoxes:  map[game.Seat][]grid.Cell{p2: {{Row: 1, Col: 1}}},
 			wantScores: map[game.Seat]int{p1: 0, p2: 1},
 		},
 		{
@@ -142,15 +142,15 @@ func TestDrawing(t *testing.T) {
 				{p2, "b1h"}, {p1, "b2h"}, {p2, "c1v"},
 				{p1, "b1v"},
 			},
-			wantEvent:  DrawnEvent{By: p1, Edge: Line{Row: 1, Col: 2, Orientation: grid.EdgeDown}, Boxes: []Box{{Row: 1, Col: 1}, {Row: 1, Col: 2}}, Again: true},
+			wantEvent:  DrawnEvent{By: p1, Edge: Line{Cell: grid.Cell{Row: 1, Col: 2}, Orientation: grid.EdgeDown}, Boxes: []grid.Cell{{Row: 1, Col: 1}, {Row: 1, Col: 2}}, Again: true},
 			wantToAct:  p1,
-			wantBoxes:  map[game.Seat][]Box{p1: {{Row: 1, Col: 1}, {Row: 1, Col: 2}}},
+			wantBoxes:  map[game.Seat][]grid.Cell{p1: {{Row: 1, Col: 1}, {Row: 1, Col: 2}}},
 			wantScores: map[game.Seat]int{p1: 2, p2: 0},
 		},
 		{
 			name:       "an edge closing no box beside a box still open passes the move",
 			moves:      append(boxA1(), move{p2, "c1v"}),
-			wantEvent:  DrawnEvent{By: p2, Edge: Line{Row: 1, Col: 3, Orientation: grid.EdgeDown}, Boxes: []Box{}},
+			wantEvent:  DrawnEvent{By: p2, Edge: Line{Cell: grid.Cell{Row: 1, Col: 3}, Orientation: grid.EdgeDown}, Boxes: []grid.Cell{}},
 			wantToAct:  p1,
 			wantScores: map[game.Seat]int{p1: 0, p2: 0},
 		},
@@ -170,7 +170,7 @@ func TestDrawing(t *testing.T) {
 			}
 			for r, row := range view.Boxes {
 				for c, owner := range row {
-					box := Box{Row: r + 1, Col: c + 1}
+					box := grid.Cell{Row: r + 1, Col: c + 1}
 					if want := ownerIn(tc.wantBoxes, box); owner != want {
 						t.Errorf("box %+v owned by %q, want %q", box, owner, want)
 					}
@@ -187,7 +187,7 @@ func TestDrawing(t *testing.T) {
 	}
 }
 
-func ownerIn(boxes map[game.Seat][]Box, box Box) game.Seat {
+func ownerIn(boxes map[game.Seat][]grid.Cell, box grid.Cell) game.Seat {
 	for seat, owned := range boxes {
 		for _, b := range owned {
 			if b == box {
@@ -204,7 +204,7 @@ func TestTheViewRecordsWhoDrewEachEdge(t *testing.T) {
 	want := map[string]game.Seat{"a1h": p1, "a2h": p2, "a1v": p1, "b1v": p2, "d3v": p2}
 	for r, row := range view.Across {
 		for c, by := range row {
-			name := nameOf(Line{Row: r + 1, Col: c + 1, Orientation: grid.EdgeAcross})
+			name := nameOf(Line{Cell: grid.Cell{Row: r + 1, Col: c + 1}, Orientation: grid.EdgeAcross})
 			if by != want[name] {
 				t.Errorf("%s drawn by %q, want %q", name, by, want[name])
 			}
@@ -212,7 +212,7 @@ func TestTheViewRecordsWhoDrewEachEdge(t *testing.T) {
 	}
 	for r, row := range view.Down {
 		for c, by := range row {
-			name := nameOf(Line{Row: r + 1, Col: c + 1, Orientation: grid.EdgeDown})
+			name := nameOf(Line{Cell: grid.Cell{Row: r + 1, Col: c + 1}, Orientation: grid.EdgeDown})
 			if by != want[name] {
 				t.Errorf("%s drawn by %q, want %q", name, by, want[name])
 			}

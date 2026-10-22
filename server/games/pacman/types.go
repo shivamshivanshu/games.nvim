@@ -72,8 +72,7 @@ func (GhostMode) EnumValues() []string {
 
 // Actor is where Pac-Man or a ghost is: Row and Col are 1-based from the top left.
 type Actor struct {
-	Row    int            `json:"row"`
-	Col    int            `json:"col"`
+	grid.Cell
 	Facing grid.Direction `json:"facing"`
 }
 

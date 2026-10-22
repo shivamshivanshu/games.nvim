@@ -1,6 +1,9 @@
 package battleship
 
-import "github.com/shivamshivanshu/games.nvim/server/game"
+import (
+	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
+)
 
 // TypeBattleship is the game's catalogue id.
 const TypeBattleship game.GameType = "battleship"
@@ -58,12 +61,6 @@ func (Tile) EnumValues() []string {
 	return game.Strings(TileEmpty, TileShip, TileMiss, TileHit, TileSunk)
 }
 
-// Square is a board position on the wire, 1-based: row 1 is the top, column 1 the left.
-type Square struct {
-	Row int `json:"row"`
-	Col int `json:"col"`
-}
-
 // ShipSpec is a ship of the fleet before it is placed.
 type ShipSpec struct {
 	Name ShipName `json:"name"`
@@ -93,8 +90,8 @@ type ShipStatus struct {
 // Anchors are the squares the viewer's next ship may start on, its left end
 // lying across or its top end lying down. Both are empty unless the viewer is placing.
 type Anchors struct {
-	Across []Square `json:"across"`
-	Down   []Square `json:"down"`
+	Across []grid.Cell `json:"across"`
+	Down   []grid.Cell `json:"down"`
 }
 
 // View holds both boards as rows from the top: Own is the viewer's waters,
@@ -109,7 +106,7 @@ type View struct {
 	Enemy   []ShipStatus `json:"enemy"`
 	Next    *ShipSpec    `json:"next" jsonschema:"nullable"`
 	Anchors Anchors      `json:"anchors"`
-	Targets []Square     `json:"targets"`
+	Targets []grid.Cell  `json:"targets"`
 	Last    *ShotEvent   `json:"last" jsonschema:"nullable"`
 }
 
@@ -134,7 +131,7 @@ type ReadyEvent struct {
 // ship it sank, and is empty otherwise.
 type ShotEvent struct {
 	By      game.Seat   `json:"by"`
-	Cell    Square      `json:"cell"`
+	Cell    grid.Cell   `json:"cell"`
 	Outcome ShotOutcome `json:"outcome"`
 	Ship    ShipName    `json:"ship,omitempty"`
 }

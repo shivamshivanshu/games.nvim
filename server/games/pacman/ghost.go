@@ -167,5 +167,5 @@ func ahead(p grid.Point, d grid.Direction, n int) grid.Point {
 }
 
 func actorAt(p grid.Point, facing grid.Direction) Actor {
-	return Actor{Row: p.Row + 1, Col: p.Col + 1, Facing: facing}
+	return Actor{Cell: p.Cell(), Facing: facing}
 }

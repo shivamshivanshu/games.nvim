@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 const noCell = -1
@@ -57,8 +58,7 @@ func (s state) reveal(cell int, rng *rand.Rand) (state, game.Event, error) {
 		next.mines = placeMines(s.lvl, cell, rng)
 	}
 	opened := next.uncover(cell)
-	at := square(s.lvl.point(cell))
-	return next, RevealedEvent{By: game.SeatSolo, Row: at.Row, Col: at.Col, Opened: opened}, nil
+	return next, RevealedEvent{By: game.SeatSolo, Cell: s.lvl.point(cell).Cell(), Opened: opened}, nil
 }
 
 func (s state) toggleFlag(cell int, _ *rand.Rand) (state, game.Event, error) {
@@ -67,8 +67,7 @@ func (s state) toggleFlag(cell int, _ *rand.Rand) (state, game.Event, error) {
 	}
 	next := s.cloned()
 	next.flags[cell] = !s.flags[cell]
-	at := square(s.lvl.point(cell))
-	return next, FlaggedEvent{By: game.SeatSolo, Row: at.Row, Col: at.Col, Flagged: next.flags[cell]}, nil
+	return next, FlaggedEvent{By: game.SeatSolo, Cell: s.lvl.point(cell).Cell(), Flagged: next.flags[cell]}, nil
 }
 
 func (s state) chord(cell int, _ *rand.Rand) (state, game.Event, error) {
@@ -80,8 +79,7 @@ func (s state) chord(cell int, _ *rand.Rand) (state, game.Event, error) {
 	for _, n := range s.coveredAround(cell) {
 		opened += next.uncover(n)
 	}
-	at := square(s.lvl.point(cell))
-	return next, ChordedEvent{By: game.SeatSolo, Row: at.Row, Col: at.Col, Opened: opened}, nil
+	return next, ChordedEvent{By: game.SeatSolo, Cell: s.lvl.point(cell).Cell(), Opened: opened}, nil
 }
 
 func (s state) illegal(cell int, why string) error {
@@ -105,15 +103,15 @@ func (s state) settled() state {
 }
 
 func (s state) View(game.Seat) View {
-	view := View{Cells: make([][]Cell, s.lvl.rows), Chordable: []Square{}}
+	view := View{Cells: make([][]Tile, s.lvl.rows), Chordable: []grid.Cell{}}
 	for row := range view.Cells {
-		view.Cells[row] = make([]Cell, s.lvl.cols)
+		view.Cells[row] = make([]Tile, s.lvl.cols)
 	}
 	for cell := range s.lvl.cells() {
 		p := s.lvl.point(cell)
 		view.Cells[p.Row][p.Col] = s.cellView(cell)
 		if !s.Over() && s.unchordable(cell) == "" {
-			view.Chordable = append(view.Chordable, square(p))
+			view.Chordable = append(view.Chordable, p.Cell())
 		}
 	}
 	view.Flags = countSet(s.flags)
@@ -121,7 +119,7 @@ func (s state) View(game.Seat) View {
 	return view
 }
 
-func (s state) cellView(cell int) Cell {
+func (s state) cellView(cell int) Tile {
 	switch {
 	case s.Over() && cell == s.exploded:
 		return CellExploded
@@ -132,7 +130,7 @@ func (s state) cellView(cell int) Cell {
 	case s.Over() && s.mines != nil && s.flags[cell]:
 		return CellWrongFlag
 	case s.open[cell]:
-		return Cell(strconv.Itoa(s.minesAround(cell)))
+		return Tile(strconv.Itoa(s.minesAround(cell)))
 	case s.flags[cell]:
 		return CellFlag
 	}

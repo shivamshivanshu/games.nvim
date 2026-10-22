@@ -37,5 +37,3 @@ func (l level) parseCell(text string) (int, error) {
 func address(p grid.Point) string {
 	return fmt.Sprintf("%c%d", firstRowLetter+rune(p.Row), p.Col+1)
 }
-
-func square(p grid.Point) Square { return Square{Row: p.Row + 1, Col: p.Col + 1} }

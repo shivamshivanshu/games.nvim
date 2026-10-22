@@ -25,7 +25,7 @@
       ],
       "description": "Action names its edge as text, such as \"b2h\": the dot at its left or top end, then h lying\nacross or v lying down."
     },
-    "Box": {
+    "Cell": {
       "properties": {
         "row": {
           "type": "integer"
@@ -40,7 +40,7 @@
         "row",
         "col"
       ],
-      "description": "Box is a box on the wire, 1-based: row 1 is the top, column 1 the left."
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, col 1 the left."
     },
     "DrawnEvent": {
       "properties": {
@@ -55,7 +55,7 @@
         },
         "boxes": {
           "items": {
-            "$ref": "#/$defs/Box"
+            "$ref": "#/$defs/Cell"
           },
           "type": "array"
         },

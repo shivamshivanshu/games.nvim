@@ -9,6 +9,7 @@ import (
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 const solo game.UserID = "alice"
@@ -55,7 +56,7 @@ func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 // drawn is the view's cells one row to a string: "#" hidden, "F" flag, a digit for a revealed
 // count, and once over "*" a mine, "M" a flagged mine, "X" the exploded one and "!" a wrong flag.
 func drawn(v View) []string {
-	glyph := map[Cell]string{CellHidden: "#", CellFlag: "F", CellMine: "*", CellFlaggedMine: "M", CellExploded: "X", CellWrongFlag: "!"}
+	glyph := map[Tile]string{CellHidden: "#", CellFlag: "F", CellMine: "*", CellFlaggedMine: "M", CellExploded: "X", CellWrongFlag: "!"}
 	rows := make([]string, len(v.Cells))
 	for r, row := range v.Cells {
 		var b strings.Builder
@@ -207,7 +208,7 @@ func TestRevealFloodsZerosToTheNumbersAroundThemAndStopsAtFlags(t *testing.T) {
 				t.Errorf("cells (-want +got):\n%s", diff)
 			}
 			p := next.lvl.point(mustParse(t, next.lvl, tt.action.Cell))
-			want := []game.Event{RevealedEvent{By: game.SeatSolo, Row: p.Row + 1, Col: p.Col + 1, Opened: tt.wantOpened}}
+			want := []game.Event{RevealedEvent{By: game.SeatSolo, Cell: p.Cell(), Opened: tt.wantOpened}}
 			if diff := cmp.Diff(want, events); diff != "" {
 				t.Errorf("events (-want +got):\n%s", diff)
 			}
@@ -259,7 +260,7 @@ func TestRevealingAMineLosesAndShowsEveryMineFlaggedOrNotAndWrongFlags(t *testin
 	if got, finished := s.Outcome(); !finished || !cmp.Equal(got, want) {
 		t.Errorf("outcome = %+v, %t; want %+v", got, finished, want)
 	}
-	if diff := cmp.Diff([]game.Event{RevealedEvent{By: game.SeatSolo, Row: 3, Col: 4}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{RevealedEvent{By: game.SeatSolo, Cell: grid.Cell{Row: 3, Col: 4}}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
 	if diff := cmp.Diff([]string{"M####", "111#!", "001X#", "001##"}, drawn(s.View(game.SeatSolo))); diff != "" {
@@ -287,7 +288,7 @@ func TestAChordOnTwoWrongFlagsExplodesTheFirstMineItReaches(t *testing.T) {
 
 func TestFlagTogglesAndCountsAgainstTheMines(t *testing.T) {
 	s, events := mustApply(t, oneMine(), flag("a1"))
-	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Row: 1, Col: 1, Flagged: true}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Cell: grid.Cell{Row: 1, Col: 1}, Flagged: true}}, events); diff != "" {
 		t.Errorf("flag events (-want +got):\n%s", diff)
 	}
 	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Remaining != 0 || v.Cells[0][0] != CellFlag {
@@ -298,7 +299,7 @@ func TestFlagTogglesAndCountsAgainstTheMines(t *testing.T) {
 		t.Errorf("more flags than mines: flags %d, remaining %d; want 2, -1", v.Flags, v.Remaining)
 	}
 	s, events = mustApply(t, s, flag("a1"))
-	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Row: 1, Col: 1}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Cell: grid.Cell{Row: 1, Col: 1}}}, events); diff != "" {
 		t.Errorf("unflag events (-want +got):\n%s", diff)
 	}
 	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Cells[0][0] != CellHidden {
@@ -308,12 +309,12 @@ func TestFlagTogglesAndCountsAgainstTheMines(t *testing.T) {
 
 func TestChordRevealsTheUnflaggedNeighboursOfASatisfiedNumber(t *testing.T) {
 	s, _ := mustApply(t, oneMine(), reveal("a1"), flag("c4"))
-	wantChordable := []Square{{2, 4}, {2, 5}, {3, 3}, {4, 3}}
+	wantChordable := []grid.Cell{{Row: 2, Col: 4}, {Row: 2, Col: 5}, {Row: 3, Col: 3}, {Row: 4, Col: 3}}
 	if diff := cmp.Diff(wantChordable, s.View(game.SeatSolo).Chordable); diff != "" {
 		t.Errorf("chordable (-want +got):\n%s", diff)
 	}
 	s, events := mustApply(t, s, chord("b5"))
-	if diff := cmp.Diff([]game.Event{ChordedEvent{By: game.SeatSolo, Row: 2, Col: 5, Opened: 1}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{ChordedEvent{By: game.SeatSolo, Cell: grid.Cell{Row: 2, Col: 5}, Opened: 1}}, events); diff != "" {
 		t.Errorf("events (-want +got):\n%s", diff)
 	}
 	if diff := cmp.Diff([]string{"00000", "00111", "001F1", "001##"}, drawn(s.View(game.SeatSolo))); diff != "" {

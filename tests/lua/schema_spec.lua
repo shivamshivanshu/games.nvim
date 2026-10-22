@@ -25,6 +25,7 @@ local CLASS_PREFIX = { tictactoe = "TicTacToe" }
 ---false for one no Lua type annotates.
 local LUA_TYPE_EXCEPTIONS = {
   battleship = {
+    Cell = "games.Cell",
     ShotEvent = "games.BattleshipShot",
     ShotEvent_shot = "games.BattleshipShotEvent",
   },
@@ -38,11 +39,12 @@ local LUA_TYPE_EXCEPTIONS = {
   },
   chess_puzzle = { MoveSquares = "games.ChessSquares" },
   connect4 = { Cell = "games.Cell" },
-  dots_and_boxes = { EdgeOrientation = "games.Orientation" },
+  dots_and_boxes = { Cell = "games.Cell", EdgeOrientation = "games.Orientation" },
   fifteen = { Direction = "games.Direction" },
   g2048 = { Direction = "games.Direction" },
   gomoku = { Cell = "games.Cell" },
   hearts = { PassDirection = "games.HeartsPass" },
+  minesweeper = { Cell = "games.Cell", Tile = "games.MinesweeperCell" },
   reversi = { Cell = "games.Cell" },
   tictactoe = { Cell = "games.Cell" },
   pacman = {

@@ -64,25 +64,21 @@
       "description": "Action names its cell as a row letter then a column number: \"c12\" is row 3, column 12."
     },
     "Cell": {
-      "type": "string",
-      "enum": [
-        "hidden",
-        "flag",
-        "mine",
-        "flagged_mine",
-        "exploded",
-        "wrong_flag",
-        "0",
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8"
+      "properties": {
+        "row": {
+          "type": "integer"
+        },
+        "col": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "row",
+        "col"
       ],
-      "description": "Cell is how one cell looks to the player: hidden, flagged, or revealed as the count\n\"0\" to \"8\" of the mines around it. Once the game is over every mine shows: CellExploded for\nthe one revealed, CellFlaggedMine where a flag was right, CellMine where none was; a flag on\na safe cell shows as CellWrongFlag."
+      "description": "Cell is a board position on the wire, 1-based: row 1 is the top, col 1 the left."
     },
     "ChordedEvent": {
       "properties": {
@@ -179,29 +175,33 @@
       ],
       "description": "RevealedEvent reports a reveal and how many cells it opened; Row and Col are 1-based."
     },
-    "Square": {
-      "properties": {
-        "row": {
-          "type": "integer"
-        },
-        "col": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "row",
-        "col"
+    "Tile": {
+      "type": "string",
+      "enum": [
+        "hidden",
+        "flag",
+        "mine",
+        "flagged_mine",
+        "exploded",
+        "wrong_flag",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
       ],
-      "description": "Square is a 1-based board position; row 1 is the top."
+      "description": "Tile is how one cell looks to the player: hidden, flagged, or revealed as the count\n\"0\" to \"8\" of the mines around it. Once the game is over every mine shows: CellExploded for\nthe one revealed, CellFlaggedMine where a flag was right, CellMine where none was; a flag on\na safe cell shows as CellWrongFlag."
     },
     "View": {
       "properties": {
         "cells": {
           "items": {
             "items": {
-              "$ref": "#/$defs/Cell"
+              "$ref": "#/$defs/Tile"
             },
             "type": "array"
           },
@@ -215,7 +215,7 @@
         },
         "chordable": {
           "items": {
-            "$ref": "#/$defs/Square"
+            "$ref": "#/$defs/Cell"
           },
           "type": "array"
         }

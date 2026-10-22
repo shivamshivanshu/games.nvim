@@ -61,5 +61,3 @@ func footprint(anchor grid.Point, size int, o Orientation) []grid.Point {
 }
 
 func coords() grid.Coords { return grid.NewCoords(boardSize, boardSize) }
-
-func squareAt(p grid.Point) Square { return Square{Row: p.Row + 1, Col: p.Col + 1} }
