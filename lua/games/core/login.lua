@@ -5,8 +5,21 @@ local timer = require("games.core.timer")
 ---surprise a user who has moved on.
 local PENDING_TIMEOUT_MS = 15000
 
----@type table<games.CredentialField, string>
-local PROMPTS = { username = "games username: ", password = "games password: " }
+---Tries at typing a new password the same way twice before sign-up is cancelled.
+local NEW_PASSWORD_TRIES = 2
+
+---@alias (private) games.PromptField games.CredentialField|"password_again"|"passphrase"
+
+---@class (private) games.SignUp: games.Credentials
+---@field passphrase? string
+
+---@type table<games.PromptField, string>
+local PROMPTS = {
+  username = "games username: ",
+  password = "games password: ",
+  password_again = "games password again: ",
+  passphrase = "sign-up passphrase: ",
+}
 
 ---@class (private) games.PendingRun
 ---@field label string how the user typed the command
@@ -89,30 +102,66 @@ local function arm_timeout(client, state, pending)
   )
 end
 
----@param field games.CredentialField
+---@param field games.PromptField
 ---@param on_value fun(value: string|nil)
 local function ask(field, on_value)
-  if field == "password" then
-    local ok, password = pcall(vim.fn.inputsecret, PROMPTS.password)
-    on_value(ok and password or nil)
+  if field ~= "username" then
+    local ok, secret = pcall(vim.fn.inputsecret, PROMPTS[field])
+    on_value(ok and secret or nil)
     return
   end
   vim.ui.input({ prompt = PROMPTS[field] }, on_value)
 end
 
+---Asks for a password, then for it again; a mismatch starts over while tries last.
+---@param tries integer
+---@param on_password fun(password: string|nil)
+local function ask_new_password(tries, on_password)
+  ask("password", function(password)
+    if not password or password == "" then
+      on_password(nil)
+      return
+    end
+    ask("password_again", function(again)
+      if again == password then
+        on_password(password)
+        return
+      end
+      notify.warn("passwords do not match")
+      if tries > 1 then
+        ask_new_password(tries - 1, on_password)
+      else
+        on_password(nil)
+      end
+    end)
+  end)
+end
+
+---@param field games.PromptField
+---@param on_value fun(value: string|nil)
+local function ask_signing_up(field, on_value)
+  if field == "password" then
+    ask_new_password(NEW_PASSWORD_TRIES, on_value)
+  else
+    ask(field, on_value)
+  end
+end
+
 ---Asks for each field in turn; on_done gets them all, or nil once one is cancelled or empty.
----@param fields games.CredentialField[]
----@param on_done fun(entered: games.Credentials|nil)
-local function prompt_credentials(fields, on_done)
+---@param fields games.PromptField[]
+---@param on_done fun(entered: games.SignUp|nil)
+---@param ask_field? fun(field: games.PromptField, on_value: fun(value: string|nil))
+local function prompt_credentials(fields, on_done, ask_field)
+  ask_field = ask_field or ask
   ---@param index integer
-  ---@param entered games.Credentials
+  ---@param entered games.SignUp
   local function step(index, entered)
     local field = fields[index]
     if not field then
       on_done(entered)
       return
     end
-    ask(field, function(value)
+    ask_field(field, function(value)
       if not value or value == "" then
         on_done(nil)
         return
@@ -169,6 +218,33 @@ function M.ensure_connected(client, label, run)
   local state = state_of(client)
   hold(state, label, run)
   advance(client, state)
+end
+
+---Asks for the credentials not configured, the new password twice, and the server's sign-up
+---passphrase, then connects creating that account in place of the first login.
+---@param client games.Client
+function M.register(client)
+  local me = client:me()
+  if me then
+    notify.say(("already logged in as %s"):format(me))
+    return
+  end
+  local missing = client.conn:missing_credentials()
+  ---@type games.PromptField[]
+  local fields = vim.list_extend(vim.list_slice(missing), { "passphrase" })
+  prompt_credentials(fields, function(entered)
+    if not entered then
+      return
+    end
+    client.conn:fill_credentials({ username = entered.username, password = entered.password })
+    client.conn:sign_up(assert(entered.passphrase))
+    M.ensure_connected(client, ":Games register", function()
+      local hint = vim.tbl_contains(missing, "username")
+          and "; set `username` in your config to skip the prompt"
+        or ""
+      notify.say(("registered as %s%s"):format(client:me(), hint))
+    end)
+  end, ask_signing_up)
 end
 
 return M

@@ -12,6 +12,9 @@ local PREFIX = "games: "
 local GIVE_UP_MESSAGES = {
   [ErrorCode.AUTH_FAILED] = "login failed (%s); not reconnecting, check username and password",
   [ErrorCode.VERSION_MISMATCH] = "server speaks another protocol version (%s); update the plugin",
+  [ErrorCode.SIGNUP_DISABLED] = "sign-up failed (%s); ask the server's host for an account",
+  [ErrorCode.PASSPHRASE_REJECTED] = "sign-up failed (%s); check the passphrase with the server's host",
+  [ErrorCode.USER_EXISTS] = "sign-up failed (%s); pick another username",
 }
 
 ---@class (private) games.NotifyState

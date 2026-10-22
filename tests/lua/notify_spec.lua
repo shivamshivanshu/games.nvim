@@ -81,6 +81,25 @@ function T.giving_up_notifies_errors()
   end)
 end
 
+function T.a_refused_sign_up_says_why_and_what_to_do()
+  with_alice(function(conn, notified)
+    for _, code in ipairs({ "signup_disabled", "passphrase_rejected", "user_exists" }) do
+      conn:push("disconnected", { code = code, message = "the reason", retrying = false })
+    end
+    assert_eq({
+      {
+        "games: sign-up failed (the reason); ask the server's host for an account",
+        vim.log.levels.ERROR,
+      },
+      {
+        "games: sign-up failed (the reason); check the passphrase with the server's host",
+        vim.log.levels.ERROR,
+      },
+      { "games: sign-up failed (the reason); pick another username", vim.log.levels.ERROR },
+    }, notified)
+  end)
+end
+
 function T.resolution_messages_name_game_and_opponent()
   local challenge = {
     challenge_id = "c1",

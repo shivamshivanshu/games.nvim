@@ -11,7 +11,15 @@ local IDLE_HEARTBEATS = 3
 local RECONNECT_MIN_MS = 1000
 local RECONNECT_MAX_MS = 30000
 local RECONNECT_JITTER = 0.2
-local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_MISMATCH] = true }
+---Login errors after which the prompted credentials name no account, so they are asked again.
+local CREDENTIALS_REJECTED = {
+  [ErrorCode.AUTH_FAILED] = true,
+  [ErrorCode.SIGNUP_DISABLED] = true,
+  [ErrorCode.PASSPHRASE_REJECTED] = true,
+  [ErrorCode.USER_EXISTS] = true,
+}
+local FATAL_LOGIN_ERRORS =
+  vim.tbl_extend("error", CREDENTIALS_REJECTED, { [ErrorCode.VERSION_MISMATCH] = true })
 ---@type games.CredentialField[]
 local CREDENTIAL_FIELDS = { "username", "password" }
 
@@ -60,6 +68,7 @@ local Phase = {
 ---@field private reconnect_timer? uv.uv_timer_t
 ---@field private last_disconnect? games.ErrorBody
 ---@field private credential_source table<games.CredentialField, games.CredentialSource>
+---@field private signup_passphrase? string sent by the next login, which signs up in its place
 local Conn = {}
 Conn.__index = Conn
 
@@ -198,6 +207,13 @@ function Conn:fill_credentials(entered)
       self.credential_source[field] = "prompt"
     end
   end
+end
+
+---Makes the next login create the account with the server's sign-up passphrase; every later
+---one, reconnects included, logs in as usual.
+---@param passphrase string
+function Conn:sign_up(passphrase)
+  self.signup_passphrase = passphrase
 end
 
 ---@return games.CredentialField[] in the order to ask for them
@@ -341,9 +357,16 @@ end
 ---@param attempt games.ConnAttempt
 ---@param password string
 function Conn:login(attempt, password)
-  ---@type games.LoginRequest
+  ---@type games.LoginRequest|games.RegisterRequest
   local body = { v = types.PROTOCOL_VERSION, username = self.opts.username, password = password }
-  self:send_request(attempt, MessageType.AUTH_LOGIN, body, function(err, result)
+  local message_type = MessageType.AUTH_LOGIN
+  local passphrase = self.signup_passphrase
+  if passphrase then
+    self.signup_passphrase = nil
+    body = vim.tbl_extend("error", body, { passphrase = passphrase })
+    message_type = MessageType.AUTH_REGISTER
+  end
+  self:send_request(attempt, message_type, body, function(err, result)
     if self.attempt ~= attempt then
       return
     end
@@ -351,7 +374,7 @@ function Conn:login(attempt, password)
       if FATAL_LOGIN_ERRORS[err.code] then
         self.auto_reconnect = false
       end
-      if err.code == ErrorCode.AUTH_FAILED then
+      if CREDENTIALS_REJECTED[err.code] then
         self:forget_prompted_credentials()
       end
       self:teardown(attempt, err)

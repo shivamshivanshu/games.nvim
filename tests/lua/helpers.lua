@@ -593,6 +593,9 @@ function M.stub_conn(credentials)
   function conn:fill_credentials(entered)
     self.credentials = vim.tbl_extend("keep", self.credentials, entered)
   end
+  function conn:sign_up(passphrase)
+    self.passphrase = passphrase
+  end
   function conn:missing_credentials()
     return vim.tbl_filter(function(field)
       return self.credentials[field] == nil

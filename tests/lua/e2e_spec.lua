@@ -1,16 +1,22 @@
 local Client = require("games.core.client")
+local commands = require("games.core.commands")
 local games = require("games")
 local helpers = require("helpers")
 
 local assert_eq = helpers.assert_eq
 
+local SIGNUP_PASSPHRASE_ENV = "GAMES_SIGNUP_PASSPHRASE"
+local ALICE = { username = "alice", password = helpers.PASSWORD }
+
 ---@class games.test.UiStubs
 ---@field notified string[]
 ---@field input_text? string
 
----Alice is the plugin's own client; ui and notify are stubbed and restored even if fn fails.
----@param fn fun(env: games.test.Env, alice: games.Client, stubs: games.test.UiStubs)
-local function with_plugin(fn)
+---The plugin's own client logs in with credentials, alice's by default; ui and notify are stubbed
+---and restored even if fn fails.
+---@param fn fun(env: games.test.Env, client: games.Client, stubs: games.test.UiStubs)
+---@param credentials? games.Credentials
+local function with_plugin(fn, credentials)
   helpers.with_server(nil, function(env)
     local original = { select = vim.ui.select, input = vim.ui.input, notify = vim.notify }
     local plugin = { config = games.config, client = games.client }
@@ -27,13 +33,11 @@ local function with_plugin(fn)
       table.insert(stubs.notified, message)
     end
     local ok, err = xpcall(function()
-      games.setup({
+      games.setup(vim.tbl_extend("error", {
         server = { host = "127.0.0.1", port = env.server.port },
-        username = "alice",
-        password = helpers.PASSWORD,
         autoconnect = false,
         glyphs = "ascii",
-      })
+      }, credentials or ALICE))
       fn(env, assert(games.client), stubs)
     end, debug.traceback)
     vim.ui.select, vim.ui.input, vim.notify = original.select, original.input, original.notify
@@ -148,6 +152,50 @@ function T.notify_on_hidden_update()
       return message:find("alice played e4", 1, true) ~= nil
     end), "a visible board must not notify: " .. vim.inspect(stubs.notified))
   end)
+end
+
+function T.register_signs_up_with_the_passphrase_and_later_logins_use_the_new_account()
+  local passphrase = "open sesame"
+  vim.uv.os_setenv(SIGNUP_PASSPHRASE_ENV, passphrase)
+  local ok, err = pcall(with_plugin, function(_, client, stubs)
+    local secrets = {}
+    helpers.with_overrides({
+      {
+        vim.fn,
+        "inputsecret",
+        function()
+          return table.remove(secrets, 1)
+        end,
+      },
+    }, function()
+      stubs.input_text, secrets = "erin", { "erin-pass", "erin-pass", "wrong" }
+      commands.run({ "register" })
+      helpers.wait_for(function()
+        return #stubs.notified > 0
+      end, "the refused sign-up")
+      assert_eq({
+        "games: sign-up failed (sign-up passphrase rejected); check the passphrase with the server's host",
+      }, stubs.notified)
+
+      stubs.notified, secrets = {}, { "erin-pass", "erin-pass", passphrase }
+      commands.run({ "register" })
+      helpers.wait_for(function()
+        return #stubs.notified > 0
+      end, "the sign-up")
+      assert_eq(
+        { "games: registered as erin; set `username` in your config to skip the prompt" },
+        stubs.notified
+      )
+    end)
+
+    client.conn:close()
+    client.conn:connect()
+    helpers.wait_for(function()
+      return client:me() == "erin"
+    end, "a login to the new account")
+  end, {})
+  vim.uv.os_unsetenv(SIGNUP_PASSPHRASE_ENV)
+  assert(ok, err)
 end
 
 return T

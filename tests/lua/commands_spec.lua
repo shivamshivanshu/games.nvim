@@ -16,7 +16,8 @@ local LOGIN = { user = "alice", heartbeat_ms = 15000 }
 
 ---@class games.test.PromptStubs
 ---@field username? string what vim.ui.input answers
----@field password string what inputsecret answers
+---@field password string what inputsecret answers, once secrets runs out
+---@field secrets string[] what inputsecret answers first, in order
 ---@field asked string[] prompts shown, in order
 ---@field later? fun(answer: string|nil)[] when set, vim.ui.input answers are queued here instead
 ---@field notified string[]
@@ -27,7 +28,7 @@ local LOGIN = { user = "alice", heartbeat_ms = 15000 }
 local function with_stub_client(credentials, fn)
   local conn = helpers.stub_conn(credentials)
   ---@type games.test.PromptStubs
-  local prompts = { password = "", asked = {}, notified = {} }
+  local prompts = { password = "", secrets = {}, asked = {}, notified = {} }
   helpers.with_overrides({
     {
       games,
@@ -52,7 +53,7 @@ local function with_stub_client(credentials, fn)
       "inputsecret",
       function(prompt)
         table.insert(prompts.asked, prompt)
-        return prompts.password
+        return table.remove(prompts.secrets, 1) or prompts.password
       end,
     },
   }, function()
@@ -481,6 +482,77 @@ local function archived(archive, update)
   helpers.wait_for(function()
     return done
   end, "the archive write")
+end
+
+local SIGN_UP_PROMPTS = {
+  "games username: ",
+  "games password: ",
+  "games password again: ",
+  "sign-up passphrase: ",
+}
+
+function T.register_asks_in_order_and_signs_up_on_the_connection_it_opens()
+  with_stub_client(nil, function(conn, prompts)
+    prompts.username, prompts.secrets = "erin", { "erin-pass", "erin-pass", "sesame" }
+    commands.run({ "register" })
+    assert_eq(SIGN_UP_PROMPTS, prompts.asked)
+    assert_eq({ username = "erin", password = "erin-pass" }, conn.credentials)
+    assert_eq("sesame", conn.passphrase)
+    assert_eq(1, conn.connects)
+
+    conn:push("connected", { user = "erin", heartbeat_ms = 15000 })
+    assert_eq(
+      { "games: registered as erin; set `username` in your config to skip the prompt" },
+      prompts.notified
+    )
+    assert_eq({ "register" }, commands.complete("reg", "Games reg", 9))
+  end)
+end
+
+function T.register_asks_for_the_password_again_once_after_a_mismatch()
+  with_stub_client(nil, function(conn, prompts)
+    prompts.username = "erin"
+    prompts.secrets = { "erin-pass", "typo", "second-try", "second-try", "sesame" }
+    commands.run({ "register" })
+    assert_eq({ "games: passwords do not match" }, prompts.notified)
+    assert_eq({ username = "erin", password = "second-try" }, conn.credentials)
+    assert_eq("sesame", conn.passphrase)
+  end)
+end
+
+function T.register_cancels_after_a_second_mismatch()
+  with_stub_client(nil, function(conn, prompts)
+    prompts.username, prompts.secrets = "erin", { "a", "b", "c", "d" }
+    commands.run({ "register" })
+    assert_eq(vim.list_slice(SIGN_UP_PROMPTS, 1, 3), vim.list_slice(prompts.asked, 1, 3))
+    assert_eq(5, #prompts.asked)
+    assert_eq(
+      { "games: passwords do not match", "games: passwords do not match" },
+      prompts.notified
+    )
+    assert_eq(nil, conn.passphrase)
+    assert_eq(0, conn.connects)
+  end)
+end
+
+function T.register_asks_only_for_what_is_not_configured()
+  with_stub_client({ username = "erin" }, function(conn, prompts)
+    prompts.secrets = { "erin-pass", "erin-pass", "sesame" }
+    commands.run({ "register" })
+    assert_eq(vim.list_slice(SIGN_UP_PROMPTS, 2), prompts.asked)
+    conn:push("connected", { user = "erin", heartbeat_ms = 15000 })
+    assert_eq({ "games: registered as erin" }, prompts.notified)
+  end)
+end
+
+function T.register_while_logged_in_says_so_and_asks_nothing()
+  with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
+    conn:push("connected", LOGIN)
+    commands.run({ "register" })
+    assert_eq({}, prompts.asked)
+    assert_eq({ "games: already logged in as alice" }, prompts.notified)
+    assert_eq(nil, conn.passphrase)
+  end)
 end
 
 function T.export_reports_written_and_present_games()

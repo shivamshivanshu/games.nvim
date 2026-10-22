@@ -17,7 +17,7 @@ local stats = require("games.core.commands.stats")
 ---@field name string
 ---@field usage string
 ---@field run? games.SubcommandRun
----@field run_offline? fun(args: string[]) in place of run, for a subcommand that needs no server
+---@field run_offline? fun(args: string[]) in place of run, for a subcommand that does not wait for a login
 ---@field arg_choices? fun(arg_lead: string): string[] completions for the first argument
 
 local M = {}
@@ -36,6 +36,10 @@ end
 ---@type games.SubcommandRun
 local function open_dashboard(client)
   dashboard.open(client)
+end
+
+local function register()
+  login.register(require("games").client)
 end
 
 ---@param choices string[]
@@ -69,6 +73,7 @@ local SUBCOMMANDS = {
     arg_choices = puzzle.file_choices,
   },
   { name = "puzzle", usage = "puzzle [set]", run = puzzle.run, arg_choices = puzzles.set_names },
+  { name = "register", usage = "register", run_offline = register },
 }
 
 ---@param name string

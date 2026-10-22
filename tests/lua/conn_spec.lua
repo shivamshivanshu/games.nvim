@@ -293,10 +293,12 @@ end
 ---@param replies {type: string, body: table}[]
 ---@return integer port
 ---@return fun() stop
+---@return games.Envelope[] requests each login request, as it arrived
 local function scripted_login_server(replies)
   local server = assert(vim.uv.new_tcp())
   assert(server:bind("127.0.0.1", 0))
   local logins = 0
+  local requests = {}
   server:listen(8, function()
     local socket = assert(vim.uv.new_tcp())
     server:accept(socket)
@@ -307,6 +309,7 @@ local function scripted_login_server(replies)
       end
       logins = logins + 1
       local request = vim.json.decode(vim.split(chunk, "\n")[1])
+      table.insert(requests, request)
       local reply = vim.tbl_extend("force", { id = request.id }, replies[logins])
       socket:write(vim.json.encode(reply) .. "\n", function()
         socket:close()
@@ -315,7 +318,7 @@ local function scripted_login_server(replies)
   end)
   return server:getsockname().port, function()
     server:close()
-  end
+  end, requests
 end
 
 function T.the_connection_sends_each_frame_at_once_with_nagle_off()
@@ -379,6 +382,55 @@ function T.prompted_credentials_are_forgotten_when_a_later_login_is_rejected()
   stop()
   assert(rejected and #log.connected == 1, vim.inspect(log))
   helpers.assert_eq({ "username", "password" }, conn:missing_credentials())
+end
+
+function T.sign_up_replaces_only_the_first_login_and_reconnects_log_in()
+  local port, stop, requests = scripted_login_server({
+    { type = "ok", body = { user = "erin", heartbeat_ms = 60000 } },
+    { type = "ok", body = { user = "erin", heartbeat_ms = 60000 } },
+  })
+  local conn = Conn.new({ host = "127.0.0.1", port = port })
+  local log = helpers.record_lifecycle(conn)
+  conn:fill_credentials({ username = "erin", password = "erin-pass" })
+  conn:sign_up("sesame")
+  conn:connect()
+  local reconnected = vim.wait(RECONNECT_MIN_MS + helpers.WAIT_MS, function()
+    return #log.connected == 2
+  end)
+  conn:close()
+  stop()
+  assert(reconnected, vim.inspect(log))
+  local login = { v = 1, username = "erin", password = "erin-pass" }
+  helpers.assert_eq(
+    {
+      { type = "auth.register", body = vim.tbl_extend("error", login, { passphrase = "sesame" }) },
+      { type = "auth.login", body = login },
+    },
+    vim.tbl_map(function(request)
+      return { type = request.type, body = request.body }
+    end, requests)
+  )
+end
+
+function T.a_refused_sign_up_stops_reconnecting_and_forgets_the_prompted_credentials()
+  for _, code in ipairs({ "signup_disabled", "passphrase_rejected", "user_exists" }) do
+    local port, stop = scripted_login_server({
+      { type = "error", body = { code = code, message = "refused" } },
+    })
+    local conn = Conn.new({ host = "127.0.0.1", port = port })
+    local log = helpers.record_lifecycle(conn)
+    conn:fill_credentials({ username = "erin", password = "erin-pass" })
+    conn:sign_up("sesame")
+    conn:connect()
+    local refused = vim.wait(helpers.WAIT_MS, function()
+      return #log.disconnected == 1
+    end)
+    conn:close()
+    stop()
+    assert(refused, code)
+    helpers.assert_eq({ code = code, message = "refused", retrying = false }, log.disconnected[1])
+    helpers.assert_eq({ "username", "password" }, conn:missing_credentials())
+  end
 end
 
 function T.a_configured_password_survives_filling_in_the_username()
