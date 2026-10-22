@@ -87,7 +87,7 @@ func roomParams(t *testing.T, players []game.UserID, seed game.Seed) (room.Param
 	}
 	start := time.UnixMilli(1_700_000_000_000)
 	return room.Params{
-		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: players[0], Players: seated,
+		ID: "g1", Game: g, Options: opts, Seed: seed, Players: seated,
 		CreatedAt: start, Time: clocktest.New(start),
 	}, st
 }
@@ -141,7 +141,7 @@ func decodeView(t *testing.T, u protocol.GameUpdate) View {
 // next is the user to act and the move choose picks for them, or false once the game is over.
 func (r *pokerRoom) next(t *testing.T) (game.UserID, json.RawMessage, bool) {
 	t.Helper()
-	toAct := r.snapshot(t, r.params.Challenger).ToAct
+	toAct := r.snapshot(t, r.params.Players[0].User).ToAct
 	if len(toAct) == 0 {
 		return "", nil, false
 	}

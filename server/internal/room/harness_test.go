@@ -125,7 +125,7 @@ func startHarness(t *testing.T, g game.Game, options string, invitees ...game.Us
 		t.Fatal(err)
 	}
 	h.params = Params{
-		ID: "g1", Game: g, Options: opts, Seed: seed, Challenger: prototest.Alice, Players: players,
+		ID: "g1", Game: g, Options: opts, Seed: seed, Players: players,
 		Persist: h.persist, Broadcast: h.sent, Time: h.clock,
 	}
 	ctx, cancel := context.WithCancel(t.Context())

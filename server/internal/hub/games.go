@@ -55,19 +55,17 @@ func (h *Hub) prepareGame(typ game.GameType, opts game.Options, challenger game.
 	if err != nil {
 		return room.Setup{}, nil, err
 	}
-	// The challenger is seated first, which challengerOf relies on after a restart.
 	players, err := game.PlayersOf(game.Participants(challenger, invitees), seats)
 	if err != nil {
 		return room.Setup{}, nil, fmt.Errorf("hub: %w", err)
 	}
 	setup, err := h.roomSetup(room.Params{
-		ID:         game.GameID(uuid.NewV4()),
-		Game:       g,
-		Options:    opts,
-		Seed:       seed,
-		Challenger: challenger,
-		Players:    players,
-		CreatedAt:  h.deps.Time.Now(),
+		ID:        game.GameID(uuid.NewV4()),
+		Game:      g,
+		Options:   opts,
+		Seed:      seed,
+		Players:   players,
+		CreatedAt: h.deps.Time.Now(),
 	})
 	return setup, state, err
 }
@@ -92,13 +90,6 @@ func (h *Hub) launch(g room.Setup, state game.ErasedState) map[game.UserID]proto
 		h.SendUpdate(user, u)
 	}
 	return first
-}
-
-func challengerOf(players []game.Player) game.UserID {
-	if len(players) == 0 {
-		return ""
-	}
-	return players[0].User
 }
 
 func (h *Hub) firstUpdates(r *room.Room, players []game.Player) map[game.UserID]protocol.GameUpdate {
@@ -135,13 +126,12 @@ func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, er
 		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
 	}
 	setup, err := h.roomSetup(room.Params{
-		ID:         rec.ID,
-		Game:       g,
-		Options:    opts,
-		Seed:       rec.Seed,
-		Challenger: challengerOf(rec.Players),
-		Players:    rec.Players,
-		CreatedAt:  rec.CreatedAt,
+		ID:        rec.ID,
+		Game:      g,
+		Options:   opts,
+		Seed:      rec.Seed,
+		Players:   rec.Players,
+		CreatedAt: rec.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)

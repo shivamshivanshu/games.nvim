@@ -14,7 +14,8 @@ import (
 // Pause asks it.
 func Restore(ctx context.Context, g Setup, steps []store.StepRecord, away func() bool) (*Room, error) {
 	p := g.Params
-	state, seats, err := p.Game.New(p.Options, p.Challenger, p.invitees(), game.StepRNG(p.Seed, 0))
+	challenger, invitees := p.participants()
+	state, seats, err := p.Game.New(p.Options, challenger, invitees, game.StepRNG(p.Seed, 0))
 	if err != nil {
 		return nil, fmt.Errorf("room: restore %s: %w", p.ID, err)
 	}

@@ -19,15 +19,11 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
-func TestNewSetupRejectsChallengerOutsidePlayers(t *testing.T) {
-	h := newHarness(t, game.TimeControlNone)
-	noPlayers, outsider := h.params, h.params
-	noPlayers.Players = nil
-	outsider.Challenger = prototest.Carol
-	for name, p := range map[string]Params{"no players": noPlayers, "challenger absent": outsider} {
-		if _, err := NewSetup(p); err == nil {
-			t.Errorf("%s: want error", name)
-		}
+func TestNewSetupRejectsNoPlayers(t *testing.T) {
+	p := newHarness(t, game.TimeControlNone).params
+	p.Players = nil
+	if _, err := NewSetup(p); err == nil {
+		t.Error("want error")
 	}
 }
 

@@ -39,16 +39,15 @@ type Broadcaster interface {
 }
 
 type Params struct {
-	ID         game.GameID
-	Game       game.Game
-	Options    game.Options
-	Seed       game.Seed
-	Challenger game.UserID
-	Players    []game.Player
-	CreatedAt  time.Time
-	Persist    Persister
-	Broadcast  Broadcaster
-	Time       clock.Clock
+	ID        game.GameID
+	Game      game.Game
+	Options   game.Options
+	Seed      game.Seed
+	Players   []game.Player
+	CreatedAt time.Time
+	Persist   Persister
+	Broadcast Broadcaster
+	Time      clock.Clock
 }
 
 // Setup is a validated game; once built, Start cannot fail.
@@ -60,12 +59,11 @@ type Setup struct {
 	users map[game.Seat]game.UserID
 }
 
+// NewSetup takes p.Players in the order New was given them, challenger first:
+// Restore calls New again in that order.
 func NewSetup(p Params) (Setup, error) {
 	if len(p.Players) == 0 {
 		return Setup{}, fmt.Errorf("room: %s: no players", p.ID)
-	}
-	if !slices.ContainsFunc(p.Players, func(player game.Player) bool { return player.User == p.Challenger }) {
-		return Setup{}, fmt.Errorf("room: %s: challenger %s is not a player", p.ID, p.Challenger)
 	}
 	clock, err := p.Options.Clock()
 	if err != nil {
@@ -85,8 +83,10 @@ func NewSetup(p Params) (Setup, error) {
 	return g, nil
 }
 
-func (p Params) invitees() []game.UserID {
-	return slices.DeleteFunc(game.Users(p.Players), func(u game.UserID) bool { return u == p.Challenger })
+// participants are the challenger and the invitees, as New was given them.
+func (p Params) participants() (game.UserID, []game.UserID) {
+	users := game.Users(p.Players)
+	return users[0], users[1:]
 }
 
 func (g Setup) usersAt(seats []game.Seat) []game.UserID {
