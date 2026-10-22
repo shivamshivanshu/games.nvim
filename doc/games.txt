@@ -299,6 +299,8 @@ same `dir` can both append the same events to `events.jsonl`.
                         configured, for the password twice unless
                         configured (a mismatch asks again once), then for
                         the passphrase; all but the username are hidden.
+                        A username is at most 32 characters, with no
+                        leading or trailing whitespace.
                         The username and password are kept for the
                         session; set `username` in your config to skip its
                         prompt next time. A refused sign-up (sign-up off, a
@@ -494,7 +496,9 @@ From a checkout, `make build` produces `bin/games-server` instead.
     `--idle`          `45s`                idle timeout before a client is dropped
 
 `adduser [--db games.db] [--password-stdin] <name>`: `--password-stdin` reads
-the password from one line of stdin. Use the same `--db` as `serve`.
+the password from one line of stdin. Use the same `--db` as `serve`. A name
+is at most 32 characters, with no control characters and no leading or
+trailing whitespace.
 
 Sign-up: with a passphrase, anyone who knows it can create an account with
 |:Games-register|. `serve` reads it from `--signup-passphrase-file` (its
@@ -508,6 +512,7 @@ Docker: the image serves `/data/games.db` on the `games-data` volume as uid
 65532; compose publishes it on 127.0.0.1:7777 (`GAMES_BIND`, `GAMES_PORT`). >sh
     make docker
     docker compose up -d
+    GAMES_SIGNUP_PASSPHRASE='...' docker compose up -d   # sign-up on
     docker compose run --rm -it games adduser --db /data/games.db alice
 <
 Scripted: `--password-stdin` with `run --rm -T`. Back up after

@@ -66,7 +66,7 @@ The schema is generated from the Go types: `make schema` writes it, and
 - The passphrase is the server's sign-up passphrase, shared by its host out of band. A server started without one answers `signup_disabled`.
 - The server checks, in order: `v`, the IP lockout, that sign-up is on, the passphrase, the username, a non-empty password, and that the username is free. So a client without the passphrase learns nothing about which names are taken.
 - A wrong passphrase gets `passphrase_rejected` and counts toward the IP lockout like a failed login.
-- A taken username gets `user_exists`. An invalid username or an empty password gets `bad_request`.
+- A taken username gets `user_exists`. An invalid username (empty, over 32 characters, with control or format characters, or with leading or trailing whitespace), an empty password, or one over 72 bytes gets `bad_request`.
 - A client stops retrying on `signup_disabled`, `passphrase_rejected` and `user_exists`.
 
 ## Requests
@@ -105,7 +105,7 @@ is defined in [Game updates](#game-updates).
 
 | Code | When |
 |---|---|
-| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that cannot seat one player, an unknown or already resolved challenge, a challenge the user may not resolve, an action with a field its game's actions lack or with another kind's input field, an action the game cannot parse, a second `auth.login` or `auth.register`, `auth.register` with an invalid username or an empty password. |
+| `bad_request` | Malformed envelope or body, a request without `id`, unknown type, unknown game, user, option or `status`, an invalid option value, an invalid invitee list (empty, the wrong size for the game, a duplicate, or the challenger), `game.start` of a game that cannot seat one player, an unknown or already resolved challenge, a challenge the user may not resolve, an action with a field its game's actions lack or with another kind's input field, an action the game cannot parse, a second `auth.login` or `auth.register`, `auth.register` with an invalid username or password (see [Sign-up](#sign-up)). |
 | `version_mismatch` | `auth.login` or `auth.register` with another protocol version. |
 | `unauthenticated` | Any request but `auth.login` or `auth.register` before login. |
 | `auth_failed` | Wrong credentials, or the IP is locked out. |

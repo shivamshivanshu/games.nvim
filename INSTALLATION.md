@@ -19,7 +19,7 @@ bin/games-server adduser alice   # prompts for a password
 bin/games-server serve
 ```
 
-`adduser [--db games.db] [--password-stdin] <name>` creates an account; use the same `--db` as `serve`.
+`adduser [--db games.db] [--password-stdin] <name>` creates an account; use the same `--db` as `serve`. A name is at most 32 characters, with no control characters and no leading or trailing whitespace.
 
 To let people create their own accounts with `:Games register`, give `serve` a sign-up passphrase and share it out of band:
 
@@ -47,6 +47,7 @@ The image runs `serve --addr 0.0.0.0:7777 --db /data/games.db` as the distroless
 ```sh
 make docker                    # -> games-server:latest (IMAGE=... to override)
 docker compose up -d           # publishes 127.0.0.1:7777; GAMES_BIND / GAMES_PORT change it
+GAMES_SIGNUP_PASSPHRASE='…' docker compose up -d   # sign-up on; unset, it stays off
 docker compose run --rm -it games adduser --db /data/games.db alice
 docker compose run --rm -T games adduser --db /data/games.db --password-stdin bob < bob.pw
 ```

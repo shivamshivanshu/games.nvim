@@ -115,7 +115,7 @@ A pack that fails these checks is replaced by `"default"`, with one notice.
 | `:Games export` | archive your 50 most recent finished games |
 | `:Games import <file> [set] [max]` | import a Lichess puzzle `.csv` or a `.pgn` into a puzzle set (default: the file's name), keeping the first `max` entries; works offline; a PGN game without a `FEN` header is a study |
 | `:Games puzzle [set]` | start the next entry of a puzzle set (default: the latest imported) |
-| `:Games register` | create your account with the server's sign-up passphrase, then log in; asks for the username and password unless configured |
+| `:Games register` | create your account with the server's sign-up passphrase, then log in; asks for the username (at most 32 characters, no surrounding spaces) and password unless configured |
 
 Options are asked one at a time, default first; cancelling one cancels the start. Challenges, and moves in boards you are not viewing, arrive as notifications.
 
