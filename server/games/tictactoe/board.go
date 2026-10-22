@@ -50,5 +50,5 @@ func (b board) full() bool { return !slices.Contains(b[:], noSeat) }
 func (b board) rows() [][]game.Seat { return grid.RowsOf(b[:], side) }
 
 func (b board) winningLinesThrough(c CellNumber) [][]grid.Cell {
-	return grid.CellLines(grid.WinningLines(b.rows(), c.point(), winLength, noSeat))
+	return grid.WinningCells(b.rows(), c.point(), winLength, noSeat)
 }

@@ -37,7 +37,7 @@ func (s state) drop(seat game.Seat, input string) (game.State[Action, View], []g
 	next := s
 	next.board[at.Row][at.Col] = seat
 	next.last = &landed
-	next.winningLines = grid.CellLines(grid.WinningLines(next.board.cells(), at, winLength, noDisc))
+	next.winningLines = grid.WinningCells(next.board.cells(), at, winLength, noDisc)
 	switch {
 	case len(next.winningLines) > 0:
 		next.Turn = s.Turn.Conclude(game.WinFor(ReasonFourInARow, seat))

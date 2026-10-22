@@ -27,6 +27,11 @@ func WinningLines[T comparable](cells [][]T, last Point, k int, empty T) [][]Poi
 	return lines
 }
 
+// WinningCells is WinningLines as wire cells; it is never nil.
+func WinningCells[T comparable](cells [][]T, last Point, k int, empty T) [][]Cell {
+	return CellLines(WinningLines(cells, last, k, empty))
+}
+
 func runThrough[T comparable](cells [][]T, from Point, d delta, owner T) []Point {
 	start := from
 	for p := start.step(d, -1); owns(cells, p, owner); p = p.step(d, -1) {
