@@ -148,7 +148,7 @@ func TestSecretIsDrawnFromSeedWithEveryColourAndRepeats(t *testing.T) {
 	repeated := false
 	for seed := range game.Seed(200) {
 		secret := newState(t, seed).secret
-		if !codeTextPattern.MatchString(string(secret)) {
+		if !codeSyntax.MatchString(string(secret)) {
 			t.Fatalf("seed %d drew %q, not a code", seed, secret)
 		}
 		for i, peg := range string(secret) {

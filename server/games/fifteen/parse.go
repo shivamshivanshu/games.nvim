@@ -8,14 +8,12 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
-// tilePattern is the catalogue's pattern for ActionSlide's tile: 1 to 15. Whether the tile
+// tileSyntax is the catalogue's pattern for ActionSlide's tile: 1 to 15. Whether the tile
 // exists depends on the size.
-const tilePattern = `^\s*([1-9]|1[0-5])\s*$`
-
-var tileTextPattern = regexp.MustCompile(tilePattern)
+var tileSyntax = regexp.MustCompile(`^\s*([1-9]|1[0-5])\s*$`)
 
 func parseTile(text string, b board) (int, error) {
-	match := tileTextPattern.FindStringSubmatch(text)
+	match := tileSyntax.FindStringSubmatch(text)
 	if match == nil {
 		return 0, game.Illegalf(`want a tile number, e.g. "7"; got %q`, text)
 	}

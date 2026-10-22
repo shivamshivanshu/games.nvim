@@ -10,16 +10,14 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
-// cellPattern is the catalogue's pattern for an action's cell: a row letter a to p, either
+// cellSyntax is the catalogue's pattern for an action's cell: a row letter a to p, either
 // case, then a column number 1 to 30. Whether the cell is on the board depends on the difficulty.
-const cellPattern = `^\s*([a-pA-P])([1-9]|[12][0-9]|30)\s*$`
-
-var cellTextPattern = regexp.MustCompile(cellPattern)
+var cellSyntax = regexp.MustCompile(`^\s*([a-pA-P])([1-9]|[12][0-9]|30)\s*$`)
 
 const firstRowLetter = 'a'
 
 func (l level) parseCell(text string) (int, error) {
-	match := cellTextPattern.FindStringSubmatch(text)
+	match := cellSyntax.FindStringSubmatch(text)
 	if match == nil {
 		return 0, game.Illegalf(`want a row letter then a column number, e.g. "c12"; got %q`, text)
 	}

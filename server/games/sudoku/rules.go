@@ -32,7 +32,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       textField,
 				Description: `Row, column, then the digit: "53 7" writes 7 at row 5, column 3; "53 0" clears it.`,
-				Pattern:     setPattern,
+				Pattern:     setSyntax.String(),
 			},
 		}, {
 			Kind:        ActionClear,
@@ -40,7 +40,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       cellField,
 				Description: `Row, then column: "53" clears row 5, column 3.`,
-				Pattern:     clearPattern,
+				Pattern:     clearSyntax.String(),
 			},
 		}},
 		Events:  []game.Event{CellSetEvent{}},

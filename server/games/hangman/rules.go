@@ -27,7 +27,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       guessField,
 				Description: fmt.Sprintf("One letter, or a %d-letter word from the word list, in any case.", words.Length),
-				Pattern:     guessPattern(),
+				Pattern:     guessSyntax.String(),
 			},
 		}},
 		Events:  []game.Event{GuessedEvent{}},

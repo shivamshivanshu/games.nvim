@@ -27,7 +27,7 @@ func (Rules) Info() game.Info {
 				Input: &game.ActionInput{
 					Field:       bidField,
 					Description: "Quantity x face, e.g. 3x5 for three fives; ones are wild.",
-					Pattern:     bidPattern,
+					Pattern:     bidSyntax.String(),
 				},
 			},
 			{Kind: ActionDudo, Description: "Challenge the standing bid: every cup is revealed."},

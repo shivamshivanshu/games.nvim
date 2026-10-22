@@ -11,16 +11,15 @@ import (
 
 const (
 	squarePattern = `([1-9]|[12][0-9]|3[0-2])`
-	// moveSpace is the set RE2's \s matches, so trimming agrees with movePattern.
-	moveSpace = " \t\n\f\r"
-	// movePattern matches the move text matchMove reads: a step, or a capture listing every
-	// landing, each a square 1-32 without leading zeros.
-	movePattern = `^\s*(` + squarePattern + stepSeparator + squarePattern +
-		`|` + squarePattern + `(` + captureSeparator + squarePattern + `)+)\s*$`
+	// moveSpace is the set RE2's \s matches, so trimming agrees with moveSyntax.
+	moveSpace    = " \t\n\f\r"
 	notationHint = "squares 1-32 joined by - for a step or x for each jump, e.g. 11-15 or 15x24x31"
 )
 
-var moveSyntax = regexp.MustCompile(movePattern)
+// moveSyntax matches the move text matchMove reads: a step, or a capture listing every
+// landing, each a square 1-32 without leading zeros.
+var moveSyntax = regexp.MustCompile(`^\s*(` + squarePattern + stepSeparator + squarePattern +
+	`|` + squarePattern + `(` + captureSeparator + squarePattern + `)+)\s*$`)
 
 // matchMove finds the legal move whose text is exactly input, explaining why when none is.
 func matchMove(input string, legal []Move) (Move, error) {

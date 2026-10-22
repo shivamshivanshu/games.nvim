@@ -31,7 +31,7 @@ func (Rules) Info() game.Info {
 			{
 				Kind:        ActionSlide,
 				Description: "Slide a tile next to the blank into it.",
-				Input:       &game.ActionInput{Field: tileField, Description: `The tile's number, e.g. "7".`, Pattern: tilePattern},
+				Input:       &game.ActionInput{Field: tileField, Description: `The tile's number, e.g. "7".`, Pattern: tileSyntax.String()},
 			},
 			{
 				Kind:        ActionMove,

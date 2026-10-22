@@ -17,7 +17,7 @@ func (Rules) Info() game.Info {
 		return &game.ActionInput{
 			Field:       cellField,
 			Description: `Row letter, then column number: "c12" is row c, column 12.`,
-			Pattern:     cellPattern,
+			Pattern:     cellSyntax.String(),
 		}
 	}
 	return game.Info{

@@ -31,7 +31,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       textField,
 				Description: "Squares 1-32, e.g. 11-15, 15x24 or 15x24x31.",
-				Pattern:     movePattern,
+				Pattern:     moveSyntax.String(),
 			},
 		}},
 		Events:  []game.Event{MovedEvent{}},

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -174,29 +173,27 @@ func TestConcludeStopsOfferingMoves(t *testing.T) {
 }
 
 func TestMovePatternMatchesNotation(t *testing.T) {
-	pattern := regexp.MustCompile(movePattern)
 	for _, steps := range [][]gametest.Step[Action]{selfPlay(t, firstLegal), selfPlay(t, lastLegal)} {
 		for _, step := range steps {
-			if !pattern.MatchString(step.Action.Text) {
+			if !moveSyntax.MatchString(step.Action.Text) {
 				t.Errorf("pattern rejects legal move %q", step.Action.Text)
 			}
 		}
 	}
 	for _, text := range []string{"", "e4", "11", "11-15-19", "11x", "11-15x19", "99-98", "01-05", "111-15", "0-4", "33x24"} {
-		if pattern.MatchString(text) {
+		if moveSyntax.MatchString(text) {
 			t.Errorf("pattern accepts %q", text)
 		}
 	}
 }
 
 func TestPatternAndParserAgreeOnNotation(t *testing.T) {
-	pattern := regexp.MustCompile(movePattern)
 	legal := StartBoard().LegalMoves(SeatBlack)
 	for _, text := range []string{"11-15", " 11-15 ", "\t11-15\n", "\v11-15", "11-15\u00a0", "32-28", "01-05", "9", "9x1"} {
 		_, err := matchMove(text, legal)
 		parsed := err == nil || !strings.Contains(err.Error(), notationHint)
-		if parsed != pattern.MatchString(text) {
-			t.Errorf("%q: parser reads notation %t, pattern matches %t", text, parsed, pattern.MatchString(text))
+		if parsed != moveSyntax.MatchString(text) {
+			t.Errorf("%q: parser reads notation %t, pattern matches %t", text, parsed, moveSyntax.MatchString(text))
 		}
 	}
 }

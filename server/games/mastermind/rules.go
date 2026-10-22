@@ -27,7 +27,7 @@ func (Rules) Info() game.Info {
 			Input: &game.ActionInput{
 				Field:       codeField,
 				Description: fmt.Sprintf("%d peg colours from %s (red, green, blue, yellow, orange, purple), in any case.", CodeLength, Palette),
-				Pattern:     codePattern(),
+				Pattern:     codeSyntax.String(),
 			},
 		}},
 		Events:  []game.Event{GuessedEvent{}},

@@ -8,10 +8,8 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/dice"
 )
 
-// bidPattern is what parseBid accepts, for clients to check input before sending it.
-const bidPattern = `^\s*([0-9]{1,2})\s*[xX]\s*([1-6])\s*$`
-
-var bidSyntax = regexp.MustCompile(bidPattern)
+// bidSyntax is what parseBid accepts, for clients to check input before sending it.
+var bidSyntax = regexp.MustCompile(`^\s*([0-9]{1,2})\s*[xX]\s*([1-6])\s*$`)
 
 func parseBid(by game.Seat, text string) (Bid, error) {
 	m := bidSyntax.FindStringSubmatch(text)

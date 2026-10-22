@@ -6,16 +6,12 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
-// setPattern is the catalogue's pattern for ActionSet's text: a row and a column
-// from 1 to 9, then a digit, where 0 clears.
-const setPattern = `^\s*([1-9])([1-9])\s+([0-9])\s*$`
-
-// clearPattern is the catalogue's pattern for ActionClear's cell: a row and a column from 1 to 9.
-const clearPattern = `^\s*([1-9])([1-9])\s*$`
-
 var (
-	setTextPattern   = regexp.MustCompile(setPattern)
-	clearCellPattern = regexp.MustCompile(clearPattern)
+	// setSyntax is the catalogue's pattern for ActionSet's text: a row and a column
+	// from 1 to 9, then a digit, where 0 clears.
+	setSyntax = regexp.MustCompile(`^\s*([1-9])([1-9])\s+([0-9])\s*$`)
+	// clearSyntax is the catalogue's pattern for ActionClear's cell: a row and a column from 1 to 9.
+	clearSyntax = regexp.MustCompile(`^\s*([1-9])([1-9])\s*$`)
 )
 
 type cellSet struct {
@@ -34,7 +30,7 @@ func parseAction(action Action) (cellSet, error) {
 }
 
 func parseSet(text string) (cellSet, error) {
-	match := setTextPattern.FindStringSubmatch(text)
+	match := setSyntax.FindStringSubmatch(text)
 	if match == nil {
 		return cellSet{}, game.Illegalf(`want "RC D", e.g. "53 7" for row 5, column 3, digit 7 (0 clears); got %q`, text)
 	}
@@ -42,7 +38,7 @@ func parseSet(text string) (cellSet, error) {
 }
 
 func parseClear(cell string) (cellSet, error) {
-	match := clearCellPattern.FindStringSubmatch(cell)
+	match := clearSyntax.FindStringSubmatch(cell)
 	if match == nil {
 		return cellSet{}, game.Illegalf(`want "RC", e.g. "53" for row 5, column 3; got %q`, cell)
 	}

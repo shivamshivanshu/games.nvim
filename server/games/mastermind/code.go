@@ -9,16 +9,12 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/feedback"
 )
 
-// codePattern is the catalogue's pattern for a guess, and the one the server parses it with:
+// codeSyntax is the catalogue's pattern for a guess, and the one the server parses it with:
 // CodeLength letters of Palette in any case, with surrounding whitespace allowed.
-func codePattern() string {
-	return fmt.Sprintf(`^\s*([%s%s]{%d})\s*$`, Palette, strings.ToUpper(Palette), CodeLength)
-}
-
-var codeTextPattern = regexp.MustCompile(codePattern())
+var codeSyntax = regexp.MustCompile(fmt.Sprintf(`^\s*([%s%s]{%d})\s*$`, Palette, strings.ToUpper(Palette), CodeLength))
 
 func parseCode(text string) (Code, error) {
-	match := codeTextPattern.FindStringSubmatch(text)
+	match := codeSyntax.FindStringSubmatch(text)
 	if match == nil {
 		return "", game.Illegalf("a guess is %d colours from %s, got %q", CodeLength, Palette, text)
 	}
