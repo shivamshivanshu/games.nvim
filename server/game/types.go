@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type (
@@ -19,15 +20,23 @@ type (
 	Seed       uint64
 )
 
-// CheckUserID rejects an empty name, or one with control or format characters,
-// which would display differently than it reads or break the text it is
-// written into, such as a PGN tag.
+// MaxUserIDRunes caps a user name, which boards and lists show in full.
+const MaxUserIDRunes = 32
+
+// CheckUserID rejects an empty or overlong name, one with control or format
+// characters, which would display differently than it reads or break the text
+// it is written into, such as a PGN tag, and one with surrounding whitespace,
+// which a later login would not type.
 func CheckUserID(u UserID) error {
 	switch {
 	case u == "":
 		return errors.New("user name must not be empty")
+	case utf8.RuneCountInString(string(u)) > MaxUserIDRunes:
+		return fmt.Errorf("user name must be at most %d characters", MaxUserIDRunes)
 	case strings.ContainsFunc(string(u), IsHiddenRune):
 		return fmt.Errorf("user name %q has control or format characters", u)
+	case strings.TrimSpace(string(u)) != string(u):
+		return fmt.Errorf("user name %q must not start or end with whitespace", u)
 	}
 	return nil
 }
