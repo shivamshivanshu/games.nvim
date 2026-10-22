@@ -10,23 +10,11 @@ local BOARD_TOP = 4
 local BOARD_LEFT = 3
 local BOARD = { top = BOARD_TOP, left = BOARD_LEFT, step = 2 }
 
----@param name string e.g. "h8"
----@return games.Cell
-local function cell(name)
-  return { row = tonumber(name:sub(2)), col = name:byte(1) - ("a"):byte() + 1 }
-end
-
 ---alice (black) has h8 to k8, bob (white) a1 to d1; bob is to move.
 ---@param overrides? table
 ---@return games.GomokuUpdate
 local function update_with(overrides)
-  local cells = {}
-  for r = 1, SIZE do
-    cells[r] = {}
-    for c = 1, SIZE do
-      cells[r][c] = ""
-    end
-  end
+  local cells = helpers.blank_cells(SIZE, SIZE)
   for c = 8, 11 do
     cells[8][c] = "black"
   end
@@ -38,7 +26,7 @@ local function update_with(overrides)
     players = { { user = "alice", seat = "black" }, { user = "bob", seat = "white" } },
     to_act = { "alice" },
     controls = { "resign", "offer_draw" },
-    view = { cells = cells, last = cell("d1"), winning_lines = {}, legal_cells = {} },
+    view = { cells = cells, last = helpers.cell("d1"), winning_lines = {}, legal_cells = {} },
   }, overrides)
 end
 
@@ -47,8 +35,8 @@ end
 local function won()
   local view = vim.deepcopy(update_with().view)
   view.cells[8][12] = "black"
-  view.last = cell("l8")
-  view.winning_lines = { vim.tbl_map(cell, { "h8", "i8", "j8", "k8", "l8" }) }
+  view.last = helpers.cell("l8")
+  view.winning_lines = { vim.tbl_map(helpers.cell, { "h8", "i8", "j8", "k8", "l8" }) }
   return update_with({
     view = view,
     to_act = {},
@@ -68,7 +56,7 @@ end
 ---@param name string
 ---@return string[]
 local function cell_hl(rendered, name)
-  local at = cell(name)
+  local at = helpers.cell(name)
   return helpers.cell_hl_at(rendered, BOARD, at.row, at.col)
 end
 
@@ -120,8 +108,11 @@ function T.stones_take_piece_colours_and_the_last_stone_and_a_win_are_marked_and
 end
 
 function T.no_cell_is_marked_legal_though_the_mover_may_play_any_empty_one()
-  local view =
-    vim.tbl_extend("force", update_with().view, { legal_cells = { cell("a2"), cell("o15") } })
+  local view = vim.tbl_extend(
+    "force",
+    update_with().view,
+    { legal_cells = { helpers.cell("a2"), helpers.cell("o15") } }
+  )
   local rendered = render(update_with({ view = view }))
   assert(not vim.tbl_contains(cell_hl(rendered, "a2"), "GamesMovable"))
   assert(not rendered.lines[BOARD_TOP + 2]:find("+", 1, true), "no legal marker glyph")
@@ -142,7 +133,7 @@ function T.m_types_a_cell_while_the_game_is_on()
 end
 
 function T.events_name_the_player_and_cell()
-  local event = { kind = "placed", by = "white", cell = cell("o15") }
+  local event = { kind = "placed", by = "white", cell = helpers.cell("o15") }
   assert_eq("bob placed o15", helpers.described(update_with(), event))
 end
 

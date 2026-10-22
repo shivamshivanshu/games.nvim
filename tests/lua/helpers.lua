@@ -381,6 +381,28 @@ function M.footer(rendered)
   return rendered.lines[#rendered.lines]
 end
 
+---A board's cell named as it is typed, e.g. "h8": its column's letter, then its row's number.
+---@param name string
+---@return games.Cell
+function M.cell(name)
+  return { row = tonumber(name:sub(2)), col = name:byte(1) - ("a"):byte() + 1 }
+end
+
+---rows of cols empty cells, each "".
+---@param rows integer
+---@param cols integer
+---@return string[][]
+function M.blank_cells(rows, cols)
+  local cells = {}
+  for r = 1, rows do
+    cells[r] = {}
+    for c = 1, cols do
+      cells[r][c] = ""
+    end
+  end
+  return cells
+end
+
 ---Where the cells of a board sit in its rendered lines.
 ---@class games.test.BoardGeometry
 ---@field top integer 0-based line of row 1

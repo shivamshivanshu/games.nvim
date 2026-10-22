@@ -9,20 +9,11 @@ local BOARD_TOP = 4
 local BOARD_LEFT = 2
 local BOARD = { top = BOARD_TOP, left = BOARD_LEFT, step = 2 }
 
----@param name string e.g. "d3"
----@return games.Cell
-local function cell(name)
-  return { row = tonumber(name:sub(2)), col = name:byte(1) - ("a"):byte() + 1 }
-end
-
 ---The start position, black (alice) to move: the view black sees, with its four moves.
 ---@param overrides? table
 ---@return games.ReversiUpdate
 local function start(overrides)
-  local cells = {}
-  for r = 1, 8 do
-    cells[r] = { "", "", "", "", "", "", "", "" }
-  end
+  local cells = helpers.blank_cells(8, 8)
   cells[4][4], cells[4][5], cells[5][4], cells[5][5] = "white", "black", "black", "white"
   return helpers.game_update("reversi", {
     players = { { user = "alice", seat = "black" }, { user = "bob", seat = "white" } },
@@ -30,7 +21,7 @@ local function start(overrides)
     controls = { "resign", "offer_draw", "abort" },
     view = {
       cells = cells,
-      legal_cells = vim.tbl_map(cell, { "d3", "c4", "f5", "e6" }),
+      legal_cells = vim.tbl_map(helpers.cell, { "d3", "c4", "f5", "e6" }),
       discs = { black = 2, white = 2 },
     },
   }, overrides)
@@ -48,7 +39,7 @@ end
 ---@param name string
 ---@return string[]
 local function cell_hl(rendered, name)
-  local at = cell(name)
+  local at = helpers.cell(name)
   return helpers.cell_hl_at(rendered, BOARD, at.row, at.col)
 end
 
@@ -89,7 +80,7 @@ end
 function T.the_last_disc_is_tinted_and_named()
   local view = vim.deepcopy(start().view)
   view.cells[3][4], view.cells[4][4] = "black", "black"
-  view.last = cell("d3")
+  view.last = helpers.cell("d3")
   local rendered = render(start({ view = view, to_act = { "bob" } }), "bob")
   assert(vim.tbl_contains(cell_hl(rendered, "d3"), "GamesLastMove"))
   assert(vim.tbl_contains(cell_hl(rendered, "d3"), "GamesPieceBlack"))
@@ -105,7 +96,8 @@ function T.m_types_a_cell()
 end
 
 function T.events_name_the_move_and_the_automatic_pass()
-  local placed = { kind = "placed", by = "black", cell = cell("d3"), flipped = { cell("d4") } }
+  local placed =
+    { kind = "placed", by = "black", cell = helpers.cell("d3"), flipped = { helpers.cell("d4") } }
   assert_eq("alice placed d3, flipping 1", helpers.described(start(), placed))
   assert_eq(
     "bob has no move and passes",

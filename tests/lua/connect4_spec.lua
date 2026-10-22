@@ -14,10 +14,7 @@ local BOARD = { top = BOARD_TOP, left = BOARD_LEFT, step = 2 }
 ---@param overrides? table
 ---@return games.Connect4Update
 local function update_with(overrides)
-  local cells = {}
-  for r = 1, 4 do
-    cells[r] = { "", "", "", "", "", "", "" }
-  end
+  local cells = helpers.blank_cells(4, 7)
   cells[5] = { "yellow", "yellow", "yellow", "", "", "", "" }
   cells[6] = { "red", "red", "red", "", "", "", "" }
   return helpers.game_update("connect4", {
