@@ -19,7 +19,9 @@ import (
 )
 
 // Deps is what a Hub runs on. Seeds draws each new game's seed; nil draws
-// from crypto/rand. An empty SignupPassphrase turns sign-up off.
+// from crypto/rand. An empty SignupPassphrase turns sign-up off. PasswordCost
+// is the bcrypt cost of passwords set by sign-up; zero is
+// auth.DefaultPasswordCost.
 type Deps struct {
 	Store            *store.Store
 	Games            []game.Game
@@ -28,6 +30,7 @@ type Deps struct {
 	Lockout          *auth.Lockout
 	Seeds            func() game.Seed
 	SignupPassphrase string
+	PasswordCost     int
 }
 
 type sessionSet map[*session.Session]struct{}
@@ -49,6 +52,9 @@ type Hub struct {
 func New(ctx context.Context, d Deps) (*Hub, error) {
 	if d.Seeds == nil {
 		d.Seeds = newSeed
+	}
+	if d.PasswordCost == 0 {
+		d.PasswordCost = auth.DefaultPasswordCost
 	}
 	h := &Hub{
 		ctx:       ctx,

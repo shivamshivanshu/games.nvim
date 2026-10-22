@@ -43,7 +43,7 @@ const (
 
 var uuidV4 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
-var passwordHash = sync.OnceValues(func() ([]byte, error) { return bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.MinCost) })
+var passwordHash = sync.OnceValues(func() ([]byte, error) { return auth.HashPassword(testPassword, bcrypt.MinCost) })
 
 type env struct {
 	store      *store.Store
@@ -79,6 +79,7 @@ func (e *env) start(t *testing.T) server {
 		Lockout:          auth.NewLockout(lim, e.clock),
 		Seeds:            e.seeds,
 		SignupPassphrase: e.passphrase,
+		PasswordCost:     bcrypt.MinCost,
 	})
 	if err != nil {
 		cancel()

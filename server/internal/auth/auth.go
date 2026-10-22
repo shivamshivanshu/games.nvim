@@ -7,8 +7,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func HashPassword(pw string) ([]byte, error) {
-	return bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+// DefaultPasswordCost is the bcrypt cost new passwords are hashed at; tests
+// pass bcrypt.MinCost, since each login checks a hash at the cost it was made.
+const DefaultPasswordCost = bcrypt.DefaultCost
+
+func HashPassword(pw string, cost int) ([]byte, error) {
+	return bcrypt.GenerateFromPassword([]byte(pw), cost)
 }
 
 func CheckPassword(hash []byte, pw string) bool {

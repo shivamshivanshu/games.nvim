@@ -47,7 +47,7 @@ func addUser(args []string, stdin io.Reader) error {
 	if err != nil {
 		return err
 	}
-	if err := auth.CreateAccount(ctx, st, name, password); err != nil {
+	if err := auth.CreateAccount(ctx, st, name, password, auth.DefaultPasswordCost); err != nil {
 		return fmt.Errorf("adduser %s: %w", name, err)
 	}
 	return nil

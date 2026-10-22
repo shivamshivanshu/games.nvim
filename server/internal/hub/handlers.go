@@ -53,7 +53,7 @@ func (h *Hub) register(ctx context.Context, s *session.Session, req protocol.Reg
 		h.deps.Lockout.RecordFailure(s.RemoteAddr())
 		return protocol.LoginResult{}, errPassphraseRejected
 	}
-	err := auth.CreateAccount(ctx, h.deps.Store, req.Username, req.Password)
+	err := auth.CreateAccount(ctx, h.deps.Store, req.Username, req.Password, h.deps.PasswordCost)
 	if errors.Is(err, store.ErrUserExists) {
 		return protocol.LoginResult{}, protocol.Error{Code: protocol.CodeUserExists, Msg: fmt.Sprintf("user %q already exists", req.Username)}
 	}

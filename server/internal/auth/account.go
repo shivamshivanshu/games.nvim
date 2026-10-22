@@ -18,10 +18,10 @@ var (
 	ErrPasswordTooLong = game.BadRequestError{Msg: fmt.Sprintf("password must be at most %d bytes", maxPasswordBytes)}
 )
 
-// CreateAccount creates user with password, or is store.ErrUserExists when
+// CreateAccount creates user with password hashed at cost, or is store.ErrUserExists when
 // the name is taken. It looks the name up before hashing, so a taken name
 // costs no bcrypt.
-func CreateAccount(ctx context.Context, st *store.Store, user game.UserID, password string) error {
+func CreateAccount(ctx context.Context, st *store.Store, user game.UserID, password string, cost int) error {
 	if err := game.CheckUserID(user); err != nil {
 		return game.BadRequestError{Msg: err.Error()}
 	}
@@ -38,7 +38,7 @@ func CreateAccount(ctx context.Context, st *store.Store, user game.UserID, passw
 	if exists {
 		return store.ErrUserExists
 	}
-	hash, err := HashPassword(password)
+	hash, err := HashPassword(password, cost)
 	if err != nil {
 		return err
 	}
