@@ -8,6 +8,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/internal/auth"
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
+	"github.com/shivamshivanshu/games.nvim/server/internal/room"
 	"github.com/shivamshivanshu/games.nvim/server/internal/session"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
@@ -137,20 +138,20 @@ func (h *Hub) gameSnapshot(ctx context.Context, s *session.Session, req protocol
 }
 
 func (h *Hub) act(ctx context.Context, s *session.Session, req protocol.GameActRequest) (protocol.SeqResult, error) {
-	r, err := h.liveRoom(req.GameID)
-	if err != nil {
-		return protocol.SeqResult{}, err
-	}
-	seq, err := r.Act(ctx, s.User(), req.Seq, req.Action)
-	return protocol.SeqResult{Seq: seq}, err
+	return h.submit(req.GameID, func(r *room.Room) (game.Seq, error) { return r.Act(ctx, s.User(), req.Seq, req.Action) })
 }
 
 func (h *Hub) control(ctx context.Context, s *session.Session, req protocol.GameControlRequest) (protocol.SeqResult, error) {
-	r, err := h.liveRoom(req.GameID)
+	return h.submit(req.GameID, func(r *room.Room) (game.Seq, error) { return r.Control(ctx, s.User(), req.Seq, req.Control) })
+}
+
+// submit takes a step on the live room of id and gives the seq it reached.
+func (h *Hub) submit(id game.GameID, step func(*room.Room) (game.Seq, error)) (protocol.SeqResult, error) {
+	r, err := h.liveRoom(id)
 	if err != nil {
 		return protocol.SeqResult{}, err
 	}
-	seq, err := r.Control(ctx, s.User(), req.Seq, req.Control)
+	seq, err := step(r)
 	return protocol.SeqResult{Seq: seq}, err
 }
 

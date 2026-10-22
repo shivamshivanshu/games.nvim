@@ -13,3 +13,7 @@ func (e Error) Error() string { return e.Msg }
 func BadRequestf(format string, args ...any) Error {
 	return Error{Code: CodeBadRequest, Msg: fmt.Sprintf(format, args...)}
 }
+
+func NotFoundf(format string, args ...any) Error {
+	return Error{Code: CodeNotFound, Msg: fmt.Sprintf(format, args...)}
+}

@@ -359,7 +359,9 @@ func TestUnknownGameIsNotFound(t *testing.T) {
 	_, err := a.Request(protocol.TypeGameSnapshot, protocol.GameSnapshotRequest{GameID: "nope"})
 	prototest.WantCode(t, err, protocol.CodeNotFound)
 	_, err = a.Request(protocol.TypeGameAct, protocol.GameActRequest{GameID: "nope"})
-	prototest.WantCode(t, err, protocol.CodeNotFound)
+	if msg := prototest.WantCode(t, err, protocol.CodeNotFound); msg != "no ongoing game nope" {
+		t.Errorf("act on an unknown game: %q, want no store detail", msg)
+	}
 }
 
 func TestWrongPasswordAndLockout(t *testing.T) {

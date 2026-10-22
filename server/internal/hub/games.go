@@ -177,7 +177,7 @@ func (h *Hub) liveRoom(id game.GameID) (*room.Room, error) {
 	defer h.mu.Unlock()
 	g, ok := h.live[id]
 	if !ok {
-		return nil, protocol.Error{Code: protocol.CodeNotFound, Msg: fmt.Sprintf("no ongoing game %s: %v", id, store.ErrNotFound)}
+		return nil, protocol.NotFoundf("no ongoing game %s", id)
 	}
 	return g.room, nil
 }
@@ -247,7 +247,7 @@ func (h *Hub) snapshot(ctx context.Context, id game.GameID, user game.UserID) (p
 	}
 	rec, err := h.deps.Store.LoadGame(ctx, id)
 	if errors.Is(err, store.ErrNotFound) || err == nil && rec.Finish == nil {
-		return protocol.GameUpdate{}, protocol.Error{Code: protocol.CodeNotFound, Msg: fmt.Sprintf("no game %s", id)}
+		return protocol.GameUpdate{}, protocol.NotFoundf("no game %s", id)
 	}
 	if err != nil {
 		return protocol.GameUpdate{}, err
