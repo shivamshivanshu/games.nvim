@@ -138,10 +138,14 @@ func (s state) cellView(cell int) Tile {
 
 // unchordable says why a chord on cell is refused, or "" when it may chord.
 func (s state) unchordable(cell int) string {
+	const notANumber = "is not a revealed number"
+	if !s.open[cell] {
+		return notANumber
+	}
 	count := s.minesAround(cell)
 	switch flags := s.flagsAround(cell); {
-	case !s.open[cell] || count == 0:
-		return "is not a revealed number"
+	case count == 0:
+		return notANumber
 	case flags != count:
 		return fmt.Sprintf("shows %d but has %d flags around it", count, flags)
 	case len(s.coveredAround(cell)) == 0:
