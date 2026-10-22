@@ -1,6 +1,7 @@
 package hub_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -27,6 +28,8 @@ func TestRegisterLogsInAndCreatesTheAccount(t *testing.T) {
 
 	_, err := c.Request(protocol.TypeAuthRegister, registerRequest("frank", testPassword, testPassphrase))
 	prototest.WantCode(t, err, protocol.CodeBadRequest)
+	_, err = prototest.Dial(t, srv.addr).Request(protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: "frank", Password: testPassword})
+	prototest.WantCode(t, err, protocol.CodeAuthFailed)
 
 	again := prototest.Dial(t, srv.addr)
 	call[protocol.LoginResult](t, again, protocol.TypeAuthLogin, protocol.LoginRequest{V: protocol.Version, Username: erin, Password: "erin's secret"})
@@ -49,6 +52,9 @@ func TestRegisterRejects(t *testing.T) {
 		{"empty name", false, registerRequest("", testPassword, testPassphrase), protocol.CodeBadRequest},
 		{"hidden characters in the name", false, registerRequest("ev\nil", testPassword, testPassphrase), protocol.CodeBadRequest},
 		{"empty password", false, registerRequest(erin, "", testPassphrase), protocol.CodeBadRequest},
+		{"password past bcrypt's 72 bytes", false, registerRequest(erin, strings.Repeat("p", 73), testPassphrase), protocol.CodeBadRequest},
+		{"name past the length cap", false, registerRequest(game.UserID(strings.Repeat("e", game.MaxUserIDRunes+1)), testPassword, testPassphrase), protocol.CodeBadRequest},
+		{"whitespace around the name", false, registerRequest("erin ", testPassword, testPassphrase), protocol.CodeBadRequest},
 		{"other protocol version", false, protocol.RegisterRequest{V: protocol.Version + 1, Username: erin, Password: testPassword, Passphrase: testPassphrase}, protocol.CodeVersionMismatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
