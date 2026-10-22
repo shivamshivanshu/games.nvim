@@ -335,10 +335,7 @@ M.describers = {
 ---@return games.LegendEntry[]
 function M.legend(ctx)
   local function tile(name, meaning)
-    return { sample = { grid.sample(ctx, { name, TILE_HL[name] }) }, meaning = meaning }
-  end
-  local function overlay(key, hl, meaning)
-    return { sample = { grid.sample(ctx, { key }, hl) }, meaning = meaning }
+    return grid.legend_entry(ctx, { name, TILE_HL[name] }, meaning)
   end
   return {
     tile("empty", "open water"),
@@ -346,10 +343,15 @@ function M.legend(ctx)
     tile("miss", "a shot that missed"),
     tile("hit", "a hit"),
     tile("sunk", "a ship sunk"),
-    { sample = { grid.sample(ctx, { "hit", TILE_HL.hit }, LAST_HL) }, meaning = "the latest shot" },
-    overlay(BERTH_KEY, BERTH_HL, "the ship you are placing, where it fits"),
-    overlay(AIM_KEY, AIM_HL, "your aim, at open water"),
-    overlay(BLOCKED_KEY, BLOCKED_HL, "the ship does not fit there, or that cell was fired at"),
+    grid.legend_entry(ctx, { "hit", TILE_HL.hit }, "the latest shot", LAST_HL),
+    grid.legend_entry(ctx, { BERTH_KEY }, "the ship you are placing, where it fits", BERTH_HL),
+    grid.legend_entry(ctx, { AIM_KEY }, "your aim, at open water", AIM_HL),
+    grid.legend_entry(
+      ctx,
+      { BLOCKED_KEY },
+      "the ship does not fit there, or that cell was fired at",
+      BLOCKED_HL
+    ),
   }
 end
 

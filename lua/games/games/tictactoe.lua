@@ -1,6 +1,5 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
-local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
@@ -114,19 +113,12 @@ function M.legend(ctx)
   local x = { SEAT_KEYS[1], theme.seat_hl(1) }
   return {
     {
-      sample = {
-        grid.sample(ctx, x),
-        compose.text(" "),
-        grid.sample(ctx, { SEAT_KEYS[2], theme.seat_hl(2) }),
-      },
+      sample = grid.samples(ctx, { x, { SEAT_KEYS[2], theme.seat_hl(2) } }),
       meaning = "each player's mark, in their colour in the header",
     },
-    {
-      sample = { grid.sample(ctx, { "5", EMPTY_HL }) },
-      meaning = "an empty cell: its number takes it",
-    },
-    { sample = { grid.sample(ctx, x, Group.LAST_MOVE) }, meaning = "the last move" },
-    { sample = { grid.sample(ctx, x, Group.WIN) }, meaning = "a winning line" },
+    grid.legend_entry(ctx, { "5", EMPTY_HL }, "an empty cell: its number takes it"),
+    grid.legend_entry(ctx, x, "the last move", Group.LAST_MOVE),
+    grid.legend_entry(ctx, x, "a winning line", Group.WIN),
   }
 end
 

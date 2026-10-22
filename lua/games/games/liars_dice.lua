@@ -226,11 +226,8 @@ M.describers = {
 ---@return games.LegendEntry[]
 function M.legend(ctx)
   return {
-    {
-      sample = { grid.sample(ctx, dice.cell(SAMPLE_FACE)) },
-      meaning = "one of your dice, hidden from the others",
-    },
-    { sample = { grid.sample(ctx, dice.cell(nil)) }, meaning = "a die you have lost" },
+    grid.legend_entry(ctx, dice.cell(SAMPLE_FACE), "one of your dice, hidden from the others"),
+    grid.legend_entry(ctx, dice.cell(nil), "a die you have lost"),
   }
 end
 

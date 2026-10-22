@@ -178,31 +178,29 @@ M.describers = {
 function M.legend(ctx)
   local entered = theme.seat_hl(1)
   return {
-    {
-      sample = { grid.sample(ctx, { art.marked_key(SAMPLE_DIGIT), Group.GIVEN }) },
-      meaning = "a given: part of the puzzle",
-    },
-    {
-      sample = { grid.sample(ctx, { art.marked_key(SAMPLE_DIGIT), entered }) },
-      meaning = "a digit you entered, in your colour",
-    },
-    {
-      sample = {
-        grid.sample(ctx, { art.marked_key(SAMPLE_DIGIT, Marker.CONFLICT), entered }, CONFLICT_HL),
-      },
-      meaning = "a conflict: the digit repeats in its row, column or box",
-    },
-    { sample = { grid.sample(ctx, { EMPTY_KEY, EMPTY_HL }) }, meaning = "an empty cell" },
-    {
-      sample = {
-        grid.sample(
-          ctx,
-          { art.marked_key(SAMPLE_DIGIT, Marker.REVEALED), REVEALED_FG_HL },
-          REVEALED_HL
-        ),
-      },
-      meaning = "once the game is over: the solution's digit, where yours was wrong or missing",
-    },
+    grid.legend_entry(
+      ctx,
+      { art.marked_key(SAMPLE_DIGIT), Group.GIVEN },
+      "a given: part of the puzzle"
+    ),
+    grid.legend_entry(
+      ctx,
+      { art.marked_key(SAMPLE_DIGIT), entered },
+      "a digit you entered, in your colour"
+    ),
+    grid.legend_entry(
+      ctx,
+      { art.marked_key(SAMPLE_DIGIT, Marker.CONFLICT), entered },
+      "a conflict: the digit repeats in its row, column or box",
+      CONFLICT_HL
+    ),
+    grid.legend_entry(ctx, { EMPTY_KEY, EMPTY_HL }, "an empty cell"),
+    grid.legend_entry(
+      ctx,
+      { art.marked_key(SAMPLE_DIGIT, Marker.REVEALED), REVEALED_FG_HL },
+      "once the game is over: the solution's digit, where yours was wrong or missing",
+      REVEALED_HL
+    ),
   }
 end
 

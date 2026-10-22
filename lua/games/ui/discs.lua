@@ -81,28 +81,18 @@ function M.legend(ctx, kinds)
   local black = { "black", SEAT_HL.black }
   local entries = {
     {
-      sample = {
-        grid.sample(ctx, black),
-        compose.text(" "),
-        grid.sample(ctx, { "white", SEAT_HL.white }),
-      },
+      sample = grid.samples(ctx, { black, { "white", SEAT_HL.white } }),
       meaning = "black and white discs",
     },
-    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "an empty cell" },
-    {
-      sample = { grid.sample(ctx, black, Group.LAST_MOVE) },
-      meaning = "the last disc, also named beside the board",
-    },
+    grid.legend_entry(ctx, { EMPTY_KEY }, "an empty cell"),
+    grid.legend_entry(ctx, black, "the last disc, also named beside the board", Group.LAST_MOVE),
   }
   if vim.tbl_contains(kinds, MarkKind.LEGAL) then
-    entries[#entries + 1] =
-      { sample = { grid.sample(ctx, { LEGAL_KEY }, LEGAL_HL) }, meaning = "a cell you may play" }
+    entries[#entries + 1] = grid.legend_entry(ctx, { LEGAL_KEY }, "a cell you may play", LEGAL_HL)
   end
   if vim.tbl_contains(kinds, MarkKind.WINNING_LINE) then
-    entries[#entries + 1] = {
-      sample = { grid.sample(ctx, black, Group.WIN) },
-      meaning = "a winning line, also named beside the board",
-    }
+    entries[#entries + 1] =
+      grid.legend_entry(ctx, black, "a winning line, also named beside the board", Group.WIN)
   end
   return entries
 end

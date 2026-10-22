@@ -329,13 +329,10 @@ M.describers = {
 function M.legend(ctx)
   local die = dice.cell(SAMPLE_FACE)
   return {
-    { sample = { grid.sample(ctx, die) }, meaning = "a die" },
-    { sample = { grid.sample(ctx, dice.cell(nil)) }, meaning = "a die not yet rolled" },
-    {
-      sample = { grid.sample(ctx, die, HELD_HL) },
-      meaning = "a held die, which the next roll keeps",
-    },
-    { sample = { grid.sample(ctx, { HELD_KEY }) }, meaning = "under a die: held" },
+    grid.legend_entry(ctx, die, "a die"),
+    grid.legend_entry(ctx, dice.cell(nil), "a die not yet rolled"),
+    grid.legend_entry(ctx, die, "a held die, which the next roll keeps", HELD_HL),
+    grid.legend_entry(ctx, { HELD_KEY }, "under a die: held"),
   }
 end
 

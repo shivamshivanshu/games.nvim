@@ -315,14 +315,13 @@ M.describers = {
 ---@return games.LegendEntry[]
 function M.legend(ctx)
   return {
-    {
-      sample = { grid.sample(ctx, { "R5", cards.uno_hl("R5") }, CARD_HL) },
-      meaning = "the discard pile's top card, in the colour in play",
-    },
-    {
-      sample = { grid.sample(ctx, { DECK_KEY, Group.MUTED }, CARD_HL) },
-      meaning = "the draw pile",
-    },
+    grid.legend_entry(
+      ctx,
+      { "R5", cards.uno_hl("R5") },
+      "the discard pile's top card, in the colour in play",
+      CARD_HL
+    ),
+    grid.legend_entry(ctx, { DECK_KEY, Group.MUTED }, "the draw pile", CARD_HL),
     {
       sample = { compose.text(cards.MARK) },
       meaning = "under a card in your hand: you may play it",

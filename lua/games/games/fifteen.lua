@@ -141,15 +141,19 @@ M.describers = {
 ---@return games.LegendEntry[]
 function M.legend(ctx)
   return {
-    { sample = { grid.sample(ctx, { key_for(SAMPLE_TILE, false) }) }, meaning = "a tile" },
-    {
-      sample = { grid.sample(ctx, { key_for(SAMPLE_TILE, true) }, Group.MOVABLE) },
-      meaning = "a tile that may slide into the blank",
-    },
-    {
-      sample = { grid.sample(ctx, { key_for(SAMPLE_TILE, false) }, SOLVED_HL) },
-      meaning = "solved: every tile in place",
-    },
+    grid.legend_entry(ctx, { key_for(SAMPLE_TILE, false) }, "a tile"),
+    grid.legend_entry(
+      ctx,
+      { key_for(SAMPLE_TILE, true) },
+      "a tile that may slide into the blank",
+      Group.MOVABLE
+    ),
+    grid.legend_entry(
+      ctx,
+      { key_for(SAMPLE_TILE, false) },
+      "solved: every tile in place",
+      SOLVED_HL
+    ),
   }
 end
 

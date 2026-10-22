@@ -431,11 +431,8 @@ function M.legend(ctx)
       sample = { card("Qs"), compose.text(" "), card("Ah") },
       meaning = "a card: the board's on top, yours below",
     },
-    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "a board card still to come" },
-    {
-      sample = { grid.sample(ctx, { BUTTON_KEY, Group.KEY }) },
-      meaning = "the dealer button, beside its seat",
-    },
+    grid.legend_entry(ctx, { EMPTY_KEY }, "a board card still to come"),
+    grid.legend_entry(ctx, { BUTTON_KEY, Group.KEY }, "the dealer button, beside its seat"),
   }
 end
 

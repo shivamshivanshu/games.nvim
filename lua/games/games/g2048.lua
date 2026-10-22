@@ -127,9 +127,9 @@ M.describers = {
 function M.legend(ctx)
   local tile = { M.tile_keys[1] }
   return {
-    { sample = { grid.sample(ctx, tile) }, meaning = "a tile, by its value" },
-    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "an empty cell" },
-    { sample = { grid.sample(ctx, tile, GOAL_HL) }, meaning = "a tile of the goal or above" },
+    grid.legend_entry(ctx, tile, "a tile, by its value"),
+    grid.legend_entry(ctx, { EMPTY_KEY }, "an empty cell"),
+    grid.legend_entry(ctx, tile, "a tile of the goal or above", GOAL_HL),
   }
 end
 

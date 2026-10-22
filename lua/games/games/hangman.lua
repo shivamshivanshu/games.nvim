@@ -192,12 +192,13 @@ M.describers = {
 ---@return games.LegendEntry[]
 function M.legend(ctx)
   return {
-    { sample = { grid.sample(ctx, { "a" }) }, meaning = "a letter found" },
-    { sample = { grid.sample(ctx, { HIDDEN_KEY }) }, meaning = "a letter still hidden" },
-    {
-      sample = { grid.sample(ctx, { unfound_key("a"), UNFOUND_HL }) },
-      meaning = "once the game is over: a letter you did not find",
-    },
+    grid.legend_entry(ctx, { "a" }, "a letter found"),
+    grid.legend_entry(ctx, { HIDDEN_KEY }, "a letter still hidden"),
+    grid.legend_entry(
+      ctx,
+      { unfound_key("a"), UNFOUND_HL },
+      "once the game is over: a letter you did not find"
+    ),
   }
 end
 

@@ -1,6 +1,5 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
-local compose = require("games.ui.compose")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local keys = require("games.ui.keys")
@@ -263,28 +262,24 @@ M.describers = {
 ---@return games.LegendEntry[]
 function M.legend(ctx)
   local function tile(key, meaning)
-    return { sample = { grid.sample(ctx, { key, TILE_HLS[key] }) }, meaning = meaning }
+    return grid.legend_entry(ctx, { key, TILE_HLS[key] }, meaning)
   end
-  local ghosts = {}
-  for i, name in ipairs(GHOST_NAMES) do
-    ghosts[#ghosts + 1] = i > 1 and compose.text(" ") or nil
-    ghosts[#ghosts + 1] = grid.sample(ctx, ghost_cell(name, "chase"))
-  end
+  local ghosts = grid.samples(
+    ctx,
+    vim.tbl_map(function(name)
+      return ghost_cell(name, "chase")
+    end, GHOST_NAMES)
+  )
   local first = GHOST_NAMES[1]
   return {
-    {
-      sample = { grid.sample(ctx, { pacman_key(Direction.RIGHT), Group.PACMAN }) },
-      meaning = "Pac-Man, facing the way it moves",
-    },
+    grid.legend_entry(
+      ctx,
+      { pacman_key(Direction.RIGHT), Group.PACMAN },
+      "Pac-Man, facing the way it moves"
+    ),
     { sample = ghosts, meaning = "the ghosts: blinky, pinky, inky and clyde" },
-    {
-      sample = { grid.sample(ctx, ghost_cell(first, "frightened")) },
-      meaning = "a frightened ghost",
-    },
-    {
-      sample = { grid.sample(ctx, ghost_cell(first, "eyes")) },
-      meaning = "a ghost's eyes, going home",
-    },
+    grid.legend_entry(ctx, ghost_cell(first, "frightened"), "a frightened ghost"),
+    grid.legend_entry(ctx, ghost_cell(first, "eyes"), "a ghost's eyes, going home"),
     tile("dot", "a dot"),
     tile("pellet", "a pellet, which frightens the ghosts"),
     tile("wall", "a wall"),

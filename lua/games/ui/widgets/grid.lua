@@ -100,6 +100,8 @@ end
 ---@field cell_marks fun(cells: games.Cell[], hl: games.Hl): games.GridMark[]
 ---@field marks_where fun(rows: any[][], hl_of: fun(value: any, row: integer, col: integer): games.Hl|nil): games.GridMark[]
 ---@field sample fun(ctx: games.DescribeCtx, cell: games.GridCell, mark_hl?: games.Hl): games.TextNode
+---@field samples fun(ctx: games.DescribeCtx, cells: games.GridCell[], mark_hl?: games.Hl): games.TextNode[]
+---@field legend_entry fun(ctx: games.DescribeCtx, cell: games.GridCell, meaning: string, mark_hl?: games.Hl): games.LegendEntry
 ---@overload fun(props: games.GridProps): games.Node
 
 local M = {}
@@ -332,6 +334,32 @@ function M.sample(ctx, cell, mark_hl)
   local key, own_hl = cell[1], cell[2]
   local glyph = ctx.art and art.glyph(ctx.art, key, ctx.ambiwidth) or key
   return compose.text(glyph, cell_hl(nil, mark_hl, own_hl))
+end
+
+---Samples of cells, a space apart, each as M.sample draws it.
+---@param ctx games.DescribeCtx
+---@param cells games.GridCell[]
+---@param mark_hl? games.Hl
+---@return games.TextNode[]
+function M.samples(ctx, cells, mark_hl)
+  local nodes = {}
+  for i, cell in ipairs(cells) do
+    if i > 1 then
+      nodes[#nodes + 1] = compose.text(" ")
+    end
+    nodes[#nodes + 1] = M.sample(ctx, cell, mark_hl)
+  end
+  return nodes
+end
+
+---A legend entry whose sample is cell, as M.sample draws it.
+---@param ctx games.DescribeCtx
+---@param cell games.GridCell
+---@param meaning string
+---@param mark_hl? games.Hl
+---@return games.LegendEntry
+function M.legend_entry(ctx, cell, meaning, mark_hl)
+  return { sample = { M.sample(ctx, cell, mark_hl) }, meaning = meaning }
 end
 
 ---The lines drawing key in a cell of size box; every cell of one grid shares box and ambiwidth.

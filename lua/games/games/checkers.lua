@@ -166,23 +166,13 @@ M.describers = {
 ---@return games.LegendEntry[]
 function M.legend(ctx)
   local function pieces(man, king)
-    return {
-      grid.sample(ctx, { man, PIECE_HL[man] }),
-      compose.text(" "),
-      grid.sample(ctx, { king, PIECE_HL[king] }),
-    }
+    return grid.samples(ctx, { { man, PIECE_HL[man] }, { king, PIECE_HL[king] } })
   end
   return {
     { sample = pieces("b", "B"), meaning = "a black man and king" },
     { sample = pieces("w", "W"), meaning = "a white man and king" },
-    {
-      sample = { grid.sample(ctx, { EMPTY_KEY }, LAST_MOVE_HL) },
-      meaning = "the last move's path",
-    },
-    {
-      sample = { grid.sample(ctx, { "b", PIECE_HL.b }, Group.MOVABLE) },
-      meaning = "a piece you may move",
-    },
+    grid.legend_entry(ctx, { EMPTY_KEY }, "the last move's path", LAST_MOVE_HL),
+    grid.legend_entry(ctx, { "b", PIECE_HL.b }, "a piece you may move", Group.MOVABLE),
   }
 end
 

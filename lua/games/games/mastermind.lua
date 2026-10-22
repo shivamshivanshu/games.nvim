@@ -216,18 +216,15 @@ M.describers = {
 ---@param ctx games.DescribeCtx
 ---@return games.LegendEntry[]
 function M.legend(ctx)
-  local function key_entry(key, meaning)
-    return { sample = { grid.sample(ctx, { key }) }, meaning = meaning }
-  end
   local red = peg(COLOURS[1])
   return {
-    { sample = { grid.sample(ctx, red) }, meaning = "a code peg, by colour, named in the panel" },
-    key_entry(Key.BLACK, "key peg: " .. BLACK_MEANING),
-    key_entry(Key.WHITE, "key peg: " .. WHITE_MEANING),
-    key_entry(Key.NO_KEY, "no key peg"),
-    key_entry(Key.HOLE, "a guess still to make"),
-    key_entry(Key.HIDDEN, "the secret, hidden until the game is over"),
-    { sample = { grid.sample(ctx, red, SOLVED_HL) }, meaning = "the guess that solved the code" },
+    grid.legend_entry(ctx, red, "a code peg, by colour, named in the panel"),
+    grid.legend_entry(ctx, { Key.BLACK }, "key peg: " .. BLACK_MEANING),
+    grid.legend_entry(ctx, { Key.WHITE }, "key peg: " .. WHITE_MEANING),
+    grid.legend_entry(ctx, { Key.NO_KEY }, "no key peg"),
+    grid.legend_entry(ctx, { Key.HOLE }, "a guess still to make"),
+    grid.legend_entry(ctx, { Key.HIDDEN }, "the secret, hidden until the game is over"),
+    grid.legend_entry(ctx, red, "the guess that solved the code", SOLVED_HL),
   }
 end
 

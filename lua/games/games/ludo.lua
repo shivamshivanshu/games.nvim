@@ -450,25 +450,20 @@ M.describers = {
 function M.legend(ctx)
   local first_seat = theme.seat_hl(1)
   local token = { SEATS[1] .. 1, first_seat }
-  local function square(key, hl, meaning)
-    return { sample = { grid.sample(ctx, { key, hl }) }, meaning = meaning }
-  end
   return {
-    {
-      sample = { grid.sample(ctx, token) },
-      meaning = "a seat's tokens on a square, by count, in its colour in the header",
-    },
-    square("mixed2", nil, "tokens of more than one seat, by count"),
-    {
-      sample = { grid.sample(ctx, token, Group.LAST_MOVE) },
-      meaning = "where the last move landed",
-    },
-    square(TRACK_KEY, nil, "the track"),
-    square("safe", nil, "a safe square: no capture there"),
-    square("spot", first_seat, "a base spot, in its seat's colour"),
-    square("lane", first_seat, "a home column, in its seat's colour"),
-    square("goal", first_seat, "the goal, where finished tokens stand"),
-    square(MOVABLE_KEY, nil, "after a token in the panel: it may move"),
+    grid.legend_entry(
+      ctx,
+      token,
+      "a seat's tokens on a square, by count, in its colour in the header"
+    ),
+    grid.legend_entry(ctx, { "mixed2" }, "tokens of more than one seat, by count"),
+    grid.legend_entry(ctx, token, "where the last move landed", Group.LAST_MOVE),
+    grid.legend_entry(ctx, { TRACK_KEY }, "the track"),
+    grid.legend_entry(ctx, { "safe" }, "a safe square: no capture there"),
+    grid.legend_entry(ctx, { "spot", first_seat }, "a base spot, in its seat's colour"),
+    grid.legend_entry(ctx, { "lane", first_seat }, "a home column, in its seat's colour"),
+    grid.legend_entry(ctx, { "goal", first_seat }, "the goal, where finished tokens stand"),
+    grid.legend_entry(ctx, { MOVABLE_KEY }, "after a token in the panel: it may move"),
   }
 end
 

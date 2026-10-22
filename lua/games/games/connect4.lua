@@ -1,6 +1,5 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
-local compose = require("games.ui.compose")
 local discs = require("games.ui.discs")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
@@ -92,16 +91,12 @@ function M.legend(ctx)
   local red = { "red", theme.seat_hl(1) }
   return {
     {
-      sample = {
-        grid.sample(ctx, red),
-        compose.text(" "),
-        grid.sample(ctx, { "yellow", theme.seat_hl(2) }),
-      },
+      sample = grid.samples(ctx, { red, { "yellow", theme.seat_hl(2) } }),
       meaning = "each player's discs, in their colour in the header",
     },
-    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "an empty cell" },
-    { sample = { grid.sample(ctx, red, Group.LAST_MOVE) }, meaning = "the last disc" },
-    { sample = { grid.sample(ctx, red, Group.WIN) }, meaning = "a winning line" },
+    grid.legend_entry(ctx, { EMPTY_KEY }, "an empty cell"),
+    grid.legend_entry(ctx, red, "the last disc", Group.LAST_MOVE),
+    grid.legend_entry(ctx, red, "a winning line", Group.WIN),
   }
 end
 

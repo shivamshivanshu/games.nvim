@@ -437,10 +437,7 @@ function M.legend(ctx)
       sample = { card("Qs"), compose.text(" "), card("Ah") },
       meaning = "a card played to the trick; hearts and diamonds red",
     },
-    {
-      sample = { grid.sample(ctx, { EMPTY_KEY, Group.MUTED }) },
-      meaning = "a seat still to play to the trick",
-    },
+    grid.legend_entry(ctx, { EMPTY_KEY, Group.MUTED }, "a seat still to play to the trick"),
     {
       sample = { compose.text(cards.MARK) },
       meaning = "under a card in your hand: you may play it",

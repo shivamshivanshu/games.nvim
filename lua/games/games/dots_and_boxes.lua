@@ -250,22 +250,19 @@ M.describers = {
 ---@param ctx games.DescribeCtx
 ---@return games.LegendEntry[]
 function M.legend(ctx)
-  local function entry(cell, meaning)
-    return { sample = { grid.sample(ctx, cell) }, meaning = meaning }
-  end
   local across = cursor.Orientation.ACROSS
   return {
-    entry({ DOT_KEY, DOT_HL }, "a dot"),
-    entry({ DRAWN_KEY[across], EDGE_HL }, "a line drawn"),
-    entry({ LAST_KEY[across], LAST_HL }, "the last line drawn, also named in the panel"),
-    entry({ AIM_KEY[across], AIM_HL }, "the cursor, on a line you may draw"),
-    entry({ BLOCKED_KEY, BLOCKED_HL }, "the cursor, on a line already drawn"),
+    grid.legend_entry(ctx, { DOT_KEY, DOT_HL }, "a dot"),
+    grid.legend_entry(ctx, { DRAWN_KEY[across], EDGE_HL }, "a line drawn"),
+    grid.legend_entry(
+      ctx,
+      { LAST_KEY[across], LAST_HL },
+      "the last line drawn, also named in the panel"
+    ),
+    grid.legend_entry(ctx, { AIM_KEY[across], AIM_HL }, "the cursor, on a line you may draw"),
+    grid.legend_entry(ctx, { BLOCKED_KEY, BLOCKED_HL }, "the cursor, on a line already drawn"),
     {
-      sample = {
-        grid.sample(ctx, { "p1", theme.seat_hl(1) }),
-        compose.text(" "),
-        grid.sample(ctx, { "p2", theme.seat_hl(2) }),
-      },
+      sample = grid.samples(ctx, { { "p1", theme.seat_hl(1) }, { "p2", theme.seat_hl(2) } }),
       meaning = "a completed box, in its owner's colour in the header",
     },
   }

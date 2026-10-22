@@ -189,15 +189,9 @@ function M.legend(ctx)
     return { key_for(kind, SAMPLE_SEEDS), theme.seat_hl(1) }
   end
   return {
-    {
-      sample = { grid.sample(ctx, pit(KeyKind.PIT)) },
-      meaning = "a pit and its seeds, in its owner's colour",
-    },
-    { sample = { grid.sample(ctx, pit(KeyKind.LEGAL), LEGAL_HL) }, meaning = "a pit you may sow" },
-    {
-      sample = { grid.sample(ctx, pit(KeyKind.STORE)) },
-      meaning = "a store: the seeds its owner has won",
-    },
+    grid.legend_entry(ctx, pit(KeyKind.PIT), "a pit and its seeds, in its owner's colour"),
+    grid.legend_entry(ctx, pit(KeyKind.LEGAL), "a pit you may sow", LEGAL_HL),
+    grid.legend_entry(ctx, pit(KeyKind.STORE), "a store: the seeds its owner has won"),
   }
 end
 

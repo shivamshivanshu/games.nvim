@@ -192,7 +192,7 @@ function M.legend(ctx)
     { sample = tile(Mark.HIT), meaning = "hit: the right letter in the right place" },
     { sample = tile(Mark.PRESENT), meaning = "present: in the word, but elsewhere" },
     { sample = tile(Mark.MISS), meaning = "miss: not in the word" },
-    { sample = { grid.sample(ctx, { EMPTY_KEY }) }, meaning = "a guess still to make" },
+    grid.legend_entry(ctx, { EMPTY_KEY }, "a guess still to make"),
     { sample = keyboard_sample, meaning = "keyboard: each letter in its best mark so far" },
   }
 end
