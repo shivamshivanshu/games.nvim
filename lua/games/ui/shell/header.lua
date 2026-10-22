@@ -98,9 +98,9 @@ end
 ---@param me games.UserID
 ---@param elapsed_ms integer
 ---@param extras? games.Node drawn after the clocks, a line per player
----@return games.Rendered
+---@return games.Node
 ---@return games.ClockColumn|nil
-function M.render(update, me, elapsed_ms, extras)
+function M.layout(update, me, elapsed_ms, extras)
   ---@param cell fun(player: games.PlayerSeat, i: integer): games.Node
   ---@return games.Node
   local function column(cell)
@@ -147,10 +147,8 @@ function M.render(update, me, elapsed_ms, extras)
       return turn_marker(update, player.user, me)
     end)
   )
-  local header = compose.render(
-    compose.col({ compose.row(columns), status_banner(update, me) or compose.text("") })
-  )
-  return header, clocks
+  return compose.col({ compose.row(columns), status_banner(update, me) or compose.text("") }),
+    clocks
 end
 
 ---Rewrites one clock, which keeps its byte length, and its low-time highlight.

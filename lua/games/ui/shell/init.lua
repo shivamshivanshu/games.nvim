@@ -44,25 +44,6 @@ local boards = {}
 ---@type table<games.Client, true>
 local subscribed_clients = setmetatable({}, { __mode = "k" })
 
----@param top games.Rendered
----@param bottom games.Rendered
----@return games.Rendered
-local function stack(top, bottom)
-  local lines = vim.list_extend(vim.list_extend({}, top.lines), bottom.lines)
-  local above, below = top.marks, bottom.marks
-  local marks = {
-    row = vim.list_extend({}, above.row),
-    col = vim.list_extend({}, above.col),
-    end_col = vim.list_extend({}, above.end_col),
-    hl = vim.list_extend({}, above.hl),
-  }
-  local offset = #top.lines
-  for i = 1, #below.row do
-    compose.add_mark(marks, below.row[i] + offset, below.col[i], below.end_col[i], below.hl[i])
-  end
-  return { lines = lines, marks = marks }
-end
-
 ---@type fun(board: games.Board)
 local render_board
 
@@ -132,15 +113,16 @@ function M.render(update, module, view, me, elapsed_ms, display, catalogued)
     ambiwidth = measured.ambiwidth or types.DEFAULT_AMBIWIDTH,
     flip = is_flipped(update, module, view, me),
   }) --[[@as games.LayoutCtx]]
-  local header_rendered, clocks =
-    header.render(update, me, elapsed_ms or 0, header.extras_column(update, module, ctx))
-  local body = compose.render(compose.col({
+  local header_node, clocks =
+    header.layout(update, me, elapsed_ms or 0, header.extras_column(update, module, ctx))
+  local rendered = compose.render(compose.col({
+    header_node,
     compose.text(""),
     module.layout(update, ctx),
     compose.text(""),
     footer,
   }))
-  return stack(header_rendered, body), #header_rendered.lines, bindings, clocks
+  return rendered, compose.measure(header_node).h, bindings, clocks
 end
 
 ---@param board games.Board
