@@ -35,6 +35,16 @@ local EXTRA_FETCHES = {
       end)
     )
   end,
+  [sources.SourceName.REQUESTS] = function(client, done)
+    client:challenge_list(
+      nil,
+      on_ok(function()
+        client:game_infos(function()
+          done({})
+        end)
+      end)
+    )
+  end,
   [sources.SourceName.PUZZLES] = function(_, done)
     puzzles.summaries(function(summaries)
       done({ puzzle_sets = summaries })
@@ -77,19 +87,6 @@ function M.find(client, me, name)
   fetch(client, function(extra)
     open_finder(sources.build(name, sources.snapshot(client, me, extra)))
   end)
-end
-
----Opens the finder over the challenges the server lists, once the catalog naming their games is in.
----@type games.SubcommandRun
-function M.run_challenges(client, me)
-  client:challenge_list(
-    nil,
-    on_ok(function()
-      client:game_infos(function()
-        open_finder(sources.build(sources.SourceName.REQUESTS, sources.snapshot(client, me)))
-      end)
-    end)
-  )
 end
 
 ---Opens the finder over the games of status args[1], ongoing by default, as game.list returns them,

@@ -526,30 +526,32 @@ local function pending_challenge(challenge_id, from, to)
   }
 end
 
-function T.challenges_opens_the_requests_finder_once_the_challenges_and_catalog_are_in()
-  with_stub_client({ username = "alice", password = "pw" }, function(conn)
-    conn:push("connected", LOGIN)
-    helpers.with_select_answers({ "bob → you: Chess", "accept" }, function(prompts)
-      commands.run({ "challenges" })
-      assert_eq({}, prompts)
-      conn:respond(MessageType.CHALLENGE_LIST, {
-        challenges = {
-          pending_challenge("c-out", "alice", "carol"),
-          pending_challenge("c-in", "bob", "alice"),
-        },
-      })
-      assert_eq({}, prompts)
-      conn:respond(
-        MessageType.CATALOG_LIST,
-        { games = { vim.tbl_extend("force", game_info("chess", 2, 2), { name = "Chess" }) } }
-      )
-      assert_eq({
-        { prompt = "Challenges:", labels = { "bob → you: Chess", "you → carol: Chess" } },
-        { prompt = "bob → you: Chess:", labels = { "accept", "decline" } },
-      }, prompts)
+function T.challenges_and_find_requests_open_the_requests_finder_once_the_challenges_and_catalog_are_in()
+  for _, args in ipairs({ { "challenges" }, { "find", "requests" } }) do
+    with_stub_client({ username = "alice", password = "pw" }, function(conn)
+      conn:push("connected", LOGIN)
+      helpers.with_select_answers({ "bob → you: Chess", "accept" }, function(prompts)
+        commands.run(args)
+        assert_eq({}, prompts)
+        conn:respond(MessageType.CHALLENGE_LIST, {
+          challenges = {
+            pending_challenge("c-out", "alice", "carol"),
+            pending_challenge("c-in", "bob", "alice"),
+          },
+        })
+        assert_eq({}, prompts)
+        conn:respond(
+          MessageType.CATALOG_LIST,
+          { games = { vim.tbl_extend("force", game_info("chess", 2, 2), { name = "Chess" }) } }
+        )
+        assert_eq({
+          { prompt = "Challenges:", labels = { "bob → you: Chess", "you → carol: Chess" } },
+          { prompt = "bob → you: Chess:", labels = { "accept", "decline" } },
+        }, prompts)
+      end)
+      assert_eq({ challenge_id = "c-in" }, conn:sent(MessageType.CHALLENGE_ACCEPT))
     end)
-    assert_eq({ challenge_id = "c-in" }, conn:sent(MessageType.CHALLENGE_ACCEPT))
-  end)
+  end
 end
 
 function T.challenges_and_list_report_what_they_cannot_show()

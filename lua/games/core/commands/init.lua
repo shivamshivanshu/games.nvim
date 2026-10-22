@@ -31,6 +31,12 @@ local function next_game(client)
   shell.open_next(client)
 end
 
+---Opens the finder over the challenges the server lists, once the catalog naming their games is in.
+---@type games.SubcommandRun
+local function find_challenges(client, me)
+  find.find(client, me, sources.SourceName.REQUESTS)
+end
+
 ---@type games.SubcommandRun
 local function open_dashboard(client)
   dashboard.open(client)
@@ -47,7 +53,7 @@ end
 ---@type games.Subcommand[]
 local SUBCOMMANDS = {
   { name = "challenge", usage = "challenge [game] [user…]", run = challenge.run },
-  { name = "challenges", usage = "challenges", run = find.run_challenges },
+  { name = "challenges", usage = "challenges", run = find_challenges },
   { name = "solo", usage = "solo [game]", run = solo.run, arg_choices = solo.game_types },
   {
     name = "list",
