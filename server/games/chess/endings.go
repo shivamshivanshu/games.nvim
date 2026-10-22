@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const (
@@ -60,7 +61,7 @@ func DetectEnding(p Position, legal []Move, key RepetitionKey, history []Repetit
 		return Termination{Reason: ReasonStalemate, Kind: game.ResultDraw}, true
 	case p.hasInsufficientMaterial():
 		return Termination{Reason: ReasonInsufficientMaterial, Kind: game.ResultDraw}, true
-	case repetitions(key, history) >= fivefoldCount:
+	case xslices.Count(history, key) >= fivefoldCount:
 		return Termination{Reason: ReasonFivefold, Kind: game.ResultDraw}, true
 	case p.HalfmoveClock >= seventyFiveHalfmoves:
 		return Termination{Reason: ReasonSeventyFive, Kind: game.ResultDraw}, true
@@ -75,22 +76,12 @@ func ClaimableDraw(p Position, history []RepetitionKey) (game.ResultReason, bool
 // claimableDraw takes p's own key, which a caller holding it need not recompute.
 func (p Position) claimableDraw(key RepetitionKey, history []RepetitionKey) (game.ResultReason, bool) {
 	switch {
-	case repetitions(key, history) >= threefoldCount:
+	case xslices.Count(history, key) >= threefoldCount:
 		return ReasonThreefold, true
 	case p.HalfmoveClock >= fiftyMoveHalfmoves:
 		return ReasonFifty, true
 	}
 	return "", false
-}
-
-func repetitions(key RepetitionKey, history []RepetitionKey) int {
-	count := 0
-	for _, k := range history {
-		if k == key {
-			count++
-		}
-	}
-	return count
 }
 
 func (p Position) hasInsufficientMaterial() bool {
