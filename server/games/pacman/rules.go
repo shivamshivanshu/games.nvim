@@ -40,5 +40,5 @@ func (Rules) Info() game.Info {
 
 // New seats the challenger alone at level 1, paused until the first turn.
 func (Rules) New(_ Opts, challenger game.UserID, _ []game.UserID, _ *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	return newState(), map[game.UserID]game.Seat{challenger: SeatPlayer}, nil
+	return newState(), game.SoloSeat(challenger), nil
 }

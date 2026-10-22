@@ -3,7 +3,7 @@
 Solo, in real time: steer Pac-Man through the arcade maze, eating every dot while four ghosts hunt it, over three levels. Server: `server/games/pacman/`; board UI: `lua/games/games/pacman.lua`. It is the first game the server ticks on its own (`game.Ticking`; see "Ticks" in `docs/protocol.md`).
 
 ## Rules as implemented
-- One seat, `player`. Start with `:Games solo pacman`. The game starts paused; the first turn starts it.
+- One seat, `solver`. Start with `:Games solo pacman`. The game starts paused; the first turn starts it.
 - **Maze.** The arcade's 28×31 maze: 240 dots, 4 power pellets, the ghost house with its door, and the side tunnel, whose ends meet.
 - **Ticks.** The server moves the game one tick at a time: 150 ms on level 1, 135 ms on level 2 and 120 ms on level 3.
 - **Pac-Man** moves one cell a tick, the way it faces, and stops at a wall. A turn is held until the first cell where that way is open, then taken; a newer turn replaces it, and turning back is always open. Pac-Man never enters the ghost house.

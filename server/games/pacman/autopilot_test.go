@@ -50,8 +50,8 @@ func autoplay(t testing.TB, seed game.Seed, limit int) ([]gametest.Step[Action],
 	for !s.Over() && len(steps) < limit {
 		seq := game.Seq(len(steps) + 1)
 		if way := towardFood(s); s.paused || way != s.pacman.facing && way != s.pacman.turn {
-			steps = append(steps, gametest.Step[Action]{Seat: SeatPlayer, Action: turn(way)})
-			next, _, err := s.Apply(SeatPlayer, turn(way), game.StepRNG(seed, seq))
+			steps = append(steps, gametest.Step[Action]{Seat: game.SeatSolo, Action: turn(way)})
+			next, _, err := s.Apply(game.SeatSolo, turn(way), game.StepRNG(seed, seq))
 			if err != nil {
 				t.Fatal(err)
 			}

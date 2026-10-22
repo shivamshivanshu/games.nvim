@@ -9,7 +9,7 @@ local kv = require("games.ui.widgets.kv")
 local Direction = keys.Direction
 local Group = highlights.Group
 
----@alias games.PacmanSeat "player"
+---@alias games.PacmanSeat "solver"
 
 ---@alias games.PacmanGhostName "blinky"|"pinky"|"inky"|"clyde"
 

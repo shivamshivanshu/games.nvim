@@ -158,15 +158,15 @@ func TestEatingFrightenedGhostsDoublesEachTime(t *testing.T) {
 	s.round.combo = 0
 	s, events := tickOnce(s, 1)
 	want := []game.Event{
-		GhostEatenEvent{By: SeatPlayer, Ghost: Blinky, Points: 200},
-		GhostEatenEvent{By: SeatPlayer, Ghost: Pinky, Points: 400},
-		GhostEatenEvent{By: SeatPlayer, Ghost: Inky, Points: 800},
-		GhostEatenEvent{By: SeatPlayer, Ghost: Clyde, Points: 1600},
+		GhostEatenEvent{By: game.SeatSolo, Ghost: Blinky, Points: 200},
+		GhostEatenEvent{By: game.SeatSolo, Ghost: Pinky, Points: 400},
+		GhostEatenEvent{By: game.SeatSolo, Ghost: Inky, Points: 800},
+		GhostEatenEvent{By: game.SeatSolo, Ghost: Clyde, Points: 1600},
 	}
 	if diff := cmp.Diff(want, events); diff != "" || s.score != 3000 {
 		t.Fatalf("score %d; events (-want +got):\n%s", s.score, diff)
 	}
-	for _, g := range s.View(SeatPlayer).Ghosts {
+	for _, g := range s.View(game.SeatSolo).Ghosts {
 		if g.Mode != ModeEyes {
 			t.Errorf("%s is %s after being eaten, want eyes", g.Name, g.Mode)
 		}
@@ -344,7 +344,7 @@ func TestACaughtPacmanLosesALifeAndTheRoundRestartsPaused(t *testing.T) {
 	s.maze, s.food = s.maze.eaten(pt(5, 6)), s.food-1
 	s.score = 120
 	s, events := tickOnce(s, 1)
-	if diff := cmp.Diff([]game.Event{CaughtEvent{By: SeatPlayer, Ghost: Blinky, LivesLeft: 2}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{CaughtEvent{By: game.SeatSolo, Ghost: Blinky, LivesLeft: 2}}, events); diff != "" {
 		t.Fatalf("events (-want +got):\n%s", diff)
 	}
 	if s.lives != 2 || !s.paused || s.pacman.at != pacmanStart() || s.ghosts[0].at != houseExit() || s.score != 120 || s.Over() {
@@ -375,7 +375,7 @@ func TestClearingALevelSpeedsUpAndTheLastWins(t *testing.T) {
 	s.score = 990
 	next, events := s.Tick(game.StepRNG(1, 1))
 	s = next.(state)
-	if diff := cmp.Diff([]game.Event{LevelClearedEvent{By: SeatPlayer, Level: 1}}, events); diff != "" {
+	if diff := cmp.Diff([]game.Event{LevelClearedEvent{By: game.SeatSolo, Level: 1}}, events); diff != "" {
 		t.Fatalf("events (-want +got):\n%s", diff)
 	}
 	if s.level != 2 || !s.paused || *s.maze != *classic() || s.pacman.at != pacmanStart() || s.score != 1000 {
@@ -389,7 +389,7 @@ func TestClearingALevelSpeedsUpAndTheLastWins(t *testing.T) {
 	s.level = Levels
 	s = alone(emptied(s, pt(23, 12)))
 	next, _ = s.Tick(game.StepRNG(1, 2))
-	want := game.WinFor(ReasonCleared, SeatPlayer)
+	want := game.WinFor(ReasonCleared, game.SeatSolo)
 	if got, done := next.Outcome(); !done || !cmp.Equal(got, want) {
 		t.Fatalf("clearing the last level: %+v, %t; want %+v", got, done, want)
 	}
@@ -405,7 +405,7 @@ func TestTheGhostsOnTheLastDotAreMetBeforeTheLevelClears(t *testing.T) {
 	}
 
 	s, events := tickOnce(lastDot(false), 1)
-	if diff := cmp.Diff([]game.Event{CaughtEvent{By: SeatPlayer, Ghost: Blinky, LivesLeft: 2}}, events); diff != "" || s.level != 1 {
+	if diff := cmp.Diff([]game.Event{CaughtEvent{By: game.SeatSolo, Ghost: Blinky, LivesLeft: 2}}, events); diff != "" || s.level != 1 {
 		t.Fatalf("caught on the last dot: level %d; events (-want +got):\n%s", s.level, diff)
 	}
 	s.paused = false
@@ -414,7 +414,7 @@ func TestTheGhostsOnTheLastDotAreMetBeforeTheLevelClears(t *testing.T) {
 	}
 
 	s, events = tickOnce(lastDot(true), 1)
-	want := []game.Event{GhostEatenEvent{By: SeatPlayer, Ghost: Blinky, Points: GhostPoints}, LevelClearedEvent{By: SeatPlayer, Level: 1}}
+	want := []game.Event{GhostEatenEvent{By: game.SeatSolo, Ghost: Blinky, Points: GhostPoints}, LevelClearedEvent{By: game.SeatSolo, Level: 1}}
 	if diff := cmp.Diff(want, events); diff != "" || s.score != GhostPoints+DotPoints {
 		t.Fatalf("a frightened ghost on the last dot: score %d; events (-want +got):\n%s", s.score, diff)
 	}
@@ -422,25 +422,25 @@ func TestTheGhostsOnTheLastDotAreMetBeforeTheLevelClears(t *testing.T) {
 
 func TestPauseTurnAndTheirLegality(t *testing.T) {
 	s := newState()
-	if _, due := s.NextTick(); due || !s.View(SeatPlayer).Paused || s.View(SeatPlayer).CanPause {
+	if _, due := s.NextTick(); due || !s.View(game.SeatSolo).Paused || s.View(game.SeatSolo).CanPause {
 		t.Fatal("a new game is not waiting, paused, for its first turn")
 	}
-	next, _, err := s.Apply(SeatPlayer, turn(grid.Right), nil)
+	next, _, err := s.Apply(game.SeatSolo, turn(grid.Right), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	v := next.View(SeatPlayer)
+	v := next.View(game.SeatSolo)
 	if v.Paused || !v.CanPause || v.Pacman.NextTurn == nil || *v.Pacman.NextTurn != grid.Right {
 		t.Fatalf("after a turn: %+v", v)
 	}
 	if d, due := next.(state).NextTick(); !due || d != levelOf(1).interval {
 		t.Errorf("a running game ticks %v, %t", d, due)
 	}
-	paused, _, err := next.Apply(SeatPlayer, Action{Kind: ActionPause}, nil)
-	if err != nil || !paused.View(SeatPlayer).Paused {
+	paused, _, err := next.Apply(game.SeatSolo, Action{Kind: ActionPause}, nil)
+	if err != nil || !paused.View(game.SeatSolo).Paused {
 		t.Fatalf("pause: %v", err)
 	}
-	if core := next.(state).Pause(); !core.View(SeatPlayer).Paused {
+	if core := next.(state).Pause(); !core.View(game.SeatSolo).Paused {
 		t.Error("the core's pause did not pause")
 	}
 	rejected := []struct {
@@ -454,7 +454,7 @@ func TestPauseTurnAndTheirLegality(t *testing.T) {
 		{"an unknown action", next, Action{Kind: "jump"}, "unknown action: jump"},
 	}
 	for _, tt := range rejected {
-		_, _, err := tt.state.Apply(SeatPlayer, tt.action, nil)
+		_, _, err := tt.state.Apply(game.SeatSolo, tt.action, nil)
 		if !errors.As(err, new(game.IllegalActionError)) || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("%s: error %v, want %q", tt.name, err, tt.want)
 		}
@@ -464,21 +464,21 @@ func TestPauseTurnAndTheirLegality(t *testing.T) {
 func TestConcludeClosesEveryAction(t *testing.T) {
 	s := running()
 	done := s.Conclude(game.LossBy(game.ReasonResign))
-	v := done.View(SeatPlayer)
+	v := done.View(game.SeatSolo)
 	if v.CanTurn || v.CanPause || len(done.ToAct()) != 0 {
 		t.Errorf("after an imposed result: %+v, to act %v", v, done.ToAct())
 	}
 	if _, due := done.(state).NextTick(); due {
 		t.Error("a concluded game wants a tick")
 	}
-	won := s.over(game.WinFor(ReasonCleared, SeatPlayer))
+	won := s.over(game.WinFor(ReasonCleared, game.SeatSolo))
 	if kept, _ := won.Conclude(game.Result{Kind: game.ResultAborted}).Outcome(); kept.Reason != ReasonCleared {
 		t.Errorf("Conclude replaced a result already reached with %s", kept.Reason)
 	}
 }
 
 func TestViewShowsTheMazeOneBased(t *testing.T) {
-	v := newState().View(SeatPlayer)
+	v := newState().View(game.SeatSolo)
 	if len(v.Maze) != Rows || len(v.Maze[0]) != Cols || v.Maze[3][1] != byte(TilePellet) {
 		t.Fatalf("maze %d rows of %d, (4,2) %q", len(v.Maze), len(v.Maze[0]), v.Maze[3][1])
 	}
@@ -509,7 +509,7 @@ func BenchmarkTick(b *testing.B) {
 				s = next.(state)
 				continue
 			}
-			next, _, _ := s.Apply(SeatPlayer, step.Action, rng)
+			next, _, _ := s.Apply(game.SeatSolo, step.Action, rng)
 			s = next.(state)
 		}
 	}

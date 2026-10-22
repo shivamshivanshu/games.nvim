@@ -505,7 +505,7 @@ An action object always carries `kind`.
 ### Pac-Man
 
 - Solo: one seat, `player`; start it with `game.start`. No options. The game ticks (see Ticks) and starts paused.
-- Reasons: `game_over`, every life lost, a loss (`winners: []`); `cleared`, the last level cleared, a win (`winners: ["player"]`).
+- Reasons: `game_over`, every life lost, a loss (`winners: []`); `cleared`, the last level cleared, a win (`winners: ["solver"]`).
 - Events:
   - `ghost_eaten {by, ghost, points}`: Pac-Man ate a frightened ghost for 200, 400, 800 or 1600;
   - `caught {by, ghost, lives_left}`: a ghost caught Pac-Man; at `lives_left: 0` the game is over;

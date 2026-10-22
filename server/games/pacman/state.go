@@ -178,14 +178,14 @@ func (s state) collided(events []game.Event) (state, []game.Event, bool) {
 		s.score += points
 		s.round.combo++
 		s.ghosts[i] = g.eaten()
-		events = append(events, GhostEatenEvent{By: SeatPlayer, Ghost: g.name, Points: points})
+		events = append(events, GhostEatenEvent{By: game.SeatSolo, Ghost: g.name, Points: points})
 	}
 	return s, events, false
 }
 
 func (s state) caughtBy(g ghost) (state, game.Event) {
 	s.lives--
-	event := CaughtEvent{By: SeatPlayer, Ghost: g.name, LivesLeft: s.lives}
+	event := CaughtEvent{By: game.SeatSolo, Ghost: g.name, LivesLeft: s.lives}
 	if s.lives == 0 {
 		return s.over(game.LossBy(ReasonGameOver)), event
 	}
@@ -196,9 +196,9 @@ func (s state) caughtBy(g ghost) (state, game.Event) {
 // cleared is the next level, paused until the next turn, or the game won after the last;
 // events are the tick's so far.
 func (s state) cleared(events []game.Event) (game.State[Action, View], []game.Event) {
-	events = append(events, LevelClearedEvent{By: SeatPlayer, Level: s.level})
+	events = append(events, LevelClearedEvent{By: game.SeatSolo, Level: s.level})
 	if s.level == Levels {
-		return s.over(game.WinFor(ReasonCleared, SeatPlayer)), events
+		return s.over(game.WinFor(ReasonCleared, game.SeatSolo)), events
 	}
 	s.level++
 	s.tick, s.paused = 0, true
@@ -322,10 +322,10 @@ func (s state) View(game.Seat) View {
 	}
 }
 
-func (s state) ToAct() []game.Seat { return s.ToActOf(SeatPlayer) }
+func (s state) ToAct() []game.Seat { return s.ToActOf(game.SeatSolo) }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	return s.Conclude(game.ForfeitToRemaining([]game.Seat{SeatPlayer}, seat, reason)), nil
+	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game, and no action is open.

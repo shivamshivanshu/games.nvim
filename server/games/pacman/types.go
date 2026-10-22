@@ -8,9 +8,6 @@ import (
 // TypePacman is the game type on the wire.
 const TypePacman game.GameType = "pacman"
 
-// SeatPlayer is the only seat.
-const SeatPlayer game.Seat = "player"
-
 // The game's own result reasons.
 const (
 	// ReasonGameOver ends a game whose last life was lost: a loss.

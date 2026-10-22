@@ -12,7 +12,7 @@ const unlimited = 100_000
 
 func TestConformance(t *testing.T) {
 	lost := game.LossBy(ReasonGameOver)
-	won := game.WinFor(ReasonCleared, SeatPlayer)
+	won := game.WinFor(ReasonCleared, game.SeatSolo)
 	lostSteps, lostEnd := autoplay(t, 0, unlimited)
 	wonSteps, wonEnd := autoplay(t, 3, unlimited)
 	lostResult, _ := lostEnd.Outcome()
@@ -22,20 +22,20 @@ func TestConformance(t *testing.T) {
 	}
 	tick := gametest.Step[Action]{Kind: gametest.StepTick}
 	rejected := func(a Action) gametest.Step[Action] {
-		return gametest.Step[Action]{Seat: SeatPlayer, Action: a, WantErr: true}
+		return gametest.Step[Action]{Seat: game.SeatSolo, Action: a, WantErr: true}
 	}
 	withPauses := []gametest.Step[Action]{
 		rejected(Action{Kind: ActionPause}),
 		rejected(Action{Kind: ActionTurn, Direction: "north"}),
 		rejected(Action{Kind: "jump"}),
-		{Seat: SeatPlayer, Action: turn(grid.Left)},
+		{Seat: game.SeatSolo, Action: turn(grid.Left)},
 		tick,
-		{Seat: SeatPlayer, Action: Action{Kind: ActionPause}},
-		{Seat: SeatPlayer, Action: turn(grid.Right)},
+		{Seat: game.SeatSolo, Action: Action{Kind: ActionPause}},
+		{Seat: game.SeatSolo, Action: turn(grid.Right)},
 		tick,
 		{Kind: gametest.StepPause},
 		rejected(Action{Kind: ActionPause}),
-		{Seat: SeatPlayer, Action: turn(grid.Up)},
+		{Seat: game.SeatSolo, Action: turn(grid.Up)},
 		tick, tick, tick,
 	}
 	gametest.Run(t, Rules{}, []gametest.Script[Opts, Action]{

@@ -26,7 +26,7 @@ end
 local function update_with(overrides)
   return helpers.game_update("pacman", {
     seq = 40,
-    players = { { user = "alice", seat = "player" } },
+    players = { { user = "alice", seat = "solver" } },
     to_act = { "alice" },
     controls = { "resign" },
     view = {
@@ -235,10 +235,10 @@ end
 function T.events_name_the_ghost_the_points_and_the_lives_left()
   local update = update_with()
   update.events = {
-    { kind = "ghost_eaten", by = "player", ghost = "pinky", points = 400 },
-    { kind = "caught", by = "player", ghost = "blinky", lives_left = 2 },
-    { kind = "caught", by = "player", ghost = "clyde", lives_left = 1 },
-    { kind = "level_cleared", by = "player", level = 1 },
+    { kind = "ghost_eaten", by = "solver", ghost = "pinky", points = 400 },
+    { kind = "caught", by = "solver", ghost = "blinky", lives_left = 2 },
+    { kind = "caught", by = "solver", ghost = "clyde", lives_left = 1 },
+    { kind = "level_cleared", by = "solver", level = 1 },
   }
   assert_eq(
     table.concat({
