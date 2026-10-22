@@ -107,12 +107,7 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 }
 
 // ToAct is the one seat to act, or none once the game is over.
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return []game.Seat{}
-	}
-	return []game.Seat{seatName(s.hand.toAct)}
-}
+func (s state) ToAct() []game.Seat { return s.ToActOf(seatName(s.hand.toAct)) }
 
 // Conclude ends the game on a result the core imposed, such as an abort, so
 // that no seat is left to act.

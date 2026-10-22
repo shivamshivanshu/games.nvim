@@ -9,9 +9,8 @@ import (
 )
 
 type state struct {
-	game.Ending
+	game.Turn
 	board        board
-	toMove       game.Seat
 	last         *grid.Cell
 	winningLines [][]grid.Cell
 }
@@ -38,13 +37,14 @@ func (s state) drop(seat game.Seat, input string) (game.State[Action, View], []g
 	next := s
 	next.board[at.Row][at.Col] = seat
 	next.last = &landed
-	next.toMove = sides.Other(seat)
 	next.winningLines = grid.CellLines(grid.WinningLines(next.board.cells(), at, winLength, noDisc))
 	switch {
 	case len(next.winningLines) > 0:
-		next.Ending = next.Concluded(game.WinFor(ReasonFourInARow, seat))
+		next.Turn = s.Turn.Conclude(game.WinFor(ReasonFourInARow, seat))
 	case next.board.full():
-		next.Ending = next.Concluded(game.DrawBy(ReasonBoardFull))
+		next.Turn = s.Turn.Conclude(game.DrawBy(ReasonBoardFull))
+	default:
+		next.Turn = s.To(sides.Other(seat))
 	}
 	return next, []game.Event{DroppedEvent{By: seat, Cell: landed}}, nil
 }
@@ -62,13 +62,6 @@ func (s state) View(viewer game.Seat) View {
 	}
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.toMove}
-}
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
@@ -76,6 +69,6 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is
 // offered a drop.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	s.Ending = s.Concluded(result)
+	s.Turn = s.Turn.Conclude(result)
 	return s
 }

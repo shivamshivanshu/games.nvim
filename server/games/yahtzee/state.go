@@ -204,12 +204,7 @@ func (s state) cardViews() []Card {
 	return views
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.order[s.turn]}
-}
+func (s state) ToAct() []game.Seat { return s.ToActOf(s.order[s.turn]) }
 
 // Conclude takes a result the core imposed, such as an abort.
 func (s state) Conclude(result game.Result) game.State[Action, View] { return s.finish(result) }

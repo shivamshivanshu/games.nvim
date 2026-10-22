@@ -13,9 +13,8 @@ import (
 const drawQuietPlies = 80
 
 type state struct {
-	game.Ending
+	game.Turn
 	board      Board
-	toMove     game.Seat
 	legal      []Move
 	quietPlies int
 	history    []string
@@ -23,9 +22,9 @@ type state struct {
 }
 
 func newState(b Board, toMove game.Seat, quietPlies int) state {
-	s := state{board: b, toMove: toMove, legal: b.LegalMoves(toMove), quietPlies: quietPlies}
-	if result, ended := s.ending(); ended {
-		s.Ending = s.Concluded(result)
+	s := state{Turn: game.TurnTo(toMove), board: b, legal: b.LegalMoves(toMove), quietPlies: quietPlies}
+	if result, ended := s.ending(toMove); ended {
+		s.Turn = s.Turn.Conclude(result)
 	}
 	return s
 }
@@ -38,18 +37,18 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	if err != nil {
 		return nil, nil, err
 	}
-	next, crowned := s.play(move)
+	next, crowned := s.play(seat, move)
 	return next, []game.Event{MovedEvent{By: seat, Move: move.Text(), Crowned: crowned}}, nil
 }
 
-func (s state) play(m Move) (state, bool) {
+func (s state) play(seat game.Seat, m Move) (state, bool) {
 	moved := s.board.At(m.From())
 	board, crowned := s.board.Play(m)
 	quietPlies := s.quietPlies + 1
 	if m.IsCapture() || moved.isMan() {
 		quietPlies = 0
 	}
-	next := newState(board, sides.Other(s.toMove), quietPlies)
+	next := newState(board, sides.Other(seat), quietPlies)
 	next.history = append(slices.Clip(s.history), m.Text())
 	next.last = m.Path
 	return next, crowned
@@ -57,10 +56,10 @@ func (s state) play(m Move) (state, bool) {
 
 // ending checks the side to move: with no legal move it has lost, which takes
 // precedence over the quiet-ply draw.
-func (s state) ending() (game.Result, bool) {
-	winner := sides.Other(s.toMove)
+func (s state) ending(toMove game.Seat) (game.Result, bool) {
+	winner := sides.Other(toMove)
 	switch {
-	case len(s.board.squaresOf(s.toMove)) == 0:
+	case len(s.board.squaresOf(toMove)) == 0:
 		return game.WinFor(ReasonNoPieces, winner), true
 	case len(s.legal) == 0:
 		return game.WinFor(ReasonNoMoves, winner), true
@@ -83,20 +82,13 @@ func (s state) View(seat game.Seat) View {
 	}
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.toMove}
-}
-
 // Conclude takes a result the core imposed, so the game stops offering moves.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	s.Ending = s.Concluded(result)
+	s.Turn = s.Turn.Conclude(result)
 	return s
 }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
-	s.Ending = s.Concluded(game.ForfeitToRemaining(sides.Seats(), seat, reason))
+	s.Turn = s.Turn.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason))
 	return s, nil
 }

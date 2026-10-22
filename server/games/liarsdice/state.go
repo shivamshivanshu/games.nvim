@@ -200,12 +200,7 @@ func (s state) revealView() *Reveal {
 	return &r
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.order[s.turn]}
-}
+func (s state) ToAct() []game.Seat { return s.ToActOf(s.order[s.turn]) }
 
 // KnockedOut are the seats left without dice, by a challenge or by leaving.
 func (s state) KnockedOut() []game.Seat {

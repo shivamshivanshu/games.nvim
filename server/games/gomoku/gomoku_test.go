@@ -33,7 +33,7 @@ func place(cell string) discs.Action { return discs.Action{Kind: discs.ActionPla
 
 func newGame(t *testing.T) game.State[discs.Action, View] {
 	t.Helper()
-	st, _, err := Rules{}.New(discs.Opts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
+	st, _, err := Rules{}.New(game.TurnOpts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestNewSeatsTheFirstMoverAsBlack(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
-			_, seats, err := Rules{}.New(discs.Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
+			_, seats, err := Rules{}.New(game.TurnOpts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -322,10 +322,10 @@ func TestWireShape(t *testing.T) {
 }
 
 func TestConformance(t *testing.T) {
-	script := func(name string, steps []gametest.Step[discs.Action], want *game.Result) gametest.Script[discs.Opts, discs.Action] {
-		return gametest.Script[discs.Opts, discs.Action]{
+	script := func(name string, steps []gametest.Step[discs.Action], want *game.Result) gametest.Script[game.TurnOpts, discs.Action] {
+		return gametest.Script[game.TurnOpts, discs.Action]{
 			Name:       name,
-			Opts:       discs.Opts{First: game.FirstMoverRandom, TimeControl: game.TimeControlNone},
+			Opts:       game.TurnOpts{First: game.FirstMoverRandom, TimeControl: game.TimeControlNone},
 			Challenger: alice,
 			Invitees:   []game.UserID{bob},
 			Seed:       1,
@@ -334,7 +334,7 @@ func TestConformance(t *testing.T) {
 		}
 	}
 	taken := gametest.Step[discs.Action]{Seat: discs.SeatWhite, Action: place("h8"), WantErr: true}
-	gametest.Run(t, Rules{}, []gametest.Script[discs.Opts, discs.Action]{
+	gametest.Run(t, Rules{}, []gametest.Script[game.TurnOpts, discs.Action]{
 		script("black wins after a rejected move", slices.Insert(places(blackFiveOnRowEight()...), 1, taken),
 			&game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{discs.SeatBlack}, Reason: ReasonFiveInARow}),
 		script("draw", places(fullBoardDraw()...), &game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull}),

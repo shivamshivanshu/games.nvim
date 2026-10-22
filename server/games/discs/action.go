@@ -7,17 +7,6 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
-// Opts are the options both games are created with.
-type Opts struct {
-	First       game.FirstMover  `json:"first"`
-	TimeControl game.TimeControl `json:"time_control"`
-}
-
-// Options are the option specs behind Opts.
-func Options() []game.OptionSpec {
-	return []game.OptionSpec{game.FirstMoverOption(), game.TimeControlOption()}
-}
-
 // ActionPlace puts the mover's disc on the cell it names.
 const ActionPlace game.ActionKind = "place"
 

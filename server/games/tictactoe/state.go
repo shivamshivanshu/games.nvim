@@ -11,15 +11,14 @@ import (
 const noCell CellNumber = 0
 
 type state struct {
-	game.Ending
+	game.Turn
 	board        board
-	toMove       game.Seat
 	last         CellNumber
 	winningLines [][]grid.Cell
 }
 
 func newState() state {
-	return state{toMove: SeatX, winningLines: [][]grid.Cell{}}
+	return state{Turn: game.TurnTo(SeatX), winningLines: [][]grid.Cell{}}
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -37,13 +36,15 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 }
 
 func (s state) place(seat game.Seat, cell CellNumber) state {
-	next := state{board: s.board.with(cell, seat), toMove: sides.Other(seat), last: cell}
+	next := state{board: s.board.with(cell, seat), last: cell}
 	next.winningLines = next.board.winningLinesThrough(cell)
 	switch {
 	case len(next.winningLines) > 0:
-		next.Ending = next.Concluded(game.WinFor(ReasonThreeInARow, seat))
+		next.Turn = s.Turn.Conclude(game.WinFor(ReasonThreeInARow, seat))
 	case next.board.full():
-		next.Ending = next.Concluded(game.DrawBy(ReasonBoardFull))
+		next.Turn = s.Turn.Conclude(game.DrawBy(ReasonBoardFull))
+	default:
+		next.Turn = s.To(sides.Other(seat))
 	}
 	return next
 }
@@ -60,19 +61,12 @@ func (s state) View(seat game.Seat) View {
 	return view
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.toMove}
-}
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
 
 // Conclude keeps a result already reached; otherwise result ends the game.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	s.Ending = s.Concluded(result)
+	s.Turn = s.Turn.Conclude(result)
 	return s
 }

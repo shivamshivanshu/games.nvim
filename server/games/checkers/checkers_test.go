@@ -264,7 +264,7 @@ func selfPlay(t *testing.T, choose pick) []gametest.Step[Action] {
 	st := newState(StartBoard(), SeatBlack, 0)
 	var steps []gametest.Step[Action]
 	for !st.Over() {
-		step := gametest.Step[Action]{Seat: st.toMove, Action: move(choose(st.legal).Text())}
+		step := gametest.Step[Action]{Seat: st.ToAct()[0], Action: move(choose(st.legal).Text())}
 		st, _ = gametest.MustApply(t, Rules{}.Info(), st, step.Seat, step.Action, nil)
 		steps = append(steps, step)
 	}

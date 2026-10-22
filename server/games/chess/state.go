@@ -90,12 +90,7 @@ func (s state) View(seat game.Seat) View {
 	return view
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{seatOf(s.position.SideToMove)}
-}
+func (s state) ToAct() []game.Seat { return s.ToActOf(seatOf(s.position.SideToMove)) }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	s.Ending = s.Concluded(game.ForfeitToRemaining(sides.Seats(), seat, reason))

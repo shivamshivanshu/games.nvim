@@ -371,7 +371,7 @@ func (s state) exchange() state {
 func (s state) ToAct() []game.Seat {
 	switch {
 	case s.Over():
-		return []game.Seat{}
+		return nil
 	case s.phase == PhasePass:
 		var seats []game.Seat
 		for i, pass := range s.passes {

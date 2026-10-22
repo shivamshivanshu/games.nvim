@@ -18,3 +18,11 @@ func (e Ending) Concluded(r Result) Ending {
 	}
 	return Ending{result: r, over: true}
 }
+
+// ToActOf is seats while the game is on, none once it ended.
+func (e Ending) ToActOf(seats ...Seat) []Seat {
+	if e.over {
+		return nil
+	}
+	return seats
+}

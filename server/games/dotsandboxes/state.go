@@ -12,22 +12,21 @@ import (
 
 // state is immutable: every change returns a copy with fresh maps.
 type state struct {
-	game.Ending
+	game.Turn
 	side   int
 	edges  grid.Edges
 	drawn  map[grid.Edge]game.Seat
 	owners map[grid.Point]game.Seat
 	last   *grid.Edge
-	toMove game.Seat
 }
 
 func newState(side int) state {
 	return state{
+		Turn:   game.TurnTo(sides[0]),
 		side:   side,
 		edges:  grid.NewEdges(side, side),
 		drawn:  map[grid.Edge]game.Seat{},
 		owners: map[grid.Point]game.Seat{},
-		toMove: sides[0],
 	}
 }
 
@@ -37,7 +36,7 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 		return nil, nil, err
 	}
 	next, completed := s.withEdge(seat, edge)
-	again := !next.Over() && next.toMove == seat
+	again := slices.Contains(next.ToAct(), seat)
 	return next, []game.Event{DrawnEvent{By: seat, Edge: lineOf(edge), Boxes: xslices.Map(completed, boxOf), Again: again}}, nil
 }
 
@@ -79,7 +78,7 @@ func (s state) withEdge(seat game.Seat, edge grid.Edge) (state, []grid.Point) {
 	case len(next.owners) == s.side*s.side:
 		next = next.ended()
 	case len(completed) == 0:
-		next.toMove = sides.Other(seat)
+		next.Turn = s.To(sides.Other(seat))
 	}
 	return next, completed
 }
@@ -97,11 +96,11 @@ func (s state) ended() state {
 	first, second := sides[0], sides[1]
 	switch {
 	case scores[first] > scores[second]:
-		s.Ending = s.Concluded(game.WinFor(ReasonMoreBoxes, first))
+		s.Turn = s.Turn.Conclude(game.WinFor(ReasonMoreBoxes, first))
 	case scores[second] > scores[first]:
-		s.Ending = s.Concluded(game.WinFor(ReasonMoreBoxes, second))
+		s.Turn = s.Turn.Conclude(game.WinFor(ReasonMoreBoxes, second))
 	default:
-		s.Ending = s.Concluded(game.DrawBy(ReasonEqualBoxes))
+		s.Turn = s.Turn.Conclude(game.DrawBy(ReasonEqualBoxes))
 	}
 	return s
 }
@@ -164,13 +163,6 @@ func seatRows(rows, cols int, at func(grid.Point) game.Seat) [][]game.Seat {
 	return out
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.toMove}
-}
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
@@ -178,7 +170,7 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is offered
 // an edge.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	s.Ending = s.Concluded(result)
+	s.Turn = s.Turn.Conclude(result)
 	return s
 }
 

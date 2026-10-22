@@ -106,6 +106,18 @@ func FirstMoverOption() OptionSpec {
 	}
 }
 
+// TurnOpts are the options of a two-player game that picks who moves first
+// and keeps a clock.
+type TurnOpts struct {
+	First       FirstMover  `json:"first"`
+	TimeControl TimeControl `json:"time_control"`
+}
+
+// TurnOptions are the option specs behind TurnOpts.
+func TurnOptions() []OptionSpec {
+	return []OptionSpec{FirstMoverOption(), TimeControlOption()}
+}
+
 // OptionColor is the option choosing the challenger's side.
 const OptionColor OptionName = "color"
 

@@ -51,38 +51,21 @@ func TestPlacedPoint(t *testing.T) {
 	}
 }
 
-func TestTurn(t *testing.T) {
-	won := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatBlack}, Reason: "won"}
-	imposed := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
+func TestLegalForIsTheMoversOnly(t *testing.T) {
 	everywhere := func() []grid.Point { return []grid.Point{{Row: 0, Col: 0}} }
 	tests := []struct {
-		name       string
-		turn       Turn
-		wantToAct  []game.Seat
-		wantResult game.Result
-		wantLegal  map[game.Seat][]grid.Cell
+		name      string
+		turn      game.Turn
+		wantLegal map[game.Seat][]grid.Cell
 	}{
-		{"black first", FirstTurn(), []game.Seat{SeatBlack}, game.Result{},
-			map[game.Seat][]grid.Cell{SeatBlack: {{Row: 1, Col: 1}}, SeatWhite: {}}},
-		{"passed to white", FirstTurn().To(SeatWhite), []game.Seat{SeatWhite}, game.Result{},
-			map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {{Row: 1, Col: 1}}}},
-		{"concluded", FirstTurn().Conclude(imposed), nil, imposed, map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {}}},
-		{"a reached result outlives a conclusion", FirstTurn().Conclude(won).Conclude(imposed), nil, won,
-			map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {}}},
-		{"a finished turn passes to no one", FirstTurn().Conclude(won).To(SeatWhite), nil, won,
-			map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {}}},
+		{"black to move", game.TurnTo(SeatBlack), map[game.Seat][]grid.Cell{SeatBlack: {{Row: 1, Col: 1}}, SeatWhite: {}}},
+		{"white to move", game.TurnTo(SeatWhite), map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {{Row: 1, Col: 1}}}},
+		{"finished", game.TurnTo(SeatBlack).Conclude(game.DrawBy("drawn")), map[game.Seat][]grid.Cell{SeatBlack: {}, SeatWhite: {}}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result, finished := tc.turn.Outcome()
-			if finished != (tc.wantToAct == nil) || !cmp.Equal(tc.wantResult, result) {
-				t.Errorf("outcome %+v, %t", result, finished)
-			}
-			if diff := cmp.Diff(tc.wantToAct, tc.turn.ToAct()); diff != "" {
-				t.Errorf("to act (-want +got):\n%s", diff)
-			}
 			for seat, want := range tc.wantLegal {
-				if diff := cmp.Diff(want, tc.turn.LegalFor(seat, everywhere)); diff != "" {
+				if diff := cmp.Diff(want, LegalFor(tc.turn, seat, everywhere)); diff != "" {
 					t.Errorf("%s legal (-want +got):\n%s", seat, diff)
 				}
 			}

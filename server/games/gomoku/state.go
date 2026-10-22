@@ -9,14 +9,14 @@ import (
 )
 
 type state struct {
-	discs.Turn
+	game.Turn
 	board        discs.Board
 	last         *grid.Cell
 	winningLines [][]grid.Cell
 }
 
 func newState() state {
-	return state{Turn: discs.FirstTurn(), board: discs.NewBoard(boardSize), winningLines: [][]grid.Cell{}}
+	return state{Turn: game.TurnTo(discs.SeatBlack), board: discs.NewBoard(boardSize), winningLines: [][]grid.Cell{}}
 }
 
 func (s state) Apply(seat game.Seat, action discs.Action, _ *rand.Rand) (game.State[discs.Action, View], []game.Event, error) {
@@ -51,7 +51,7 @@ func (s state) View(viewer game.Seat) View {
 		Cells:        s.board.Rows(),
 		Last:         s.last,
 		WinningLines: s.winningLines,
-		LegalCells:   s.LegalFor(viewer, s.board.Empty),
+		LegalCells:   discs.LegalFor(s.Turn, viewer, s.board.Empty),
 	}
 }
 

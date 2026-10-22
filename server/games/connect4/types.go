@@ -5,12 +5,6 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
-// Opts are the options a connect4 game is created with.
-type Opts struct {
-	First       game.FirstMover  `json:"first"`
-	TimeControl game.TimeControl `json:"time_control"`
-}
-
 // ActionDrop drops the player's disc into a column.
 const ActionDrop game.ActionKind = "drop"
 

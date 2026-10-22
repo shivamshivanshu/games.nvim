@@ -54,12 +54,7 @@ func (s state) View(game.Seat) View {
 	return View{Cells: s.board.cells(), Score: s.score, Goal: Goal, Reached: s.reached, Movable: movable}
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{game.SeatSolo}
-}
+func (s state) ToAct() []game.Seat { return s.ToActOf(game.SeatSolo) }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	return s.Conclude(game.ForfeitToRemaining([]game.Seat{game.SeatSolo}, seat, reason)), nil

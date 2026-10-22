@@ -8,9 +8,8 @@ import (
 )
 
 type state struct {
-	game.Ending
-	board  board
-	toMove game.Seat
+	game.Turn
+	board board
 }
 
 func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Action, View], []game.Event, error) {
@@ -26,14 +25,14 @@ func (s state) Apply(seat game.Seat, action Action, _ *rand.Rand) (game.State[Ac
 	}
 	sown, last := s.board.sown(seat, pit)
 	b, captured := sown.captured(seat, last)
-	next := state{board: b, toMove: sides.Other(seat)}
+	next := state{Turn: s.To(sides.Other(seat)), board: b}
 	if b.pitsEmpty(SeatSouth) || b.pitsEmpty(SeatNorth) {
 		ended, collected := next.ended()
 		return ended, append([]game.Event{SowedEvent{By: seat, Pit: pit, Captured: captured}}, collected...), nil
 	}
 	again := last == storeHole(seat)
 	if again {
-		next.toMove = seat
+		next.Turn = s.To(seat)
 	}
 	return next, []game.Event{SowedEvent{By: seat, Pit: pit, Captured: captured, Again: again}}, nil
 }
@@ -51,11 +50,11 @@ func (s state) ended() (state, []game.Event) {
 	south, north := s.board[storeHole(SeatSouth)], s.board[storeHole(SeatNorth)]
 	switch {
 	case south > north:
-		s.Ending = s.Concluded(game.WinFor(ReasonMoreSeeds, SeatSouth))
+		s.Turn = s.Turn.Conclude(game.WinFor(ReasonMoreSeeds, SeatSouth))
 	case north > south:
-		s.Ending = s.Concluded(game.WinFor(ReasonMoreSeeds, SeatNorth))
+		s.Turn = s.Turn.Conclude(game.WinFor(ReasonMoreSeeds, SeatNorth))
 	default:
-		s.Ending = s.Concluded(game.DrawBy(ReasonEqualSeeds))
+		s.Turn = s.Turn.Conclude(game.DrawBy(ReasonEqualSeeds))
 	}
 	return s, events
 }
@@ -68,13 +67,6 @@ func (s state) View(viewer game.Seat) View {
 	return View{South: s.board.side(SeatSouth), North: s.board.side(SeatNorth), LegalPits: legal}
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.toMove}
-}
-
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {
 	return s.Conclude(game.ForfeitToRemaining(sides.Seats(), seat, reason)), nil
 }
@@ -82,6 +74,6 @@ func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[A
 // Conclude keeps a result already reached; otherwise result ends the game, so no seat is offered
 // a pit.
 func (s state) Conclude(result game.Result) game.State[Action, View] {
-	s.Ending = s.Concluded(result)
+	s.Turn = s.Turn.Conclude(result)
 	return s
 }

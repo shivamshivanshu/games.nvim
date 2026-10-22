@@ -55,7 +55,7 @@ func playedOut(t *testing.T, size Size, choose func(legal []Line) Line) ([]move,
 	s := newGame(t, size)
 	var moves []move
 	for !s.Over() {
-		mover := s.toMove
+		mover := s.ToAct()[0]
 		line := choose(s.View(mover).LegalEdges)
 		m := move{seat: mover, edge: nameOf(line)}
 		s, _ = played(t, s, m)

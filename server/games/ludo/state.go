@@ -216,12 +216,7 @@ func (s state) View(viewer game.Seat) View {
 	}
 }
 
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return nil
-	}
-	return []game.Seat{s.turn}
-}
+func (s state) ToAct() []game.Seat { return s.ToActOf(s.turn) }
 
 // Conclude takes a result the core imposed, such as an abort.
 func (s state) Conclude(result game.Result) game.State[Action, View] { return s.finish(result) }

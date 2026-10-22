@@ -55,6 +55,6 @@ func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng 
 
 // NewGame is a game of chess from start, the challenger's colour picked by opts.
 func NewGame(start Position, opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	challengerFirst := game.PickFirst(game.SideFirstMover(opts.Color, ColorWhite, ColorBlack), rng)
-	return newState(start), sides.Assign(challenger, invitees[0], challengerFirst), nil
+	first := game.SideFirstMover(opts.Color, ColorWhite, ColorBlack)
+	return newState(start), sides.AssignFirst(first, challenger, invitees, rng), nil
 }

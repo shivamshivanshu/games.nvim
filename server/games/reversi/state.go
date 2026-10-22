@@ -9,7 +9,7 @@ import (
 )
 
 type state struct {
-	discs.Turn
+	game.Turn
 	board discs.Board
 	last  *grid.Cell
 }
@@ -66,7 +66,7 @@ func (s state) View(viewer game.Seat) View {
 	return View{
 		Cells: s.board.Rows(),
 		Last:  s.last,
-		LegalCells: s.LegalFor(viewer, func() []grid.Point {
+		LegalCells: discs.LegalFor(s.Turn, viewer, func() []grid.Point {
 			return legalPoints(s.board, viewer)
 		}),
 		Discs: DiscCount{Black: s.board.Count(discs.SeatBlack), White: s.board.Count(discs.SeatWhite)},

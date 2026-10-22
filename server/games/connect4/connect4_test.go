@@ -28,7 +28,7 @@ const (
 
 func newState(t *testing.T) game.State[Action, View] {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
+	st, _, err := Rules{}.New(game.TurnOpts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestFirstMoverIsRed(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			st, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
+			st, seats, err := Rules{}.New(game.TurnOpts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -316,10 +316,10 @@ func assertJSON(t *testing.T, what, want string, got json.RawMessage) {
 }
 
 func TestConformance(t *testing.T) {
-	script := func(name string, steps []gametest.Step[Action], want game.Result) gametest.Script[Opts, Action] {
-		return gametest.Script[Opts, Action]{
+	script := func(name string, steps []gametest.Step[Action], want game.Result) gametest.Script[game.TurnOpts, Action] {
+		return gametest.Script[game.TurnOpts, Action]{
 			Name:       name,
-			Opts:       Opts{First: game.FirstMoverMe, TimeControl: game.TimeControlNone},
+			Opts:       game.TurnOpts{First: game.FirstMoverMe, TimeControl: game.TimeControlNone},
 			Challenger: alice,
 			Invitees:   []game.UserID{bob},
 			Seed:       1,
@@ -330,7 +330,7 @@ func TestConformance(t *testing.T) {
 	intoFullColumn := gametest.Step[Action]{Seat: SeatRed, Action: drop("1"), WantErr: true}
 	redVerticalInColumnTwo := drops("2324252")
 	redWins := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatRed}, Reason: ReasonFourInARow}
-	gametest.Run(t, Rules{}, []gametest.Script[Opts, Action]{
+	gametest.Run(t, Rules{}, []gametest.Script[game.TurnOpts, Action]{
 		script("full column rejected, then vertical four", slices.Concat(drops(columnOneFilled), []gametest.Step[Action]{intoFullColumn}, redVerticalInColumnTwo), redWins),
 		script("full board draw", drops(fullBoardDraw), game.Result{Kind: game.ResultDraw, Reason: ReasonBoardFull}),
 		script("win on the last disc", drops(winOnLastDisc), game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{SeatYellow}, Reason: ReasonFourInARow}),

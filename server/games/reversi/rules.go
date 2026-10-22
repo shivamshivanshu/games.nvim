@@ -20,7 +20,7 @@ func (Rules) Info() game.Info {
 		Name:         "Reversi",
 		Players:      game.PlayerRange{Min: 2, Max: 2},
 		Capabilities: []game.Capability{game.CapResign, game.CapDraw, game.CapClock, game.CapAbort},
-		Options:      discs.Options(),
+		Options:      game.TurnOptions(),
 		Actions: []game.ActionSpec{
 			discs.PlaceSpec(discs.NewBoard(boardSize).Coords(), "Place a disc that flips at least one of the opponent's."),
 		},
@@ -30,7 +30,6 @@ func (Rules) Info() game.Info {
 }
 
 // New implements game.Rules. The first mover, picked by Opts.First, plays black.
-func (Rules) New(opts discs.Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[discs.Action, View], map[game.UserID]game.Seat, error) {
-	seats := discs.Sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng))
-	return state{Turn: discs.FirstTurn(), board: startBoard()}, seats, nil
+func (Rules) New(opts game.TurnOpts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[discs.Action, View], map[game.UserID]game.Seat, error) {
+	return state{Turn: game.TurnTo(discs.SeatBlack), board: startBoard()}, discs.Sides.AssignFirst(opts.First, challenger, invitees, rng), nil
 }

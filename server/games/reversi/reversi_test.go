@@ -29,7 +29,7 @@ func coords() grid.Coords { return discs.NewBoard(boardSize).Coords() }
 
 func newGame(t *testing.T) game.State[discs.Action, View] {
 	t.Helper()
-	st, _, err := Rules{}.New(discs.Opts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
+	st, _, err := Rules{}.New(game.TurnOpts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func position(seat game.Seat, rows ...string) state {
 			}
 		}
 	}
-	return state{Turn: discs.FirstTurn().To(seat), board: b}
+	return state{Turn: game.TurnTo(seat), board: b}
 }
 
 func cells(names ...string) []grid.Cell {
@@ -118,7 +118,7 @@ func TestNewSeatsTheFirstMoverAsBlack(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
-			_, seats, err := Rules{}.New(discs.Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
+			_, seats, err := Rules{}.New(game.TurnOpts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -399,10 +399,10 @@ func TestCataloguePatternIsTheParsersOwn(t *testing.T) {
 }
 
 func TestConformance(t *testing.T) {
-	script := func(name string, steps []gametest.Step[discs.Action], want *game.Result) gametest.Script[discs.Opts, discs.Action] {
-		return gametest.Script[discs.Opts, discs.Action]{
+	script := func(name string, steps []gametest.Step[discs.Action], want *game.Result) gametest.Script[game.TurnOpts, discs.Action] {
+		return gametest.Script[game.TurnOpts, discs.Action]{
 			Name:       name,
-			Opts:       discs.Opts{First: game.FirstMoverRandom, TimeControl: game.TimeControlNone},
+			Opts:       game.TurnOpts{First: game.FirstMoverRandom, TimeControl: game.TimeControlNone},
 			Challenger: alice,
 			Invitees:   []game.UserID{bob},
 			Seed:       1,
@@ -411,7 +411,7 @@ func TestConformance(t *testing.T) {
 		}
 	}
 	flipsNothing := gametest.Step[discs.Action]{Seat: discs.SeatWhite, Action: place("a1"), WantErr: true}
-	gametest.Run(t, Rules{}, []gametest.Script[discs.Opts, discs.Action]{
+	gametest.Run(t, Rules{}, []gametest.Script[game.TurnOpts, discs.Action]{
 		script("wipeout after a rejected move", slices.Insert(steps(t, wipeout()...), 1, flipsNothing),
 			&game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{discs.SeatBlack}, Reason: ReasonMoreDiscs}),
 		script("a full game with passes", steps(t, firstLegalGame(t)...),

@@ -22,7 +22,7 @@ func (Rules) Info() game.Info {
 		Name:         "Gomoku",
 		Players:      game.PlayerRange{Min: 2, Max: 2},
 		Capabilities: []game.Capability{game.CapResign, game.CapDraw, game.CapClock, game.CapAbort},
-		Options:      discs.Options(),
+		Options:      game.TurnOptions(),
 		Actions: []game.ActionSpec{
 			discs.PlaceSpec(discs.NewBoard(boardSize).Coords(), "Place a stone on an empty cell."),
 		},
@@ -32,7 +32,6 @@ func (Rules) Info() game.Info {
 }
 
 // New implements game.Rules. The first mover, picked by Opts.First, plays black.
-func (Rules) New(opts discs.Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[discs.Action, View], map[game.UserID]game.Seat, error) {
-	seats := discs.Sides.Assign(challenger, invitees[0], game.PickFirst(opts.First, rng))
-	return newState(), seats, nil
+func (Rules) New(opts game.TurnOpts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[discs.Action, View], map[game.UserID]game.Seat, error) {
+	return newState(), discs.Sides.AssignFirst(opts.First, challenger, invitees, rng), nil
 }

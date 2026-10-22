@@ -19,12 +19,6 @@ const (
 	ReasonEqualSeeds game.ResultReason = "equal_seeds"
 )
 
-// Opts are the options a mancala game is created with.
-type Opts struct {
-	First       game.FirstMover  `json:"first"`
-	TimeControl game.TimeControl `json:"time_control"`
-}
-
 // ActionSow sows the seeds of one of the mover's pits.
 const ActionSow game.ActionKind = "sow"
 

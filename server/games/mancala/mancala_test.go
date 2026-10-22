@@ -29,7 +29,7 @@ func at(south [pitsPerSide]int, southStore int, north [pitsPerSide]int, northSto
 
 func newState(t *testing.T) state {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
+	st, _, err := Rules{}.New(game.TurnOpts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func sowAll(t *testing.T, s state, pits ...string) (state, []game.Event) {
 	t.Helper()
 	var events []game.Event
 	for _, pit := range pits {
-		s, events = gametest.MustApply(t, Rules{}.Info(), s, s.toMove, sow(pit), nil)
+		s, events = gametest.MustApply(t, Rules{}.Info(), s, s.ToAct()[0], sow(pit), nil)
 	}
 	return s, events
 }
@@ -58,7 +58,7 @@ func TestNewSeatsTheFirstMoverSouth(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.first), func(t *testing.T) {
-			st, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
+			st, seats, err := Rules{}.New(game.TurnOpts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -196,7 +196,7 @@ func TestSowing(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := state{board: tc.from, toMove: tc.mover}
+			s := state{board: tc.from, Turn: game.TurnTo(tc.mover)}
 			next, events, err := s.Apply(tc.mover, sow(tc.pit), nil)
 			if err != nil {
 				t.Fatal(err)
@@ -276,7 +276,7 @@ func TestTheGameEndsWhenOneSideIsEmpty(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := state{board: tc.from, toMove: tc.mover}
+			s := state{board: tc.from, Turn: game.TurnTo(tc.mover)}
 			next, events, err := s.Apply(tc.mover, sow(tc.pit), nil)
 			if err != nil {
 				t.Fatal(err)
@@ -328,7 +328,7 @@ func TestRejectedActions(t *testing.T) {
 }
 
 func TestLegalPitsAreTheMoversNonEmptyPits(t *testing.T) {
-	s := state{board: at([6]int{0, 3, 0, 1, 0, 0}, 0, [6]int{2, 2, 2, 2, 2, 2}, 0), toMove: SeatSouth}
+	s := state{board: at([6]int{0, 3, 0, 1, 0, 0}, 0, [6]int{2, 2, 2, 2, 2, 2}, 0), Turn: game.TurnTo(SeatSouth)}
 	if diff := cmp.Diff([]int{2, 4}, s.View(SeatSouth).LegalPits); diff != "" {
 		t.Errorf("south's legal pits (-want +got):\n%s", diff)
 	}
@@ -347,7 +347,7 @@ func TestConcludeStopsOfferingPitsAndKeepsAReachedResult(t *testing.T) {
 		t.Errorf("legal pits %v after a draw was agreed", legal)
 	}
 	played := game.Result{Kind: game.ResultDraw, Reason: ReasonEqualSeeds}
-	ended := state{Ending: game.Ending{}.Concluded(played), board: at([6]int{}, 24, [6]int{}, 24)}
+	ended := state{Turn: game.Turn{}.Conclude(played), board: at([6]int{}, 24, [6]int{}, 24)}
 	if got, _ := ended.Conclude(agreed).Outcome(); !cmp.Equal(got, played) {
 		t.Errorf("Conclude replaced a played result with %+v", got)
 	}

@@ -20,7 +20,7 @@ func playedOutChoosing(t *testing.T, choose func(legal []int) int) ([]gametest.S
 	s := newState(t)
 	var steps []gametest.Step[Action]
 	for !s.Over() {
-		mover := s.toMove
+		mover := s.ToAct()[0]
 		action := sow(strconv.Itoa(choose(s.View(mover).LegalPits)))
 		s, _ = gametest.MustApply(t, Rules{}.Info(), s, mover, action, nil)
 		steps = append(steps, gametest.Step[Action]{Seat: mover, Action: action})
@@ -40,11 +40,11 @@ func TestConformance(t *testing.T) {
 		{Seat: SeatSouth, Action: sow("3"), WantErr: true},
 		{Seat: SeatSouth, Action: sow("1")},
 	}
-	me := Opts{First: game.FirstMoverMe}
-	gametest.Run(t, Rules{}, []gametest.Script[Opts, Action]{
+	me := game.TurnOpts{First: game.FirstMoverMe}
+	gametest.Run(t, Rules{}, []gametest.Script[game.TurnOpts, Action]{
 		{Name: "first legal pit every move: north wins 36 to 12", Opts: me, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 1, Steps: firstPits, WantResult: &northWins},
 		{Name: "last legal pit every move: 24 each, a draw", Opts: me, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 2, Steps: lastPits, WantResult: &drawn},
 		{Name: "rejections, an extra turn, and unfinished", Opts: me, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 3, Steps: rejected},
-		{Name: "random first mover", Opts: Opts{First: game.FirstMoverRandom}, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 4, Steps: firstPits[:6]},
+		{Name: "random first mover", Opts: game.TurnOpts{First: game.FirstMoverRandom}, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 4, Steps: firstPits[:6]},
 	})
 }

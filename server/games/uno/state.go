@@ -352,12 +352,7 @@ func (s state) playable() []Card {
 }
 
 // ToAct is the one seat to act, or none once the game is over.
-func (s state) ToAct() []game.Seat {
-	if s.Over() {
-		return []game.Seat{}
-	}
-	return []game.Seat{s.order[s.turn]}
-}
+func (s state) ToAct() []game.Seat { return s.ToActOf(s.order[s.turn]) }
 
 // Conclude takes a result the core imposed, such as an abort, so that no seat is left to act.
 func (s state) Conclude(result game.Result) game.State[Action, View] {

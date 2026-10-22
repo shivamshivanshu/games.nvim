@@ -41,6 +41,6 @@ func (Rules) Info() game.Info {
 
 // New seats the challenger by the colour option and starts with Black to move.
 func (Rules) New(opts Opts, challenger game.UserID, invitees []game.UserID, rng *rand.Rand) (game.State[Action, View], map[game.UserID]game.Seat, error) {
-	challengerFirst := game.PickFirst(game.SideFirstMover(opts.Color, ColorBlack, ColorWhite), rng)
-	return newState(StartBoard(), SeatBlack, 0), sides.Assign(challenger, invitees[0], challengerFirst), nil
+	first := game.SideFirstMover(opts.Color, ColorBlack, ColorWhite)
+	return newState(StartBoard(), SeatBlack, 0), sides.AssignFirst(first, challenger, invitees, rng), nil
 }
