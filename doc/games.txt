@@ -71,7 +71,17 @@ Passed to `require("games").setup({opts})`.
     `puzzles`         `{ max_entries? }`           `{ max_entries = 5000 }`
 
 `password` as a function is called at each connect, never during setup(), so
-the secret need not live in your dotfiles.
+the secret need not live in your dotfiles. |os.getenv()| sees only the
+environment Neovim started with: export the variable in a file your shell
+reads at startup (zsh reads `~/.zprofile` for login shells only, `~/.zshrc`
+for every interactive one) and restart Neovim from a new shell. A function
+that returns nothing fails the connect with "password function returned no
+password" instead of prompting. To keep the password out of the environment,
+read a mode-600 file: >lua
+    password = function()
+      return vim.fn.readfile(vim.fn.expand("~/.config/games.nvim/password"))[1]
+    end,
+<
 
 `picker` forces the finder's picker (|games-finder|); unset, the first
 installed of snacks.picker, telescope and fzf-lua is used, else

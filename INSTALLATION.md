@@ -83,6 +83,8 @@ lazy.nvim:
 
 `username` and `password` are optional: `:Games` prompts for missing ones (the password hidden) and keeps them for the session. A `password` function is called at each connect, so the secret can stay out of your dotfiles.
 
+`os.getenv` sees only the environment nvim started with: export `NVIM_GAMES_PASSWORD` in a file your shell reads at startup (zsh reads `~/.zprofile` for login shells only, `~/.zshrc` for every interactive one), then restart nvim from a new shell. If the function returns nothing, the connect fails with "password function returned no password" instead of prompting. To keep the password out of the environment, read a mode-600 file instead: `return vim.fn.readfile(vim.fn.expand("~/.config/games.nvim/password"))[1]`.
+
 Other managers load the plugin, then call `require("games").setup({ ... })`:
 
 ```lua
