@@ -247,6 +247,41 @@ function T.a_burst_of_pushes_renders_once()
   end)
 end
 
+function T.a_render_that_changes_nothing_shown_rewrites_no_line_and_leaves_the_window_be()
+  with_dashboard(function(_, conn)
+    local buf = vim.api.nvim_get_current_buf()
+    local tick = vim.api.nvim_buf_get_changedtick(buf)
+    local rendered, placed = 0, 0
+    local view, set_config = dashboard.view, vim.api.nvim_win_set_config
+    helpers.with_overrides({
+      {
+        dashboard,
+        "view",
+        function(...)
+          rendered = rendered + 1
+          return view(...)
+        end,
+      },
+      {
+        vim.api,
+        "nvim_win_set_config",
+        function(...)
+          placed = placed + 1
+          return set_config(...)
+        end,
+      },
+    }, function()
+      conn:push("game.update", vim.tbl_extend("force", hub.WAITING, { seq = hub.WAITING.seq + 1 }))
+      vim.wait(20)
+    end)
+    assert_eq({ rendered = 1, tick = tick, placed = 0 }, {
+      rendered = rendered,
+      tick = vim.api.nvim_buf_get_changedtick(buf),
+      placed = placed,
+    })
+  end)
+end
+
 function T.close_drops_the_handlers_the_autocmds_and_the_clock_tick()
   local client = hub.client()
   local before, timers = handler_counts(client), active_timers()

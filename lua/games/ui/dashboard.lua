@@ -60,6 +60,8 @@ local AUGROUP_NAME = "games.dashboard"
 ---@field augroup integer
 ---@field finished games.GameUpdate[] as the last game.list finished returned them
 ---@field view? games.DashboardView last rendered
+---@field painted? games.Painted what its last paint drew; nil while one is underway or after one raised
+---@field placed? vim.api.keyset.win_config where its last render placed the window
 ---@field show_keys boolean
 ---@field request_render fun() renders it on the next tick, once however often it is asked
 ---@field unsubscribes games.Unsubscribe[]
@@ -232,8 +234,14 @@ local function render(state)
   local kept = target_key(target_at_cursor(state))
   local view = M.view(snapshot, { show_keys = state.show_keys, connection = state.connection })
   state.view = view
-  paint(state.buf, NAMESPACE, 0, -1, view.rendered)
-  vim.api.nvim_win_set_config(state.win, centred(view.rendered.lines))
+  local painted = state.painted
+  state.painted = nil
+  state.painted = paint.update(state.buf, NAMESPACE, painted, view.rendered)
+  local placed = centred(view.rendered.lines)
+  if not vim.deep_equal(placed, state.placed) then
+    vim.api.nvim_win_set_config(state.win, placed)
+    state.placed = placed
+  end
   local line = line_of(view, kept) or first_target_line(view) or 1
   vim.api.nvim_win_set_cursor(state.win, { math.min(line, #view.rendered.lines), 0 })
   local connected = state.connection == ConnectionState.CONNECTED
