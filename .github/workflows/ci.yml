@@ -17,14 +17,18 @@ jobs:
       FZF_VERSION: 0.74.0
       FZF_SHA256: cf919f05b7581b4c744d764eaa704665d61dd6d3ca785f0df2351281dff60cda
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: server/go.mod
-      - uses: rhysd/action-setup-vim@v1
-        with:
-          neovim: true
-          version: ${{ matrix.neovim }}
+          cache-dependency-path: server/go.sum
+      - name: Install Neovim
+        run: |
+          dir="$RUNNER_TEMP/nvim"
+          mkdir -p "$dir"
+          curl -fsSL "https://github.com/neovim/neovim/releases/download/${{ matrix.neovim }}/nvim-linux-x86_64.tar.gz" | tar -xz -C "$dir" --strip-components=1
+          echo "$dir/bin" >> "$GITHUB_PATH"
+          "$dir/bin/nvim" --version | head -1
       - name: Install stylua
         if: matrix.neovim == 'stable'
         run: |
