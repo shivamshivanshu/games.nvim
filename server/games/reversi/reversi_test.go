@@ -28,11 +28,7 @@ func coords() grid.Coords { return discs.NewBoard(boardSize).Coords() }
 
 func newGame(t *testing.T) game.State[discs.Action, View] {
 	t.Helper()
-	st, _, err := Rules{}.New(game.TurnOpts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st
+	return gametest.NewState[game.State[discs.Action, View]](t, Rules{}, game.TurnOpts{First: game.FirstMoverMe}, []game.UserID{alice, bob}, 1)
 }
 
 // play places each cell for whichever seat is to move, so passes need no step.
@@ -382,8 +378,6 @@ func TestConformance(t *testing.T) {
 		return gametest.Script[game.TurnOpts, discs.Action]{
 			Name:       name,
 			Opts:       game.TurnOpts{First: game.FirstMoverRandom, TimeControl: game.TimeControlNone},
-			Challenger: alice,
-			Invitees:   []game.UserID{bob},
 			Seed:       1,
 			Steps:      steps,
 			WantResult: want,

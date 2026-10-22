@@ -12,20 +12,14 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game/feedback"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/games/words"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const solver game.UserID = "sam"
 
 func newState(t *testing.T, seed game.Seed) state {
 	t.Helper()
-	st, seats, err := Rules{}.New(Opts{}, solver, nil, game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := map[game.UserID]game.Seat{solver: game.SeatSolo}; !cmp.Equal(seats, want) {
-		t.Fatalf("seats = %v, want %v", seats, want)
-	}
-	return st.(state)
+	return gametest.NewSolo[state](t, Rules{}, Opts{}, solver, seed)
 }
 
 func guess(text string) Action { return Action{Kind: ActionGuess, Text: text} }
@@ -38,10 +32,7 @@ func wrongGuesses(answer string, n int) []string {
 
 func play(t *testing.T, st game.State[Action, View], texts ...string) game.State[Action, View] {
 	t.Helper()
-	for _, text := range texts {
-		st, _ = gametest.MustApply(t, Rules{}.Info(), st, game.SeatSolo, guess(text), nil)
-	}
-	return st
+	return gametest.PlaySolo(t, Rules{}.Info(), st, xslices.Map(texts, guess)...)
 }
 
 func TestRejectedActions(t *testing.T) {
@@ -98,7 +89,7 @@ func TestViewHidesAnswerUntilFinished(t *testing.T) {
 		{"one guess left", play(t, st, misses[:MaxGuesses-1]...), 1, ""},
 		{"out of guesses", play(t, st, misses...), 0, st.answer},
 		{"solved", play(t, st, misses[0], st.answer), MaxGuesses - 2, st.answer},
-		{"gave up", eliminated(st), MaxGuesses, st.answer},
+		{"gave up", gametest.Resigned[Action, View](st), MaxGuesses, st.answer},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,11 +99,6 @@ func TestViewHidesAnswerUntilFinished(t *testing.T) {
 			}
 		})
 	}
-}
-
-func eliminated(st state) game.State[Action, View] {
-	next, _ := st.Eliminate(game.SeatSolo, game.ReasonResign)
-	return next
 }
 
 func TestApplyLeavesEarlierStatesUnchanged(t *testing.T) {
@@ -164,9 +150,9 @@ func TestImposedEndingsRevealTheAnswerAndKeepAReachedResult(t *testing.T) {
 		want  game.Result
 	}{
 		{"abort before a guess", st.Conclude(aborted), aborted},
-		{"give up before solving", eliminated(st), gaveUp},
+		{"give up before solving", gametest.Resigned[Action, View](st), gaveUp},
 		{"abort after the solve", solved.(state).Conclude(aborted), solvedResult},
-		{"give up after the solve", eliminated(solved.(state)), solvedResult},
+		{"give up after the solve", gametest.Resigned(solved), solvedResult},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

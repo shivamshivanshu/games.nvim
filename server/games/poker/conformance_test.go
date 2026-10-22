@@ -43,11 +43,7 @@ func choose(v View, seat game.Seat) Action {
 func playToFinish(t *testing.T, players []game.UserID, seed game.Seed) ([]gametest.Step[Action], []state) {
 	t.Helper()
 	steps := gametest.PlayToFinish(t, Rules{}, Opts{}, players, seed, choose, maxGameSteps)
-	st, _, err := Rules{}.New(Opts{}, players[0], players[1:], game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return steps, gametest.Replay(t, Rules{}.Info(), st.(state), steps, seed)
+	return steps, gametest.Replay(t, Rules{}.Info(), gametest.NewState[state](t, Rules{}, Opts{}, players, seed), steps, seed)
 }
 
 func holes(h hand) []cards.Card {
@@ -130,11 +126,7 @@ func privateCards(s state, seat game.Seat) []string {
 // subseed is the seed every deck comes from.
 func subseed(t *testing.T, players []game.UserID, seed game.Seed) string {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{}, players[0], players[1:], game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return strconv.FormatUint(st.(state).subseed, 10)
+	return strconv.FormatUint(gametest.NewState[state](t, Rules{}, Opts{}, players, seed).subseed, 10)
 }
 
 func TestConformance(t *testing.T) {

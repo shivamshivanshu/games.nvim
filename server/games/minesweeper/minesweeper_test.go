@@ -120,11 +120,7 @@ func TestDifficultiesSetTheBoardAndMines(t *testing.T) {
 		{DifficultyHard, 16, 30, 99},
 	}
 	for _, tt := range tests {
-		st, _, err := Rules{}.New(Opts{Difficulty: tt.d}, solo, nil, game.StepRNG(1, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		view := st.View(game.SeatSolo)
+		view := gametest.NewSolo[state](t, Rules{}, Opts{Difficulty: tt.d}, solo, 1).View(game.SeatSolo)
 		if len(view.Cells) != tt.rows || len(view.Cells[0]) != tt.cols || view.Remaining != tt.mines || view.Flags != 0 {
 			t.Errorf("%s: %d rows by %d columns, remaining %d, flags %d; want %d by %d, remaining %d",
 				tt.d, len(view.Cells), len(view.Cells[0]), view.Remaining, view.Flags, tt.rows, tt.cols, tt.mines)
@@ -141,10 +137,7 @@ func TestFirstRevealAlwaysOpensAZeroWithTheMinesPlacedAfterIt(t *testing.T) {
 		lvl, _ := d.level()
 		for _, first := range []int{0, lvl.cells() - 1, lvl.cells() / 2, lvl.cols - 1} {
 			for seed := range game.Seed(10) {
-				st, _, err := Rules{}.New(Opts{Difficulty: d}, solo, nil, game.StepRNG(seed, 0))
-				if err != nil {
-					t.Fatal(err)
-				}
+				st := gametest.NewSolo[state](t, Rules{}, Opts{Difficulty: d}, solo, seed)
 				next, _, err := st.Apply(game.SeatSolo, reveal(address(lvl.point(first))), game.StepRNG(seed, 1))
 				if err != nil {
 					t.Fatal(err)

@@ -12,11 +12,7 @@ import (
 
 func newState(t *testing.T, opts Opts, seed game.Seed) state {
 	t.Helper()
-	st, _, err := Rules{}.New(opts, solo, nil, game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st.(state)
+	return gametest.NewSolo[state](t, Rules{}, opts, solo, seed)
 }
 
 func setText(cell int, d Digit) string {

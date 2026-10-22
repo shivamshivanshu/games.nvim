@@ -211,10 +211,8 @@ func moves(sans string) []gametest.Step[Action] {
 
 func TestConformance(t *testing.T) {
 	base := gametest.Script[Opts, Action]{
-		Opts:       Opts{TimeControl: game.TimeControlNone, Color: ColorWhite},
-		Challenger: alice,
-		Invitees:   []game.UserID{bob},
-		Seed:       1,
+		Opts: Opts{TimeControl: game.TimeControlNone, Color: ColorWhite},
+		Seed: 1,
 	}
 	script := func(name, line string, want game.Result, extra ...gametest.Step[Action]) gametest.Script[Opts, Action] {
 		s := base

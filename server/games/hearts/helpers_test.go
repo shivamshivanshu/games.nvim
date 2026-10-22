@@ -47,11 +47,7 @@ func tricks(t testing.TB, trickNo int, broken bool, hands ...string) state {
 
 func newGame(t testing.TB, seed game.Seed) state {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{}, users()[0], users()[1:], game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st.(opened).state
+	return gametest.NewState[opened](t, Rules{}, Opts{}, users(), seed).state
 }
 
 func playing(text string) Action { return Action{Kind: ActionPlay, Card: text} }

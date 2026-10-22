@@ -12,20 +12,14 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 	"github.com/shivamshivanshu/games.nvim/server/games/words"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 const solver game.UserID = "sam"
 
 func newState(t *testing.T, seed game.Seed) state {
 	t.Helper()
-	st, seats, err := Rules{}.New(Opts{}, solver, nil, game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := map[game.UserID]game.Seat{solver: game.SeatSolo}; !cmp.Equal(seats, want) {
-		t.Fatalf("seats = %v, want %v", seats, want)
-	}
-	return st.(state)
+	return gametest.NewSolo[state](t, Rules{}, Opts{}, solver, seed)
 }
 
 // seedWhere returns the first seed whose word satisfies keep.
@@ -69,10 +63,7 @@ func wordsNot(word string, n int) []string {
 
 func play(t *testing.T, st game.State[Action, View], texts ...string) game.State[Action, View] {
 	t.Helper()
-	for _, text := range texts {
-		st, _ = gametest.MustApply(t, Rules{}.Info(), st, game.SeatSolo, guess(text), nil)
-	}
-	return st
+	return gametest.PlaySolo(t, Rules{}.Info(), st, xslices.Map(texts, guess)...)
 }
 
 func TestRejectedActions(t *testing.T) {
@@ -227,11 +218,6 @@ func TestWordIsDrawnFromSeedAndTheAnswerList(t *testing.T) {
 	}
 }
 
-func eliminated(st game.State[Action, View]) game.State[Action, View] {
-	next, _ := st.Eliminate(game.SeatSolo, game.ReasonResign)
-	return next
-}
-
 func TestImposedEndingsRevealTheWordAndKeepAReachedResult(t *testing.T) {
 	st := newState(t, 1)
 	aborted := game.Result{Kind: game.ResultAborted, Reason: game.ReasonAborted}
@@ -244,9 +230,9 @@ func TestImposedEndingsRevealTheWordAndKeepAReachedResult(t *testing.T) {
 		want  game.Result
 	}{
 		{"abort before a guess", st.Conclude(aborted), aborted},
-		{"give up before solving", eliminated(st), gaveUp},
+		{"give up before solving", gametest.Resigned[Action, View](st), gaveUp},
 		{"abort after the solve", solved.(state).Conclude(aborted), solvedResult},
-		{"give up after the solve", eliminated(solved), solvedResult},
+		{"give up after the solve", gametest.Resigned(solved), solvedResult},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

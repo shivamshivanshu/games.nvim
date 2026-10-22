@@ -39,11 +39,7 @@ func TestOnlyTheSeatToActIsOffered(t *testing.T) {
 	const seed game.Seed = 7
 	for n := playerRange.Min; n <= playerRange.Max; n++ {
 		users := gametest.Users(n)
-		st, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(seed, 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		s := st.(state)
+		s := gametest.NewState[state](t, Rules{}, Opts{}, users, seed)
 		for i, step := range playToFinish(t, users, seed) {
 			for _, other := range s.order {
 				view := s.View(other)

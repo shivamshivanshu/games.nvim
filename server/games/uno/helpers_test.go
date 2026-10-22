@@ -61,12 +61,7 @@ func apply(t testing.TB, s state, by game.Seat, a Action) (state, []game.Event) 
 
 func newGame(t testing.TB, n int, seed game.Seed) state {
 	t.Helper()
-	users := gametest.Users(n)
-	st, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st.(opened).state
+	return gametest.NewState[opened](t, Rules{}, Opts{}, gametest.Users(n), seed).state
 }
 
 // choose is a deterministic player: it plays what matches, coloured cards

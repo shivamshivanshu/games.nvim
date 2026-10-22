@@ -28,11 +28,7 @@ const (
 
 func newState(t *testing.T) game.State[Action, View] {
 	t.Helper()
-	st, _, err := Rules{}.New(game.TurnOpts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st
+	return gametest.NewState[game.State[Action, View]](t, Rules{}, game.TurnOpts{First: game.FirstMoverMe}, []game.UserID{alice, bob}, 1)
 }
 
 // drops turns a string of column digits into alternating drops, red first.
@@ -296,8 +292,6 @@ func TestConformance(t *testing.T) {
 		return gametest.Script[game.TurnOpts, Action]{
 			Name:       name,
 			Opts:       game.TurnOpts{First: game.FirstMoverMe, TimeControl: game.TimeControlNone},
-			Challenger: alice,
-			Invitees:   []game.UserID{bob},
 			Seed:       1,
 			Steps:      steps,
 			WantResult: &want,

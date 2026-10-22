@@ -28,12 +28,7 @@ func newGame(t *testing.T, n int) state { return newGameFrom(t, n, 1) }
 
 func newGameFrom(t *testing.T, n int, seed game.Seed) state {
 	t.Helper()
-	users := gametest.Users(n)
-	st, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st.(state)
+	return gametest.NewState[state](t, Rules{}, Opts{}, gametest.Users(n), seed)
 }
 
 func apply(t *testing.T, s state, by game.Seat, action Action, seq game.Seq) (state, []game.Event) {

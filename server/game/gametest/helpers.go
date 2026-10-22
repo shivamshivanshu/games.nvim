@@ -2,6 +2,7 @@ package gametest
 
 import (
 	"encoding/json"
+	"maps"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -22,6 +23,54 @@ func ViewJSON(t testing.TB, v any) string {
 		t.Fatalf("encode view %T: %v", v, err)
 	}
 	return string(raw)
+}
+
+// NewState is the state rules start for users, challenger first, from seed,
+// failing t unless New succeeds with an S.
+func NewState[S any, Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], opts Opts, users []game.UserID, seed game.Seed) S {
+	t.Helper()
+	state, _ := started[S](t, rules, opts, users[0], users[1:], seed)
+	return state
+}
+
+// NewSolo is the state rules start for solver alone from seed, failing t
+// unless New succeeds with an S and seats solver as game.SeatSolo.
+func NewSolo[S any, Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], opts Opts, solver game.UserID, seed game.Seed) S {
+	t.Helper()
+	state, seats := started[S](t, rules, opts, solver, nil, seed)
+	if want := game.SoloSeat(solver); !maps.Equal(seats, want) {
+		t.Fatalf("seats %v, want %v", seats, want)
+	}
+	return state
+}
+
+func started[S any, Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], opts Opts, challenger game.UserID, invitees []game.UserID, seed game.Seed) (S, map[game.UserID]game.Seat) {
+	t.Helper()
+	state, seats, err := rules.New(opts, challenger, invitees, game.StepRNG(seed, 0))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	typed, ok := state.(S)
+	if !ok {
+		t.Fatalf("New gave a %T, not a %T", state, typed)
+	}
+	return typed, seats
+}
+
+// PlaySolo is s after the solver applies each action in turn through
+// MustApply with info, with no rng.
+func PlaySolo[S game.State[Action, View], Action, View any](t testing.TB, info game.Info, s S, actions ...Action) S {
+	t.Helper()
+	for _, action := range actions {
+		s, _ = MustApply(t, info, s, game.SeatSolo, action, nil)
+	}
+	return s
+}
+
+// Resigned is s after its solver resigns.
+func Resigned[Action, View any](s game.State[Action, View]) game.State[Action, View] {
+	next, _ := s.Eliminate(game.SeatSolo, game.ReasonResign)
+	return next
 }
 
 // MustApply is s after seat applies action, failing t unless the adapter

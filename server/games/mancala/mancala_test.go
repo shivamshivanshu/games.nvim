@@ -29,11 +29,7 @@ func at(south [pitsPerSide]int, southStore int, north [pitsPerSide]int, northSto
 
 func newState(t *testing.T) state {
 	t.Helper()
-	st, _, err := Rules{}.New(game.TurnOpts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st.(state)
+	return gametest.NewState[state](t, Rules{}, game.TurnOpts{First: game.FirstMoverMe}, []game.UserID{alice, bob}, 1)
 }
 
 func sowAll(t *testing.T, s state, pits ...string) (state, []game.Event) {

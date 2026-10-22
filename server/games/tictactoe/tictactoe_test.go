@@ -22,11 +22,7 @@ const (
 
 func newGame(t *testing.T) game.State[Action, View] {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{First: game.FirstMoverMe}, alice, []game.UserID{bob}, game.StepRNG(1, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st
+	return gametest.NewState[game.State[Action, View]](t, Rules{}, Opts{First: game.FirstMoverMe}, []game.UserID{alice, bob}, 1)
 }
 
 func play(t *testing.T, cells ...CellNumber) game.State[Action, View] {
@@ -218,8 +214,6 @@ func TestConformance(t *testing.T) {
 		return gametest.Script[Opts, Action]{
 			Name:       name,
 			Opts:       Opts{First: game.FirstMoverRandom},
-			Challenger: alice,
-			Invitees:   []game.UserID{bob},
 			Seed:       1,
 			Steps:      steps,
 			WantResult: want,

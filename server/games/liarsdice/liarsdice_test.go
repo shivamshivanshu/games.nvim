@@ -25,12 +25,7 @@ func dudo() Action { return Action{Kind: ActionDudo} }
 
 func newGame(t *testing.T, n int, seed game.Seed) state {
 	t.Helper()
-	users := gametest.Users(n)
-	st, _, err := Rules{}.New(Opts{}, users[0], users[1:], game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st.(state)
+	return gametest.NewState[state](t, Rules{}, Opts{}, gametest.Users(n), seed)
 }
 
 // withCups is s with these cups on the table, p1 to act and no bid.

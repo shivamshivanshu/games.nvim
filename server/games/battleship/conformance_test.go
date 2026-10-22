@@ -21,10 +21,7 @@ type planner struct {
 
 func newPlanner(t *testing.T, first game.FirstMover, seed game.Seed) *planner {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{First: first}, alice, []game.UserID{bob}, game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
+	st := gametest.NewState[game.State[Action, View]](t, Rules{}, Opts{First: first}, []game.UserID{alice, bob}, seed)
 	return &planner{t: t, seed: seed, state: st}
 }
 
@@ -66,7 +63,7 @@ func (p *planner) sink(shooter game.Seat, answers []string) {
 
 func (p *planner) script(name string, first game.FirstMover, want *game.Result) gametest.Script[Opts, Action] {
 	return gametest.Script[Opts, Action]{
-		Name: name, Opts: Opts{First: first}, Challenger: alice, Invitees: []game.UserID{bob},
+		Name: name, Opts: Opts{First: first},
 		Seed: p.seed, Steps: p.steps, WantResult: want,
 	}
 }

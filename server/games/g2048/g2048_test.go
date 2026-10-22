@@ -19,14 +19,7 @@ func move(direction string) Action { return Action{Kind: ActionMove, Direction: 
 
 func newState(t *testing.T, seed game.Seed) state {
 	t.Helper()
-	st, seats, err := Rules{}.New(Opts{}, solver, nil, game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := cmp.Diff(map[game.UserID]game.Seat{solver: game.SeatSolo}, seats); diff != "" {
-		t.Fatalf("seats (-want +got):\n%s", diff)
-	}
-	return st.(state)
+	return gametest.NewSolo[state](t, Rules{}, Opts{}, solver, seed)
 }
 
 func tiles(b board) []int {

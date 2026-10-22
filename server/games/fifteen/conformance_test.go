@@ -9,11 +9,7 @@ import (
 
 func newGame(t *testing.T, size Size, seed game.Seed) state {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{Size: size}, solo, nil, game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return st.(state)
+	return gametest.NewSolo[state](t, Rules{}, Opts{Size: size}, solo, seed)
 }
 
 // solvingActions solves the seed's shuffle, each slide sent as a move by direction when

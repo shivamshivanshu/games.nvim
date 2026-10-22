@@ -42,9 +42,9 @@ func TestConformance(t *testing.T) {
 	}
 	me := game.TurnOpts{First: game.FirstMoverMe}
 	gametest.Run(t, Rules{}, []gametest.Script[game.TurnOpts, Action]{
-		{Name: "first legal pit every move: north wins 36 to 12", Opts: me, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 1, Steps: firstPits, WantResult: &northWins},
-		{Name: "last legal pit every move: 24 each, a draw", Opts: me, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 2, Steps: lastPits, WantResult: &drawn},
-		{Name: "rejections, an extra turn, and unfinished", Opts: me, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 3, Steps: rejected},
-		{Name: "random first mover", Opts: game.TurnOpts{First: game.FirstMoverRandom}, Challenger: alice, Invitees: []game.UserID{bob}, Seed: 4, Steps: firstPits[:6]},
+		{Name: "first legal pit every move: north wins 36 to 12", Opts: me, Seed: 1, Steps: firstPits, WantResult: &northWins},
+		{Name: "last legal pit every move: 24 each, a draw", Opts: me, Seed: 2, Steps: lastPits, WantResult: &drawn},
+		{Name: "rejections, an extra turn, and unfinished", Opts: me, Seed: 3, Steps: rejected},
+		{Name: "random first mover", Opts: game.TurnOpts{First: game.FirstMoverRandom}, Seed: 4, Steps: firstPits[:6]},
 	})
 }

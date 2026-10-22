@@ -73,7 +73,8 @@ const (
 
 func newAdapted[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action], played replay[View]) (game.ErasedState, []game.Seat) {
 	t.Helper()
-	state, seats, err := game.Adapt(rules).New(optionsOf(t, script.Opts), script.Challenger, script.Invitees, game.StepRNG(script.Seed, 0))
+	challenger, invitees := script.players()
+	state, seats, err := game.Adapt(rules).New(optionsOf(t, script.Opts), challenger, invitees, game.StepRNG(script.Seed, 0))
 	if err != nil {
 		t.Fatalf("New through game.Adapt: %v", err)
 	}

@@ -37,7 +37,7 @@ type Hidden[Action, View any] struct {
 // view or no step was compared.
 func NonInterference[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action], hidden Hidden[Action, View]) {
 	t.Helper()
-	state, seats, err := rules.New(script.Opts, script.Challenger, script.Invitees, game.StepRNG(script.Seed, 0))
+	state, seats, err := start(rules, script)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

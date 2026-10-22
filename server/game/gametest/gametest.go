@@ -35,8 +35,9 @@ type Step[Action any] struct {
 }
 
 type Script[Opts, Action any] struct {
-	Name       string
-	Opts       Opts
+	Name string
+	Opts Opts
+	// Challenger and Invitees are alice against bob when Challenger is empty.
 	Challenger game.UserID
 	Invitees   []game.UserID
 	Seed       game.Seed
@@ -49,6 +50,19 @@ type Script[Opts, Action any] struct {
 	// joined, such as a code sent digit by digit; a secret shorter than 8
 	// bytes counts there only as the whole array.
 	Secrets []string
+}
+
+// players are the script's challenger and invitees.
+func (s Script[Opts, Action]) players() (game.UserID, []game.UserID) {
+	if s.Challenger == "" {
+		return userNames[0], Users(2)[1:]
+	}
+	return s.Challenger, s.Invitees
+}
+
+func start[Opts, Action, View any](rules game.Rules[Opts, Action, View], script Script[Opts, Action]) (game.State[Action, View], map[game.UserID]game.Seat, error) {
+	challenger, invitees := script.players()
+	return rules.New(script.Opts, challenger, invitees, game.StepRNG(script.Seed, 0))
 }
 
 type observation[View any] struct {
@@ -103,7 +117,7 @@ func conform[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action
 
 func play[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], script Script[Opts, Action]) (replay[View], game.State[Action, View]) {
 	t.Helper()
-	state, seats, err := rules.New(script.Opts, script.Challenger, script.Invitees, game.StepRNG(script.Seed, 0))
+	state, seats, err := start(rules, script)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -269,7 +283,7 @@ func checkWantResult[Opts, Action, View any](t testing.TB, script Script[Opts, A
 
 func checkEliminate[Opts, Action, View any](t testing.TB, rules game.Rules[Opts, Action, View], info game.Info, script Script[Opts, Action]) {
 	t.Helper()
-	state, seats, err := rules.New(script.Opts, script.Challenger, script.Invitees, game.StepRNG(script.Seed, 0))
+	state, seats, err := start(rules, script)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

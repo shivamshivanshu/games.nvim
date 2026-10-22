@@ -21,11 +21,7 @@ type planner struct {
 
 func newPlanner(t *testing.T, d Difficulty, seed game.Seed) *planner {
 	t.Helper()
-	st, _, err := Rules{}.New(Opts{Difficulty: d}, solo, nil, game.StepRNG(seed, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &planner{t: t, seed: seed, state: st.(state)}
+	return &planner{t: t, seed: seed, state: gametest.NewSolo[state](t, Rules{}, Opts{Difficulty: d}, solo, seed)}
 }
 
 func (p *planner) play(action Action) {

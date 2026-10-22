@@ -278,8 +278,6 @@ func TestConformance(t *testing.T) {
 		return gametest.Script[Opts, Action]{
 			Name:       name,
 			Opts:       Opts{TimeControl: game.TimeControlNone, Color: ColorBlack},
-			Challenger: alice,
-			Invitees:   []game.UserID{bob},
 			Seed:       1,
 			Steps:      append([]gametest.Step[Action]{steps[0], misplay}, steps[1:]...),
 			WantResult: &want,

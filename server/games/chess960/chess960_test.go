@@ -250,7 +250,7 @@ func TestConformance(t *testing.T) {
 	script := func(name string, seed game.Seed, steps []gametest.Step[chess.Action], want *game.Result) gametest.Script[chess.Opts, chess.Action] {
 		return gametest.Script[chess.Opts, chess.Action]{
 			Name: name, Opts: chess.Opts{TimeControl: game.TimeControlNone, Color: chess.ColorWhite},
-			Challenger: alice, Invitees: []game.UserID{bob}, Seed: seed, Steps: steps, WantResult: want,
+			Seed: seed, Steps: steps, WantResult: want,
 		}
 	}
 	mated := game.Result{Kind: game.ResultDecisive, Winners: []game.Seat{chess.SeatBlack}, Reason: chess.ReasonCheckmate}
