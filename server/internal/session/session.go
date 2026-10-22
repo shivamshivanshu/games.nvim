@@ -16,7 +16,12 @@ import (
 
 const closeFlushTimeout = time.Second
 
-type Authenticator func(ctx context.Context, s *Session, req protocol.LoginRequest) (protocol.LoginResult, error)
+// Authenticator admits a session: Login to an existing account, Register to
+// one it creates.
+type Authenticator struct {
+	Login    func(ctx context.Context, s *Session, req protocol.LoginRequest) (protocol.LoginResult, error)
+	Register func(ctx context.Context, s *Session, req protocol.RegisterRequest) (protocol.LoginResult, error)
+}
 
 type Hooks struct {
 	OnAuthenticated func(*Session)
@@ -25,7 +30,7 @@ type Hooks struct {
 
 type serveConfig struct {
 	lim    limits.Limits
-	login  Authenticator
+	auth   Authenticator
 	routes Router
 	hooks  Hooks
 }
@@ -144,6 +149,8 @@ func (s *Session) dispatch(ctx context.Context, env protocol.Envelope) (any, err
 	switch {
 	case env.Type == protocol.TypeAuthLogin:
 		return Handle(login)(ctx, s, env.Body)
+	case env.Type == protocol.TypeAuthRegister:
+		return Handle(register)(ctx, s, env.Body)
 	case !s.authenticated():
 		return nil, errUnauthenticated
 	case env.Type == protocol.TypePing:
@@ -157,16 +164,26 @@ func (s *Session) dispatch(ctx context.Context, env protocol.Envelope) (any, err
 }
 
 func login(ctx context.Context, s *Session, req protocol.LoginRequest) (protocol.LoginResult, error) {
+	return s.authenticate(req.V, func() (protocol.LoginResult, error) { return s.cfg.auth.Login(ctx, s, req) })
+}
+
+func register(ctx context.Context, s *Session, req protocol.RegisterRequest) (protocol.LoginResult, error) {
+	return s.authenticate(req.V, func() (protocol.LoginResult, error) { return s.cfg.auth.Register(ctx, s, req) })
+}
+
+// authenticate logs s in as the user admit accepts, once the client's
+// protocol version v matches.
+func (s *Session) authenticate(v int, admit func() (protocol.LoginResult, error)) (protocol.LoginResult, error) {
 	if s.authenticated() {
 		return protocol.LoginResult{}, protocol.BadRequestf("already logged in")
 	}
-	if req.V != protocol.Version {
+	if v != protocol.Version {
 		return protocol.LoginResult{}, protocol.Error{
 			Code: protocol.CodeVersionMismatch,
-			Msg:  fmt.Sprintf("protocol version mismatch: client v%d, server v%d", req.V, protocol.Version),
+			Msg:  fmt.Sprintf("protocol version mismatch: client v%d, server v%d", v, protocol.Version),
 		}
 	}
-	res, err := s.cfg.login(ctx, s, req)
+	res, err := admit()
 	if err != nil {
 		return protocol.LoginResult{}, err
 	}

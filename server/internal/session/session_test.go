@@ -65,7 +65,7 @@ func startServer(t *testing.T, lim limits.Limits, routes session.Router, hooks s
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	addr, shutdown := prototest.Serve(t, cancel, replyTimeout, func(ln net.Listener) error {
-		return session.Serve(ctx, ln, lim, stubLogin, routes, hooks)
+		return session.Serve(ctx, ln, lim, session.Authenticator{Login: stubLogin}, routes, hooks)
 	})
 	t.Cleanup(func() {
 		if err := shutdown(); err != nil {

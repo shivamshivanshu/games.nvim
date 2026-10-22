@@ -23,6 +23,9 @@
 ---@field username games.UserID
 ---@field password string
 
+---@class games.RegisterRequest: games.LoginRequest
+---@field passphrase string
+
 ---@class games.LoginResult
 ---@field user games.UserID
 ---@field heartbeat_ms integer
@@ -274,6 +277,7 @@ M.MessageType = {
   OK = "ok",
   ERROR = "error",
   AUTH_LOGIN = "auth.login",
+  AUTH_REGISTER = "auth.register",
   PING = "ping",
   CATALOG_LIST = "catalog.list",
   USER_LIST = "user.list",
@@ -305,6 +309,9 @@ M.ErrorCode = {
   STALE = "stale",
   INTERNAL = "internal",
   SUMMARY_MISMATCH = "summary_mismatch",
+  SIGNUP_DISABLED = "signup_disabled",
+  PASSPHRASE_REJECTED = "passphrase_rejected",
+  USER_EXISTS = "user_exists",
   -- Client-side only: the server never sends it; the conn reports lost connections with it.
   DISCONNECTED = "disconnected",
 }

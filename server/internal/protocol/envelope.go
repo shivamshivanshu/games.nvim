@@ -10,6 +10,7 @@ const (
 	TypeOK               MessageType = "ok"
 	TypeError            MessageType = "error"
 	TypeAuthLogin        MessageType = "auth.login"
+	TypeAuthRegister     MessageType = "auth.register"
 	TypePing             MessageType = "ping"
 	TypeCatalogList      MessageType = "catalog.list"
 	TypeUserList         MessageType = "user.list"
@@ -32,16 +33,19 @@ const (
 type ErrorCode string
 
 const (
-	CodeBadRequest      ErrorCode = "bad_request"
-	CodeVersionMismatch ErrorCode = "version_mismatch"
-	CodeUnauthenticated ErrorCode = "unauthenticated"
-	CodeAuthFailed      ErrorCode = "auth_failed"
-	CodeNotFound        ErrorCode = "not_found"
-	CodeNotYourTurn     ErrorCode = "not_your_turn"
-	CodeIllegalAction   ErrorCode = "illegal_action"
-	CodeStale           ErrorCode = "stale"
-	CodeInternal        ErrorCode = "internal"
-	CodeSummaryMismatch ErrorCode = "summary_mismatch"
+	CodeBadRequest         ErrorCode = "bad_request"
+	CodeVersionMismatch    ErrorCode = "version_mismatch"
+	CodeUnauthenticated    ErrorCode = "unauthenticated"
+	CodeAuthFailed         ErrorCode = "auth_failed"
+	CodeNotFound           ErrorCode = "not_found"
+	CodeNotYourTurn        ErrorCode = "not_your_turn"
+	CodeIllegalAction      ErrorCode = "illegal_action"
+	CodeStale              ErrorCode = "stale"
+	CodeInternal           ErrorCode = "internal"
+	CodeSummaryMismatch    ErrorCode = "summary_mismatch"
+	CodeSignupDisabled     ErrorCode = "signup_disabled"
+	CodePassphraseRejected ErrorCode = "passphrase_rejected"
+	CodeUserExists         ErrorCode = "user_exists"
 )
 
 // RequestID is chosen by the client and echoed on the reply.

@@ -75,6 +75,15 @@ type LoginRequest struct {
 	Password string      `json:"password"`
 }
 
+// RegisterRequest creates the account Username and logs in as it, given the
+// server's sign-up Passphrase.
+type RegisterRequest struct {
+	V          int         `json:"v"`
+	Username   game.UserID `json:"username"`
+	Password   string      `json:"password"`
+	Passphrase string      `json:"passphrase"`
+}
+
 type LoginResult struct {
 	User        game.UserID `json:"user"`
 	HeartbeatMS int64       `json:"heartbeat_ms"`

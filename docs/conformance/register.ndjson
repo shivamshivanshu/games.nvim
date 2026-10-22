@@ -1,0 +1,10 @@
+{"comment": "Sign-up needs the server's passphrase; with it, auth.register creates the account and logs that connection in like auth.login."}
+{"client": "erin", "send": {"id": 1, "type": "auth.register", "body": {"v": 1, "username": "erin", "password": "erin's secret", "passphrase": "wrong"}}}
+{"client": "erin", "recv": {"id": 1, "type": "error", "body": {"code": "passphrase_rejected", "message": "$msg_passphrase_rejected"}}}
+{"client": "erin", "send": {"id": 2, "type": "auth.register", "body": {"v": 1, "username": "erin", "password": "erin's secret", "passphrase": "open sesame"}}}
+{"client": "erin", "recv": {"id": 2, "type": "ok", "body": {"user": "erin", "heartbeat_ms": 15000}}}
+{"client": "erin", "send": {"id": 3, "type": "ping"}}
+{"client": "erin", "recv": {"id": 3, "type": "ok", "body": {}}}
+{"comment": "A new connection logs in to the account with auth.login."}
+{"client": "erin2", "send": {"id": 1, "type": "auth.login", "body": {"v": 1, "username": "erin", "password": "erin's secret"}}}
+{"client": "erin2", "recv": {"id": 1, "type": "ok", "body": {"user": "erin", "heartbeat_ms": 15000}}}

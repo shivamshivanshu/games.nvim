@@ -19,7 +19,7 @@ func TestRoutesAreTheCatalogedRequests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sessionHandled := []protocol.MessageType{protocol.TypeAuthLogin, protocol.TypePing}
+	sessionHandled := []protocol.MessageType{protocol.TypeAuthLogin, protocol.TypeAuthRegister, protocol.TypePing}
 	routed := append(slices.Collect(maps.Keys(h.Routes())), sessionHandled...)
 	cataloged := xslices.Map(protocol.Requests, func(r protocol.RequestSpec) protocol.MessageType { return r.Type })
 	slices.Sort(routed)

@@ -17,9 +17,13 @@ import (
 var (
 	errInvalidCredentials = protocol.Error{Code: protocol.CodeAuthFailed, Msg: "authentication failed: invalid credentials"}
 	errLockedOut          = protocol.Error{Code: protocol.CodeAuthFailed, Msg: "authentication failed: locked out, retry later"}
+	errSignupDisabled     = protocol.Error{Code: protocol.CodeSignupDisabled, Msg: "sign-up is disabled on this server"}
+	errPassphraseRejected = protocol.Error{Code: protocol.CodePassphraseRejected, Msg: "sign-up passphrase rejected"}
 )
 
-func (h *Hub) Login() session.Authenticator { return h.login }
+func (h *Hub) Authenticator() session.Authenticator {
+	return session.Authenticator{Login: h.login, Register: h.register}
+}
 
 func (h *Hub) login(ctx context.Context, s *session.Session, req protocol.LoginRequest) (protocol.LoginResult, error) {
 	if h.deps.Lockout.Locked(s.RemoteAddr()) {
@@ -32,6 +36,29 @@ func (h *Hub) login(ctx context.Context, s *session.Session, req protocol.LoginR
 	if err != nil || !auth.CheckPassword(hash, req.Password) {
 		h.deps.Lockout.RecordFailure(s.RemoteAddr())
 		return protocol.LoginResult{}, errInvalidCredentials
+	}
+	return protocol.LoginResult{User: req.Username}, nil
+}
+
+// register checks the passphrase before anything else about the account, so
+// a client without it learns nothing of which names are taken.
+func (h *Hub) register(ctx context.Context, s *session.Session, req protocol.RegisterRequest) (protocol.LoginResult, error) {
+	if h.deps.Lockout.Locked(s.RemoteAddr()) {
+		return protocol.LoginResult{}, errLockedOut
+	}
+	if h.deps.SignupPassphrase == "" {
+		return protocol.LoginResult{}, errSignupDisabled
+	}
+	if !auth.PassphraseMatches(h.deps.SignupPassphrase, req.Passphrase) {
+		h.deps.Lockout.RecordFailure(s.RemoteAddr())
+		return protocol.LoginResult{}, errPassphraseRejected
+	}
+	err := auth.CreateAccount(ctx, h.deps.Store, req.Username, req.Password)
+	if errors.Is(err, store.ErrUserExists) {
+		return protocol.LoginResult{}, protocol.Error{Code: protocol.CodeUserExists, Msg: fmt.Sprintf("user %q already exists", req.Username)}
+	}
+	if err != nil {
+		return protocol.LoginResult{}, err
 	}
 	return protocol.LoginResult{User: req.Username}, nil
 }

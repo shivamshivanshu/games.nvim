@@ -14,7 +14,7 @@ import (
 
 const serverFullMessage = "server full"
 
-func Serve(ctx context.Context, ln net.Listener, lim limits.Limits, login Authenticator, routes Router, hooks Hooks) error {
+func Serve(ctx context.Context, ln net.Listener, lim limits.Limits, auth Authenticator, routes Router, hooks Hooks) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	ctx, cancel := context.WithCancel(ctx)
@@ -22,7 +22,7 @@ func Serve(ctx context.Context, ln net.Listener, lim limits.Limits, login Authen
 	stopClosingListener := context.AfterFunc(ctx, func() { _ = ln.Close() })
 	defer stopClosingListener()
 
-	cfg := &serveConfig{lim: lim, login: login, routes: routes, hooks: hooks}
+	cfg := &serveConfig{lim: lim, auth: auth, routes: routes, hooks: hooks}
 	slots := make(chan struct{}, lim.MaxConnections)
 	for {
 		conn, err := ln.Accept()

@@ -27,6 +27,7 @@ var (
 	ErrMissingOptions = errors.New("store: game options must be non-empty JSON")
 	ErrNotFinished    = errors.New("store: game is not finished")
 	ErrNotOngoing     = errors.New("store: no ongoing game with that id")
+	ErrUserExists     = errors.New("store: user already exists")
 )
 
 type StepKind string
@@ -157,15 +158,15 @@ func (s *Store) Close() error {
 	return errors.Join(closed, s.reader.Close(), s.writer.Close())
 }
 
-// CreateUser refuses a name game.CheckUserID rejects.
+// CreateUser refuses a name game.CheckUserID rejects, and is ErrUserExists
+// for a name already taken.
 func (s *Store) CreateUser(ctx context.Context, user game.UserID, passwordHash []byte) error {
 	if err := game.CheckUserID(user); err != nil {
 		return err
 	}
-	_, err := s.writer.ExecContext(ctx,
-		`INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)`,
+	return requireAffected(ctx, s.writer, ErrUserExists,
+		`INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?) ON CONFLICT (username) DO NOTHING`,
 		user, passwordHash, time.Now().UnixMilli())
-	return err
 }
 
 func (s *Store) PasswordHash(ctx context.Context, user game.UserID) ([]byte, error) {

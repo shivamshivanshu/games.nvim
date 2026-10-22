@@ -17,10 +17,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
 )
 
-var (
-	errEmptyPassword = errors.New("password must not be empty")
-	errUsage         = errors.New("usage: games-server adduser --db <path> [--password-stdin] <name>")
-)
+var errUsage = errors.New("usage: games-server adduser --db <path> [--password-stdin] <name>")
 
 func addUser(args []string, stdin io.Reader) error {
 	fs := flag.NewFlagSet("adduser", flag.ContinueOnError)
@@ -33,9 +30,6 @@ func addUser(args []string, stdin io.Reader) error {
 		return errUsage
 	}
 	name := game.UserID(fs.Arg(0))
-	if err := game.CheckUserID(name); err != nil {
-		return err
-	}
 
 	ctx := context.Background()
 	st, err := store.Open(ctx, *dbPath)
@@ -43,14 +37,6 @@ func addUser(args []string, stdin io.Reader) error {
 		return fmt.Errorf("open store: %w", err)
 	}
 	defer func() { _ = st.Close() }()
-
-	exists, err := st.UserExists(ctx, name)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return fmt.Errorf("user %q already exists", name)
-	}
 
 	var password string
 	if *fromStdin {
@@ -61,14 +47,10 @@ func addUser(args []string, stdin io.Reader) error {
 	if err != nil {
 		return err
 	}
-	if password == "" {
-		return errEmptyPassword
+	if err := auth.CreateAccount(ctx, st, name, password); err != nil {
+		return fmt.Errorf("adduser %s: %w", name, err)
 	}
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		return err
-	}
-	return st.CreateUser(ctx, name, hash)
+	return nil
 }
 
 func readPasswordLine(stdin io.Reader) (string, error) {

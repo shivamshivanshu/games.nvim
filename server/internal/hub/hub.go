@@ -19,14 +19,15 @@ import (
 )
 
 // Deps is what a Hub runs on. Seeds draws each new game's seed; nil draws
-// from crypto/rand.
+// from crypto/rand. An empty SignupPassphrase turns sign-up off.
 type Deps struct {
-	Store   *store.Store
-	Games   []game.Game
-	Limits  limits.Limits
-	Time    clock.Clock
-	Lockout *auth.Lockout
-	Seeds   func() game.Seed
+	Store            *store.Store
+	Games            []game.Game
+	Limits           limits.Limits
+	Time             clock.Clock
+	Lockout          *auth.Lockout
+	Seeds            func() game.Seed
+	SignupPassphrase string
 }
 
 type sessionSet map[*session.Session]struct{}

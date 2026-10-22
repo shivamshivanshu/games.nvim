@@ -279,7 +279,10 @@
         "illegal_action",
         "stale",
         "internal",
-        "summary_mismatch"
+        "summary_mismatch",
+        "signup_disabled",
+        "passphrase_rejected",
+        "user_exists"
       ]
     },
     "GameActRequest": {
@@ -665,6 +668,7 @@
         "ok",
         "error",
         "auth.login",
+        "auth.register",
         "ping",
         "catalog.list",
         "user.list",
@@ -766,6 +770,31 @@
         "min",
         "max"
       ]
+    },
+    "RegisterRequest": {
+      "properties": {
+        "v": {
+          "type": "integer"
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "passphrase": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "v",
+        "username",
+        "password",
+        "passphrase"
+      ],
+      "description": "RegisterRequest creates the account Username and logs in as it, given the\nserver's sign-up Passphrase."
     },
     "ResultKind": {
       "type": "string",
@@ -959,6 +988,14 @@
     "auth.login": {
       "request": {
         "$ref": "#/$defs/LoginRequest"
+      },
+      "reply": {
+        "$ref": "#/$defs/LoginResult"
+      }
+    },
+    "auth.register": {
+      "request": {
+        "$ref": "#/$defs/RegisterRequest"
       },
       "reply": {
         "$ref": "#/$defs/LoginResult"

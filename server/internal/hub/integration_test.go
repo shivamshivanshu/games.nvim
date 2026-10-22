@@ -32,12 +32,13 @@ import (
 )
 
 const (
-	dave          game.UserID   = "dave"
-	testPassword                = "correct horse"
-	chessType     game.GameType = "chess"
-	shutdownWait                = 5 * time.Second
-	moveThinkTime               = 7 * time.Second
-	lockedOutText               = "locked out, retry later"
+	dave           game.UserID   = "dave"
+	testPassword                 = "correct horse"
+	chessType      game.GameType = "chess"
+	shutdownWait                 = 5 * time.Second
+	moveThinkTime                = 7 * time.Second
+	lockedOutText                = "locked out, retry later"
+	testPassphrase               = "open sesame"
 )
 
 var uuidV4 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -45,9 +46,10 @@ var uuidV4 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-
 var passwordHash = sync.OnceValues(func() ([]byte, error) { return bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.MinCost) })
 
 type env struct {
-	store *store.Store
-	clock *clocktest.FakeClock
-	seeds func() game.Seed
+	store      *store.Store
+	clock      *clocktest.FakeClock
+	seeds      func() game.Seed
+	passphrase string
 }
 
 func newEnv(t *testing.T) *env {
@@ -56,7 +58,7 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &env{store: storetest.Open(t, hash, prototest.Alice, prototest.Bob, prototest.Carol, dave), clock: clocktest.New(clocktest.Epoch)}
+	return &env{store: storetest.Open(t, hash, prototest.Alice, prototest.Bob, prototest.Carol, dave), clock: clocktest.New(clocktest.Epoch), passphrase: testPassphrase}
 }
 
 type server struct {
@@ -70,19 +72,20 @@ func (e *env) start(t *testing.T) server {
 	lim := limits.Default()
 	ctx, cancel := context.WithCancel(context.Background())
 	h, err := hub.New(ctx, hub.Deps{
-		Store:   e.store,
-		Games:   append(games.All(), game.Adapt(gametest.CounterRules{}), game.Adapt(gametest.ScoredCounterRules{}), game.Adapt(gametest.SoloCounterRules{}), game.Adapt(gametest.MetronomeRules{})),
-		Limits:  lim,
-		Time:    e.clock,
-		Lockout: auth.NewLockout(lim, e.clock),
-		Seeds:   e.seeds,
+		Store:            e.store,
+		Games:            append(games.All(), game.Adapt(gametest.CounterRules{}), game.Adapt(gametest.ScoredCounterRules{}), game.Adapt(gametest.SoloCounterRules{}), game.Adapt(gametest.MetronomeRules{})),
+		Limits:           lim,
+		Time:             e.clock,
+		Lockout:          auth.NewLockout(lim, e.clock),
+		Seeds:            e.seeds,
+		SignupPassphrase: e.passphrase,
 	})
 	if err != nil {
 		cancel()
 		t.Fatal(err)
 	}
 	addr, shutdown := prototest.Serve(t, cancel, shutdownWait, func(ln net.Listener) error {
-		return session.Serve(ctx, ln, lim, h.Login(), h.Routes(), h.Hooks())
+		return session.Serve(ctx, ln, lim, h.Authenticator(), h.Routes(), h.Hooks())
 	})
 	stop := sync.OnceFunc(func() {
 		if err := shutdown(); err != nil {

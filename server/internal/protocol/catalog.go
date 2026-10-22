@@ -30,6 +30,7 @@ func push[Body any](typ MessageType) PushSpec {
 // Requests lists every request the server answers.
 var Requests = []RequestSpec{
 	request[LoginRequest, LoginResult](TypeAuthLogin),
+	request[RegisterRequest, LoginResult](TypeAuthRegister),
 	request[Empty, Empty](TypePing),
 	request[Empty, CatalogResult](TypeCatalogList),
 	request[Empty, UserListResult](TypeUserList),
@@ -70,5 +71,6 @@ func (ErrorCode) EnumValues() []string {
 	return game.Strings(
 		CodeBadRequest, CodeVersionMismatch, CodeUnauthenticated, CodeAuthFailed, CodeNotFound,
 		CodeNotYourTurn, CodeIllegalAction, CodeStale, CodeInternal, CodeSummaryMismatch,
+		CodeSignupDisabled, CodePassphraseRejected, CodeUserExists,
 	)
 }

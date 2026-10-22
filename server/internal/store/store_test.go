@@ -161,6 +161,13 @@ func TestCreateUserRefusesNamesWithHiddenCharacters(t *testing.T) {
 	}
 }
 
+func TestCreateUserRefusesATakenName(t *testing.T) {
+	s := storetest.Open(t, passwordHash, alice)
+	if err := s.CreateUser(t.Context(), alice, passwordHash); !errors.Is(err, store.ErrUserExists) {
+		t.Fatalf("second create of %s: %v, want ErrUserExists", alice, err)
+	}
+}
+
 func TestReopenKeepsOngoingGames(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "games.db")
