@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
 	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
@@ -41,7 +42,7 @@ const (
 
 var uuidV4 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
-var passwordHash = sync.OnceValues(func() ([]byte, error) { return auth.HashPassword(testPassword) })
+var passwordHash = sync.OnceValues(func() ([]byte, error) { return bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.MinCost) })
 
 type env struct {
 	store *store.Store
