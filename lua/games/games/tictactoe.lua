@@ -1,5 +1,6 @@
 local actions = require("games.ui.actions")
 local board = require("games.ui.widgets.board")
+local discs = require("games.ui.discs")
 local grid = require("games.ui.widgets.grid")
 local highlights = require("games.ui.highlights")
 local notation = require("games.ui.notation")
@@ -9,7 +10,7 @@ local Group = highlights.Group
 
 ---@alias games.TicTacToeSeat "x"|"o"
 
----@class games.TicTacToeView
+---@class games.TicTacToeView: games.DiscLast
 ---@field cells (games.TicTacToeSeat|"")[] each cell's owner in phone order, 1 at the top-left; "" when empty
 ---@field last? games.Cell the cell placed last
 ---@field winning_lines games.Cell[][] the cells of each completed line
@@ -50,19 +51,6 @@ local function cell_for(update, cell)
   return { owner, theme.seat_hl_of(update, owner) }
 end
 
----@param view games.TicTacToeView
----@return games.GridMark[] the last move, then the winning lines over it
-local function marks_for(view)
-  local marks = {}
-  if view.last then
-    marks[1] = grid.mark(view.last.row, view.last.col, Group.LAST_MOVE)
-  end
-  for _, line in ipairs(view.winning_lines) do
-    vim.list_extend(marks, grid.cell_marks(line, Group.WIN))
-  end
-  return marks
-end
-
 local M = {}
 
 ---@type string[] keys every tictactoe asset pack draws: the seats' marks and each empty cell's number
@@ -84,7 +72,7 @@ function M.layout(update, ctx)
       cell = function(r, c)
         return cell_for(update, cell_at(r, c))
       end,
-      marks = marks_for(update.view),
+      marks = discs.marks(update.view, { winning_lines = update.view.winning_lines }),
     },
   }, ctx)
 end
