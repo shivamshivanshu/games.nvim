@@ -3,7 +3,6 @@ package reversi
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
 	"testing"
 
@@ -106,27 +105,7 @@ func cells(names ...string) []grid.Cell {
 }
 
 func TestNewSeatsTheFirstMoverAsBlack(t *testing.T) {
-	tests := []struct {
-		first     game.FirstMover
-		seed      game.Seed
-		wantAlice game.Seat
-	}{
-		{game.FirstMoverMe, 1, discs.SeatBlack},
-		{game.FirstMoverOpponent, 1, discs.SeatWhite},
-		{game.FirstMoverRandom, 1, discs.SeatWhite},
-		{game.FirstMoverRandom, 6, discs.SeatBlack},
-	}
-	for _, tc := range tests {
-		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
-			_, seats, err := Rules{}.New(game.TurnOpts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if seats[alice] != tc.wantAlice || seats[bob] != discs.Sides.Other(tc.wantAlice) {
-				t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
-			}
-		})
-	}
+	gametest.SeatsFirstMover(t, Rules{}, func(first game.FirstMover) game.TurnOpts { return game.TurnOpts{First: first} }, discs.SeatBlack)
 }
 
 func TestStartPosition(t *testing.T) {

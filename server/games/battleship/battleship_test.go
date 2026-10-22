@@ -10,32 +10,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/gametest"
 )
 
 func TestNewSeatsTheFirstMoverAsP1(t *testing.T) {
-	tests := []struct {
-		first     game.FirstMover
-		seed      game.Seed
-		wantAlice game.Seat
-	}{
-		{game.FirstMoverMe, 1, p1},
-		{game.FirstMoverOpponent, 1, p2},
-		{game.FirstMoverRandom, 1, p2},
-		{game.FirstMoverRandom, 6, p1},
-	}
-	for _, tc := range tests {
-		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
-			st, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if seats[alice] != tc.wantAlice || len(seats) != 2 || seats[bob] == tc.wantAlice {
-				t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
-			}
-			if diff := cmp.Diff([]game.Seat{p1, p2}, st.ToAct()); diff != "" {
-				t.Errorf("both seats place at once (-want +got):\n%s", diff)
-			}
-		})
+	gametest.SeatsFirstMover(t, Rules{}, func(first game.FirstMover) Opts { return Opts{First: first} }, p1)
+	if diff := cmp.Diff([]game.Seat{p1, p2}, newGame(t).ToAct()); diff != "" {
+		t.Errorf("both seats place at once (-want +got):\n%s", diff)
 	}
 }
 

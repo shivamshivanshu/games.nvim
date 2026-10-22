@@ -46,30 +46,7 @@ func sowAll(t *testing.T, s state, pits ...string) (state, []game.Event) {
 }
 
 func TestNewSeatsTheFirstMoverSouth(t *testing.T) {
-	cases := []struct {
-		first     game.FirstMover
-		seed      game.Seed
-		wantSouth game.UserID
-	}{
-		{game.FirstMoverMe, 1, alice},
-		{game.FirstMoverOpponent, 1, bob},
-		{game.FirstMoverRandom, 1, bob},
-		{game.FirstMoverRandom, 6, alice},
-	}
-	for _, tc := range cases {
-		t.Run(string(tc.first), func(t *testing.T) {
-			st, seats, err := Rules{}.New(game.TurnOpts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if seats[tc.wantSouth] != SeatSouth || len(seats) != 2 {
-				t.Errorf("seats %v, want %s south", seats, tc.wantSouth)
-			}
-			if diff := cmp.Diff([]game.Seat{SeatSouth}, st.ToAct()); diff != "" {
-				t.Errorf("to act (-want +got):\n%s", diff)
-			}
-		})
-	}
+	gametest.SeatsFirstMover(t, Rules{}, func(first game.FirstMover) game.TurnOpts { return game.TurnOpts{First: first} }, SeatSouth)
 }
 
 func TestStartView(t *testing.T) {

@@ -16,12 +16,21 @@ func TestPairSeatsAndAssigns(t *testing.T) {
 	if want := []game.Seat{"x", "o"}; !cmp.Equal(pair.Seats(), want) {
 		t.Errorf("Seats() = %v, want %v", pair.Seats(), want)
 	}
-	for challengerFirst, want := range map[bool]map[game.UserID]game.Seat{
-		true:  {"alice": "x", "bob": "o"},
-		false: {"alice": "o", "bob": "x"},
-	} {
-		if got := pair.Assign("alice", "bob", challengerFirst); !cmp.Equal(got, want) {
-			t.Errorf("Assign(challengerFirst %t) = %v, want %v", challengerFirst, got, want)
+	challengerFirst := map[game.UserID]game.Seat{"alice": "x", "bob": "o"}
+	opponentFirst := map[game.UserID]game.Seat{"alice": "o", "bob": "x"}
+	tests := []struct {
+		first game.FirstMover
+		seed  game.Seed
+		want  map[game.UserID]game.Seat
+	}{
+		{game.FirstMoverMe, 1, challengerFirst},
+		{game.FirstMoverOpponent, 1, opponentFirst},
+		{game.FirstMoverRandom, 1, opponentFirst},
+		{game.FirstMoverRandom, 6, challengerFirst},
+	}
+	for _, tc := range tests {
+		if got := pair.AssignFirst(tc.first, "alice", []game.UserID{"bob"}, game.StepRNG(tc.seed, 0)); !cmp.Equal(got, tc.want) {
+			t.Errorf("AssignFirst(%s, seed %d) = %v, want %v", tc.first, tc.seed, got, tc.want)
 		}
 	}
 }

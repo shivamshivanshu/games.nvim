@@ -81,3 +81,34 @@ func Replay[S game.State[Action, View], Action, View any](t testing.TB, info gam
 	}
 	return states
 }
+
+// SeatsFirstMover checks that rules, created with opts of each first mover,
+// seat the player who moves first in first, which is to act: the challenger
+// for FirstMoverMe, the opponent for FirstMoverOpponent, and for
+// FirstMoverRandom the opponent from seed 1 and the challenger from seed 6.
+func SeatsFirstMover[Opts, Action, View any](t *testing.T, rules game.Rules[Opts, Action, View], opts func(game.FirstMover) Opts, first game.Seat) {
+	t.Helper()
+	challenger, opponent := userNames[0], userNames[1]
+	tests := []struct {
+		first game.FirstMover
+		seed  game.Seed
+		want  game.UserID
+	}{
+		{game.FirstMoverMe, 1, challenger},
+		{game.FirstMoverOpponent, 1, opponent},
+		{game.FirstMoverRandom, 1, opponent},
+		{game.FirstMoverRandom, 6, challenger},
+	}
+	for _, tc := range tests {
+		state, seats, err := rules.New(opts(tc.first), challenger, []game.UserID{opponent}, game.StepRNG(tc.seed, 0))
+		if err != nil {
+			t.Fatalf("%s seed %d: %v", tc.first, tc.seed, err)
+		}
+		if seats[tc.want] != first || len(seats) != 2 || seats[challenger] == seats[opponent] {
+			t.Errorf("%s seed %d: seats %v, want %s %s", tc.first, tc.seed, seats, tc.want, first)
+		}
+		if !slices.Contains(state.ToAct(), first) {
+			t.Errorf("%s seed %d: to act %v, want %s among them", tc.first, tc.seed, state.ToAct(), first)
+		}
+	}
+}

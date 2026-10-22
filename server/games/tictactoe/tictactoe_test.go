@@ -3,7 +3,6 @@ package tictactoe
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
 	"strconv"
 	"testing"
@@ -46,29 +45,7 @@ func line(cells ...CellNumber) []grid.Cell {
 func place(c CellNumber) Action { return Action{Kind: ActionPlace, Cell: strconv.Itoa(int(c))} }
 
 func TestNewSeatsFirstMoverAsX(t *testing.T) {
-	tests := []struct {
-		first     game.FirstMover
-		seed      game.Seed
-		wantAlice game.Seat
-	}{
-		{game.FirstMoverMe, 1, SeatX},
-		{game.FirstMoverOpponent, 1, SeatO},
-		{game.FirstMoverRandom, 1, SeatO},
-		{game.FirstMoverRandom, 6, SeatX},
-	}
-	for _, tc := range tests {
-		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
-			for range 2 {
-				_, seats, err := Rules{}.New(Opts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
-				if err != nil {
-					t.Fatal(err)
-				}
-				if seats[alice] != tc.wantAlice || seats[bob] != sides.Other(tc.wantAlice) {
-					t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
-				}
-			}
-		})
-	}
+	gametest.SeatsFirstMover(t, Rules{}, func(first game.FirstMover) Opts { return Opts{First: first} }, SeatX)
 }
 
 func TestApplyRejects(t *testing.T) {

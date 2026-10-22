@@ -237,31 +237,7 @@ func TestConcludeKeepsAWinAlreadyReached(t *testing.T) {
 }
 
 func TestFirstMoverIsRed(t *testing.T) {
-	cases := []struct {
-		name  string
-		first game.FirstMover
-		seed  game.Seed
-		want  game.Seat
-	}{
-		{"me", game.FirstMoverMe, 1, SeatRed},
-		{"opponent", game.FirstMoverOpponent, 1, SeatYellow},
-		{"random, seed 1", game.FirstMoverRandom, 1, SeatYellow},
-		{"random, seed 6", game.FirstMoverRandom, 6, SeatRed},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			st, seats, err := Rules{}.New(game.TurnOpts{First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if seats[alice] != tc.want || seats[bob] != sides.Other(tc.want) {
-				t.Errorf("seats %v, want alice %s", seats, tc.want)
-			}
-			if diff := cmp.Diff([]game.Seat{SeatRed}, st.ToAct()); diff != "" {
-				t.Errorf("to act (-want +got):\n%s", diff)
-			}
-		})
-	}
+	gametest.SeatsFirstMover(t, Rules{}, func(first game.FirstMover) game.TurnOpts { return game.TurnOpts{First: first} }, SeatRed)
 }
 
 func TestWireShape(t *testing.T) {

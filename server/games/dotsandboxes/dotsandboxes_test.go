@@ -2,7 +2,6 @@ package dotsandboxes
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -102,31 +101,7 @@ func TestNewBoardOfEachSize(t *testing.T) {
 }
 
 func TestFirstMoverIsP1(t *testing.T) {
-	tests := []struct {
-		first     game.FirstMover
-		seed      game.Seed
-		wantAlice game.Seat
-	}{
-		{game.FirstMoverMe, 1, p1},
-		{game.FirstMoverOpponent, 1, p2},
-		{game.FirstMoverRandom, 1, p2},
-		{game.FirstMoverRandom, 6, p1},
-	}
-	for _, tc := range tests {
-		t.Run(fmt.Sprintf("%s seed %d", tc.first, tc.seed), func(t *testing.T) {
-			_, seats, err := Rules{}.New(Opts{Size: Size3, First: tc.first}, alice, []game.UserID{bob}, game.StepRNG(tc.seed, 0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			wantBob := p1
-			if tc.wantAlice == p1 {
-				wantBob = p2
-			}
-			if seats[alice] != tc.wantAlice || seats[bob] != wantBob {
-				t.Errorf("seats %v, want alice %s", seats, tc.wantAlice)
-			}
-		})
-	}
+	gametest.SeatsFirstMover(t, Rules{}, func(first game.FirstMover) Opts { return Opts{Size: Size3, First: first} }, p1)
 }
 
 func TestNewRefusesAnUnknownSize(t *testing.T) {
