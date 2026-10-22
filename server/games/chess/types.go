@@ -6,17 +6,15 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/game"
 )
 
-type ColorChoice string
-
+// The challenger's colour choices besides game.SideRandom.
 const (
-	ColorRandom ColorChoice = "random"
-	ColorWhite  ColorChoice = "white"
-	ColorBlack  ColorChoice = "black"
+	ColorWhite game.SideChoice = "white"
+	ColorBlack game.SideChoice = "black"
 )
 
 type Opts struct {
 	TimeControl game.TimeControl `json:"time_control"`
-	Color       ColorChoice      `json:"color"`
+	Color       game.SideChoice  `json:"color"`
 }
 
 const (

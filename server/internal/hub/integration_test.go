@@ -111,8 +111,8 @@ func (s server) login(t *testing.T, user game.UserID) *prototest.Client {
 }
 
 type chessOptions struct {
-	TimeControl game.TimeControl  `json:"time_control,omitempty"`
-	Color       chess.ColorChoice `json:"color,omitempty"`
+	TimeControl game.TimeControl `json:"time_control,omitempty"`
+	Color       game.SideChoice  `json:"color,omitempty"`
 }
 
 func startGame(t *testing.T, challenger, opponent *prototest.Client, opts chessOptions) game.GameID {

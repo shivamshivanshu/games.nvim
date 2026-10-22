@@ -86,7 +86,7 @@ func TestEveryStartPositionIsAChess960One(t *testing.T) {
 	}
 }
 
-func newGame(t *testing.T, seed game.Seed, color chess.ColorChoice) (game.ErasedState, map[game.UserID]game.Seat) {
+func newGame(t *testing.T, seed game.Seed, color game.SideChoice) (game.ErasedState, map[game.UserID]game.Seat) {
 	t.Helper()
 	g := game.Adapt(Rules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{"color":"` + string(color) + `"}`))
@@ -184,8 +184,8 @@ func TestColorOption(t *testing.T) {
 	}
 	seatsBySeed := map[game.Seat]bool{}
 	for seed := range game.Seed(8) {
-		_, first := newGame(t, seed, chess.ColorRandom)
-		_, second := newGame(t, seed, chess.ColorRandom)
+		_, first := newGame(t, seed, game.SideRandom)
+		_, second := newGame(t, seed, game.SideRandom)
 		if first[alice] != second[alice] {
 			t.Errorf("seed %d: random not deterministic: %v vs %v", seed, first, second)
 		}

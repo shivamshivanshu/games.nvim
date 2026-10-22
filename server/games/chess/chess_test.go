@@ -17,7 +17,7 @@ const (
 	bob   game.UserID = "bob"
 )
 
-func newGame(t *testing.T, color ColorChoice) (game.ErasedState, map[game.UserID]game.Seat) {
+func newGame(t *testing.T, color game.SideChoice) (game.ErasedState, map[game.UserID]game.Seat) {
 	t.Helper()
 	g := game.Adapt(Rules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{"color":"` + string(color) + `"}`))
@@ -192,8 +192,8 @@ func TestColorOption(t *testing.T) {
 	if _, seats := newGame(t, ColorBlack); seats[alice] != SeatBlack {
 		t.Errorf("black: %v", seats)
 	}
-	_, first := newGame(t, ColorRandom)
-	_, second := newGame(t, ColorRandom)
+	_, first := newGame(t, game.SideRandom)
+	_, second := newGame(t, game.SideRandom)
 	if first[alice] != second[alice] {
 		t.Errorf("random not deterministic: %v vs %v", first, second)
 	}

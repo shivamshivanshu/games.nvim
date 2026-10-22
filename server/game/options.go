@@ -121,19 +121,24 @@ func TurnOptions() []OptionSpec {
 // OptionColor is the option choosing the challenger's side.
 const OptionColor OptionName = "color"
 
+// SideChoice is the challenger's side, by its name, or SideRandom.
+type SideChoice string
+
+const SideRandom SideChoice = "random"
+
 // SideOption chooses the challenger's side: at random, first (the side that
 // moves first) or second.
-func SideOption[T ~string](first, second T) OptionSpec {
+func SideOption(first, second SideChoice) OptionSpec {
 	return OptionSpec{
 		Name:    OptionColor,
-		Values:  []OptionValue{OptionValue(FirstMoverRandom), OptionValue(first), OptionValue(second)},
-		Default: OptionValue(FirstMoverRandom),
+		Values:  OptionValues(SideRandom, first, second),
+		Default: OptionValue(SideRandom),
 	}
 }
 
 // SideFirstMover is who moves first when the challenger chose the side
 // choice: any choice but first or second is random.
-func SideFirstMover[T ~string](choice, first, second T) FirstMover {
+func SideFirstMover(choice, first, second SideChoice) FirstMover {
 	switch choice {
 	case first:
 		return FirstMoverMe

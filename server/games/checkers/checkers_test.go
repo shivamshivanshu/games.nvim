@@ -22,7 +22,7 @@ const (
 
 func move(text string) Action { return Action{Kind: ActionMove, Text: text} }
 
-func newGame(t *testing.T, color ColorChoice, seed game.Seed) (game.ErasedState, map[game.UserID]game.Seat) {
+func newGame(t *testing.T, color game.SideChoice, seed game.Seed) (game.ErasedState, map[game.UserID]game.Seat) {
 	t.Helper()
 	g := game.Adapt(Rules{})
 	opts, err := g.ResolveOptions(json.RawMessage(`{"color":"` + string(color) + `"}`))
@@ -38,7 +38,7 @@ func newGame(t *testing.T, color ColorChoice, seed game.Seed) (game.ErasedState,
 
 func TestColorOption(t *testing.T) {
 	cases := []struct {
-		color ColorChoice
+		color game.SideChoice
 		seed  game.Seed
 		want  game.Seat
 	}{
@@ -46,8 +46,8 @@ func TestColorOption(t *testing.T) {
 		{ColorBlack, 2, SeatBlack},
 		{ColorWhite, 1, SeatWhite},
 		{ColorWhite, 2, SeatWhite},
-		{ColorRandom, 1, SeatWhite},
-		{ColorRandom, 6, SeatBlack},
+		{game.SideRandom, 1, SeatWhite},
+		{game.SideRandom, 6, SeatBlack},
 	}
 	for _, c := range cases {
 		st, seats := newGame(t, c.color, c.seed)
@@ -65,7 +65,7 @@ func TestColorDefaultsToRandom(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := opts[game.OptionColor]; got != game.OptionValue(ColorRandom) {
+	if got := opts[game.OptionColor]; got != game.OptionValue(game.SideRandom) {
 		t.Errorf("default color %q", got)
 	}
 }

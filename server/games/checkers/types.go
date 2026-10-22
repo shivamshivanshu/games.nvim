@@ -2,20 +2,16 @@ package checkers
 
 import "github.com/shivamshivanshu/games.nvim/server/game"
 
-// ColorChoice is the challenger's colour. Black moves first.
-type ColorChoice string
-
-// Colour choices for the challenger.
+// The challenger's colour choices besides game.SideRandom. Black moves first.
 const (
-	ColorRandom ColorChoice = "random"
-	ColorBlack  ColorChoice = "black"
-	ColorWhite  ColorChoice = "white"
+	ColorBlack game.SideChoice = "black"
+	ColorWhite game.SideChoice = "white"
 )
 
 // Opts are the resolved game options.
 type Opts struct {
 	TimeControl game.TimeControl `json:"time_control"`
-	Color       ColorChoice      `json:"color"`
+	Color       game.SideChoice  `json:"color"`
 }
 
 // ActionMove plays one complete move given as Action.Text.

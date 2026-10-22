@@ -40,7 +40,7 @@ func TestSideOptionChoosesTheFirstMover(t *testing.T) {
 	if want := game.OptionValues("random", "white", "black"); spec.Name != "color" || !cmp.Equal(spec.Values, want) || spec.Default != "random" {
 		t.Errorf("SideOption = %+v", spec)
 	}
-	for choice, want := range map[string]game.FirstMover{
+	for choice, want := range map[game.SideChoice]game.FirstMover{
 		"white":  game.FirstMoverMe,
 		"black":  game.FirstMoverOpponent,
 		"random": game.FirstMoverRandom,
