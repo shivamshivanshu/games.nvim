@@ -29,7 +29,7 @@ function M.numbers(n)
 end
 
 ---A cell named as its column's letter then its row's number, e.g. h8.
----@param cell games.Cell|games.GridPos
+---@param cell games.GridPos
 ---@return string
 function M.cell_name(cell)
   return M.letter(cell.col) .. cell.row
