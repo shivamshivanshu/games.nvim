@@ -185,10 +185,10 @@ local function smoke(name, case)
     local driver = DRIVERS[name]
     case.run(driver, driver.ready(source.preview(hub.INCOMING)[1]))
     wait_for(function()
-      return hub.sent(conn, case.message_type)
+      return conn:sent(case.message_type)
     end, ("%s to %s the challenge"):format(name, case.action))
   end)
-  helpers.assert_eq({ challenge_id = case.item.challenge_id }, hub.sent(conn, case.message_type))
+  helpers.assert_eq({ challenge_id = case.item.challenge_id }, conn:sent(case.message_type))
 end
 
 vim.o.columns, vim.o.lines, vim.o.showmode = COLUMNS, LINES, false
