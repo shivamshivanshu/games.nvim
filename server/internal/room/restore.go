@@ -40,8 +40,5 @@ func Restore(ctx context.Context, g Setup, steps []store.StepRecord, away func()
 	}
 	// Downtime is not charged: clocks resume from the last persisted values as of now.
 	s.since = p.Time.Now()
-	r := newRoom(ctx, g, s)
-	r.pauseWanted = away
-	go r.run()
-	return r, nil
+	return launch(ctx, g, s, away), nil
 }

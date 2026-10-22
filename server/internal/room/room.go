@@ -412,24 +412,22 @@ type Room struct {
 }
 
 func Start(ctx context.Context, g Setup, state game.ErasedState) *Room {
-	return launch(ctx, g, initialState(g, state, g.Time.Now()))
+	return launch(ctx, g, initialState(g, state, g.Time.Now()), nil)
 }
 
-func launch(ctx context.Context, g Setup, s roomState) *Room {
-	r := newRoom(ctx, g, s)
+// launch runs a room from s, with the pause pauseWanted asks for as Pause leaves one.
+func launch(ctx context.Context, g Setup, s roomState, pauseWanted func() bool) *Room {
+	r := &Room{
+		setup:       g,
+		ctx:         ctx,
+		cur:         s,
+		inbox:       make(chan func()),
+		done:        make(chan struct{}),
+		exited:      make(chan struct{}),
+		pauseWanted: pauseWanted,
+	}
 	go r.run()
 	return r
-}
-
-func newRoom(ctx context.Context, g Setup, s roomState) *Room {
-	return &Room{
-		setup:  g,
-		ctx:    ctx,
-		cur:    s,
-		inbox:  make(chan func()),
-		done:   make(chan struct{}),
-		exited: make(chan struct{}),
-	}
 }
 
 func (r *Room) Done() <-chan struct{} { return r.done }
