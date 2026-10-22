@@ -1,7 +1,6 @@
 local compose = require("games.ui.compose")
 local float = require("games.ui.float")
 local highlights = require("games.ui.highlights")
-local keys = require("games.ui.keys")
 local kv = require("games.ui.widgets.kv")
 local text_util = require("games.ui.text")
 
@@ -20,13 +19,6 @@ local SAMPLE_GAP = 1
 ---@field toggle_key string the key that opens the help, which closes it too
 
 local M = {}
-
----@class (private) games.OpenHelp
----@field win integer
----@field owner integer
-
----@type games.OpenHelp|nil
-local open_help
 
 ---@param entry games.LegendEntry
 ---@return integer
@@ -68,17 +60,15 @@ end
 ---Closes the help when it is open for props.owner; otherwise opens it, in place of any other float.
 ---@param props games.HelpProps
 function M.toggle(props)
-  local shown = open_help and vim.api.nvim_win_is_valid(open_help.win) and open_help
-  if shown and shown.owner == props.owner then
-    vim.api.nvim_win_close(shown.win, true)
-    open_help = nil
+  if float.is_open(props.owner) then
+    float.close()
     return
   end
-  local win = float.open(("%s — help"):format(props.title), M.node(props.legend, props.keys))
-  open_help = { win = win, owner = props.owner }
-  keys.map(vim.api.nvim_win_get_buf(win), props.toggle_key, "close", function()
-    vim.api.nvim_win_close(win, true)
-  end)
+  float.open(
+    ("%s — help"):format(props.title),
+    M.node(props.legend, props.keys),
+    { owner = props.owner, close_key = props.toggle_key }
+  )
 end
 
 return M

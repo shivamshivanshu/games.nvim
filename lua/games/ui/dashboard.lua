@@ -367,13 +367,6 @@ end
 ---@type fun(state: games.DashboardState)
 local release
 
----@param state games.DashboardState
-local function close_window(state)
-  if vim.api.nvim_win_is_valid(state.win) then
-    vim.api.nvim_win_close(state.win, true)
-  end
-end
-
 ---Focus landing in a tiled window, such as a board's, closes the dashboard so it never covers
 ---it; a float, such as a picker the dashboard opened, leaves it open to return to.
 ---@param state games.DashboardState
@@ -408,7 +401,7 @@ local function watch_window(state)
       end
       release(state)
       vim.schedule(function()
-        close_window(state)
+        float.close_if_valid(state.win)
       end)
     end,
   })
@@ -462,7 +455,7 @@ function M.close()
     return
   end
   release(state)
-  close_window(state)
+  float.close_if_valid(state.win)
 end
 
 ---Opens the dashboard of client in a centred float, or focuses the one already open.
@@ -480,13 +473,7 @@ function M.open(client)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].modifiable = false
-  local config = vim.tbl_extend("force", centred({ "" }), {
-    style = "minimal",
-    border = "rounded",
-    title = TITLE,
-    title_pos = "center",
-  })
-  local win = vim.api.nvim_open_win(buf, true, config)
+  local win = vim.api.nvim_open_win(buf, true, float.config(TITLE, { "" }, MIN_WIDTH))
   vim.wo[win].cursorline = true
   vim.wo[win].winfixbuf = true
   ---@type games.DashboardState
