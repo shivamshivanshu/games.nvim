@@ -139,7 +139,7 @@ end
 ---@param order integer[]
 ---@return string[]
 local function labels_in_order(labels, order)
-  local list = type(labels) == "string" and vim.fn.split(labels, "\\zs") or labels
+  local list = type(labels) == "string" and text_util.chars(labels) or labels
   return vim.tbl_map(function(i)
     return list[i]
   end, order)
@@ -228,20 +228,18 @@ local function finish(line)
   return compose.block(line.w, vim.tbl_map(table.concat, line.parts), line.marks)
 end
 
----content, w display columns wide, centred in a box of size box, odd padding going right and
+---content, lines of one display width, centred in a box of size box, odd padding going right and
 ---down: box.h lines, each box.w columns wide unless content is wider.
 ---@param content string[]
----@param w integer
 ---@param box games.Size
 ---@return string[]
-local function centred(content, w, box)
+local function centred(content, box)
   local top = math.max(0, math.floor((box.h - #content) / 2))
-  local left = math.max(0, math.floor((box.w - w) / 2))
   local blank = text_util.spaces(box.w)
   local lines = {}
   for i = 1, box.h do
     local str = content[i - top]
-    lines[i] = str and text_util.spaces(left) .. str .. text_util.spaces(box.w - left - w) or blank
+    lines[i] = str and text_util.center_to_width(str, box.w) or blank
   end
   return lines
 end
@@ -347,8 +345,7 @@ local function cell_lines(props, box, ambiwidth)
     local lines = by_key[key]
     if not lines then
       local entry = props.art and art.pick(props.art, key, box, ambiwidth)
-      lines = entry and centred(entry.lines, entry.w, box)
-        or centred({ key }, text_util.width(key), box)
+      lines = centred(entry and entry.lines or { key }, box)
       by_key[key] = lines
     end
     return lines
@@ -410,7 +407,7 @@ end
 ---@return string[] label left-aligned in the row label column, height lines tall
 local function label_lines(label, geometry, height)
   local padded = text_util.pad_to_width(label, geometry.label) .. LABEL_GAP
-  return centred({ padded }, geometry.prefix, { w = geometry.prefix, h = height })
+  return centred({ padded }, { w = geometry.prefix, h = height })
 end
 
 ---@param props games.GridProps
