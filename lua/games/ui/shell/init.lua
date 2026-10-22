@@ -30,7 +30,6 @@ local types = require("games.types")
 ---@field request_render fun() draws it on the next tick while it is dirty and shown, once however often it is asked
 ---@field seats integer players in its first update, which size the header for its whole life
 
-local CLOCK_TICK_MS = 1000
 ---The header always has a status line, blank without a banner, so a banner never moves the board.
 local STATUS_LINES = 1
 local BODY_BLANK_LINES = 2
@@ -234,7 +233,7 @@ local function ticking_boards()
   end, boards)
 end
 
-local clock_ticker = timer.ticker(CLOCK_TICK_MS, function()
+local clock_ticker = timer.ticker(timer.CLOCK_TICK_MS, function()
   vim.iter(ticking_boards()):each(repaint_clocks)
 end)
 

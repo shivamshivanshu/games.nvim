@@ -7,6 +7,8 @@ local US_PER_MS = 1000
 local M = {}
 
 M.MS_PER_SECOND = 1000
+---How often a running clock is redrawn.
+M.CLOCK_TICK_MS = 1000
 
 ---Wall-clock now as unix ms, the time base of every time on the wire.
 ---@return integer

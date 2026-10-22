@@ -25,7 +25,6 @@ local RECENT_GAMES = 5
 local START_KEYS = 9
 local ITEM_INDENT = 2
 local MIN_WIDTH = 40
-local CLOCK_TICK_MS = 1000
 local TITLE = " games "
 local SECTION_HL = Group.DASH_SECTION
 local EMPTY_HL = Group.MUTED
@@ -507,7 +506,7 @@ function M.open(client)
     show_keys = false,
     request_render = timer.coalesced(render_if_current),
     unsubscribes = {},
-    ticker = timer.ticker(CLOCK_TICK_MS, render_if_current),
+    ticker = timer.ticker(timer.CLOCK_TICK_MS, render_if_current),
   }
   current = state
   map_keys(state)
