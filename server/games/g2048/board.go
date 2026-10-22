@@ -126,9 +126,5 @@ func (b board) spawned(rng *rand.Rand) (board, Tile) {
 }
 
 func (b board) cells() [][]int {
-	out := make([][]int, side)
-	for row := range b {
-		out[row] = slices.Clone(b[row][:])
-	}
-	return out
+	return grid.Rows(side, side, func(p grid.Point) int { return b[p.Row][p.Col] })
 }

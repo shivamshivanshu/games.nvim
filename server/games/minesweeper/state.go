@@ -103,15 +103,13 @@ func (s state) settled() state {
 }
 
 func (s state) View(game.Seat) View {
-	view := View{Cells: make([][]Tile, s.lvl.rows), Chordable: []grid.Cell{}}
-	for row := range view.Cells {
-		view.Cells[row] = make([]Tile, s.lvl.cols)
+	view := View{
+		Cells:     grid.Rows(s.lvl.rows, s.lvl.cols, func(p grid.Point) Tile { return s.cellView(s.lvl.index(p)) }),
+		Chordable: []grid.Cell{},
 	}
 	for cell := range s.lvl.cells() {
-		p := s.lvl.point(cell)
-		view.Cells[p.Row][p.Col] = s.cellView(cell)
 		if !s.Over() && s.unchordable(cell) == "" {
-			view.Chordable = append(view.Chordable, p.Cell())
+			view.Chordable = append(view.Chordable, s.lvl.point(cell).Cell())
 		}
 	}
 	view.Flags = countSet(s.flags)

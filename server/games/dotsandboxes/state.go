@@ -142,25 +142,13 @@ func (s state) View(viewer game.Seat) View {
 // drawers is the seat that drew each edge lying orientation, by its dot's row and column, "" for
 // one undrawn.
 func (s state) drawers(orientation grid.EdgeOrientation, rows, cols int) [][]game.Seat {
-	return seatRows(rows, cols, func(dot grid.Point) game.Seat {
+	return grid.Rows(rows, cols, func(dot grid.Point) game.Seat {
 		return s.drawn[grid.Edge{Dot: dot, Orientation: orientation}]
 	})
 }
 
 func (s state) boxOwners() [][]game.Seat {
-	return seatRows(s.side, s.side, func(cell grid.Point) game.Seat { return s.owners[cell] })
-}
-
-// seatRows is rows of cols seats, each the one at gives for its point.
-func seatRows(rows, cols int, at func(grid.Point) game.Seat) [][]game.Seat {
-	out := make([][]game.Seat, rows)
-	for r := range out {
-		out[r] = make([]game.Seat, cols)
-		for c := range out[r] {
-			out[r][c] = at(grid.Point{Row: r, Col: c})
-		}
-	}
-	return out
+	return grid.Rows(s.side, s.side, func(cell grid.Point) game.Seat { return s.owners[cell] })
 }
 
 func (s state) Eliminate(seat game.Seat, reason game.ResultReason) (game.State[Action, View], []game.Event) {

@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
+	"github.com/shivamshivanshu/games.nvim/server/game/grid"
 )
 
 const (
@@ -40,9 +41,5 @@ func (b board) full() bool {
 }
 
 func (b board) cells() [][]game.Seat {
-	out := make([][]game.Seat, boardRows)
-	for row := range b {
-		out[row] = slices.Clone(b[row][:])
-	}
-	return out
+	return grid.Rows(boardRows, boardColumns, func(p grid.Point) game.Seat { return b[p.Row][p.Col] })
 }

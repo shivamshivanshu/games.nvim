@@ -55,11 +55,7 @@ func (s state) chosen(action Action) (Movable, error) {
 }
 
 func (s state) View(game.Seat) View {
-	side := s.board.side
-	view := View{Tiles: make([][]int, side), Moves: s.moves, Movable: []Movable{}}
-	for row := range view.Tiles {
-		view.Tiles[row] = slices.Clone(s.board.tiles[row*side : (row+1)*side])
-	}
+	view := View{Tiles: grid.RowsOf(s.board.tiles, s.board.side), Moves: s.moves, Movable: []Movable{}}
 	if !s.Over() {
 		view.Movable = s.board.movable()
 	}

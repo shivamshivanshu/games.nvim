@@ -47,13 +47,7 @@ func (b board) emptyCells() []CellNumber {
 
 func (b board) full() bool { return !slices.Contains(b[:], noSeat) }
 
-func (b board) rows() [][]game.Seat {
-	rows := make([][]game.Seat, side)
-	for r := range rows {
-		rows[r] = b[r*side : (r+1)*side]
-	}
-	return rows
-}
+func (b board) rows() [][]game.Seat { return grid.RowsOf(b[:], side) }
 
 func (b board) winningLinesThrough(c CellNumber) [][]grid.Cell {
 	return grid.CellLines(grid.WinningLines(b.rows(), c.point(), winLength, noSeat))

@@ -38,13 +38,7 @@ func (b Board) With(seat game.Seat, points ...grid.Point) Board {
 }
 
 // Rows is a fresh copy of the board, cells[row][col] from the top left.
-func (b Board) Rows() [][]game.Seat {
-	rows := make([][]game.Seat, b.size)
-	for r := range rows {
-		rows[r] = slices.Clone(b.discs[r*b.size : (r+1)*b.size])
-	}
-	return rows
-}
+func (b Board) Rows() [][]game.Seat { return grid.RowsOf(b.discs, b.size) }
 
 // Empty lists the empty points, row by row from the top left.
 func (b Board) Empty() []grid.Point {

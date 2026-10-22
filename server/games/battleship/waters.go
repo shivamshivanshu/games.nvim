@@ -135,14 +135,7 @@ func (w waters) tile(p grid.Point, own, revealed bool) Tile {
 }
 
 func (w waters) tiles(own, revealed bool) [][]Tile {
-	rows := make([][]Tile, boardSize)
-	for r := range rows {
-		rows[r] = make([]Tile, boardSize)
-		for c := range rows[r] {
-			rows[r][c] = w.tile(grid.Point{Row: r, Col: c}, own, revealed)
-		}
-	}
-	return rows
+	return grid.Rows(boardSize, boardSize, func(p grid.Point) Tile { return w.tile(p, own, revealed) })
 }
 
 // fleet is every ship's status as its owner sees it when own, else as the
