@@ -130,11 +130,7 @@ func (h *Hub) restoreOngoing(ctx context.Context) error {
 }
 
 func (h *Hub) restore(ctx context.Context, rec store.GameRecord) (*room.Room, error) {
-	g, err := h.gameType(rec.Type)
-	if err != nil {
-		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
-	}
-	opts, err := g.ResolveOptions(rec.Options)
+	g, opts, err := h.resolveGame(rec.Type, rec.Options)
 	if err != nil {
 		return nil, fmt.Errorf("hub: restore %s: %w", rec.ID, err)
 	}
@@ -275,6 +271,19 @@ func (h *Hub) gameType(t game.GameType) (game.Game, error) {
 		return nil, protocol.BadRequestf("unknown game %q", t)
 	}
 	return g, nil
+}
+
+// resolveGame is the game of type typ and the options raw gives it.
+func (h *Hub) resolveGame(typ game.GameType, raw json.RawMessage) (game.Game, game.Options, error) {
+	g, err := h.gameType(typ)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts, err := g.ResolveOptions(raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	return g, opts, nil
 }
 
 func newSeed() game.Seed {

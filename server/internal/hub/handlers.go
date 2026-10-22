@@ -69,7 +69,7 @@ func (h *Hub) users(ctx context.Context, _ *session.Session, _ protocol.Empty) (
 }
 
 func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req protocol.ChallengeCreateRequest) (protocol.ChallengeCreateResult, error) {
-	g, err := h.gameType(req.Game)
+	g, opts, err := h.resolveGame(req.Game, req.Options)
 	if err != nil {
 		return protocol.ChallengeCreateResult{}, err
 	}
@@ -82,10 +82,6 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 			return protocol.ChallengeCreateResult{}, protocol.BadRequestf("unknown user %q", user)
 		}
 	}
-	opts, err := g.ResolveOptions(req.Options)
-	if err != nil {
-		return protocol.ChallengeCreateResult{}, err
-	}
 	c, err := h.challenges.Create(s.User(), req.To, g.Info(), opts)
 	if err != nil {
 		return protocol.ChallengeCreateResult{}, err
@@ -94,16 +90,12 @@ func (h *Hub) createChallenge(ctx context.Context, s *session.Session, req proto
 }
 
 func (h *Hub) startSolo(_ context.Context, s *session.Session, req protocol.GameStartRequest) (protocol.GameUpdate, error) {
-	g, err := h.gameType(req.Game)
+	g, opts, err := h.resolveGame(req.Game, req.Options)
 	if err != nil {
 		return protocol.GameUpdate{}, err
 	}
 	if !g.Info().Players.AllowsSolo() {
 		return protocol.GameUpdate{}, protocol.BadRequestf("%s is not a solo game: challenge an opponent", req.Game)
-	}
-	opts, err := g.ResolveOptions(req.Options)
-	if err != nil {
-		return protocol.GameUpdate{}, err
 	}
 	id, first, err := h.startGame(req.Game, opts, s.User(), nil)
 	if err != nil {
