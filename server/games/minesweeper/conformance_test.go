@@ -106,7 +106,7 @@ func (p *planner) script(name string, want *game.Result) gametest.Script[Opts, A
 	}
 	return gametest.Script[Opts, Action]{
 		Name: name, Opts: opts, Challenger: solo, Seed: p.seed, Steps: p.steps, WantResult: want,
-		Secrets: []string{string(CellMine), string(CellFlaggedMine), string(CellExploded), string(CellWrongFlag)},
+		Secrets: []string{string(TileMine), string(TileFlaggedMine), string(TileExploded), string(TileWrongFlag)},
 	}
 }
 

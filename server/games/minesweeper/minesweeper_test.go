@@ -57,7 +57,7 @@ func mustApply(t *testing.T, s state, actions ...Action) (state, []game.Event) {
 // drawn is the view's cells one row to a string: "#" hidden, "F" flag, a digit for a revealed
 // count, and once over "*" a mine, "M" a flagged mine, "X" the exploded one and "!" a wrong flag.
 func drawn(v View) []string {
-	glyph := map[Tile]string{CellHidden: "#", CellFlag: "F", CellMine: "*", CellFlaggedMine: "M", CellExploded: "X", CellWrongFlag: "!"}
+	glyph := map[Tile]string{TileHidden: "#", TileFlag: "F", TileMine: "*", TileFlaggedMine: "M", TileExploded: "X", TileWrongFlag: "!"}
 	rows := make([]string, len(v.Cells))
 	for r, row := range v.Cells {
 		var b strings.Builder
@@ -285,7 +285,7 @@ func TestFlagTogglesAndCountsAgainstTheMines(t *testing.T) {
 	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Cell: grid.Cell{Row: 1, Col: 1}, Flagged: true}}, events); diff != "" {
 		t.Errorf("flag events (-want +got):\n%s", diff)
 	}
-	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Remaining != 0 || v.Cells[0][0] != CellFlag {
+	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Remaining != 0 || v.Cells[0][0] != TileFlag {
 		t.Errorf("after one flag: flags %d, remaining %d, a1 %q", v.Flags, v.Remaining, v.Cells[0][0])
 	}
 	s, _ = mustApply(t, s, flag("b2"))
@@ -296,7 +296,7 @@ func TestFlagTogglesAndCountsAgainstTheMines(t *testing.T) {
 	if diff := cmp.Diff([]game.Event{FlaggedEvent{By: game.SeatSolo, Cell: grid.Cell{Row: 1, Col: 1}}}, events); diff != "" {
 		t.Errorf("unflag events (-want +got):\n%s", diff)
 	}
-	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Cells[0][0] != CellHidden {
+	if v := s.View(game.SeatSolo); v.Flags != 1 || v.Cells[0][0] != TileHidden {
 		t.Errorf("after unflagging a1: flags %d, a1 %q", v.Flags, v.Cells[0][0])
 	}
 }
@@ -361,7 +361,7 @@ func TestUnfinishedViewsHideEveryMine(t *testing.T) {
 	s, _ := mustApply(t, oneMine(), reveal("a1"), flag("c4"), flag("d5"))
 	for i, mine := range s.mines {
 		p := s.lvl.point(i)
-		if got := s.View(game.SeatSolo).Cells[p.Row][p.Col]; mine && got != CellHidden && got != CellFlag {
+		if got := s.View(game.SeatSolo).Cells[p.Row][p.Col]; mine && got != TileHidden && got != TileFlag {
 			t.Errorf("mine %s shows as %q before the end", address(p), got)
 		}
 	}

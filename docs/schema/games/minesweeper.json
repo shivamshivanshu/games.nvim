@@ -194,7 +194,7 @@
         "7",
         "8"
       ],
-      "description": "Tile is how one cell looks to the player: hidden, flagged, or revealed as the count\n\"0\" to \"8\" of the mines around it. Once the game is over every mine shows: CellExploded for\nthe one revealed, CellFlaggedMine where a flag was right, CellMine where none was; a flag on\na safe cell shows as CellWrongFlag."
+      "description": "Tile is how one cell looks to the player: hidden, flagged, or revealed as the count\n\"0\" to \"8\" of the mines around it. Once the game is over every mine shows: TileExploded for\nthe one revealed, TileFlaggedMine where a flag was right, TileMine where none was; a flag on\na safe cell shows as TileWrongFlag."
     },
     "View": {
       "properties": {

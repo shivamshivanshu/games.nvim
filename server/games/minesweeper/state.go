@@ -121,19 +121,19 @@ func (s state) View(game.Seat) View {
 func (s state) cellView(cell int) Tile {
 	switch {
 	case s.Over() && cell == s.exploded:
-		return CellExploded
+		return TileExploded
 	case s.Over() && s.isMine(cell) && s.flags[cell]:
-		return CellFlaggedMine
+		return TileFlaggedMine
 	case s.Over() && s.isMine(cell):
-		return CellMine
+		return TileMine
 	case s.Over() && s.mines != nil && s.flags[cell]:
-		return CellWrongFlag
+		return TileWrongFlag
 	case s.open[cell]:
 		return Tile(strconv.Itoa(s.minesAround(cell)))
 	case s.flags[cell]:
-		return CellFlag
+		return TileFlag
 	}
-	return CellHidden
+	return TileHidden
 }
 
 // unchordable says why a chord on cell is refused, or "" when it may chord.

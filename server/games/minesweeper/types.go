@@ -46,27 +46,27 @@ type Action struct {
 }
 
 // Tile is how one cell looks to the player: hidden, flagged, or revealed as the count
-// "0" to "8" of the mines around it. Once the game is over every mine shows: CellExploded for
-// the one revealed, CellFlaggedMine where a flag was right, CellMine where none was; a flag on
-// a safe cell shows as CellWrongFlag.
+// "0" to "8" of the mines around it. Once the game is over every mine shows: TileExploded for
+// the one revealed, TileFlaggedMine where a flag was right, TileMine where none was; a flag on
+// a safe cell shows as TileWrongFlag.
 type Tile string
 
-// The cells that are not a revealed count.
+// The tiles that are not a revealed count.
 const (
-	CellHidden      Tile = "hidden"
-	CellFlag        Tile = "flag"
-	CellMine        Tile = "mine"
-	CellFlaggedMine Tile = "flagged_mine"
-	CellExploded    Tile = "exploded"
-	CellWrongFlag   Tile = "wrong_flag"
+	TileHidden      Tile = "hidden"
+	TileFlag        Tile = "flag"
+	TileMine        Tile = "mine"
+	TileFlaggedMine Tile = "flagged_mine"
+	TileExploded    Tile = "exploded"
+	TileWrongFlag   Tile = "wrong_flag"
 )
 
 // maxMinesAround is the most mines a cell can neighbour.
 const maxMinesAround = 8
 
-// EnumValues lists the cells that are not a count, then the counts.
+// EnumValues lists the tiles that are not a count, then the counts.
 func (Tile) EnumValues() []string {
-	return append(game.Strings(CellHidden, CellFlag, CellMine, CellFlaggedMine, CellExploded, CellWrongFlag), append([]string{"0"}, game.NumberedValues(maxMinesAround)...)...)
+	return append(game.Strings(TileHidden, TileFlag, TileMine, TileFlaggedMine, TileExploded, TileWrongFlag), append([]string{"0"}, game.NumberedValues(maxMinesAround)...)...)
 }
 
 // View holds Cells[row][col], rows from the top. Remaining is the mine count less the
