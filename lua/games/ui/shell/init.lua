@@ -363,7 +363,7 @@ function M.open(client, game_id, opts)
   end
   client:game_snapshot({ game_id = game_id }, function(err, snapshot)
     if err then
-      notify.say(("game %s: %s"):format(game_id, err.message), vim.log.levels.ERROR)
+      notify.error(("game %s: %s"):format(game_id, err.message))
     elseif snapshot and not board_for(client, game_id) then
       open_update(client, snapshot, me, opts)
     end
@@ -375,7 +375,7 @@ open_update = function(client, update, me, opts)
   local game_id = update.game_id
   local module = registry.game_module(update.game)
   if not module then
-    notify.say(("no board for game type %s"):format(update.game), vim.log.levels.ERROR)
+    notify.error(("no board for game type %s"):format(update.game))
     return nil
   end
   shell_bindings.check_action_keys(module)

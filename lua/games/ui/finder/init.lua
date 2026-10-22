@@ -37,10 +37,7 @@ function M.picker_name(forced)
     if M.adapter(forced).available() then
       return forced
     end
-    notify.say(
-      ("picker %q is not installed; using vim.ui.select"):format(forced),
-      vim.log.levels.WARN
-    )
+    notify.warn(("picker %q is not installed; using vim.ui.select"):format(forced))
     return PickerName.SELECT
   end
   return vim.iter(DETECTION_ORDER):find(function(name)

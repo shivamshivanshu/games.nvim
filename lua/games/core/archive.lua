@@ -4,7 +4,6 @@ local notify = require("games.core.notify")
 local registry = require("games.core.registry")
 local tables = require("games.core.tables")
 
-local ERROR = vim.log.levels.ERROR
 local UUID_PATTERN = "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$"
 local LAST_MS_OF_YEAR_9999 = 253402300799999
 local EXPORT_NAME_PATTERN = "^[%w_][%w._-]*$"
@@ -157,7 +156,7 @@ function Archive:refuse(game_id, reason, on_done)
   local key = tostring(game_id)
   if not self.refused[key] then
     self.refused[key] = true
-    notify.say(("archive %s: %s; not archiving it"):format(key, reason), ERROR)
+    notify.error(("archive %s: %s; not archiving it"):format(key, reason))
   end
   on_done(Outcome.REFUSED)
 end
@@ -183,11 +182,11 @@ function Archive:run_next()
   self.queue_head = self.queue_head + 1
   fs.run(job.run, function(ok, result)
     if not ok then
-      notify.say(("archive %s: %s"):format(job.game.label, result), ERROR)
+      notify.error(("archive %s: %s"):format(job.game.label, result))
     end
     local reported, err = pcall(job.on_done, ok and result or Outcome.FAILED)
     if not reported then
-      notify.say(("archive %s: %s"):format(job.game.label, err), ERROR)
+      notify.error(("archive %s: %s"):format(job.game.label, err))
     end
     self:run_next()
   end)

@@ -30,13 +30,23 @@ function M.say(message, level)
   vim.notify(PREFIX .. message, level or vim.log.levels.INFO, NOTIFY_OPTS)
 end
 
+---@param message string
+function M.error(message)
+  M.say(message, vim.log.levels.ERROR)
+end
+
+---@param message string
+function M.warn(message)
+  M.say(message, vim.log.levels.WARN)
+end
+
 ---The logged-in user; while disconnected it warns and returns nil.
 ---@param client games.Client
 ---@return games.UserID|nil
 function M.require_me(client)
   local me = client:me()
   if not me then
-    M.say("not connected", vim.log.levels.WARN)
+    M.warn("not connected")
   end
   return me
 end
@@ -180,7 +190,7 @@ end
 local function on_disconnected(disconnect)
   local template = not disconnect.retrying and GIVE_UP_MESSAGES[disconnect.code]
   if template then
-    M.say(template:format(disconnect.message), vim.log.levels.ERROR)
+    M.error(template:format(disconnect.message))
   end
 end
 

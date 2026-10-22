@@ -220,9 +220,8 @@ function M.load(game, name, spec)
   if not ok then
     local problem = tostring(pack)
     assert(name ~= M.DEFAULT_PACK, ("games: %s default pack: %s"):format(game, problem))
-    notify.say(
-      ("%s asset pack %q is unusable, using %q: %s"):format(game, name, M.DEFAULT_PACK, problem),
-      vim.log.levels.WARN
+    notify.warn(
+      ("%s asset pack %q is unusable, using %q: %s"):format(game, name, M.DEFAULT_PACK, problem)
     )
     pack = M.load(game, M.DEFAULT_PACK, spec)
   end

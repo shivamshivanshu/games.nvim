@@ -83,7 +83,7 @@ end
 ---@param what string e.g. "update for game <id>"
 local function emit(signal, item, is_new, what)
   for _, err in ipairs(signal.emit(item, is_new)) do
-    notify.say(("handling %s failed: %s"):format(what, err), vim.log.levels.ERROR)
+    notify.error(("handling %s failed: %s"):format(what, err))
   end
 end
 

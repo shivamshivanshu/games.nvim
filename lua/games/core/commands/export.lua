@@ -3,8 +3,6 @@ local notify = require("games.core.notify")
 
 local M = {}
 
-local say = notify.say
-
 ---@param tally games.ArchiveTally
 ---@return string
 local function export_summary(tally)
@@ -24,12 +22,12 @@ end
 function M.run(client)
   local archive = require("games").archive
   if not archive then
-    say("export needs archive.dir in setup()", vim.log.levels.ERROR)
+    notify.error("export needs archive.dir in setup()")
     return
   end
   client:finished_games(function(finished)
     archive:backfill(finished, function(tally)
-      say(export_summary(tally))
+      notify.say(export_summary(tally))
     end)
   end)
 end

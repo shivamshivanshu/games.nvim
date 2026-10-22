@@ -246,10 +246,7 @@ function M.load(name, on_done)
   run(function()
     local set_name = name or vim.trim(fs.read(latest_path()) or "")
     if set_name ~= "" and not M.is_set_name(set_name) then
-      notify.say(
-        ("ignoring %s: %q is not a puzzle set name"):format(latest_path(), set_name),
-        vim.log.levels.WARN
-      )
+      notify.warn(("ignoring %s: %q is not a puzzle set name"):format(latest_path(), set_name))
       set_name = ""
     end
     if set_name == "" then

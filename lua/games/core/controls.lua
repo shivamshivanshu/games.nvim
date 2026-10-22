@@ -11,7 +11,7 @@ local M = {}
 function M.report_failure(update, me)
   return function(err)
     if err then
-      notify.say(("%s: %s"):format(describe.title(update, me), err.message), vim.log.levels.ERROR)
+      notify.error(("%s: %s"):format(describe.title(update, me), err.message))
     end
   end
 end
@@ -20,7 +20,7 @@ end
 ---@type games.ReplyCallback
 function M.report_message(err)
   if err then
-    notify.say(err.message, vim.log.levels.ERROR)
+    notify.error(err.message)
   end
 end
 

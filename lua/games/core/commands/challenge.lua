@@ -9,11 +9,9 @@ local text = require("games.ui.text")
 local types = require("games.types")
 
 local OptionType = types.OptionType
-local ERROR = vim.log.levels.ERROR
 
 local M = {}
 
-local say = notify.say
 local on_ok = reply.on_ok
 
 ---@class (private) games.OpponentChoice
@@ -83,7 +81,7 @@ local function pick_opponents(client, me, range, on_done)
       function(result)
         local others = players.other_players(result.users, me)
         if #others == 0 then
-          say("no other users")
+          notify.say("no other users")
           return
         end
         pick_opponents_from(vim.tbl_map(opponent_choice, others), range, on_done)
@@ -138,7 +136,7 @@ local function pick_game(client, game_type, player_count, on_game)
       return takes_players(info, player_count)
     end, client:catalog_games())
     if #playable == 0 then
-      say(("no %d-player games available"):format(player_count), ERROR)
+      notify.error(("no %d-player games available"):format(player_count))
       return
     end
     M.pick_info(playable, "Game:", on_game)
@@ -146,7 +144,7 @@ local function pick_game(client, game_type, player_count, on_game)
   end
   local info = client:game_info(game_type)
   if not (info and takes_players(info, player_count)) then
-    say(("no %d-player game %q"):format(player_count, game_type), ERROR)
+    notify.error(("no %d-player game %q"):format(player_count, game_type))
     return
   end
   on_game(info)
@@ -191,7 +189,7 @@ local function input_text_option(name, option, typed, on_value)
     end
     local problem = text_option_problem(name, option, value)
     if problem then
-      say(problem, ERROR)
+      notify.error(problem)
       input_text_option(name, option, value, on_value)
       return
     end
@@ -240,7 +238,7 @@ local function send_challenge(client, info, opponents)
     client:challenge_create(
       { to = opponents, game = info.id, options = options },
       on_ok(function()
-        say(
+        notify.say(
           ("challenged %s: %s"):format(
             table.concat(opponents, ", "),
             summary.game_summary(info.id, info, options)
@@ -271,10 +269,9 @@ function M.challenge(client, me, game_type, invitees)
     end
     local range = opponent_range(catalog.games, game_type)
     if not range then
-      say(
+      notify.error(
         game_type and ("no game %q to challenge anyone to"):format(game_type)
-          or "no games available",
-        ERROR
+          or "no games available"
       )
       return
     end

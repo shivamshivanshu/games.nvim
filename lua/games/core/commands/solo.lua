@@ -4,11 +4,8 @@ local players = require("games.core.players")
 local reply = require("games.core.commands.reply")
 local shell = require("games.ui.shell")
 
-local ERROR = vim.log.levels.ERROR
-
 local M = {}
 
-local say = notify.say
 local on_ok = reply.on_ok
 
 ---Starts the solo game info, once its options are answered, and opens its board.
@@ -50,7 +47,7 @@ function M.run(client, _, args)
       if not game_type then
         local solo_games = vim.tbl_filter(players.can_start_solo, client:catalog_games())
         if #solo_games == 0 then
-          say("no solo games available", ERROR)
+          notify.error("no solo games available")
           return
         end
         challenge.pick_info(solo_games, "Solo game:", function(info)
@@ -60,16 +57,15 @@ function M.run(client, _, args)
       end
       local info = client:game_info(game_type)
       if not info then
-        say(("no game %q"):format(game_type), ERROR)
+        notify.error(("no game %q"):format(game_type))
         return
       end
       if not players.can_start_solo(info) then
-        say(
+        notify.error(
           ("%s is not a solo game; challenge someone with :Games challenge %s"):format(
             game_type,
             game_type
-          ),
-          ERROR
+          )
         )
         return
       end

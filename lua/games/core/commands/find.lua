@@ -7,14 +7,12 @@ local sources = require("games.core.sources")
 local types = require("games.types")
 
 local GameStatus = types.GameStatus
-local ERROR = vim.log.levels.ERROR
 
 local M = {}
 
 ---@type games.GameStatus[]
 M.GAME_STATUSES = { GameStatus.ONGOING, GameStatus.FINISHED }
 
-local say = notify.say
 local on_ok = reply.on_ok
 
 ---@alias (private) games.ExtraFetch fun(client: games.Client, done: fun(extra: games.SourceExtra))
@@ -95,7 +93,7 @@ end
 function M.run_list(client, me, args)
   local status = args[1] or GameStatus.ONGOING
   if not vim.tbl_contains(M.GAME_STATUSES, status) then
-    say(("list takes %s, not %q"):format(table.concat(M.GAME_STATUSES, " or "), status), ERROR)
+    notify.error(("list takes %s, not %q"):format(table.concat(M.GAME_STATUSES, " or "), status))
     return
   end
   client:game_list(
@@ -123,7 +121,7 @@ function M.run(client, me, args)
     return
   end
   if not sources.is_source_name(name) then
-    say(("find takes %s, not %q"):format(table.concat(sources.NAMES, ", "), name), ERROR)
+    notify.error(("find takes %s, not %q"):format(table.concat(sources.NAMES, ", "), name))
     return
   end
   M.find(client, me, name)

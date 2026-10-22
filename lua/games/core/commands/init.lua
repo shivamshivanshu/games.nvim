@@ -11,8 +11,6 @@ local solo = require("games.core.commands.solo")
 local sources = require("games.core.sources")
 local stats = require("games.core.commands.stats")
 
-local ERROR = vim.log.levels.ERROR
-
 ---@alias games.SubcommandRun fun(client: games.Client, me: games.UserID, args: string[])
 
 ---@class (private) games.Subcommand
@@ -23,8 +21,6 @@ local ERROR = vim.log.levels.ERROR
 ---@field arg_choices? fun(arg_lead: string): string[] completions for the first argument
 
 local M = {}
-
-local say = notify.say
 
 ---@type games.SubcommandRun
 local function next_game(client)
@@ -102,7 +98,7 @@ end
 function M.run(fargs)
   local client = require("games").client
   if not client then
-    say('call require("games").setup() first', ERROR)
+    notify.error('call require("games").setup() first')
     return
   end
   local name = fargs[1]
@@ -112,7 +108,7 @@ function M.run(fargs)
   end
   local subcommand = find_subcommand(name)
   if not subcommand then
-    say(("unknown subcommand %q"):format(name), ERROR)
+    notify.error(("unknown subcommand %q"):format(name))
     return
   end
   local args = vim.list_slice(fargs, 2)

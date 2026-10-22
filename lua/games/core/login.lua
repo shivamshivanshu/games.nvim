@@ -84,10 +84,7 @@ local function arm_timeout(client, state, pending)
       take_pending(state)
       local last_error = client.conn:last_error()
       local reason = last_error and (": " .. last_error.message) or ""
-      notify.say(
-        ("could not reach server %s%s"):format(client.conn:address(), reason),
-        vim.log.levels.ERROR
-      )
+      notify.error(("could not reach server %s%s"):format(client.conn:address(), reason))
     end)
   )
 end
