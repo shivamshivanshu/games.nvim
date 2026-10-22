@@ -19,4 +19,13 @@ M.HJKL = {
   { key = "l", arrow = "<Right>", direction = M.Direction.RIGHT, d_row = 0, d_col = 1 },
 }
 
+---Maps key in buf's normal mode to fn, described as label.
+---@param buf integer
+---@param key string
+---@param label string
+---@param fn fun()
+function M.map(buf, key, label, fn)
+  vim.keymap.set("n", key, fn, { buffer = buf, nowait = true, desc = "games: " .. label })
+end
+
 return M

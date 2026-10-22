@@ -1,6 +1,7 @@
 local controls = require("games.core.controls")
 local describe = require("games.core.describe")
 local help = require("games.ui.shell.help")
+local keys = require("games.ui.keys")
 local players = require("games.core.players")
 local shell_windows = require("games.ui.shell.windows")
 local types = require("games.types")
@@ -268,9 +269,9 @@ function M.map_keys(board, bindings)
       by_key[key] = binding
       local mapped = board.bindings[key]
       if not (mapped and mapped.label == binding.label) then
-        vim.keymap.set("n", key, function()
+        keys.map(board.buf, key, binding.label, function()
           board.bindings[key].run(board)
-        end, { buffer = board.buf, nowait = true, desc = "games: " .. binding.label })
+        end)
       end
     end
   end

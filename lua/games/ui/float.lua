@@ -1,4 +1,5 @@
 local compose = require("games.ui.compose")
+local keys = require("games.ui.keys")
 local paint = require("games.ui.paint")
 local text = require("games.ui.text")
 
@@ -57,9 +58,9 @@ function M.open(title, node)
   )
   open_win = win
   for _, key in ipairs(CLOSE_KEYS) do
-    vim.keymap.set("n", key, function()
+    keys.map(buf, key, "close", function()
       vim.api.nvim_win_close(win, true)
-    end, { buffer = buf, nowait = true, desc = "games: close" })
+    end)
   end
   return win
 end

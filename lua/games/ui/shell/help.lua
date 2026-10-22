@@ -1,6 +1,7 @@
 local compose = require("games.ui.compose")
 local float = require("games.ui.float")
 local highlights = require("games.ui.highlights")
+local keys = require("games.ui.keys")
 local kv = require("games.ui.widgets.kv")
 local text_util = require("games.ui.text")
 
@@ -75,9 +76,9 @@ function M.toggle(props)
   end
   local win = float.open(("%s — help"):format(props.title), M.node(props.legend, props.keys))
   open_help = { win = win, owner = props.owner }
-  vim.keymap.set("n", props.toggle_key, function()
+  keys.map(vim.api.nvim_win_get_buf(win), props.toggle_key, "close", function()
     vim.api.nvim_win_close(win, true)
-  end, { buffer = vim.api.nvim_win_get_buf(win), nowait = true, desc = "games: close" })
+  end)
 end
 
 return M
