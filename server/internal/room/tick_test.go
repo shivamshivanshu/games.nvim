@@ -317,12 +317,8 @@ func (h *harness) restore(t *testing.T, away func() bool) error {
 // timer can have moved it.
 func waitFor(t *testing.T, what string, done func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(waitTimeout)
-	for !done() {
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for %s", what)
-		}
-		time.Sleep(time.Millisecond)
+	if !prototest.WaitFor(waitTimeout, done) {
+		t.Fatalf("timed out waiting for %s", what)
 	}
 }
 

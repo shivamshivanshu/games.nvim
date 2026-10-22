@@ -26,17 +26,15 @@ func snapshotOf(t *testing.T, c *prototest.Client, id game.GameID) protocol.Game
 // pausedSnapshot waits for the game to be paused, as a disconnect does from the session's own goroutine.
 func pausedSnapshot(t *testing.T, c *prototest.Client, id game.GameID) protocol.GameUpdate {
 	t.Helper()
-	deadline := time.Now().Add(pushTimeout)
-	for {
-		u := snapshotOf(t, c, id)
-		if metronomeOf(t, u).Paused {
-			return u
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("game %s not paused: %+v", id, u)
-		}
-		time.Sleep(time.Millisecond)
+	var u protocol.GameUpdate
+	paused := func() bool {
+		u = snapshotOf(t, c, id)
+		return metronomeOf(t, u).Paused
 	}
+	if !prototest.WaitFor(pushTimeout, paused) {
+		t.Fatalf("game %s not paused: %+v", id, u)
+	}
+	return u
 }
 
 func TestTickingGamePausesWhenItsPlayerLeavesAndOnRestart(t *testing.T) {

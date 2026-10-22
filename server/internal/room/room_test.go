@@ -341,12 +341,9 @@ func TestFailedTimeoutPersistRetriesAfterDelay(t *testing.T) {
 	h.clock.Advance(10 * time.Minute)
 
 	retryAt := h.clock.Now().Add(retryDelay)
-	deadline := time.Now().Add(waitTimeout)
-	for h.persist.attempted() < 3 || !slices.Equal(h.clock.Armed(), []time.Time{retryAt}) {
-		if time.Now().After(deadline) {
-			t.Fatalf("after a failed timeout persist: armed %v, want only %v", h.clock.Armed(), retryAt)
-		}
-		time.Sleep(time.Millisecond)
+	retried := func() bool { return h.persist.attempted() >= 3 && slices.Equal(h.clock.Armed(), []time.Time{retryAt}) }
+	if !prototest.WaitFor(waitTimeout, retried) {
+		t.Fatalf("after a failed timeout persist: armed %v, want only %v", h.clock.Armed(), retryAt)
 	}
 	time.Sleep(20 * time.Millisecond)
 	before := h.persist.attempted()

@@ -324,12 +324,8 @@ func TestTimeoutListsAsFinishedAfterRestart(t *testing.T) {
 // flag timers, so advancing the clock cannot fire a timeout in a dying room.
 func waitDisarmed(t *testing.T, clock *clocktest.FakeClock) {
 	t.Helper()
-	deadline := time.Now().Add(shutdownWait)
-	for len(clock.Armed()) > 0 {
-		if time.Now().After(deadline) {
-			t.Fatalf("timers still armed after shutdown: %v", clock.Armed())
-		}
-		time.Sleep(time.Millisecond)
+	if !prototest.WaitFor(shutdownWait, func() bool { return len(clock.Armed()) == 0 }) {
+		t.Fatalf("timers still armed after shutdown: %v", clock.Armed())
 	}
 }
 

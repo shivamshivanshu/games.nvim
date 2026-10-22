@@ -191,6 +191,19 @@ func ReplyOf(env protocol.Envelope) (json.RawMessage, error) {
 	return nil, fmt.Errorf("reply of type %s", env.Type)
 }
 
+// WaitFor polls done every millisecond until it holds, for at most timeout,
+// and reports whether it held.
+func WaitFor(timeout time.Duration, done func() bool) bool {
+	deadline := time.Now().Add(timeout)
+	for !done() {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(time.Millisecond)
+	}
+	return true
+}
+
 // WantCode fails t unless err is a protocol.Error with code, and returns its
 // message.
 func WantCode(t testing.TB, err error, code protocol.ErrorCode) string {
