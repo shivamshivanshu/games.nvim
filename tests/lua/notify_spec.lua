@@ -75,7 +75,10 @@ function T.giving_up_notifies_errors()
     conn:push("disconnected", { code = "version_mismatch", message = "want v2", retrying = false })
 
     assert_eq(2, #notified)
-    assert(notified[1][1]:find("login failed (invalid credentials)", 1, true), notified[1][1])
+    assert_eq(
+      "games: login failed (invalid credentials); not reconnecting, check username and password, or run :Games register for a new account",
+      notified[1][1]
+    )
     assert(notified[2][1]:find("update the plugin", 1, true), notified[2][1])
     assert_eq({ vim.log.levels.ERROR, vim.log.levels.ERROR }, { notified[1][2], notified[2][2] })
   end)
