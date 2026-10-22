@@ -15,11 +15,7 @@ const metronomeType game.GameType = "metronome"
 
 func metronomeOf(t *testing.T, u protocol.GameUpdate) gametest.MetronomeView {
 	t.Helper()
-	var view gametest.MetronomeView
-	if err := json.Unmarshal(u.View, &view); err != nil {
-		t.Fatal(err)
-	}
-	return view
+	return gametest.MetronomeViewOf(t, u.View)
 }
 
 func snapshotOf(t *testing.T, c *prototest.Client, id game.GameID) protocol.GameUpdate {

@@ -15,6 +15,7 @@ import (
 	"github.com/shivamshivanshu/games.nvim/server/internal/protocol"
 	"github.com/shivamshivanshu/games.nvim/server/internal/prototest"
 	"github.com/shivamshivanshu/games.nvim/server/internal/store"
+	"github.com/shivamshivanshu/games.nvim/server/internal/xslices"
 )
 
 func away() bool { return true }
@@ -46,19 +47,11 @@ func (h *harness) advance(t *testing.T, d time.Duration) protocol.GameUpdate {
 
 func metronomeView(t *testing.T, u protocol.GameUpdate) gametest.MetronomeView {
 	t.Helper()
-	var view gametest.MetronomeView
-	if err := json.Unmarshal(u.View, &view); err != nil {
-		t.Fatal(err)
-	}
-	return view
+	return gametest.MetronomeViewOf(t, u.View)
 }
 
 func stepKinds(steps []store.StepRecord) []store.StepKind {
-	kinds := make([]store.StepKind, len(steps))
-	for i, st := range steps {
-		kinds[i] = st.Kind
-	}
-	return kinds
+	return xslices.Map(steps, func(st store.StepRecord) store.StepKind { return st.Kind })
 }
 
 func TestTickFiresAsARecordedStepAndRearms(t *testing.T) {
@@ -432,11 +425,7 @@ func replayedMetronome(t *testing.T, p Params) gametest.MetronomeView {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var view gametest.MetronomeView
-	if err := json.Unmarshal(raw, &view); err != nil {
-		t.Fatal(err)
-	}
-	return view
+	return gametest.MetronomeViewOf(t, raw)
 }
 
 func TestFailedTickBatchRetriesAfterDelay(t *testing.T) {

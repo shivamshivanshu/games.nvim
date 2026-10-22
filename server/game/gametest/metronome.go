@@ -1,7 +1,9 @@
 package gametest
 
 import (
+	"encoding/json"
 	"math/rand/v2"
+	"testing"
 	"time"
 
 	"github.com/shivamshivanshu/games.nvim/server/game"
@@ -41,6 +43,16 @@ type MetronomeView struct {
 	Ticks  int  `json:"ticks"`
 	Taps   int  `json:"taps"`
 	Paused bool `json:"paused"`
+}
+
+// MetronomeViewOf is the metronome view raw encodes, as the core sends it.
+func MetronomeViewOf(t testing.TB, raw json.RawMessage) MetronomeView {
+	t.Helper()
+	var view MetronomeView
+	if err := json.Unmarshal(raw, &view); err != nil {
+		t.Fatal(err)
+	}
+	return view
 }
 
 // BeatEvent reports a tick and the total it reached.
