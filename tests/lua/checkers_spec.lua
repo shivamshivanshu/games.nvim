@@ -30,9 +30,7 @@ end
 ---@param header_height integer
 ---@return string[] the eight board lines, trailing space trimmed
 local function board_lines(rendered, header_height)
-  return vim.tbl_map(function(line)
-    return (line:gsub("%s+$", ""))
-  end, vim.list_slice(rendered.lines, header_height + 2, header_height + 9))
+  return helpers.trimmed_lines(rendered, header_height + 2, header_height + 9)
 end
 
 ---The highlight stack of an ascii cell drawn at display row and col, both 1-based.

@@ -62,12 +62,6 @@ local function cell_hl(rendered, r, c)
   return helpers.cell_hl_at(rendered, BOARD, r, c)
 end
 
----@param rendered games.Rendered
----@return string
-local function footer(rendered)
-  return rendered.lines[#rendered.lines]
-end
-
 local T = {}
 
 function T.board_centres_each_tile_beside_the_score_and_the_goal_in_both_glyph_modes()
@@ -95,12 +89,12 @@ end
 function T.direction_keys_are_bound_only_for_the_movable_directions()
   assert_eq(
     "R give up  h left  j down  l right  ]g next game  ? help  q close",
-    footer(render(update_with()))
+    helpers.footer(render(update_with()))
   )
-  assert_eq("]g next game  ? help  q close", footer(render(lost())))
+  assert_eq("]g next game  ? help  q close", helpers.footer(render(lost())))
   assert_eq(
     "R give up  ]g next game  ? help  q close",
-    footer(
+    helpers.footer(
       (
         shell.render(
           update_with(),
@@ -121,7 +115,7 @@ function T.every_direction_is_bound_when_every_direction_moves()
   open.view = vim.tbl_extend("force", open.view, { movable = { "up", "down", "left", "right" } })
   assert_eq(
     "R give up  h left  j down  k up  l right  ]g next game  ? help  q close",
-    footer(render(open))
+    helpers.footer(render(open))
   )
 end
 

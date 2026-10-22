@@ -133,7 +133,7 @@ function T.reveal_is_offered_only_in_a_running_study()
   }) do
     local rendered, _, bindings =
       helpers.render_game("chess_puzzle", case.state, { glyphs = "unicode" })
-    assert_eq(case.footer, rendered.lines[#rendered.lines])
+    assert_eq(case.footer, helpers.footer(rendered))
     local reveal = vim.iter(bindings):find(function(binding)
       return binding.key == "n"
     end)

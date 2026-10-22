@@ -89,9 +89,7 @@ function T.board_frames_hits_and_presents_and_lists_the_keyboard_beside_it()
     local state = update()
     state.view.keyboard.t = "hit"
     local rendered = helpers.render_game("wordle", state, { me = "sam", glyphs = case.glyphs })
-    local board = vim.tbl_map(function(line)
-      return (line:gsub("%s+$", ""))
-    end, vim.list_slice(rendered.lines, BOARD_ROWS[1], BOARD_ROWS[2]))
+    local board = helpers.trimmed_lines(rendered, BOARD_ROWS[1], BOARD_ROWS[2])
     assert_eq(case.board, board)
   end
 end

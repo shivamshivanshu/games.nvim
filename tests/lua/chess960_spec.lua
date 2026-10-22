@@ -65,7 +65,7 @@ function T.claim_draw_is_offered_only_when_the_view_allows_it()
     local update = castled()
     update.view.claimable_draw = claimable
     local rendered = helpers.render_game("chess960", update)
-    assert_eq(claimable, rendered.lines[#rendered.lines]:find(" C claim draw ", 1, true) ~= nil)
+    assert_eq(claimable, helpers.footer(rendered):find(" C claim draw ", 1, true) ~= nil)
   end
 end
 

@@ -62,7 +62,7 @@ function T.a_solved_board_tints_every_tile_and_offers_no_move()
   assert_eq("  1    2    3    moves 5", rendered.lines[FIRST_BOARD_ROW + 1])
   local won = { "GamesWin", "GamesWinInk" }
   assert_eq({ won, won }, helpers.hls_on_row(rendered, FIRST_BOARD_ROW + 2))
-  assert_eq("]g next game  ? help  q close", rendered.lines[#rendered.lines])
+  assert_eq("]g next game  ? help  q close", helpers.footer(rendered))
 end
 
 function T.direction_keys_are_bound_only_where_a_tile_can_move_that_way()
@@ -76,7 +76,7 @@ function T.direction_keys_are_bound_only_where_a_tile_can_move_that_way()
       nil,
       catalogued
     )
-    return rendered.lines[#rendered.lines]
+    return helpers.footer(rendered)
   end
   assert_eq(
     "R give up  m slide tile, e.g. 7  h left  j down  l right  ]g next game  ? help  q close",

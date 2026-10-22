@@ -42,12 +42,6 @@ local function cell_hl(rendered, r, c)
   return helpers.cell_hl_at(rendered, BOARD, r, c)
 end
 
----@param rendered games.Rendered
----@return string
-local function footer(rendered)
-  return rendered.lines[#rendered.lines]
-end
-
 local T = {}
 
 function T.the_viewer_sits_at_the_bottom_sowing_left_to_right_into_the_right_store()
@@ -82,14 +76,14 @@ end
 function T.sow_keys_are_bound_for_the_movers_legal_pits_only()
   assert_eq(
     "R resign  D offer draw  1,3-6 sow  ]g next game  ? help  q close",
-    footer(render(update_with(), "bob"))
+    helpers.footer(render(update_with(), "bob"))
   )
   local waiting = update_with({
     view = { legal_pits = {} },
   })
   assert_eq(
     "R resign  D offer draw  ]g next game  ? help  q close",
-    footer(render(waiting, "alice"))
+    helpers.footer(render(waiting, "alice"))
   )
 end
 

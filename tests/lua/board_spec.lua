@@ -178,17 +178,12 @@ function T.grids_beside_the_first_share_its_cell_height_under_their_titles()
     end,
   }
   local narrow = compose.render(board(vim.tbl_extend("force", props, { panels = { panel } }), {}))
-  assert_eq(
-    {
-      "mine    theirs   note",
-      "1 x x   1 o o",
-      "2 x x   2 o o",
-      "  a b     a b",
-    },
-    vim.tbl_map(function(line)
-      return (line:gsub("%s+$", ""))
-    end, narrow.lines)
-  )
+  assert_eq({
+    "mine    theirs   note",
+    "1 x x   1 o o",
+    "2 x x   2 o o",
+    "  a b     a b",
+  }, helpers.trimmed_lines(narrow))
 
   local roomy = compose.render(board(props, { space = { w = 40, h = 9 }, ambiwidth = "single" }))
   local cell_height = 3

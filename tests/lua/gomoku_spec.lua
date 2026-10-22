@@ -129,8 +129,7 @@ end
 
 function T.m_types_a_cell_while_the_game_is_on()
   local function footer(update)
-    local lines = render(update).lines
-    return lines[#lines]
+    return helpers.footer(render(update))
   end
   assert_eq(
     "R resign  D offer draw  m place, e.g. h8  ]g next game  ? help  q close",

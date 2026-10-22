@@ -108,9 +108,7 @@ end
 ---@param count integer
 ---@return string[] those lines without trailing space
 local function lines_of(rendered, from, count)
-  return vim.tbl_map(function(line)
-    return (line:gsub("%s+$", ""))
-  end, vim.list_slice(rendered.lines, from, from + count - 1))
+  return helpers.trimmed_lines(rendered, from, from + count - 1)
 end
 
 ---@param state games.BattleshipUpdate
@@ -247,7 +245,7 @@ function T.a_finished_board_shows_the_opponents_ships_and_offers_nothing()
     "      your fleet                 target           game over",
     "1  . . . . . . . . . .   1  # # # # # . . . . .",
   }, lines_of(rendered, FIRST_BOARD_ROW - 1, 2))
-  assert_eq("]g next game  ? help  q close", rendered.lines[#rendered.lines])
+  assert_eq("]g next game  ? help  q close", helpers.footer(rendered))
 end
 
 function T.an_80_column_window_fits_the_firing_footer_and_wraps_the_setup_footer_before_close()
@@ -284,7 +282,7 @@ function T.keys_follow_the_phase_and_the_catalogue()
   }
   for _, case in ipairs(cases) do
     local rendered = render(case[1], helpers.view_options("battleship", "ascii"), case[2])
-    local footer = rendered.lines[#rendered.lines]
+    local footer = helpers.footer(rendered)
     assert_eq(case[3], footer)
     local setting_up = case[1].view.next ~= nil
     assert(setting_up or vim.fn.strdisplaywidth(footer) <= 80, footer)

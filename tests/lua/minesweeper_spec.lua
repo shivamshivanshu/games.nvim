@@ -143,7 +143,7 @@ function T.keys_follow_the_catalogue_the_chordable_cells_and_the_end()
       nil,
       catalogued
     )
-    return rendered.lines[#rendered.lines]
+    return helpers.footer(rendered)
   end
   local nothing_to_chord = update()
   nothing_to_chord.view = vim.tbl_extend("force", nothing_to_chord.view, { chordable = {} })

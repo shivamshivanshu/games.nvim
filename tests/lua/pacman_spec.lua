@@ -59,12 +59,6 @@ local function cell_hl(rendered, r, c)
   return helpers.cell_hl_at(rendered, BOARD, r, c)
 end
 
----@param rendered games.Rendered
----@return string
-local function footer(rendered)
-  return rendered.lines[#rendered.lines]
-end
-
 local T = {}
 
 function T.board_draws_the_maze_pacman_and_each_ghost_beside_the_status_in_both_glyph_modes()
@@ -177,15 +171,15 @@ end
 function T.turn_keys_while_the_game_goes_on_and_pause_only_while_it_runs()
   assert_eq(
     "R give up  h left  j down  k up  l right  p pause  ]g next game  ? help  q close",
-    footer(render(update_with()))
+    helpers.footer(render(update_with()))
   )
   assert_eq(
     "R give up  h left  j down  k up  l right  ]g next game  ? help  q close",
-    footer(render(update_with({ paused = true, can_pause = false })))
+    helpers.footer(render(update_with({ paused = true, can_pause = false })))
   )
   local over = update_with({ can_turn = false, can_pause = false })
   over.controls, over.to_act = {}, {}
-  assert_eq("]g next game  ? help  q close", footer(render(over)))
+  assert_eq("]g next game  ? help  q close", helpers.footer(render(over)))
 end
 
 function T.each_key_and_arrow_sends_its_action()

@@ -67,8 +67,7 @@ end
 
 function T.footer_offers_the_open_columns_only_to_the_seat_to_move()
   local function footer(update, me)
-    local lines = render(update, me).lines
-    return lines[#lines]
+    return helpers.footer(render(update, me))
   end
   local column_four_full = update_with({
     view = { legal_columns = { 1, 2, 3, 5, 6, 7 } },

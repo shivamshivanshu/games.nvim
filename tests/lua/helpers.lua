@@ -363,6 +363,24 @@ function M.hl_stack_at(rendered, row, col)
   return type(hl) == "table" and hl or { hl }
 end
 
+---rendered's lines first to last, all of them by default, each without its trailing space.
+---@param rendered games.Rendered
+---@param first? integer
+---@param last? integer
+---@return string[]
+function M.trimmed_lines(rendered, first, last)
+  return vim.tbl_map(function(line)
+    return (line:gsub("%s+$", ""))
+  end, vim.list_slice(rendered.lines, first, last))
+end
+
+---The last line of rendered, where a board lists its keys.
+---@param rendered games.Rendered
+---@return string
+function M.footer(rendered)
+  return rendered.lines[#rendered.lines]
+end
+
 ---Where the cells of a board sit in its rendered lines.
 ---@class games.test.BoardGeometry
 ---@field top integer 0-based line of row 1

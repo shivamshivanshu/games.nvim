@@ -51,9 +51,7 @@ end
 ---@param rendered games.Rendered
 ---@return string[]
 local function board_lines(rendered)
-  return vim.tbl_map(function(line)
-    return (line:gsub("%s+$", ""))
-  end, vim.list_slice(rendered.lines, BOARD_ROWS[1], BOARD_ROWS[2]))
+  return helpers.trimmed_lines(rendered, BOARD_ROWS[1], BOARD_ROWS[2])
 end
 
 local T = {}

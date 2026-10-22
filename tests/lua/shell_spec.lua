@@ -95,7 +95,7 @@ function T.render_start_position()
   local header = rendered.lines[1]
   assert(header:find("alice", 1, true) and header:find("your move", 1, true), header)
   assert_eq("8 r n b q k b n r   K king", without_trailing_space(board_lines(rendered.lines)[1]))
-  local footer = rendered.lines[#rendered.lines]
+  local footer = helpers.footer(rendered)
   assert(footer:find("R resign", 1, true) and footer:find("A abort", 1, true), footer)
   assert(not footer:find("X ", 1, true), footer)
 end
@@ -225,7 +225,7 @@ end
 local function footer_of(update, catalogued)
   local rendered =
     shell.render(update, chess, ASCII, "alice", 0, nil, catalogued or helpers.catalogued("chess"))
-  return rendered.lines[#rendered.lines]
+  return helpers.footer(rendered)
 end
 
 function T.claim_draw_is_offered_only_when_the_view_says_it_is_claimable()
@@ -291,7 +291,7 @@ function T.an_action_with_input_prompts_and_sends_its_trimmed_text_while_catalog
     local binding = vim.iter(bindings):find(function(b)
       return b.key == "f"
     end)
-    assert_eq(binding ~= nil, rendered.lines[#rendered.lines]:find("f flag", 1, true) ~= nil)
+    assert_eq(binding ~= nil, helpers.footer(rendered):find("f flag", 1, true) ~= nil)
     return binding
   end
   local flaggable = chess_update({ game_id = "flag01", seq = 4, view = { flaggable = true } })
@@ -1100,7 +1100,7 @@ function T.available_gates_view_keys_and_the_typed_input_as_it_does_actions()
       nil,
       { go = { kind = "go", description = "go", input = { field = "cell" } } }
     )
-    return rendered.lines[#rendered.lines]
+    return helpers.footer(rendered)
   end
   local controls = "R resign  D offer draw  A abort  "
   assert_eq(controls .. "m go to  r rotate  ]g next game  ? help  q close", footer(true))

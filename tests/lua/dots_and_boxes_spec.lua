@@ -96,9 +96,7 @@ end
 ---@param count integer
 ---@return string[] those lines without trailing space
 local function lines_of(rendered, from, count)
-  return vim.tbl_map(function(line)
-    return (line:gsub("%s+$", ""))
-  end, vim.list_slice(rendered.lines, from, from + count - 1))
+  return helpers.trimmed_lines(rendered, from, from + count - 1)
 end
 
 ---@param bindings games.KeyBinding[]
@@ -274,7 +272,7 @@ function T.keys_follow_the_turn()
       ),
       me
     )
-    assert_eq(want, rendered.lines[#rendered.lines])
+    assert_eq(want, helpers.footer(rendered))
   end
   local rendered = render(over, helpers.view_options("dots_and_boxes", "ascii"))
   assert_eq({ "1 +---+   +   +   game over" }, lines_of(rendered, FIRST_BOARD_ROW, 1))
