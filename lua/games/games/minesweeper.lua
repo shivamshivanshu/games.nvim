@@ -11,17 +11,13 @@ local Group = highlights.Group
 
 ---"0" to "8" is a revealed cell's count; mine, flagged_mine, exploded and wrong_flag appear once
 ---the game is over.
----@alias games.MinesweeperCell "hidden"|"flag"|"mine"|"flagged_mine"|"exploded"|"wrong_flag"|"0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"
-
----@class games.MinesweeperSquare
----@field row integer 1 at the top
----@field col integer 1 at the left
+---@alias games.MinesweeperTile "hidden"|"flag"|"mine"|"flagged_mine"|"exploded"|"wrong_flag"|"0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"
 
 ---@class games.MinesweeperView
----@field cells games.MinesweeperCell[][] rows from the top
+---@field cells games.MinesweeperTile[][] rows from the top
 ---@field flags integer
 ---@field remaining integer mines less flags; negative with more flags than mines
----@field chordable games.MinesweeperSquare[] revealed numbers a chord acts on now; empty once over
+---@field chordable games.Cell[] revealed numbers a chord acts on now; empty once over
 
 ---@class games.MinesweeperUpdate: games.GameUpdate
 ---@field view games.MinesweeperView
@@ -57,7 +53,7 @@ local MINES_LEFT_LABEL = "mines left"
 ---Display columns the status panel reserves: its widest label, a space, and a count such as -99.
 local PANEL_WIDTH = #MINES_LEFT_LABEL + 1 + 3
 
----@type table<games.MinesweeperCell, games.Hl>
+---@type table<games.MinesweeperTile, games.Hl>
 local CELL_HL = { hidden = HIDDEN_HL, flag = FLAG_HL, flagged_mine = FLAG_HL, wrong_flag = FLAG_HL }
 
 ---@param row integer

@@ -23,7 +23,7 @@ local function view_options(glyphs, extra)
 end
 
 ---@param rows string[] "#" hidden, "F" flag, a digit revealed, and "*", "M", "X", "!" once over
----@return games.MinesweeperCell[][]
+---@return games.MinesweeperTile[][]
 local function cells_of(rows)
   return vim.tbl_map(function(row)
     return vim.tbl_map(function(code)

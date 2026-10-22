@@ -44,7 +44,7 @@ local LUA_TYPE_EXCEPTIONS = {
   g2048 = { Direction = "games.Direction" },
   gomoku = { Cell = "games.Cell" },
   hearts = { PassDirection = "games.HeartsPass" },
-  minesweeper = { Cell = "games.Cell", Tile = "games.MinesweeperCell" },
+  minesweeper = { Cell = "games.Cell" },
   reversi = { Cell = "games.Cell" },
   tictactoe = { Cell = "games.Cell" },
   pacman = {

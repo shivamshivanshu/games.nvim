@@ -17,8 +17,6 @@ local Group = highlights.Group
 ---@class games.DotsAndBoxesLine: games.GridPos
 ---@field orientation games.Orientation
 
----@class games.DotsAndBoxesBox: games.GridPos
-
 ---@class games.DotsAndBoxesView
 ---@field across (games.DotsAndBoxesSeat|"")[][] who drew the edge across from each dot, rows of dots from the top; "" while undrawn
 ---@field down (games.DotsAndBoxesSeat|"")[][] who drew the edge down from each dot
@@ -34,7 +32,7 @@ local Group = highlights.Group
 ---@field kind "drawn"
 ---@field by games.DotsAndBoxesSeat
 ---@field edge games.DotsAndBoxesLine
----@field boxes games.DotsAndBoxesBox[] the boxes the edge completed
+---@field boxes games.Cell[] the boxes the edge completed
 ---@field again boolean whether by moves again, having completed a box with the game still on
 
 local DRAW_KIND = "draw"

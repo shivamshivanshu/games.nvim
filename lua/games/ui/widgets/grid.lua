@@ -14,7 +14,7 @@ local Group = highlights.Group
 ---@alias games.GridLabelList string|string[] a string labels one character per index
 
 ---A board cell on the wire, 1-based: row 1 at the top, col 1 at the left.
----@class games.Cell
+---@class games.Cell: games.GridPos
 ---@field row integer
 ---@field col integer
 

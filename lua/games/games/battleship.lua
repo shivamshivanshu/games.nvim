@@ -22,8 +22,6 @@ local Group = highlights.Group
 
 ---@alias games.BattleshipShotOutcome "miss"|"hit"|"sunk"
 
----@class games.BattleshipSquare: games.GridPos
-
 ---@class games.BattleshipShipSpec
 ---@field name games.BattleshipShipName
 ---@field size integer
@@ -34,8 +32,8 @@ local Group = highlights.Group
 ---@field state games.BattleshipShipState the opponent's ships are afloat or sunk
 
 ---@class games.BattleshipAnchors
----@field across games.BattleshipSquare[] where the next ship's left end may go
----@field down games.BattleshipSquare[] where its top end may go
+---@field across games.Cell[] where the next ship's left end may go
+---@field down games.Cell[] where its top end may go
 
 ---@class games.BattleshipView
 ---@field phase games.BattleshipPhase
@@ -45,7 +43,7 @@ local Group = highlights.Group
 ---@field enemy games.BattleshipShipStatus[] the opponent's ships, in the same order
 ---@field next? games.BattleshipShipSpec the viewer's ship to place now
 ---@field anchors games.BattleshipAnchors the viewer's own; empty unless placing
----@field targets games.BattleshipSquare[] the viewer's own: where it may fire; empty unless to fire
+---@field targets games.Cell[] the viewer's own: where it may fire; empty unless to fire
 ---@field last? games.BattleshipShot the latest shot of either seat
 
 ---@class games.BattleshipUpdate: games.GameUpdate
@@ -57,7 +55,7 @@ local Group = highlights.Group
 
 ---@class games.BattleshipShot
 ---@field by games.BattleshipSeat
----@field cell games.BattleshipSquare
+---@field cell games.Cell
 ---@field outcome games.BattleshipShotOutcome
 ---@field ship? games.BattleshipShipName the ship it sank
 
@@ -114,7 +112,7 @@ local function aiming(update)
   return placing(update) or firing(update)
 end
 
----@param squares games.BattleshipSquare[]
+---@param squares games.Cell[]
 ---@param cell games.GridPos
 ---@return boolean
 local function contains(squares, cell)
