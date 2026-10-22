@@ -311,7 +311,7 @@ func (s *Store) loadRows(ctx context.Context, ids []game.GameID) ([]GameRecord, 
 	recs, err := queryAll(ctx, s.reader, scanGame,
 		`SELECT game_id, game_type, options_json, rng_seed, created_at,
 		        finished_at, final_seq, result_kind, result_reason, summary, digest, exports_json
-		 FROM games WHERE `+inSet("game_id", len(ids)), anySlice(ids)...)
+		 FROM games WHERE `+inSet("game_id", len(ids)), xslices.Any(ids)...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -321,7 +321,7 @@ func (s *Store) loadRows(ctx context.Context, ids []game.GameID) ([]GameRecord, 
 	}
 	slices.SortFunc(recs, func(a, b GameRecord) int { return cmp.Compare(position[a.ID], position[b.ID]) })
 	players, err := queryAll(ctx, s.reader, scanPlayer,
-		`SELECT game_id, username, seat, outcome, score, final_view FROM game_players WHERE `+inSet("game_id", len(ids))+` ORDER BY rowid`, anySlice(ids)...)
+		`SELECT game_id, username, seat, outcome, score, final_view FROM game_players WHERE `+inSet("game_id", len(ids))+` ORDER BY rowid`, xslices.Any(ids)...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -359,15 +359,11 @@ func (s *Store) ongoingSteps(ctx context.Context, recs []GameRecord) ([]ofGame[S
 	}
 	return queryAll(ctx, s.reader, scanStep,
 		`SELECT game_id, seq, username, kind, action_json, server_ts, clock_json
-		 FROM actions WHERE `+inSet("game_id", len(ongoing))+` ORDER BY game_id, seq`, anySlice(ongoing)...)
+		 FROM actions WHERE `+inSet("game_id", len(ongoing))+` ORDER BY game_id, seq`, xslices.Any(ongoing)...)
 }
 
 func inSet(column string, n int) string {
 	return column + ` IN (?` + strings.Repeat(`, ?`, n-1) + `)`
-}
-
-func anySlice[T any](values []T) []any {
-	return xslices.Map(values, func(v T) any { return v })
 }
 
 type scanner interface {

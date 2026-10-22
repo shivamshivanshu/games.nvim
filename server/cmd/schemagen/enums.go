@@ -52,7 +52,7 @@ func isGameKind(t reflect.Type) bool {
 }
 
 func (e enum) schema(description string) *jsonschema.Schema {
-	values := xslices.Map(e.values, func(v string) any { return v })
+	values := xslices.Any(e.values)
 	s := &jsonschema.Schema{Type: "string", Description: description}
 	if e.open {
 		s.Examples = values

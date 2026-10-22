@@ -105,7 +105,7 @@ func actionAlternative(spec game.ActionSpec, action *jsonschema.Schema) (*jsonsc
 			Type:        "string",
 			Description: in.Description,
 			Pattern:     in.Pattern,
-			Enum:        xslices.Map(in.Values, func(v string) any { return v }),
+			Enum:        xslices.Any(in.Values),
 		})
 		required = append(required, in.Field)
 	}

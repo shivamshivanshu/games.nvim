@@ -12,6 +12,9 @@ func Map[S ~[]E, E, R any](s S, f func(E) R) []R {
 	return out
 }
 
+// Any is s as values of type any, such as query arguments; it never returns nil.
+func Any[S ~[]E, E any](s S) []any { return Map(s, func(e E) any { return e }) }
+
 // Count is how many elements of s are v.
 func Count[S ~[]E, E comparable](s S, v E) int {
 	n := 0
