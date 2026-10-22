@@ -17,11 +17,10 @@ end
 ---Uno cards as colour letter and face, "R7", "G+2", "W+4", the skip "⊘" and the reverse "⇄";
 ---in ascii as on the wire, "RS", "RR". The draw pile is a card back.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = build.glyph_set(unicode_lines, cards.UNO_GLYPH_WIDTH),
     ascii = build.glyph_set(ascii_lines, cards.UNO_GLYPH_WIDTH),
   },
   art = {},
-}
+})

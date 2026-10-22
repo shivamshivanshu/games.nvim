@@ -27,6 +27,13 @@ function M.sprite(lines)
   return { h = #lines, w = vim.fn.strchars(lines[1]), lines = lines }
 end
 
+---The pack a game loads unless the user names another.
+---@param pack { glyphs: table<games.Glyphs, games.ArtSet>, art: games.ArtSet }
+---@return games.AssetPack
+function M.default_pack(pack)
+  return { name = assets.DEFAULT_PACK, glyphs = pack.glyphs, art = pack.art }
+end
+
 ---@param set games.ArtSet
 ---@param keys string[]
 ---@return games.ArtSet
@@ -44,13 +51,12 @@ end
 ---@param art games.ArtSet
 ---@return games.AssetPack
 function M.pack(keys, glyphs, art)
-  return {
-    name = assets.DEFAULT_PACK,
+  return M.default_pack({
     glyphs = vim.tbl_map(function(set)
       return only(set, keys)
     end, glyphs),
     art = only(art, keys),
-  }
+  })
 end
 
 ---pack with each key drawn as its source key.

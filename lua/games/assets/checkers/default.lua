@@ -7,8 +7,7 @@ local GLYPH_WIDTH = 1
 ---Draughts glyphs, hollow white and solid black, with disc art for cells 3 to 6 lines tall; a
 ---king's disc carries a ring.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = build.glyph_set({
       b = "⛂",
@@ -142,4 +141,4 @@ return {
       }),
     },
   },
-}
+})

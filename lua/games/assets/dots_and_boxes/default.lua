@@ -18,8 +18,7 @@ end
 ---Dots and Boxes: dots, edges open, drawn, drawn last and under the cursor, and boxes, each its own
 ---glyph so no state rests on colour, with block art for owned boxes in cells 3 lines tall and up.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = build.glyph_set({
       -- These are two cells wide under ambiwidth=double, where the ascii ones stand in.
@@ -52,4 +51,4 @@ return {
     }, GLYPH_WIDTH),
   },
   art = art_set(),
-}
+})

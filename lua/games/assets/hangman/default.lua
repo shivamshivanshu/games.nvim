@@ -78,11 +78,10 @@ end
 ---a dot at the bottom right), hidden ones a blank; the gallows gains a body part per miss, in box
 ---drawing or plain ascii.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = glyph_set("unicode"),
     ascii = glyph_set("ascii"),
   },
   art = art_set(),
-}
+})

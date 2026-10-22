@@ -55,11 +55,10 @@ end
 ---a flagged mine, the exploded mine and a crossed-out wrong flag, each its own glyph so no state rests on
 ---colour; block art for the counts and icons in cells 3 lines tall and up.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = glyph_set("░░", "⚑ ", "✱ ", "⚑✱", "✸ ", "✗ "),
     ascii = glyph_set("##", "F ", "* ", "F*", "*!", "Fx"),
   },
   art = art_set(),
-}
+})

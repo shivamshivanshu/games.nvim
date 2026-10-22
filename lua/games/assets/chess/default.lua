@@ -6,8 +6,7 @@ local GLYPH_WIDTH = 1
 
 ---Unicode chess glyphs, hollow white and solid black, with block art for cells 3 to 6 lines tall.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = build.glyph_set({
       K = "♔",
@@ -247,4 +246,4 @@ return {
       }),
     },
   },
-}
+})

@@ -19,11 +19,10 @@ end
 ---Wordle tiles: the letter, framed [A] for a hit and (A) when present so feedback never rests on
 ---colour alone; block letters 3 and 6 lines tall, with a bar or a dot on the right for the same.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = glyph_set(" · "),
     ascii = glyph_set(" . "),
   },
   art = letters.by_letter(letters.art, FEEDBACK_MARKERS),
-}
+})

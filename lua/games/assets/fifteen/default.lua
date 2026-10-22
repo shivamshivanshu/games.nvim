@@ -35,8 +35,7 @@ local glyphs = glyph_set()
 ---15-puzzle tiles: the number, bracketed when it may move so that never rests on colour alone,
 ---and block digits, underlined when movable, in cells 4 lines tall and up.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = { unicode = glyphs, ascii = glyphs },
   art = art_set(),
-}
+})

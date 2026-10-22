@@ -29,8 +29,7 @@ end
 ---fits, the aim, and either where it may not go; each its own glyph so no state rests on colour,
 ---with block art in cells 2 lines tall and up.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = build.glyph_set({
       -- "·" and the squares are two cells wide under ambiwidth=double, where the ascii ones stand in.
@@ -55,4 +54,4 @@ return {
     }, GLYPH_WIDTH),
   },
   art = art_set(),
-}
+})

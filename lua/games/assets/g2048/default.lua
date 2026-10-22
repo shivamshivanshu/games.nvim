@@ -31,8 +31,7 @@ end
 
 ---2048 tiles: the value, centred, and block digits in cells wide enough for four of them.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = { unicode = glyph_set("·"), ascii = glyph_set(".") },
   art = art_set(),
-}
+})

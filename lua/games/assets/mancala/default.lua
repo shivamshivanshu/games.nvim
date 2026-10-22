@@ -39,8 +39,7 @@ local glyphs = glyph_set()
 ---Mancala counts: a pit's seeds plain, bracketed when the viewer may sow it, and in parentheses in
 ---a store, so neither rests on colour alone; block digits in cells 5 lines tall and up.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = { unicode = glyphs, ascii = glyphs },
   art = art_set(),
-}
+})

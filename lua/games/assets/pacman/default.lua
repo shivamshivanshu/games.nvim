@@ -37,8 +37,7 @@ end
 ---ghost with its letter, lower case while frightened and behind quotes as eyes, so neither state
 ---rests on colour alone.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = glyph_set({
       wall = "██",
@@ -66,4 +65,4 @@ return {
   art = {
     wall = solid("█"),
   },
-}
+})

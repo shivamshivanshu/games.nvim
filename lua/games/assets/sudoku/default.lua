@@ -92,12 +92,11 @@ end
 ---cell's state never rests on colour alone; block-pixel art for cells 3 lines tall and up, with
 ---bars either side for a conflict and corner ticks for a revealed digit.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     -- "·" is two cells wide under ambiwidth=double, where the ascii "." stands in for it.
     unicode = glyph_set("·"),
     ascii = glyph_set("."),
   },
   art = art_set(),
-}
+})

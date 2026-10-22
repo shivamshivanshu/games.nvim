@@ -78,8 +78,7 @@ end
 ---Ludo tokens as a shape per seat, with block art for lone tokens in cells 2 and 3 lines tall;
 ---several colours on one square show their count, 9 standing for 9 or more.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     unicode = glyph_set("unicode", {
       track = "· ",
@@ -103,4 +102,4 @@ return {
     }, "x"),
   },
   art = token_art(),
-}
+})

@@ -16,8 +16,7 @@ end
 
 ---Tic-Tac-Toe marks: a cross and a ring, with block art for cells 2 to 6 lines tall.
 ---@type games.AssetPack
-return {
-  name = "default",
+return build.default_pack({
   glyphs = {
     -- "○" is two cells wide under ambiwidth=double, where the ascii "O" stands in for it.
     unicode = glyph_set(" ✕ ", " ○ "),
@@ -75,4 +74,4 @@ return {
       }),
     },
   },
-}
+})
