@@ -16,6 +16,8 @@ local GIVE_UP_MESSAGES = {
   [ErrorCode.PASSPHRASE_REJECTED] = "sign-up failed (%s); check the passphrase with the server's host",
   [ErrorCode.USER_EXISTS] = "sign-up failed (%s); pick another username",
 }
+---What to say when a sign-up fails with an error GIVE_UP_MESSAGES does not list.
+local SIGN_UP_FAILED = "sign-up failed (%s)"
 
 ---@class (private) games.NotifyState
 ---@field challenges_to_open table<games.ChallengeID, true> accepted from this nvim
@@ -191,7 +193,8 @@ end
 
 ---@param disconnect games.Disconnect
 local function on_disconnected(disconnect)
-  local template = not disconnect.retrying and GIVE_UP_MESSAGES[disconnect.code]
+  local template = not disconnect.retrying
+    and (GIVE_UP_MESSAGES[disconnect.code] or disconnect.sign_up and SIGN_UP_FAILED)
   if template then
     M.error(template:format(disconnect.message))
   end

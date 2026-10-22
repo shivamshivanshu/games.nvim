@@ -11,15 +11,7 @@ local IDLE_HEARTBEATS = 3
 local RECONNECT_MIN_MS = 1000
 local RECONNECT_MAX_MS = 30000
 local RECONNECT_JITTER = 0.2
----Login errors after which the prompted credentials name no account, so they are asked again.
-local CREDENTIALS_REJECTED = {
-  [ErrorCode.AUTH_FAILED] = true,
-  [ErrorCode.SIGNUP_DISABLED] = true,
-  [ErrorCode.PASSPHRASE_REJECTED] = true,
-  [ErrorCode.USER_EXISTS] = true,
-}
-local FATAL_LOGIN_ERRORS =
-  vim.tbl_extend("error", CREDENTIALS_REJECTED, { [ErrorCode.VERSION_MISMATCH] = true })
+local FATAL_LOGIN_ERRORS = { [ErrorCode.AUTH_FAILED] = true, [ErrorCode.VERSION_MISMATCH] = true }
 ---@type games.CredentialField[]
 local CREDENTIAL_FIELDS = { "username", "password" }
 
@@ -27,6 +19,7 @@ local CREDENTIAL_FIELDS = { "username", "password" }
 
 ---@class games.Disconnect: games.ErrorBody
 ---@field retrying boolean false once the conn has stopped reconnecting
+---@field sign_up? boolean the login that failed was a sign-up
 
 ---@alias games.CredentialField "username"|"password"
 
@@ -371,16 +364,19 @@ function Conn:login(attempt, password)
       return
     end
     if err then
-      if FATAL_LOGIN_ERRORS[err.code] then
+      -- A refused sign-up made no account, so neither a retry nor a login with these could pass.
+      local signing_up = message_type == MessageType.AUTH_REGISTER
+      if signing_up or FATAL_LOGIN_ERRORS[err.code] then
         self.auto_reconnect = false
       end
-      if CREDENTIALS_REJECTED[err.code] then
+      if signing_up or err.code == ErrorCode.AUTH_FAILED then
         self:forget_prompted_credentials()
       end
-      self:teardown(attempt, err)
+      self:teardown(attempt, signing_up and vim.tbl_extend("force", err, { sign_up = true }) or err)
       return
     end
     ---@cast result games.LoginResult
+    self.signup_passphrase = nil
     attempt.phase = Phase.AUTHENTICATED
     attempt.idle_ms = IDLE_HEARTBEATS * result.heartbeat_ms
     self.backoff_ms = RECONNECT_MIN_MS

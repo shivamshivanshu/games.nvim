@@ -545,6 +545,18 @@ function T.register_asks_only_for_what_is_not_configured()
   end)
 end
 
+function T.register_does_not_sign_up_when_a_login_lands_during_its_prompts()
+  with_stub_client(nil, function(conn, prompts)
+    prompts.later, prompts.secrets = {}, { "erin-pass", "erin-pass", "sesame" }
+    commands.run({ "register" })
+    conn:push("connected", LOGIN)
+    prompts.later[1]("erin")
+    assert_eq({ "games: already logged in as alice" }, prompts.notified)
+    assert_eq(nil, conn.passphrase)
+    assert_eq(0, conn.connects)
+  end)
+end
+
 function T.register_while_logged_in_says_so_and_asks_nothing()
   with_stub_client({ username = "alice", password = "pw" }, function(conn, prompts)
     conn:push("connected", LOGIN)

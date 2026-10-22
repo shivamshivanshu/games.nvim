@@ -220,13 +220,22 @@ function M.ensure_connected(client, label, run)
   advance(client, state)
 end
 
+---Says who is logged in, if anyone; a reconnect can log in while sign-up prompts are open.
+---@param client games.Client
+---@return boolean
+local function says_logged_in(client)
+  local me = client:me()
+  if me then
+    notify.say(("already logged in as %s"):format(me))
+  end
+  return me ~= nil
+end
+
 ---Asks for the credentials not configured, the new password twice, and the server's sign-up
 ---passphrase, then connects creating that account in place of the first login.
 ---@param client games.Client
 function M.register(client)
-  local me = client:me()
-  if me then
-    notify.say(("already logged in as %s"):format(me))
+  if says_logged_in(client) then
     return
   end
   local missing = client.conn:missing_credentials()
@@ -234,6 +243,9 @@ function M.register(client)
   local fields = vim.list_extend(vim.list_slice(missing), { "passphrase" })
   prompt_credentials(fields, function(entered)
     if not entered then
+      return
+    end
+    if says_logged_in(client) then
       return
     end
     client.conn:fill_credentials({ username = entered.username, password = entered.password })

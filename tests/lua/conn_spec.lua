@@ -291,10 +291,11 @@ end
 
 ---Answers the n-th login with replies[n] and then hangs up, so the conn logs in again.
 ---@param replies {type: string, body: table}[]
+---@param before_reply? fun(n: integer) runs once the n-th login has arrived, before its reply
 ---@return integer port
 ---@return fun() stop
 ---@return games.Envelope[] requests each login request, as it arrived
-local function scripted_login_server(replies)
+local function scripted_login_server(replies, before_reply)
   local server = assert(vim.uv.new_tcp())
   assert(server:bind("127.0.0.1", 0))
   local logins = 0
@@ -310,6 +311,9 @@ local function scripted_login_server(replies)
       logins = logins + 1
       local request = vim.json.decode(vim.split(chunk, "\n")[1])
       table.insert(requests, request)
+      if before_reply then
+        before_reply(logins)
+      end
       local reply = vim.tbl_extend("force", { id = request.id }, replies[logins])
       socket:write(vim.json.encode(reply) .. "\n", function()
         socket:close()
@@ -412,8 +416,35 @@ function T.sign_up_replaces_only_the_first_login_and_reconnects_log_in()
   )
 end
 
+function T.a_sign_up_armed_while_a_login_is_answered_is_dropped_by_that_login()
+  local conn
+  local port, stop, requests = scripted_login_server({
+    { type = "ok", body = { user = "erin", heartbeat_ms = 60000 } },
+    { type = "ok", body = { user = "erin", heartbeat_ms = 60000 } },
+  }, function(n)
+    if n == 1 then
+      conn:sign_up("sesame")
+    end
+  end)
+  conn = Conn.new({ host = "127.0.0.1", port = port, username = "erin", password = "erin-pass" })
+  local log = helpers.record_lifecycle(conn)
+  conn:connect()
+  local reconnected = vim.wait(RECONNECT_MIN_MS + helpers.WAIT_MS, function()
+    return #log.connected == 2
+  end)
+  conn:close()
+  stop()
+  assert(reconnected, vim.inspect(log))
+  helpers.assert_eq(
+    { "auth.login", "auth.login" },
+    vim.tbl_map(function(request)
+      return request.type
+    end, requests)
+  )
+end
+
 function T.a_refused_sign_up_stops_reconnecting_and_forgets_the_prompted_credentials()
-  for _, code in ipairs({ "signup_disabled", "passphrase_rejected", "user_exists" }) do
+  for _, code in ipairs({ "signup_disabled", "passphrase_rejected", "user_exists", "bad_request" }) do
     local port, stop = scripted_login_server({
       { type = "error", body = { code = code, message = "refused" } },
     })
@@ -428,7 +459,10 @@ function T.a_refused_sign_up_stops_reconnecting_and_forgets_the_prompted_credent
     conn:close()
     stop()
     assert(refused, code)
-    helpers.assert_eq({ code = code, message = "refused", retrying = false }, log.disconnected[1])
+    helpers.assert_eq(
+      { code = code, message = "refused", retrying = false, sign_up = true },
+      log.disconnected[1]
+    )
     helpers.assert_eq({ "username", "password" }, conn:missing_credentials())
   end
 end

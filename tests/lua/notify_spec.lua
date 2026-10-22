@@ -100,6 +100,15 @@ function T.a_refused_sign_up_says_why_and_what_to_do()
   end)
 end
 
+function T.a_sign_up_refused_for_another_reason_still_says_it_failed()
+  with_alice(function(conn, notified)
+    local refused = { code = "bad_request", message = "password too long", retrying = false }
+    conn:push("disconnected", refused)
+    conn:push("disconnected", vim.tbl_extend("force", refused, { sign_up = true }))
+    assert_eq({ { "games: sign-up failed (password too long)", vim.log.levels.ERROR } }, notified)
+  end)
+end
+
 function T.resolution_messages_name_game_and_opponent()
   local challenge = {
     challenge_id = "c1",
