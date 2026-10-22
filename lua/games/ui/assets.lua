@@ -56,20 +56,6 @@ local function shape_problem(entry)
   end
 end
 
----Art is uncoloured block elements: only spaces and U+2580-259F, each line w of them.
----@param entry games.ArtEntry
----@return string|nil problem
-local function art_problem(entry)
-  for i, line in ipairs(entry.lines) do
-    if not only_blocks_and_spaces(line) then
-      return ("line %d holds characters other than spaces and U+2580-259F"):format(i)
-    end
-    if vim.fn.strchars(line) ~= entry.w then
-      return ("line %d is not w = %d wide"):format(i, entry.w)
-    end
-  end
-end
-
 ---@param path string where set sits in the pack, e.g. "glyphs.ascii"
 ---@param set any
 ---@param keys table<string, true>
@@ -116,6 +102,18 @@ local function picture_check(entry)
       return ("line %d is not w = %d wide"):format(i, entry.w)
     end
   end
+end
+
+---Art is uncoloured block elements: only spaces and U+2580-259F, each line w of them.
+---@param entry games.ArtEntry
+---@return string|nil problem
+local function art_problem(entry)
+  for i, line in ipairs(entry.lines) do
+    if not only_blocks_and_spaces(line) then
+      return ("line %d holds characters other than spaces and U+2580-259F"):format(i)
+    end
+  end
+  return picture_check(entry)
 end
 
 ---An ascii glyph or picture draws under any 'ambiwidth', so it can stand in for a unicode one.
